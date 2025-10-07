@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Flare Journal Design System - Medical-grade accessibility & clarity 
+All colors MUST be HSL for proper theming.
+*/
+
+@layer base {
+  :root {
+    /* Base colors - clinical white with warm undertones */
+    --background: 0 0% 99%;
+    --foreground: 215 25% 15%;
+
+    /* Card system - subtle depth for content hierarchy */
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 15%;
+
+    /* Interactive elements */
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 15%;
+
+    /* Medical maroon primary - warm and professional */
+    --primary: 345 65% 38%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Gentle secondary for supporting elements */
+    --secondary: 210 15% 95%;
+    --secondary-foreground: 215 25% 25%;
+
+    /* Muted elements for reduced hierarchy */
+    --muted: 210 15% 95%;
+    --muted-foreground: 215 15% 50%;
+
+    /* Accent for highlights and CTAs */
+    --accent: 345 15% 95%;
+    --accent-foreground: 345 65% 38%;
+
+    /* Error states */
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders and inputs - subtle but clear */
+    --border: 210 15% 90%;
+    --input: 210 15% 96%;
+    --ring: 345 65% 38%;
+
+    /* Flare severity color system */
+    --severity-none: 120 60% 50%;      /* Calming green */
+    --severity-mild: 45 90% 55%;       /* Warm yellow */
+    --severity-moderate: 30 90% 60%;   /* Alert orange */
+    --severity-severe: 0 75% 55%;      /* Critical red */
+
+    /* Severity backgrounds - lighter versions */
+    --severity-none-bg: 120 60% 95%;
+    --severity-mild-bg: 45 90% 95%;
+    --severity-moderate-bg: 30 90% 95%;
+    --severity-severe-bg: 0 75% 95%;
+
+    /* Typography scale - medical clarity */
+    --text-medical: 600;              /* Semi-bold for key info */
+    --text-clinical: 500;             /* Medium for labels */
+    --text-body: 400;                 /* Regular for content */
+
+    /* Spacing scale - generous for accessibility */
+    --space-touch: 3.75rem;           /* 60px - minimum touch target */
+    --space-comfortable: 2.5rem;      /* 40px - comfortable spacing */
+    --space-standard: 1.5rem;         /* 24px - standard spacing */
+
+    /* iOS-style radius - modern and rounded */
+    --radius: 1rem;                   /* 16px - iOS style curves */
+    --radius-medical: 1.25rem;        /* 20px - for cards */
+
+    /* iOS-style animations - smooth and responsive */
+    --transition-gentle: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --transition-medical: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    
+    /* iOS-style shadows */
+    --shadow-ios: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+    --shadow-ios-large: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 215 25% 8%;
+    --foreground: 0 0% 95%;
+    --card: 215 25% 10%;
+    --card-foreground: 0 0% 95%;
+    --popover: 215 25% 10%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 210 100% 60%;
+    --primary-foreground: 215 25% 8%;
+    --secondary: 215 15% 15%;
+    --secondary-foreground: 0 0% 85%;
+    --muted: 215 15% 15%;
+    --muted-foreground: 215 15% 65%;
+    --accent: 215 15% 15%;
+    --accent-foreground: 345 65% 45%;
+    --destructive: 0 75% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 215 15% 20%;
+    --input: 215 15% 18%;
+    --ring: 345 65% 45%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
