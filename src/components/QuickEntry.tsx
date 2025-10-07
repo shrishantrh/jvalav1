@@ -50,69 +50,26 @@ export const QuickEntry = ({ onSave, onAiSuggestion, geminiApiKey }: QuickEntryP
 
     // Collect comprehensive data for ALL entry types
     try {
-      // Get location (with fake coordinates for demo)
-      let latitude = 40.7128 + (Math.random() - 0.5) * 0.1; // NYC area with variation
-      let longitude = -74.0060 + (Math.random() - 0.5) * 0.1;
+      const { getCurrentLocation, fetchWeatherData } = await import("@/services/weatherService");
       
-      try {
-        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: false,
-            timeout: 3000,
-            maximumAge: 300000
-          });
-        });
-        latitude = position.coords.latitude;
-        longitude = position.coords.longitude;
-      } catch (error) {
-        console.log('Using approximate location for demo purposes');
+      const location = await getCurrentLocation();
+      if (location) {
+        const weatherData = await fetchWeatherData(location.latitude, location.longitude);
+        
+        if (weatherData) {
+          entry.environmentalData = weatherData;
+        }
       }
-
-      // Generate realistic environmental data
-      const currentHour = new Date().getHours();
-      const season = getCurrentSeason();
-      
-      // Temperature based on season and time of day
-      let baseTemp = season === 'winter' ? 5 : season === 'spring' ? 15 : 
-                     season === 'summer' ? 25 : 18;
-      const dailyVariation = Math.sin((currentHour - 6) / 24 * Math.PI * 2) * 8;
-      const temperature = Math.round(baseTemp + dailyVariation + (Math.random() - 0.5) * 6);
-      
-      // Pollen levels based on season
-      const pollenBase = season === 'spring' ? 80 : season === 'summer' ? 60 : 
-                        season === 'fall' ? 40 : 20;
-      const pollen = Math.max(0, Math.round(pollenBase + (Math.random() - 0.5) * 40));
-
-      entry.environmentalData = {
-        location: {
-          latitude,
-          longitude,
-          address: "Current Location",
-          city: "Local Area",
-          country: "Current Country"
-        },
-        weather: {
-          temperature,
-          humidity: Math.round(40 + Math.random() * 40),
-          pressure: Math.round(1000 + (Math.random() - 0.5) * 30),
-          condition: (['sunny', 'cloudy', 'rainy', 'partly-cloudy'] as const)[Math.floor(Math.random() * 4)],
-          windSpeed: Math.round(Math.random() * 25)
-        },
-        airQuality: {
-          pollen,
-          pollutants: Math.round(30 + Math.random() * 120),
-          aqi: Math.round(40 + Math.random() * 120)
-        },
-        season
-      };
 
       // Generate comprehensive physiological data
       const isFlare = action.type === 'flare';
       const severityMultiplier = action.severity === 'severe' ? 1.5 : 
                                 action.severity === 'moderate' ? 1.2 : 1.0;
       
+      const currentHour = new Date().getHours();
+      
       // Heart rate influenced by flare severity and time of day
-      const baseHR = 65 + (currentHour > 20 || currentHour < 6 ? -5 : 0); // Lower at night
+      const baseHR = 65 + (currentHour > 20 || currentHour < 6 ? -5 : 0);
       const flareHRIncrease = isFlare ? severityMultiplier * 15 : 0;
       const heartRate = Math.round(baseHR + flareHRIncrease + (Math.random() - 0.5) * 10);
       
@@ -149,7 +106,7 @@ export const QuickEntry = ({ onSave, onAiSuggestion, geminiApiKey }: QuickEntryP
       // Add symptoms for flares
       if (isFlare) {
         const commonSymptoms = ['Joint Pain', 'Fatigue', 'Muscle Stiffness', 'Morning Stiffness', 'Swelling'];
-        const symptomCount = Math.floor(Math.random() * 3) + 1; // 1-3 symptoms
+        const symptomCount = Math.floor(Math.random() * 3) + 1;
         const selectedSymptoms = commonSymptoms
           .sort(() => Math.random() - 0.5)
           .slice(0, symptomCount);
@@ -163,13 +120,6 @@ export const QuickEntry = ({ onSave, onAiSuggestion, geminiApiKey }: QuickEntryP
     onSave(entry);
   };
 
-  const getCurrentSeason = (): 'spring' | 'summer' | 'fall' | 'winter' => {
-    const month = new Date().getMonth() + 1;
-    if (month >= 3 && month <= 5) return 'spring';
-    if (month >= 6 && month <= 8) return 'summer';
-    if (month >= 9 && month <= 11) return 'fall';
-    return 'winter';
-  };
 
   const handleSmartEntry = async () => {
     if (!note.trim()) {

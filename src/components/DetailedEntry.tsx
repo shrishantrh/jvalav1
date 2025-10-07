@@ -53,7 +53,7 @@ export const DetailedEntry = ({ onSave }: DetailedEntryProps) => {
     );
   };
 
-  const handleSaveEntry = () => {
+  const handleSaveEntry = async () => {
     const newEntry: Partial<FlareEntry> = {
       type: entryType,
       timestamp: new Date(),
@@ -79,6 +79,22 @@ export const DetailedEntry = ({ onSave }: DetailedEntryProps) => {
     
     if (note.trim()) {
       newEntry.note = note.trim();
+    }
+
+    // Collect environmental data for all entry types
+    try {
+      const { getCurrentLocation, fetchWeatherData } = await import("@/services/weatherService");
+      
+      const location = await getCurrentLocation();
+      if (location) {
+        const weatherData = await fetchWeatherData(location.latitude, location.longitude);
+        
+        if (weatherData) {
+          newEntry.environmentalData = weatherData;
+        }
+      }
+    } catch (error) {
+      console.log('Error collecting environmental data:', error);
     }
 
     onSave(newEntry);

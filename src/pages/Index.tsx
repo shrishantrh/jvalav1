@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FlareEntry } from "@/types/flare";
@@ -7,62 +8,139 @@ import { QuickEntry } from "@/components/QuickEntry";
 import { DetailedEntry } from "@/components/DetailedEntry";
 import { InsightsPanel } from "@/components/InsightsPanel";
 import { FlareTimeline } from "@/components/flare/FlareTimeline";
-import { Calendar, TrendingUp, Plus, Activity } from "lucide-react";
+import { Calendar, TrendingUp, Plus, Activity, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format, isToday } from "date-fns";
 import { analyzeNoteForEntry } from "@/utils/geminiService";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const [currentView, setCurrentView] = useState<'today' | 'timeline' | 'insights'>('today');
   const [entries, setEntries] = useState<FlareEntry[]>([]);
   const [geminiApiKey, setGeminiApiKey] = useState('');
+  const { user, loading, signOut } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Load data from localStorage
+  // Check auth and load data
   useEffect(() => {
-    const savedEntries = localStorage.getItem('flare-entries');
-    const savedApiKey = localStorage.getItem('gemini-api-key');
-    
-    if (savedEntries) {
-      try {
-        const parsed = JSON.parse(savedEntries);
-        setEntries(parsed.map((entry: any) => ({
-          ...entry,
-          timestamp: new Date(entry.timestamp)
-        })));
-      } catch (error) {
-        console.error('Failed to load entries:', error);
-      }
+    if (!user && !loading) {
+      navigate('/auth');
+      return;
     }
-    
+
+    if (user) {
+      loadEntries();
+    }
+  }, [user, loading, navigate]);
+
+  const loadEntries = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('flare_entries')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('timestamp', { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        setEntries(data.map((entry: any) => ({
+          id: entry.id,
+          timestamp: new Date(entry.timestamp),
+          type: entry.entry_type,
+          severity: entry.severity,
+          energyLevel: entry.energy_level,
+          symptoms: entry.symptoms,
+          medications: entry.medications,
+          triggers: entry.triggers,
+          note: entry.note,
+          environmentalData: entry.environmental_data,
+          physiologicalData: entry.physiological_data,
+        })));
+      }
+    } catch (error) {
+      console.error('Failed to load entries:', error);
+      toast({
+        title: "Error loading entries",
+        description: "Failed to load your health data",
+        variant: "destructive"
+      });
+    }
+
+    const savedApiKey = localStorage.getItem('gemini-api-key');
     if (savedApiKey) {
       setGeminiApiKey(savedApiKey);
     }
-  }, []);
+  };
 
-  // Save to localStorage when data changes
-  useEffect(() => {
-    localStorage.setItem('flare-entries', JSON.stringify(entries));
-  }, [entries]);
 
   useEffect(() => {
     localStorage.setItem('gemini-api-key', geminiApiKey);
   }, [geminiApiKey]);
 
-  const handleSaveEntry = (entryData: Partial<FlareEntry>) => {
-    const newEntry: FlareEntry = {
-      id: Date.now().toString(),
-      timestamp: new Date(),
-      type: 'note',
-      ...entryData,
-    } as FlareEntry;
+  const handleSaveEntry = async (entryData: Partial<FlareEntry>) => {
+    if (!user) return;
 
-    setEntries(prev => [newEntry, ...prev]);
-    
-    toast({
-      title: "Entry saved",
-      description: `${newEntry.type.charAt(0).toUpperCase() + newEntry.type.slice(1)} logged successfully`,
-    });
+    try {
+      const { data, error } = await supabase
+        .from('flare_entries')
+        .insert({
+          user_id: user.id,
+          timestamp: (entryData.timestamp || new Date()).toISOString(),
+          entry_type: entryData.type || 'note',
+          severity: entryData.severity || null,
+          energy_level: entryData.energyLevel || null,
+          symptoms: entryData.symptoms || null,
+          medications: entryData.medications || null,
+          triggers: entryData.triggers || null,
+          note: entryData.note || null,
+          environmental_data: entryData.environmentalData as any || null,
+          physiological_data: entryData.physiologicalData as any || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        const newEntry: FlareEntry = {
+          id: data.id,
+          timestamp: new Date(data.timestamp),
+          type: data.entry_type as any,
+          severity: data.severity as any,
+          energyLevel: data.energy_level as any,
+          symptoms: data.symptoms || undefined,
+          medications: data.medications || undefined,
+          triggers: data.triggers || undefined,
+          note: data.note || undefined,
+          environmentalData: data.environmental_data as any,
+          physiologicalData: data.physiological_data as any,
+        };
+
+        setEntries(prev => [newEntry, ...prev]);
+        
+        toast({
+          title: "Entry saved",
+          description: `${newEntry.type.charAt(0).toUpperCase() + newEntry.type.slice(1)} logged successfully`,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to save entry:', error);
+      toast({
+        title: "Error saving entry",
+        description: "Failed to save your health data",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
   };
 
   const getTodaysEntries = () => entries.filter(entry => isToday(entry.timestamp));
@@ -100,10 +178,20 @@ const Index = () => {
                 {format(new Date(), 'EEEE, MMM d')}
               </div>
             </div>
-            <Settings 
-              geminiApiKey={geminiApiKey} 
-              onApiKeyChange={setGeminiApiKey} 
-            />
+            <div className="flex items-center gap-2">
+              <Settings 
+                geminiApiKey={geminiApiKey} 
+                onApiKeyChange={setGeminiApiKey} 
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSignOut}
+                className="h-9 w-9 p-0"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </header>

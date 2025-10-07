@@ -173,6 +173,43 @@ export const FlareTimeline = ({ entries }: FlareTimelineProps) => {
                       </div>
                     )}
                     
+                    {entry.environmentalData && (
+                      <div className="text-xs mt-2 space-y-1">
+                        {entry.environmentalData.weather && (
+                          <div className="flex flex-wrap gap-2">
+                            <span>🌡️ {entry.environmentalData.weather.temperature}°C</span>
+                            <span>💧 {entry.environmentalData.weather.humidity}%</span>
+                            <span>🌬️ {entry.environmentalData.weather.windSpeed} km/h</span>
+                          </div>
+                        )}
+                        {entry.environmentalData.airQuality && (
+                          <div className="flex flex-wrap gap-2">
+                            <span>🌸 Pollen: {entry.environmentalData.airQuality.pollen}</span>
+                            <span>💨 AQI: {entry.environmentalData.airQuality.aqi}</span>
+                          </div>
+                        )}
+                        {entry.environmentalData.location?.city && (
+                          <div>📍 {entry.environmentalData.location.city}</div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {entry.physiologicalData && (
+                      <div className="text-xs mt-2 space-y-1">
+                        <div className="flex flex-wrap gap-2">
+                          {entry.physiologicalData.heartRate && (
+                            <span>❤️ {entry.physiologicalData.heartRate} bpm</span>
+                          )}
+                          {entry.physiologicalData.sleepHours && (
+                            <span>😴 {entry.physiologicalData.sleepHours}h sleep</span>
+                          )}
+                          {entry.physiologicalData.steps && (
+                            <span>👟 {entry.physiologicalData.steps.toLocaleString()} steps</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
                     {entry.note && (
                       <div className="text-xs text-foreground/80 mt-2 italic">
                         "{entry.note}"
