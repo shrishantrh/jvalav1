@@ -15,8 +15,6 @@ import { useToast } from "@/hooks/use-toast";
 
 interface QuickEntryProps {
   onSave: (entry: Partial<FlareEntry>) => void;
-  onAiSuggestion?: (note: string, apiKey: string) => Promise<Partial<FlareEntry> | null>;
-  geminiApiKey: string;
 }
 
 const QUICK_ACTIONS = [
@@ -30,7 +28,7 @@ const QUICK_ACTIONS = [
   { type: 'recovery' as const, icon: Heart, label: 'Recovery', color: 'severity-none' },
 ];
 
-export const QuickEntry = ({ onSave, onAiSuggestion, geminiApiKey }: QuickEntryProps) => {
+export const QuickEntry = ({ onSave }: QuickEntryProps) => {
   const [note, setNote] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
@@ -131,36 +129,31 @@ export const QuickEntry = ({ onSave, onAiSuggestion, geminiApiKey }: QuickEntryP
       return;
     }
 
-    if (!geminiApiKey) {
-      toast({
-        title: "API key required",
-        description: "Configure your Gemini API key in settings to use AI features",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsProcessing(true);
     console.log('🚀 Starting smart entry processing...');
     console.log('📝 Note content:', note);
-    console.log('🔑 API Key length:', geminiApiKey.length);
     
     try {
-      const suggestion = await onAiSuggestion?.(note, geminiApiKey);
-      console.log('🤖 AI suggestion received:', suggestion);
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data, error } = await supabase.functions.invoke('analyze-note', {
+        body: { note }
+      });
+
+      if (error) throw error;
+
+      console.log('🤖 AI response:', data);
       
-      if (suggestion) {
-        const fullEntry = { ...suggestion, note: note.trim() };
+      if (data?.success && data.result) {
+        const fullEntry = { ...data.result, note: note.trim(), timestamp: new Date() };
         console.log('✅ Saving AI-analyzed entry:', fullEntry);
         onSave(fullEntry);
         setNote('');
         toast({
           title: "Smart entry created",
-          description: `AI analyzed your note and created a ${suggestion.type} entry`,
+          description: `AI analyzed your note and created a ${data.result.type} entry`,
         });
       } else {
         console.log('⚠️ No AI suggestion, falling back to note entry');
-        // Fallback to simple note entry
         onSave({
           type: 'note',
           note: note.trim(),
@@ -169,7 +162,7 @@ export const QuickEntry = ({ onSave, onAiSuggestion, geminiApiKey }: QuickEntryP
         setNote('');
         toast({
           title: "Note entry created",
-          description: "Entry saved as a note (AI analysis unavailable)",
+          description: "Entry saved as a note",
         });
       }
     } catch (error) {
@@ -179,7 +172,6 @@ export const QuickEntry = ({ onSave, onAiSuggestion, geminiApiKey }: QuickEntryP
         description: "Created a simple note entry instead",
         variant: "destructive",
       });
-      // Fallback to simple note entry
       onSave({
         type: 'note',
         note: note.trim(),

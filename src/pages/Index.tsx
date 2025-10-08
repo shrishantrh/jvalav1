@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FlareEntry } from "@/types/flare";
-import { Settings } from "@/components/Settings";
 import { QuickEntry } from "@/components/QuickEntry";
 import { DetailedEntry } from "@/components/DetailedEntry";
 import { InsightsPanel } from "@/components/InsightsPanel";
@@ -11,14 +10,12 @@ import { FlareTimeline } from "@/components/flare/FlareTimeline";
 import { Calendar, TrendingUp, Plus, Activity, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format, isToday } from "date-fns";
-import { analyzeNoteForEntry } from "@/utils/geminiService";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const [currentView, setCurrentView] = useState<'today' | 'timeline' | 'insights'>('today');
   const [entries, setEntries] = useState<FlareEntry[]>([]);
-  const [geminiApiKey, setGeminiApiKey] = useState('');
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -70,17 +67,7 @@ const Index = () => {
         variant: "destructive"
       });
     }
-
-    const savedApiKey = localStorage.getItem('gemini-api-key');
-    if (savedApiKey) {
-      setGeminiApiKey(savedApiKey);
-    }
   };
-
-
-  useEffect(() => {
-    localStorage.setItem('gemini-api-key', geminiApiKey);
-  }, [geminiApiKey]);
 
   const handleSaveEntry = async (entryData: Partial<FlareEntry>) => {
     if (!user) return;
@@ -178,20 +165,14 @@ const Index = () => {
                 {format(new Date(), 'EEEE, MMM d')}
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Settings 
-                geminiApiKey={geminiApiKey} 
-                onApiKeyChange={setGeminiApiKey} 
-              />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSignOut}
-                className="h-9 w-9 p-0"
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSignOut}
+              className="h-9 w-9 p-0"
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
           </div>
         </div>
       </header>
@@ -279,8 +260,6 @@ const Index = () => {
               </div>
               <QuickEntry
                 onSave={handleSaveEntry}
-                onAiSuggestion={analyzeNoteForEntry}
-                geminiApiKey={geminiApiKey}
               />
               
               {/* Detailed Entry Option */}
@@ -309,7 +288,7 @@ const Index = () => {
 
         {/* Insights View */}
         {currentView === 'insights' && (
-          <InsightsPanel entries={entries} geminiApiKey={geminiApiKey} />
+          <InsightsPanel entries={entries} />
         )}
       </main>
     </div>

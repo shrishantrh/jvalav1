@@ -5,7 +5,7 @@ import { FlareEntry } from "@/types/flare";
 import { InsightsCharts } from "@/components/insights/InsightsCharts";
 import { FlareMap } from "@/components/insights/FlareMap";
 import { PDFExport } from "@/components/insights/PDFExport";
-import { generateInsights } from "@/utils/geminiService";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Brain, 
   TrendingUp, 
@@ -22,7 +22,6 @@ import {
 
 interface InsightsPanelProps {
   entries: FlareEntry[];
-  geminiApiKey: string;
 }
 
 interface Insight {
@@ -33,7 +32,7 @@ interface Insight {
   icon?: string;
 }
 
-export const InsightsPanel = ({ entries, geminiApiKey }: InsightsPanelProps) => {
+export const InsightsPanel = ({ entries }: InsightsPanelProps) => {
   const [insights, setInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
@@ -49,15 +48,37 @@ export const InsightsPanel = ({ entries, geminiApiKey }: InsightsPanelProps) => 
   };
 
   const generateAIInsights = async () => {
-    if (!geminiApiKey || entries.length < 3) return;
-    
+    if (entries.length === 0) {
+      console.log('Skipping AI insights - no entries');
+      return;
+    }
+
     setLoading(true);
+    console.log('🚀 Starting AI insights generation...');
+    
     try {
-      const aiInsights = await generateInsights(entries, geminiApiKey);
-      setInsights(aiInsights);
-      setLastUpdated(new Date());
+      const { data, error } = await supabase.functions.invoke('generate-insights', {
+        body: { entries }
+      });
+
+      if (error) throw error;
+
+      console.log('🎯 Received AI insights:', data);
+      
+      if (data?.success && data.insights && data.insights.length > 0) {
+        const formattedInsights = data.insights.map((insight: any) => ({
+          ...insight,
+          icon: getIconForType(insight.type)
+        }));
+        
+        setInsights(formattedInsights);
+        setLastUpdated(new Date());
+        console.log('✅ Insights updated successfully');
+      } else {
+        console.log('⚠️ No insights generated');
+      }
     } catch (error) {
-      console.error('Failed to generate insights:', error);
+      console.error('❌ Failed to generate insights:', error);
     } finally {
       setLoading(false);
     }
@@ -65,7 +86,7 @@ export const InsightsPanel = ({ entries, geminiApiKey }: InsightsPanelProps) => 
 
   useEffect(() => {
     generateAIInsights();
-  }, [entries, geminiApiKey]);
+  }, [entries]);
 
   const getBasicStats = () => {
     const last7Days = entries.filter(entry => {
@@ -199,11 +220,9 @@ export const InsightsPanel = ({ entries, geminiApiKey }: InsightsPanelProps) => 
                   <Brain className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p className="text-lg font-medium mb-2">No insights available yet</p>
                   <p className="text-sm">
-                    {!geminiApiKey 
-                      ? "Configure your Gemini API key in settings to get AI-powered insights"
-                      : entries.length < 5 
-                        ? "Add more entries to get personalized insights" 
-                        : "Try refreshing or check back later"
+                    {entries.length < 5 
+                      ? "Add more entries to get personalized insights" 
+                      : "Try refreshing or check back later"
                     }
                   </p>
                 </div>

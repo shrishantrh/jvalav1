@@ -1,1 +1,13 @@
 project_id = "rvhpwjhemwvvdtnzmobs"
+
+[functions.get-weather]
+verify_jwt = true
+
+[functions.analyze-note]
+verify_jwt = true
+
+[functions.generate-insights]
+verify_jwt = true
+
+[functions.generate-suggestions]
+verify_jwt = true
