@@ -9,9 +9,12 @@ import {
   AlertTriangle, 
   Heart, 
   StickyNote,
-  Sparkles 
+  Sparkles,
+  Mic,
+  MicOff
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 
 interface QuickEntryProps {
   onSave: (entry: Partial<FlareEntry>) => void;
@@ -32,6 +35,7 @@ export const QuickEntry = ({ onSave }: QuickEntryProps) => {
   const [note, setNote] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
+  const { isRecording, audioBlob, startRecording, stopRecording, clearRecording } = useVoiceRecording();
 
   const handleQuickAction = async (action: typeof QUICK_ACTIONS[number]) => {
     const entry: Partial<FlareEntry> = {
@@ -118,6 +122,49 @@ export const QuickEntry = ({ onSave }: QuickEntryProps) => {
     onSave(entry);
   };
 
+
+  const handleVoiceEntry = async () => {
+    if (!audioBlob) return;
+
+    setIsProcessing(true);
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'recording.webm');
+
+      const { data, error } = await supabase.functions.invoke('transcribe-audio', {
+        body: formData,
+      });
+
+      if (error) throw error;
+
+      if (data?.success && data.result) {
+        const transcription = data.result.transcription;
+        const fullEntry = { 
+          ...data.result, 
+          note: transcription, 
+          timestamp: new Date() 
+        };
+        
+        onSave(fullEntry);
+        clearRecording();
+        toast({
+          title: "Voice entry created",
+          description: `AI transcribed and analyzed your voice note`,
+        });
+      }
+    } catch (error) {
+      console.error('❌ Voice entry error:', error);
+      toast({
+        title: "Voice processing failed",
+        description: "Please try again or use text entry",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const handleSmartEntry = async () => {
     if (!note.trim()) {
@@ -221,30 +268,90 @@ export const QuickEntry = ({ onSave }: QuickEntryProps) => {
           <Sparkles className="w-4 h-4 text-primary" />
           <span className="text-sm font-clinical">Smart Entry</span>
         </div>
-        <Textarea
-          placeholder="Describe what happened... (AI will analyze and categorize)"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          className="min-h-20 text-sm"
-        />
-        <Button
-          onClick={handleSmartEntry}
-          disabled={!note.trim() || isProcessing}
-          className="w-full"
-          size="sm"
-        >
-          {isProcessing ? (
-            <>
-              <Sparkles className="w-4 h-4 mr-2 animate-spin" />
-              Processing...
-            </>
-          ) : (
-            <>
-              <StickyNote className="w-4 h-4 mr-2" />
-              Add Entry
-            </>
-          )}
-        </Button>
+        
+        {/* Voice Recording Section */}
+        {audioBlob ? (
+          <div className="space-y-2 p-3 bg-muted rounded-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Recording ready</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearRecording}
+                className="h-8"
+              >
+                Clear
+              </Button>
+            </div>
+            <Button
+              onClick={handleVoiceEntry}
+              disabled={isProcessing}
+              className="w-full"
+              size="sm"
+            >
+              {isProcessing ? (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2 animate-spin" />
+                  Transcribing...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Analyze Voice Note
+                </>
+              )}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={isRecording ? stopRecording : startRecording}
+              className={`flex-shrink-0 ${isRecording ? 'bg-destructive/10' : ''}`}
+            >
+              {isRecording ? (
+                <>
+                  <MicOff className="w-4 h-4 mr-2 text-destructive" />
+                  Stop
+                </>
+              ) : (
+                <>
+                  <Mic className="w-4 h-4 mr-2" />
+                  Voice
+                </>
+              )}
+            </Button>
+            <Textarea
+              placeholder="Type or use voice... (AI will analyze and categorize)"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              className="min-h-20 text-sm flex-1"
+              disabled={isRecording}
+            />
+          </div>
+        )}
+        
+        {!audioBlob && (
+          <Button
+            onClick={handleSmartEntry}
+            disabled={!note.trim() || isProcessing || isRecording}
+            className="w-full"
+            size="sm"
+          >
+            {isProcessing ? (
+              <>
+                <Sparkles className="w-4 h-4 mr-2 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <StickyNote className="w-4 h-4 mr-2" />
+                Add Entry
+              </>
+            )}
+          </Button>
+        )}
       </div>
     </div>
   );
