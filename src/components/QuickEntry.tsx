@@ -35,7 +35,7 @@ export const QuickEntry = ({ onSave }: QuickEntryProps) => {
   const [note, setNote] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
-  const { isRecording, audioBlob, startRecording, stopRecording, clearRecording } = useVoiceRecording();
+  const { isRecording, transcript, startRecording, stopRecording, clearRecording } = useVoiceRecording();
 
   const handleQuickAction = async (action: typeof QUICK_ACTIONS[number]) => {
     const entry: Partial<FlareEntry> = {
@@ -124,26 +124,23 @@ export const QuickEntry = ({ onSave }: QuickEntryProps) => {
 
 
   const handleVoiceEntry = async () => {
-    if (!audioBlob) return;
+    if (!transcript.trim()) return;
 
     setIsProcessing(true);
     try {
       const { supabase } = await import("@/integrations/supabase/client");
       
-      const formData = new FormData();
-      formData.append('audio', audioBlob, 'recording.webm');
-
-      const { data, error } = await supabase.functions.invoke('transcribe-audio', {
-        body: formData,
+      // Send transcribed text to Gemini for analysis
+      const { data, error } = await supabase.functions.invoke('analyze-note', {
+        body: { note: transcript }
       });
 
       if (error) throw error;
 
       if (data?.success && data.result) {
-        const transcription = data.result.transcription;
         const fullEntry = { 
           ...data.result, 
-          note: transcription, 
+          note: transcript.trim(), 
           timestamp: new Date() 
         };
         
@@ -151,7 +148,7 @@ export const QuickEntry = ({ onSave }: QuickEntryProps) => {
         clearRecording();
         toast({
           title: "Voice entry created",
-          description: `AI transcribed and analyzed your voice note`,
+          description: `AI analyzed your voice note as a ${data.result.type} entry`,
         });
       }
     } catch (error) {
@@ -270,10 +267,10 @@ export const QuickEntry = ({ onSave }: QuickEntryProps) => {
         </div>
         
         {/* Voice Recording Section */}
-        {audioBlob ? (
+        {transcript ? (
           <div className="space-y-2 p-3 bg-muted rounded-lg">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Recording ready</span>
+              <span className="text-sm font-medium">Transcription:</span>
               <Button
                 variant="ghost"
                 size="sm"
@@ -283,6 +280,7 @@ export const QuickEntry = ({ onSave }: QuickEntryProps) => {
                 Clear
               </Button>
             </div>
+            <p className="text-sm text-muted-foreground italic">{transcript}</p>
             <Button
               onClick={handleVoiceEntry}
               disabled={isProcessing}
@@ -292,12 +290,12 @@ export const QuickEntry = ({ onSave }: QuickEntryProps) => {
               {isProcessing ? (
                 <>
                   <Sparkles className="w-4 h-4 mr-2 animate-spin" />
-                  Transcribing...
+                  Analyzing...
                 </>
               ) : (
                 <>
                   <Sparkles className="w-4 h-4 mr-2" />
-                  Analyze Voice Note
+                  Analyze Transcription
                 </>
               )}
             </Button>
@@ -308,7 +306,7 @@ export const QuickEntry = ({ onSave }: QuickEntryProps) => {
               variant="outline"
               size="sm"
               onClick={isRecording ? stopRecording : startRecording}
-              className={`flex-shrink-0 ${isRecording ? 'bg-destructive/10' : ''}`}
+              className={`flex-shrink-0 ${isRecording ? 'bg-destructive/10 animate-pulse' : ''}`}
             >
               {isRecording ? (
                 <>
@@ -332,7 +330,7 @@ export const QuickEntry = ({ onSave }: QuickEntryProps) => {
           </div>
         )}
         
-        {!audioBlob && (
+        {!transcript && (
           <Button
             onClick={handleSmartEntry}
             disabled={!note.trim() || isProcessing || isRecording}
