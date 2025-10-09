@@ -28,31 +28,36 @@ serve(async (req) => {
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `Analyze this health note and suggest appropriate entry categorization. Return JSON only.
+            text: `Analyze this health note and return ONLY valid JSON. Be liberal in interpreting health complaints as flares.
 
 Note: "${note}"
 
-Determine:
-1. Entry type: flare, medication, trigger, recovery, energy, or note
-2. If flare: severity (none, mild, moderate, severe) and possible symptoms
-3. If energy: level (very-low, low, moderate, good, high)
+Classification Rules:
+- Any pain, symptom, or health complaint = "flare"
+- Taking medication/pills = "medication"
+- Feeling tired/exhausted/low energy = "energy"
+- Feeling better/recovering = "recovery"
+- Potential causes (food, weather, stress) = "trigger"
 
-Return JSON format:
+Return ONLY this JSON structure (no markdown, no explanation):
 {
   "type": "flare|medication|trigger|recovery|energy|note",
-  "severity": "none|mild|moderate|severe" (only for flares),
-  "energyLevel": "very-low|low|moderate|good|high" (only for energy),
-  "symptoms": ["symptom1", "symptom2"] (only for flares if mentioned),
-  "medications": ["med1"] (only for medication entries),
-  "triggers": ["trigger1"] (only for trigger entries)
+  "severity": "mild|moderate|severe",
+  "energyLevel": "very-low|low|moderate|good|high",
+  "symptoms": ["headache", "joint pain"],
+  "medications": ["medication name"],
+  "triggers": ["trigger name"]
 }
 
 Examples:
-- "Feeling tired today" → {"type": "energy", "energyLevel": "low"}
-- "Bad flare in my joints" → {"type": "flare", "severity": "moderate", "symptoms": ["joint pain"]}
-- "Took my methotrexate" → {"type": "medication", "medications": ["methotrexate"]}
+"I have a headache" → {"type":"flare","severity":"moderate","symptoms":["headache"]}
+"Headache is bad" → {"type":"flare","severity":"severe","symptoms":["headache"]}
+"My joints hurt" → {"type":"flare","severity":"moderate","symptoms":["joint pain"]}
+"Feeling tired" → {"type":"energy","energyLevel":"low"}
+"Took ibuprofen" → {"type":"medication","medications":["ibuprofen"]}
+"Feeling better" → {"type":"recovery"}
 
-Be specific but concise. Only include fields that are clearly indicated.`
+Return JSON now:`
           }]
         }],
         generationConfig: {
