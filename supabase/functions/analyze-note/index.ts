@@ -56,8 +56,8 @@ Be specific but concise. Only include fields that are clearly indicated.`
           }]
         }],
         generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 300,
+          temperature: 0.2,
+          maxOutputTokens: 1000,
         }
       })
     });
