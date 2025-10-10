@@ -1,12 +1,13 @@
 import { FlareEntry, EntryType } from "@/types/flare";
 import { format, startOfDay, differenceInMinutes, addMinutes, isToday, isYesterday } from "date-fns";
 import { AlertTriangle, Pill, Zap, TrendingUp, Battery, FileText, Info } from "lucide-react";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { DndContext, DragEndEvent, useDraggable, DragStartEvent } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 
 interface GanttTimelineProps {
   entries: FlareEntry[];
@@ -14,14 +15,8 @@ interface GanttTimelineProps {
 }
 
 export const GanttTimeline = ({ entries, onEntriesUpdate }: GanttTimelineProps) => {
-  const [dragging, setDragging] = useState<{
-    id: string;
-    startY: number;
-    initialMinutes: number;
-    type: 'move' | 'resize';
-  } | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<FlareEntry | null>(null);
-  const isDraggingRef = useRef(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
 
 
   const getIcon = (type: EntryType) => {
@@ -62,65 +57,33 @@ export const GanttTimeline = ({ entries, onEntriesUpdate }: GanttTimelineProps) 
     return format(date, 'EEEE, MMM d');
   };
 
-  const handleGlobalMouseMove = useCallback((e: MouseEvent) => {
-    if (!dragging || !isDraggingRef.current) return;
-    e.preventDefault();
-  }, [dragging]);
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
 
-  const handleGlobalMouseUp = useCallback(async (e: MouseEvent) => {
-    if (!dragging || !isDraggingRef.current) return;
-    
-    isDraggingRef.current = false;
-    e.preventDefault();
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, delta } = event;
+    setActiveId(null);
 
-    const entry = entries.find(e => e.id === dragging.id);
-    if (!entry) {
-      setDragging(null);
-      document.body.style.userSelect = '';
-      return;
-    }
+    if (!delta.y) return;
+
+    const entry = entries.find(e => e.id === active.id);
+    if (!entry) return;
 
     const dayStart = startOfDay(entry.timestamp);
-    const deltaY = e.clientY - dragging.startY;
     const TIMELINE_HEIGHT = 600;
+    const deltaMinutes = -(delta.y / TIMELINE_HEIGHT) * (24 * 60);
+    const currentMinutes = differenceInMinutes(entry.timestamp, dayStart);
+    const newMinutes = Math.max(0, Math.min(24 * 60 - 1, currentMinutes + deltaMinutes));
+    const newTimestamp = addMinutes(dayStart, newMinutes);
 
-    if (dragging.type === 'move') {
-      const deltaMinutes = -(deltaY / TIMELINE_HEIGHT) * (24 * 60); // Negative because timeline is reversed
-      const newMinutes = Math.max(0, Math.min(24 * 60 - 1, dragging.initialMinutes + deltaMinutes));
-      const newTimestamp = addMinutes(dayStart, newMinutes);
+    await supabase
+      .from('flare_entries')
+      .update({ timestamp: newTimestamp.toISOString() })
+      .eq('id', entry.id);
 
-      await supabase
-        .from('flare_entries')
-        .update({ timestamp: newTimestamp.toISOString() })
-        .eq('id', entry.id);
-
-      onEntriesUpdate();
-    } else if (dragging.type === 'resize') {
-      const deltaMinutes = -(deltaY / TIMELINE_HEIGHT) * (24 * 60); // Negative because timeline is reversed
-      const newDuration = Math.max(60, dragging.initialMinutes + deltaMinutes);
-
-      await supabase
-        .from('flare_entries')
-        .update({ duration_minutes: Math.round(newDuration) })
-        .eq('id', entry.id);
-
-      onEntriesUpdate();
-    }
-
-    setDragging(null);
-    document.body.style.userSelect = '';
-  }, [dragging, entries, onEntriesUpdate]);
-
-  useEffect(() => {
-    if (dragging) {
-      window.addEventListener('mousemove', handleGlobalMouseMove);
-      window.addEventListener('mouseup', handleGlobalMouseUp);
-      return () => {
-        window.removeEventListener('mousemove', handleGlobalMouseMove);
-        window.removeEventListener('mouseup', handleGlobalMouseUp);
-      };
-    }
-  }, [dragging, handleGlobalMouseMove, handleGlobalMouseUp]);
+    onEntriesUpdate();
+  };
 
 
   if (entries.length === 0) {
@@ -147,13 +110,14 @@ export const GanttTimeline = ({ entries, onEntriesUpdate }: GanttTimelineProps) 
   const sortedDays = Object.keys(groupedByDay).sort((a, b) => b.localeCompare(a));
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-clinical">Timeline</h2>
-        <p className="text-xs text-muted-foreground">{entries.length} entries</p>
-      </div>
+    <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-clinical">Timeline</h2>
+          <p className="text-xs text-muted-foreground">{entries.length} entries</p>
+        </div>
 
-      {sortedDays.map(day => {
+        {sortedDays.map(day => {
         const { entries: dayEntries, dayStart } = groupedByDay[day];
         const TIMELINE_HEIGHT = 600;
 
@@ -227,98 +191,23 @@ export const GanttTimeline = ({ entries, onEntriesUpdate }: GanttTimelineProps) 
                     });
                   });
 
-                  return entriesWithLanes.map((entry) => {
-                    const Icon = getIcon(entry.type);
-                    const startMin = differenceInMinutes(entry.timestamp, dayStart);
-                    const duration = entry.duration_minutes || 60;
-                    // Reverse the timeline: later times at top
-                    const topPercent = ((24 * 60 - startMin - duration) / (24 * 60)) * 100;
-                    const heightPercent = Math.max((duration / (24 * 60)) * 100, 2);
-                    const widthPercent = 100 / entry.totalLanes;
-                    const leftPercent = widthPercent * entry.lane;
-
-                    return (
-                      <div
-                        key={entry.id}
-                        className={`absolute rounded-md border-l-4 shadow-sm group ${getColor(entry)} hover:shadow-md transition-shadow`}
-                        style={{
-                          top: `${topPercent}%`,
-                          height: `${heightPercent}%`,
-                          left: `${leftPercent}%`,
-                          width: `${widthPercent}%`,
-                          minHeight: '40px',
-                          userSelect: 'none',
-                          WebkitUserSelect: 'none',
-                          zIndex: dragging?.id === entry.id ? 50 : 10
-                        }}
-                      >
-                        <div 
-                          className="px-2 py-1 flex items-center gap-2 h-full overflow-hidden cursor-move"
-                          onMouseDown={(e) => {
-                            if (e.button !== 0) return;
-                            e.preventDefault();
-                            e.stopPropagation();
-                            isDraggingRef.current = true;
-                            document.body.style.userSelect = 'none';
-                            setDragging({
-                              id: entry.id,
-                              startY: e.clientY,
-                              initialMinutes: startMin,
-                              type: 'move'
-                            });
-                          }}
-                          onClick={(e) => {
-                            if (!isDraggingRef.current) {
-                              setSelectedEntry(entry);
-                            }
-                            isDraggingRef.current = false;
-                          }}
-                        >
-                          <Icon className="w-3 h-3 flex-shrink-0" />
-                          <div className="flex-1 min-w-0 overflow-hidden">
-                            <span className="text-xs font-medium capitalize truncate block">{getLabel(entry)}</span>
-                            {entry.symptoms && entry.symptoms.length > 0 && entry.totalLanes === 1 && (
-                              <span className="text-xs opacity-70 truncate block">• {entry.symptoms[0]}</span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            {(entry.environmentalData || entry.physiologicalData) && (
-                              <Info className="w-3 h-3 opacity-0 group-hover:opacity-60" />
-                            )}
-                            <span className="text-xs opacity-60 whitespace-nowrap">{format(entry.timestamp, 'h:mm a')}</span>
-                          </div>
-                        </div>
-
-                        {/* Resize handle - now at top since timeline is reversed */}
-                        <div
-                          className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-black/10 z-10"
-                          onMouseDown={(e) => {
-                            if (e.button !== 0) return;
-                            e.preventDefault();
-                            e.stopPropagation();
-                            isDraggingRef.current = true;
-                            document.body.style.userSelect = 'none';
-                            setDragging({
-                              id: entry.id,
-                              startY: e.clientY,
-                              initialMinutes: duration,
-                              type: 'resize'
-                            });
-                          }}
-                        >
-                          <div className="h-0.5 bg-current opacity-30 mx-auto w-8" />
-                        </div>
-                      </div>
-                    );
-                  });
+                  return entriesWithLanes.map((entry) => (
+                    <TimelineEntry
+                      key={entry.id}
+                      entry={entry}
+                      dayStart={dayStart}
+                      onSelect={setSelectedEntry}
+                      isActive={activeId === entry.id}
+                    />
+                  ));
                 })()}
               </div>
             </div>
           </div>
         );
-      })}
+        })}
 
-      {/* Detail Dialog */}
+        {/* Detail Dialog */}
       <Dialog open={!!selectedEntry} onOpenChange={(open) => !open && setSelectedEntry(null)}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -457,6 +346,97 @@ export const GanttTimeline = ({ entries, onEntriesUpdate }: GanttTimelineProps) 
           )}
         </DialogContent>
       </Dialog>
+      </div>
+    </DndContext>
+  );
+};
+
+interface TimelineEntryProps {
+  entry: FlareEntry & { lane: number; totalLanes: number };
+  dayStart: Date;
+  onSelect: (entry: FlareEntry) => void;
+  isActive: boolean;
+}
+
+const TimelineEntry = ({ entry, dayStart, onSelect, isActive }: TimelineEntryProps) => {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({
+    id: entry.id,
+  });
+
+  const getIcon = (type: EntryType) => {
+    const icons = { flare: AlertTriangle, medication: Pill, trigger: Zap, recovery: TrendingUp, energy: Battery, note: FileText };
+    const Icon = icons[type] || FileText;
+    return Icon;
+  };
+
+  const getColor = (entry: FlareEntry) => {
+    if (entry.type === 'flare') {
+      const colors = {
+        none: 'bg-green-50 border-green-500 text-green-900',
+        mild: 'bg-yellow-50 border-yellow-500 text-yellow-900',
+        moderate: 'bg-orange-50 border-orange-500 text-orange-900',
+        severe: 'bg-red-50 border-red-500 text-red-900'
+      };
+      return colors[entry.severity || 'mild'];
+    }
+    const typeColors = {
+      medication: 'bg-blue-50 border-blue-500 text-blue-900',
+      trigger: 'bg-purple-50 border-purple-500 text-purple-900',
+      recovery: 'bg-green-50 border-green-500 text-green-900',
+      energy: 'bg-cyan-50 border-cyan-500 text-cyan-900',
+      note: 'bg-gray-50 border-gray-400 text-gray-900'
+    };
+    return typeColors[entry.type as keyof typeof typeColors] || typeColors.note;
+  };
+
+  const getLabel = (entry: FlareEntry) => {
+    if (entry.type === 'flare') return entry.severity || 'flare';
+    if (entry.type === 'energy') return entry.energyLevel?.replace('-', ' ') || 'energy';
+    return entry.type;
+  };
+
+  const Icon = getIcon(entry.type);
+  const startMin = differenceInMinutes(entry.timestamp, dayStart);
+  const duration = entry.duration_minutes || 60;
+  const topPercent = ((24 * 60 - startMin - duration) / (24 * 60)) * 100;
+  const heightPercent = Math.max((duration / (24 * 60)) * 100, 2);
+  const widthPercent = 100 / entry.totalLanes;
+  const leftPercent = widthPercent * entry.lane;
+
+  const style = {
+    top: `${topPercent}%`,
+    height: `${heightPercent}%`,
+    left: `${leftPercent}%`,
+    width: `${widthPercent}%`,
+    minHeight: '40px',
+    transform: CSS.Translate.toString(transform),
+    zIndex: isActive ? 50 : 10,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`absolute rounded-md border-l-4 shadow-sm group ${getColor(entry)} hover:shadow-md transition-shadow cursor-move`}
+      style={style}
+      {...listeners}
+      {...attributes}
+      onClick={() => onSelect(entry)}
+    >
+      <div className="px-2 py-1 flex items-center gap-2 h-full overflow-hidden select-none">
+        <Icon className="w-3 h-3 flex-shrink-0" />
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <span className="text-xs font-medium capitalize truncate block">{getLabel(entry)}</span>
+          {entry.symptoms && entry.symptoms.length > 0 && entry.totalLanes === 1 && (
+            <span className="text-xs opacity-70 truncate block">• {entry.symptoms[0]}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          {(entry.environmentalData || entry.physiologicalData) && (
+            <Info className="w-3 h-3 opacity-0 group-hover:opacity-60" />
+          )}
+          <span className="text-xs opacity-60 whitespace-nowrap">{format(entry.timestamp, 'h:mm a')}</span>
+        </div>
+      </div>
     </div>
   );
 };
