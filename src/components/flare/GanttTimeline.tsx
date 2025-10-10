@@ -155,66 +155,96 @@ export const GanttTimeline = ({ entries, onEntriesUpdate }: GanttTimelineProps) 
 
               {/* Flare entries */}
               <div className="absolute left-16 right-4 top-0 bottom-0">
-                {dayEntries.map((entry, idx) => {
-                  const Icon = getIcon(entry.type);
-                  const startMin = differenceInMinutes(entry.timestamp, dayStart);
-                  const duration = entry.duration_minutes || 15;
-                  const topPercent = (startMin / (24 * 60)) * 100;
-                  const heightPercent = Math.max((duration / (24 * 60)) * 100, 1.5);
-
-                  return (
-                    <div
-                      key={entry.id}
-                      className={`absolute left-0 right-0 rounded-md border-l-4 shadow-sm cursor-move ${getColor(entry)} hover:shadow-md transition-shadow`}
-                      style={{
-                        top: `${topPercent}%`,
-                        height: `${heightPercent}%`,
-                        minHeight: '32px',
-                        zIndex: dragging?.id === entry.id ? 50 : 10
-                      }}
-                      onMouseDown={(e) => handleMouseDown(e, entry)}
-                      onMouseUp={(e) => handleMouseUp(e.nativeEvent, entry, TIMELINE_HEIGHT)}
-                    >
-                      <div className="px-2 py-1 flex items-center gap-2 h-full">
-                        <Icon className="w-3 h-3 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <span className="text-xs font-medium capitalize">{getLabel(entry)}</span>
-                          {entry.symptoms && entry.symptoms.length > 0 && (
-                            <span className="text-xs ml-2 opacity-70">• {entry.symptoms[0]}</span>
-                          )}
-                        </div>
-                        <span className="text-xs opacity-60">{format(entry.timestamp, 'h:mm a')}</span>
-                      </div>
-
-                      {/* Resize handle */}
-                      <div
-                        className="absolute bottom-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-black/10 group"
-                        onMouseDown={(e) => {
-                          e.stopPropagation();
-                          const startY = e.clientY;
-                          const startDur = duration;
-
-                          const handleMove = (me: MouseEvent) => {
-                            const delta = me.clientY - startY;
-                            const deltaMin = (delta / TIMELINE_HEIGHT) * (24 * 60);
-                            const newDur = Math.max(15, Math.min(24 * 60 - startMin, startDur + deltaMin));
-                            handleResize(entry, Math.round(newDur));
-                          };
-
-                          const handleUp = () => {
-                            document.removeEventListener('mousemove', handleMove);
-                            document.removeEventListener('mouseup', handleUp);
-                          };
-
-                          document.addEventListener('mousemove', handleMove);
-                          document.addEventListener('mouseup', handleUp);
-                        }}
-                      >
-                        <div className="h-0.5 bg-current opacity-0 group-hover:opacity-30 mx-auto w-8" />
-                      </div>
-                    </div>
+                {(() => {
+                  // Group concurrent entries (within same minute)
+                  const entryGroups: FlareEntry[][] = [];
+                  const sortedEntries = [...dayEntries].sort((a, b) => 
+                    a.timestamp.getTime() - b.timestamp.getTime()
                   );
-                })}
+
+                  sortedEntries.forEach(entry => {
+                    const entryMinute = differenceInMinutes(entry.timestamp, dayStart);
+                    const existingGroup = entryGroups.find(group => {
+                      const groupMinute = differenceInMinutes(group[0].timestamp, dayStart);
+                      return Math.abs(groupMinute - entryMinute) < 1;
+                    });
+
+                    if (existingGroup) {
+                      existingGroup.push(entry);
+                    } else {
+                      entryGroups.push([entry]);
+                    }
+                  });
+
+                  return entryGroups.flatMap((group) => {
+                    const groupMinute = differenceInMinutes(group[0].timestamp, dayStart);
+                    const topPercent = (groupMinute / (24 * 60)) * 100;
+
+                    return group.map((entry, groupIndex) => {
+                      const Icon = getIcon(entry.type);
+                      const duration = entry.duration_minutes || 15;
+                      const heightPercent = Math.max((duration / (24 * 60)) * 100, 2);
+                      const widthPercent = 100 / group.length;
+                      const leftPercent = widthPercent * groupIndex;
+
+                      return (
+                        <div
+                          key={entry.id}
+                          className={`absolute rounded-md border-l-4 shadow-sm cursor-move ${getColor(entry)} hover:shadow-md transition-shadow`}
+                          style={{
+                            top: `${topPercent}%`,
+                            height: `${heightPercent}%`,
+                            left: `${leftPercent}%`,
+                            width: `${widthPercent}%`,
+                            minHeight: '32px',
+                            zIndex: dragging?.id === entry.id ? 50 : 10
+                          }}
+                          onMouseDown={(e) => handleMouseDown(e, entry)}
+                          onMouseUp={(e) => handleMouseUp(e.nativeEvent, entry, TIMELINE_HEIGHT)}
+                        >
+                          <div className="px-2 py-1 flex items-center gap-2 h-full overflow-hidden">
+                            <Icon className="w-3 h-3 flex-shrink-0" />
+                            <div className="flex-1 min-w-0 overflow-hidden">
+                              <span className="text-xs font-medium capitalize truncate block">{getLabel(entry)}</span>
+                              {entry.symptoms && entry.symptoms.length > 0 && group.length === 1 && (
+                                <span className="text-xs opacity-70 truncate block">• {entry.symptoms[0]}</span>
+                              )}
+                            </div>
+                            <span className="text-xs opacity-60 whitespace-nowrap">{format(entry.timestamp, 'h:mm a')}</span>
+                          </div>
+
+                          {/* Resize handle */}
+                          <div
+                            className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-black/10 group"
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              const startY = e.clientY;
+                              const startDur = duration;
+                              const startMin = differenceInMinutes(entry.timestamp, dayStart);
+
+                              const handleMove = (me: MouseEvent) => {
+                                const delta = me.clientY - startY;
+                                const deltaMin = (delta / TIMELINE_HEIGHT) * (24 * 60);
+                                const newDur = Math.max(15, Math.min(24 * 60 - startMin, startDur + deltaMin));
+                                handleResize(entry, Math.round(newDur));
+                              };
+
+                              const handleUp = () => {
+                                document.removeEventListener('mousemove', handleMove);
+                                document.removeEventListener('mouseup', handleUp);
+                              };
+
+                              document.addEventListener('mousemove', handleMove);
+                              document.addEventListener('mouseup', handleUp);
+                            }}
+                          >
+                            <div className="h-0.5 bg-current opacity-0 group-hover:opacity-30 mx-auto w-8" />
+                          </div>
+                        </div>
+                      );
+                    });
+                  });
+                })()}
               </div>
             </div>
           </div>
