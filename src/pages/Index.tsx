@@ -57,6 +57,8 @@ const Index = () => {
           note: entry.note,
           environmentalData: entry.environmental_data,
           physiologicalData: entry.physiological_data,
+          duration_minutes: entry.duration_minutes,
+          end_timestamp: entry.end_timestamp ? new Date(entry.end_timestamp) : null,
         })));
       }
     } catch (error) {
