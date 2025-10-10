@@ -12,7 +12,16 @@ interface GanttTimelineProps {
 }
 
 export const GanttTimeline = ({ entries, onEntriesUpdate }: GanttTimelineProps) => {
-  const [dragging, setDragging] = useState<{ id: string; startY: number; startMin: number } | null>(null);
+  const [dragging, setDragging] = useState<{
+    id: string;
+    startY: number;
+    originalTop: number;
+    type: 'move' | 'resize';
+  } | null>(null);
+
+  // Add console logs to debug data
+  console.log('Timeline entries:', entries);
+  console.log('Total entries:', entries.length);
 
   const getIcon = (type: EntryType) => {
     const icons = { flare: AlertTriangle, medication: Pill, trigger: Zap, recovery: TrendingUp, energy: Battery, note: FileText };
@@ -52,49 +61,73 @@ export const GanttTimeline = ({ entries, onEntriesUpdate }: GanttTimelineProps) 
     return format(date, 'EEEE, MMM d');
   };
 
-  // Group by day
-  const groupedByDay = entries.reduce((acc, entry) => {
-    const day = format(entry.timestamp, 'yyyy-MM-dd');
-    if (!acc[day]) acc[day] = [];
-    acc[day].push(entry);
-    return acc;
-  }, {} as Record<string, FlareEntry[]>);
-
-  const sortedDays = Object.keys(groupedByDay).sort((a, b) => b.localeCompare(a));
-
-  const handleMouseDown = (e: React.MouseEvent, entry: FlareEntry) => {
-    const dayStart = startOfDay(entry.timestamp);
-    const startMin = differenceInMinutes(entry.timestamp, dayStart);
-    setDragging({ id: entry.id, startY: e.clientY, startMin });
+  // Prevent default drag behavior globally when dragging
+  const handleGlobalMouseMove = (e: MouseEvent) => {
+    if (dragging) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
   };
 
-  const handleMouseMove = (e: MouseEvent) => {
+  const handleGlobalMouseUp = async (e: MouseEvent) => {
     if (!dragging) return;
-    // Will handle in mouseup
-  };
 
-  const handleMouseUp = async (e: MouseEvent, entry: FlareEntry, timelineHeight: number) => {
-    if (!dragging || dragging.id !== entry.id) return;
-    
-    const deltaY = e.clientY - dragging.startY;
-    const deltaMinutes = (deltaY / timelineHeight) * (24 * 60);
-    const newMinutes = Math.max(0, Math.min(24 * 60 - 1, dragging.startMin + deltaMinutes));
-    
+    e.preventDefault();
+    e.stopPropagation();
+
+    const entry = entries.find(e => e.id === dragging.id);
+    if (!entry) {
+      setDragging(null);
+      return;
+    }
+
     const dayStart = startOfDay(entry.timestamp);
-    const newTimestamp = addMinutes(dayStart, newMinutes);
-    
-    const { error } = await supabase
-      .from('flare_entries')
-      .update({ timestamp: newTimestamp.toISOString() })
-      .eq('id', entry.id);
+    const deltaY = e.clientY - dragging.startY;
+    const TIMELINE_HEIGHT = 600;
 
-    if (error) {
-      toast.error("Failed to update time");
-    } else {
+    if (dragging.type === 'move') {
+      // Calculate new time based on pixel movement
+      const deltaMinutes = (deltaY / TIMELINE_HEIGHT) * (24 * 60);
+      const currentMinutes = differenceInMinutes(entry.timestamp, dayStart);
+      const newMinutes = Math.max(0, Math.min(24 * 60 - 1, currentMinutes + deltaMinutes));
+      const newTimestamp = addMinutes(dayStart, newMinutes);
+
+      console.log('Moving entry:', { deltaY, deltaMinutes, currentMinutes, newMinutes });
+
+      await supabase
+        .from('flare_entries')
+        .update({ timestamp: newTimestamp.toISOString() })
+        .eq('id', entry.id);
+
+      onEntriesUpdate();
+    } else if (dragging.type === 'resize') {
+      const deltaMinutes = (deltaY / TIMELINE_HEIGHT) * (24 * 60);
+      const currentDuration = entry.duration_minutes || 15;
+      const newDuration = Math.max(15, currentDuration + deltaMinutes);
+
+      console.log('Resizing entry:', { deltaY, deltaMinutes, currentDuration, newDuration });
+
+      await supabase
+        .from('flare_entries')
+        .update({ duration_minutes: Math.round(newDuration) })
+        .eq('id', entry.id);
+
       onEntriesUpdate();
     }
+
     setDragging(null);
+    document.body.style.userSelect = '';
   };
+
+  // Attach global listeners
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('mousemove', handleGlobalMouseMove);
+    window.removeEventListener('mouseup', handleGlobalMouseUp);
+    if (dragging) {
+      window.addEventListener('mousemove', handleGlobalMouseMove);
+      window.addEventListener('mouseup', handleGlobalMouseUp);
+    }
+  }
 
   const handleResize = async (entry: FlareEntry, newDuration: number) => {
     const endTime = addMinutes(entry.timestamp, newDuration);
@@ -122,6 +155,16 @@ export const GanttTimeline = ({ entries, onEntriesUpdate }: GanttTimelineProps) 
     );
   }
 
+  // Group by day
+  const groupedByDay = entries.reduce((acc, entry) => {
+    const day = format(entry.timestamp, 'yyyy-MM-dd');
+    if (!acc[day]) acc[day] = [];
+    acc[day].push(entry);
+    return acc;
+  }, {} as Record<string, FlareEntry[]>);
+
+  const sortedDays = Object.keys(groupedByDay).sort((a, b) => b.localeCompare(a));
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -134,27 +177,36 @@ export const GanttTimeline = ({ entries, onEntriesUpdate }: GanttTimelineProps) 
         const dayStart = startOfDay(new Date(day));
         const TIMELINE_HEIGHT = 600;
 
+        console.log(`Rendering day ${day} with ${dayEntries.length} entries`);
+
         return (
           <div key={day} className="space-y-2">
             <h3 className="text-sm font-clinical text-foreground">
               {formatDayHeader(new Date(day))}
             </h3>
             
-            <div className="relative bg-card rounded-lg border p-4" style={{ height: `${TIMELINE_HEIGHT}px` }}>
-              {/* Time markers every 6 hours */}
-              {[0, 6, 12, 18].map(hour => (
-                <div 
-                  key={hour} 
-                  className="absolute left-0 right-0 flex items-center text-xs text-muted-foreground"
-                  style={{ top: `${(hour / 24) * 100}%` }}
-                >
-                  <span className="w-12 text-right pr-2">{hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}</span>
-                  <div className="flex-1 border-t border-border" />
-                </div>
-              ))}
+            <div 
+              className="relative bg-card rounded-lg border" 
+              style={{ height: `${TIMELINE_HEIGHT}px`, position: 'relative', overflow: 'visible' }}
+            >
+              {/* Time markers */}
+              <div className="absolute inset-0 px-4 py-2">
+                {[0, 6, 12, 18].map(hour => (
+                  <div 
+                    key={hour} 
+                    className="absolute left-0 right-0 flex items-center text-xs text-muted-foreground"
+                    style={{ top: `${(hour / 24) * 100}%` }}
+                  >
+                    <span className="w-12 text-right pr-2 bg-card">
+                      {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
+                    </span>
+                    <div className="flex-1 border-t border-border" />
+                  </div>
+                ))}
+              </div>
 
-              {/* Flare entries */}
-              <div className="absolute left-16 right-4 top-0 bottom-0">
+              {/* Entries container */}
+              <div className="absolute left-16 right-4 top-0 bottom-0" style={{ position: 'absolute' }}>
                 {(() => {
                   // Calculate lanes for overlapping entries
                   const sortedEntries = [...dayEntries].sort((a, b) => 
@@ -173,17 +225,13 @@ export const GanttTimeline = ({ entries, onEntriesUpdate }: GanttTimelineProps) 
                     const entryDuration = entry.duration_minutes || 15;
                     const entryEnd = entryStart + entryDuration;
 
-                    // Find all entries that overlap with this one
                     const overlapping = entriesWithLanes.filter(existing => {
                       const existingStart = differenceInMinutes(existing.timestamp, dayStart);
                       const existingDuration = existing.duration_minutes || 15;
                       const existingEnd = existingStart + existingDuration;
-                      
-                      // Check if time ranges overlap
                       return !(entryEnd <= existingStart || entryStart >= existingEnd);
                     });
 
-                    // Find the first available lane
                     let lane = 0;
                     const usedLanes = new Set(overlapping.map(e => e.lane));
                     while (usedLanes.has(lane)) {
@@ -196,7 +244,6 @@ export const GanttTimeline = ({ entries, onEntriesUpdate }: GanttTimelineProps) 
                       totalLanes: Math.max(lane + 1, ...overlapping.map(e => e.totalLanes))
                     });
 
-                    // Update totalLanes for all overlapping entries
                     overlapping.forEach(e => {
                       e.totalLanes = Math.max(e.totalLanes, lane + 1);
                     });
@@ -211,25 +258,43 @@ export const GanttTimeline = ({ entries, onEntriesUpdate }: GanttTimelineProps) 
                     const widthPercent = 100 / entry.totalLanes;
                     const leftPercent = widthPercent * entry.lane;
 
+                    console.log(`Entry ${entry.id}:`, { 
+                      time: format(entry.timestamp, 'HH:mm'),
+                      startMin, 
+                      duration, 
+                      topPercent, 
+                      heightPercent,
+                      lane: entry.lane,
+                      totalLanes: entry.totalLanes
+                    });
+
                     return (
                       <div
                         key={entry.id}
-                        className={`absolute rounded-md border-l-4 shadow-sm cursor-move select-none ${getColor(entry)} hover:shadow-md transition-shadow`}
+                        className={`absolute rounded-md border-l-4 shadow-sm cursor-move ${getColor(entry)} hover:shadow-md transition-shadow`}
                         style={{
                           top: `${topPercent}%`,
                           height: `${heightPercent}%`,
                           left: `${leftPercent}%`,
                           width: `${widthPercent}%`,
                           minHeight: '32px',
+                          userSelect: 'none',
+                          WebkitUserSelect: 'none',
                           zIndex: dragging?.id === entry.id ? 50 : 10
                         }}
                         onMouseDown={(e) => {
                           e.preventDefault();
-                          handleMouseDown(e, entry);
+                          e.stopPropagation();
+                          document.body.style.userSelect = 'none';
+                          setDragging({
+                            id: entry.id,
+                            startY: e.clientY,
+                            originalTop: topPercent,
+                            type: 'move'
+                          });
                         }}
-                        onMouseUp={(e) => handleMouseUp(e.nativeEvent, entry, TIMELINE_HEIGHT)}
                       >
-                        <div className="px-2 py-1 flex items-center gap-2 h-full overflow-hidden pointer-events-none">
+                        <div className="px-2 py-1 flex items-center gap-2 h-full overflow-hidden" style={{ pointerEvents: 'none' }}>
                           <Icon className="w-3 h-3 flex-shrink-0" />
                           <div className="flex-1 min-w-0 overflow-hidden">
                             <span className="text-xs font-medium capitalize truncate block">{getLabel(entry)}</span>
@@ -242,29 +307,18 @@ export const GanttTimeline = ({ entries, onEntriesUpdate }: GanttTimelineProps) 
 
                         {/* Resize handle */}
                         <div
-                          className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-black/10 group"
+                          className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-black/10 group z-10"
+                          style={{ pointerEvents: 'auto' }}
                           onMouseDown={(e) => {
-                            e.stopPropagation();
                             e.preventDefault();
-                            const startY = e.clientY;
-                            const startDur = duration;
-                            const startMin = differenceInMinutes(entry.timestamp, dayStart);
-
-                            const handleMove = (me: MouseEvent) => {
-                              me.preventDefault();
-                              const delta = me.clientY - startY;
-                              const deltaMin = (delta / TIMELINE_HEIGHT) * (24 * 60);
-                              const newDur = Math.max(15, Math.min(24 * 60 - startMin, startDur + deltaMin));
-                              handleResize(entry, Math.round(newDur));
-                            };
-
-                            const handleUp = () => {
-                              document.removeEventListener('mousemove', handleMove);
-                              document.removeEventListener('mouseup', handleUp);
-                            };
-
-                            document.addEventListener('mousemove', handleMove);
-                            document.addEventListener('mouseup', handleUp);
+                            e.stopPropagation();
+                            document.body.style.userSelect = 'none';
+                            setDragging({
+                              id: entry.id,
+                              startY: e.clientY,
+                              originalTop: topPercent,
+                              type: 'resize'
+                            });
                           }}
                         >
                           <div className="h-0.5 bg-current opacity-0 group-hover:opacity-30 mx-auto w-8" />
