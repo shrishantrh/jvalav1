@@ -6,7 +6,7 @@ import { FlareEntry } from "@/types/flare";
 import { QuickEntry } from "@/components/QuickEntry";
 import { DetailedEntry } from "@/components/DetailedEntry";
 import { InsightsPanel } from "@/components/InsightsPanel";
-import { FlareTimeline } from "@/components/flare/FlareTimeline";
+import { GanttTimeline } from "@/components/flare/GanttTimeline";
 import { Calendar, TrendingUp, Plus, Activity, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format, isToday } from "date-fns";
@@ -283,7 +283,7 @@ const Index = () => {
 
         {/* Timeline View */}
         {currentView === 'timeline' && (
-          <FlareTimeline entries={entries} />
+          <GanttTimeline entries={entries} onEntriesUpdate={loadEntries} />
         )}
 
         {/* Insights View */}

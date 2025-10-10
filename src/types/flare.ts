@@ -7,6 +7,8 @@ export interface FlareEntry {
   id: string;
   timestamp: Date;
   type: EntryType;
+  duration_minutes?: number;
+  end_timestamp?: Date;
   
   // Flare-specific fields
   severity?: FlareSeverity;

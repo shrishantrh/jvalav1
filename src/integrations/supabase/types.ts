@@ -17,6 +17,8 @@ export type Database = {
       flare_entries: {
         Row: {
           created_at: string
+          duration_minutes: number | null
+          end_timestamp: string | null
           energy_level: string | null
           entry_type: string
           environmental_data: Json | null
@@ -32,6 +34,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          duration_minutes?: number | null
+          end_timestamp?: string | null
           energy_level?: string | null
           entry_type: string
           environmental_data?: Json | null
@@ -47,6 +51,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          duration_minutes?: number | null
+          end_timestamp?: string | null
           energy_level?: string | null
           entry_type?: string
           environmental_data?: Json | null
