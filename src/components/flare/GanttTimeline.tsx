@@ -1,16 +1,10 @@
 import { FlareEntry, EntryType } from "@/types/flare";
-import { format, startOfDay, differenceInMinutes, addMinutes } from "date-fns";
-import { 
-  AlertTriangle, 
-  Pill, 
-  Zap, 
-  TrendingUp, 
-  Battery, 
-  FileText
-} from "lucide-react";
-import { useState, useRef } from "react";
+import { format, startOfDay, differenceInMinutes, addMinutes, isToday, isYesterday } from "date-fns";
+import { AlertTriangle, Pill, Zap, TrendingUp, Battery, FileText } from "lucide-react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Card } from "@/components/ui/card";
 
 interface GanttTimelineProps {
   entries: FlareEntry[];
@@ -18,31 +12,30 @@ interface GanttTimelineProps {
 }
 
 export const GanttTimeline = ({ entries, onEntriesUpdate }: GanttTimelineProps) => {
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [resizingId, setResizingId] = useState<string | null>(null);
-  const timelineRef = useRef<HTMLDivElement>(null);
+  const [dragging, setDragging] = useState<{ id: string; startY: number; startMin: number } | null>(null);
 
   const getIcon = (type: EntryType) => {
     const icons = { flare: AlertTriangle, medication: Pill, trigger: Zap, recovery: TrendingUp, energy: Battery, note: FileText };
-    return icons[type] || FileText;
+    const Icon = icons[type] || FileText;
+    return Icon;
   };
 
   const getColor = (entry: FlareEntry) => {
     if (entry.type === 'flare') {
       const colors = {
-        none: 'bg-severity-none-bg border-l-4 border-severity-none',
-        mild: 'bg-severity-mild-bg border-l-4 border-severity-mild',
-        moderate: 'bg-severity-moderate-bg border-l-4 border-severity-moderate',
-        severe: 'bg-severity-severe-bg border-l-4 border-severity-severe'
+        none: 'bg-green-50 border-green-500 text-green-900',
+        mild: 'bg-yellow-50 border-yellow-500 text-yellow-900',
+        moderate: 'bg-orange-50 border-orange-500 text-orange-900',
+        severe: 'bg-red-50 border-red-500 text-red-900'
       };
       return colors[entry.severity || 'mild'];
     }
     const typeColors = {
-      medication: 'bg-primary/5 border-l-4 border-primary',
-      trigger: 'bg-destructive/5 border-l-4 border-destructive',
-      recovery: 'bg-severity-none-bg border-l-4 border-severity-none',
-      energy: 'bg-accent/20 border-l-4 border-accent-foreground',
-      note: 'bg-muted/20 border-l-4 border-muted-foreground'
+      medication: 'bg-blue-50 border-blue-500 text-blue-900',
+      trigger: 'bg-purple-50 border-purple-500 text-purple-900',
+      recovery: 'bg-green-50 border-green-500 text-green-900',
+      energy: 'bg-cyan-50 border-cyan-500 text-cyan-900',
+      note: 'bg-gray-50 border-gray-400 text-gray-900'
     };
     return typeColors[entry.type as keyof typeof typeColors] || typeColors.note;
   };
@@ -51,6 +44,12 @@ export const GanttTimeline = ({ entries, onEntriesUpdate }: GanttTimelineProps) 
     if (entry.type === 'flare') return entry.severity || 'flare';
     if (entry.type === 'energy') return entry.energyLevel?.replace('-', ' ') || 'energy';
     return entry.type;
+  };
+
+  const formatDayHeader = (date: Date) => {
+    if (isToday(date)) return "Today";
+    if (isYesterday(date)) return "Yesterday";
+    return format(date, 'EEEE, MMM d');
   };
 
   // Group by day
@@ -63,7 +62,24 @@ export const GanttTimeline = ({ entries, onEntriesUpdate }: GanttTimelineProps) 
 
   const sortedDays = Object.keys(groupedByDay).sort((a, b) => b.localeCompare(a));
 
-  const handleDragEnd = async (entry: FlareEntry, newMinutes: number) => {
+  const handleMouseDown = (e: React.MouseEvent, entry: FlareEntry) => {
+    const dayStart = startOfDay(entry.timestamp);
+    const startMin = differenceInMinutes(entry.timestamp, dayStart);
+    setDragging({ id: entry.id, startY: e.clientY, startMin });
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!dragging) return;
+    // Will handle in mouseup
+  };
+
+  const handleMouseUp = async (e: MouseEvent, entry: FlareEntry, timelineHeight: number) => {
+    if (!dragging || dragging.id !== entry.id) return;
+    
+    const deltaY = e.clientY - dragging.startY;
+    const deltaMinutes = (deltaY / timelineHeight) * (24 * 60);
+    const newMinutes = Math.max(0, Math.min(24 * 60 - 1, dragging.startMin + deltaMinutes));
+    
     const dayStart = startOfDay(entry.timestamp);
     const newTimestamp = addMinutes(dayStart, newMinutes);
     
@@ -73,11 +89,11 @@ export const GanttTimeline = ({ entries, onEntriesUpdate }: GanttTimelineProps) 
       .eq('id', entry.id);
 
     if (error) {
-      toast.error("Failed to update");
+      toast.error("Failed to update time");
     } else {
       onEntriesUpdate();
     }
-    setDraggingId(null);
+    setDragging(null);
   };
 
   const handleResize = async (entry: FlareEntry, newDuration: number) => {
@@ -100,147 +116,106 @@ export const GanttTimeline = ({ entries, onEntriesUpdate }: GanttTimelineProps) 
 
   if (entries.length === 0) {
     return (
-      <div className="p-12 text-center bg-card rounded-lg border">
+      <Card className="p-12 text-center">
         <p className="text-muted-foreground">No entries yet</p>
-      </div>
+      </Card>
     );
   }
 
-  console.log('Rendering timeline with entries:', entries.length);
-  console.log('Grouped by days:', Object.keys(groupedByDay));
-
   return (
-    <div className="space-y-8">
-      <p className="text-xs text-muted-foreground">Showing {entries.length} entries • Drag to move • Resize from bottom</p>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-clinical">Timeline</h2>
+        <p className="text-xs text-muted-foreground">{entries.length} entries</p>
+      </div>
+
       {sortedDays.map(day => {
         const dayEntries = groupedByDay[day];
         const dayStart = startOfDay(new Date(day));
-        
-        console.log(`Day ${day}: ${dayEntries.length} entries`);
-
-        // Calculate overlaps and assign lanes
-        const lanes: FlareEntry[][] = [];
-        dayEntries.forEach(entry => {
-          const startMin = differenceInMinutes(entry.timestamp, dayStart);
-          const duration = entry.duration_minutes || 60;
-          const endMin = startMin + duration;
-
-          let placed = false;
-          for (const lane of lanes) {
-            const overlaps = lane.some(e => {
-              const eStart = differenceInMinutes(e.timestamp, dayStart);
-              const eDur = e.duration_minutes || 60;
-              const eEnd = eStart + eDur;
-              return !(endMin <= eStart || startMin >= eEnd);
-            });
-            if (!overlaps) {
-              lane.push(entry);
-              placed = true;
-              break;
-            }
-          }
-          if (!placed) lanes.push([entry]);
-        });
-
-        const laneWidth = lanes.length > 0 ? `${100 / lanes.length}%` : '100%';
+        const TIMELINE_HEIGHT = 600;
 
         return (
-          <div key={day}>
-            <h3 className="text-sm font-clinical mb-3 text-muted-foreground">
-              {format(new Date(day), 'EEE, MMM d')}
+          <div key={day} className="space-y-2">
+            <h3 className="text-sm font-clinical text-foreground">
+              {formatDayHeader(new Date(day))}
             </h3>
             
-            <div ref={timelineRef} className="relative h-[500px] bg-card rounded-lg border overflow-hidden">
-              {/* Time labels */}
+            <div className="relative bg-card rounded-lg border p-4" style={{ height: `${TIMELINE_HEIGHT}px` }}>
+              {/* Time markers every 6 hours */}
               {[0, 6, 12, 18].map(hour => (
-                <div key={hour} className="absolute left-0 text-xs text-muted-foreground px-2" style={{ top: `${(hour / 24) * 100}%` }}>
-                  {hour}:00
+                <div 
+                  key={hour} 
+                  className="absolute left-0 right-0 flex items-center text-xs text-muted-foreground"
+                  style={{ top: `${(hour / 24) * 100}%` }}
+                >
+                  <span className="w-12 text-right pr-2">{hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}</span>
+                  <div className="flex-1 border-t border-border" />
                 </div>
               ))}
 
-              {/* Hour lines */}
-              {Array.from({ length: 24 }, (_, i) => (
-                <div key={i} className="absolute left-12 right-0 border-t border-border/30" style={{ top: `${(i / 24) * 100}%` }} />
-              ))}
-
-              {/* Entry blocks */}
-              {lanes.map((lane, laneIdx) => 
-                lane.map(entry => {
+              {/* Flare entries */}
+              <div className="absolute left-16 right-4 top-0 bottom-0">
+                {dayEntries.map((entry, idx) => {
                   const Icon = getIcon(entry.type);
                   const startMin = differenceInMinutes(entry.timestamp, dayStart);
-                  // Default to 15 minutes for instant flares if no duration set
                   const duration = entry.duration_minutes || 15;
-                  const top = (startMin / (24 * 60)) * 100;
-                  // Minimum 2% height so it's always visible
-                  const height = Math.max((duration / (24 * 60)) * 100, 2);
+                  const topPercent = (startMin / (24 * 60)) * 100;
+                  const heightPercent = Math.max((duration / (24 * 60)) * 100, 1.5);
 
                   return (
                     <div
                       key={entry.id}
-                      draggable
-                      onDragStart={() => setDraggingId(entry.id)}
-                      onDragEnd={(e) => {
-                        if (!timelineRef.current) return;
-                        const rect = timelineRef.current.getBoundingClientRect();
-                        const y = e.clientY - rect.top;
-                        const newMin = Math.max(0, Math.min(24 * 60, (y / rect.height) * 24 * 60));
-                        handleDragEnd(entry, newMin);
-                      }}
-                      className={`absolute rounded cursor-move ${getColor(entry)} hover:shadow-md transition-all`}
+                      className={`absolute left-0 right-0 rounded-md border-l-4 shadow-sm cursor-move ${getColor(entry)} hover:shadow-md transition-shadow`}
                       style={{
-                        top: `${top}%`,
-                        height: `${height}%`,
-                        left: `calc(3rem + ${laneIdx * 100 / lanes.length}%)`,
-                        width: laneWidth,
-                        opacity: draggingId === entry.id ? 0.5 : 1
+                        top: `${topPercent}%`,
+                        height: `${heightPercent}%`,
+                        minHeight: '32px',
+                        zIndex: dragging?.id === entry.id ? 50 : 10
                       }}
+                      onMouseDown={(e) => handleMouseDown(e, entry)}
+                      onMouseUp={(e) => handleMouseUp(e.nativeEvent, entry, TIMELINE_HEIGHT)}
                     >
-                      <div className="p-2 h-full flex flex-col gap-1 overflow-hidden">
-                        <div className="flex items-center gap-1">
-                          <Icon className="w-3 h-3 flex-shrink-0" />
-                          <span className="text-xs font-clinical truncate capitalize">{getLabel(entry)}</span>
+                      <div className="px-2 py-1 flex items-center gap-2 h-full">
+                        <Icon className="w-3 h-3 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-medium capitalize">{getLabel(entry)}</span>
+                          {entry.symptoms && entry.symptoms.length > 0 && (
+                            <span className="text-xs ml-2 opacity-70">• {entry.symptoms[0]}</span>
+                          )}
                         </div>
-                        {entry.symptoms && entry.symptoms.length > 0 && (
-                          <span className="text-[10px] opacity-70 truncate">{entry.symptoms[0]}</span>
-                        )}
-                        {entry.note && (
-                          <span className="text-[10px] italic opacity-60 truncate">"{entry.note.slice(0, 20)}"</span>
-                        )}
+                        <span className="text-xs opacity-60">{format(entry.timestamp, 'h:mm a')}</span>
                       </div>
-                      
+
                       {/* Resize handle */}
                       <div
+                        className="absolute bottom-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-black/10 group"
                         onMouseDown={(e) => {
-                          e.preventDefault();
                           e.stopPropagation();
-                          setResizingId(entry.id);
-                          
-                          const handleMouseMove = (me: MouseEvent) => {
-                            if (!timelineRef.current) return;
-                            const rect = timelineRef.current.getBoundingClientRect();
-                            const y = me.clientY - rect.top;
-                            const endMin = (y / rect.height) * 24 * 60;
-                            const newDur = Math.max(15, endMin - startMin);
-                            handleResize(entry, newDur);
+                          const startY = e.clientY;
+                          const startDur = duration;
+
+                          const handleMove = (me: MouseEvent) => {
+                            const delta = me.clientY - startY;
+                            const deltaMin = (delta / TIMELINE_HEIGHT) * (24 * 60);
+                            const newDur = Math.max(15, Math.min(24 * 60 - startMin, startDur + deltaMin));
+                            handleResize(entry, Math.round(newDur));
                           };
-                          
-                          const handleMouseUp = () => {
-                            setResizingId(null);
-                            document.removeEventListener('mousemove', handleMouseMove);
-                            document.removeEventListener('mouseup', handleMouseUp);
+
+                          const handleUp = () => {
+                            document.removeEventListener('mousemove', handleMove);
+                            document.removeEventListener('mouseup', handleUp);
                           };
-                          
-                          document.addEventListener('mousemove', handleMouseMove);
-                          document.addEventListener('mouseup', handleMouseUp);
+
+                          document.addEventListener('mousemove', handleMove);
+                          document.addEventListener('mouseup', handleUp);
                         }}
-                        className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-foreground/10 flex items-center justify-center"
                       >
-                        <div className="w-6 h-0.5 bg-foreground/20 rounded" />
+                        <div className="h-0.5 bg-current opacity-0 group-hover:opacity-30 mx-auto w-8" />
                       </div>
                     </div>
                   );
-                })
-              )}
+                })}
+              </div>
             </div>
           </div>
         );
