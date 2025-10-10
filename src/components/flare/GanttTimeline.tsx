@@ -106,11 +106,17 @@ export const GanttTimeline = ({ entries, onEntriesUpdate }: GanttTimelineProps) 
     );
   }
 
+  console.log('Rendering timeline with entries:', entries.length);
+  console.log('Grouped by days:', Object.keys(groupedByDay));
+
   return (
     <div className="space-y-8">
+      <p className="text-xs text-muted-foreground">Showing {entries.length} entries • Drag to move • Resize from bottom</p>
       {sortedDays.map(day => {
         const dayEntries = groupedByDay[day];
         const dayStart = startOfDay(new Date(day));
+        
+        console.log(`Day ${day}: ${dayEntries.length} entries`);
 
         // Calculate overlaps and assign lanes
         const lanes: FlareEntry[][] = [];
