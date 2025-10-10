@@ -155,13 +155,18 @@ export const GanttTimeline = ({ entries, onEntriesUpdate }: GanttTimelineProps) 
     );
   }
 
-  // Group by day
+  // Group by day - store both the day string and the actual Date for proper calculations
   const groupedByDay = entries.reduce((acc, entry) => {
-    const day = format(entry.timestamp, 'yyyy-MM-dd');
-    if (!acc[day]) acc[day] = [];
-    acc[day].push(entry);
+    const dayKey = format(entry.timestamp, 'yyyy-MM-dd');
+    if (!acc[dayKey]) {
+      acc[dayKey] = {
+        entries: [],
+        dayStart: startOfDay(entry.timestamp) // Use the actual entry's date for day start
+      };
+    }
+    acc[dayKey].entries.push(entry);
     return acc;
-  }, {} as Record<string, FlareEntry[]>);
+  }, {} as Record<string, { entries: FlareEntry[]; dayStart: Date }>);
 
   const sortedDays = Object.keys(groupedByDay).sort((a, b) => b.localeCompare(a));
 
@@ -173,11 +178,10 @@ export const GanttTimeline = ({ entries, onEntriesUpdate }: GanttTimelineProps) 
       </div>
 
       {sortedDays.map(day => {
-        const dayEntries = groupedByDay[day];
-        const dayStart = startOfDay(new Date(day));
+        const { entries: dayEntries, dayStart } = groupedByDay[day];
         const TIMELINE_HEIGHT = 600;
 
-        console.log(`Rendering day ${day} with ${dayEntries.length} entries`);
+        console.log(`Rendering day ${day} with ${dayEntries.length} entries`, { dayStart });
 
         return (
           <div key={day} className="space-y-2">
