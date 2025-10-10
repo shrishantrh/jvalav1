@@ -162,9 +162,11 @@ export const GanttTimeline = ({ entries, onEntriesUpdate }: GanttTimelineProps) 
                 lane.map(entry => {
                   const Icon = getIcon(entry.type);
                   const startMin = differenceInMinutes(entry.timestamp, dayStart);
-                  const duration = entry.duration_minutes || 60;
+                  // Default to 15 minutes for instant flares if no duration set
+                  const duration = entry.duration_minutes || 15;
                   const top = (startMin / (24 * 60)) * 100;
-                  const height = Math.max((duration / (24 * 60)) * 100, 3);
+                  // Minimum 2% height so it's always visible
+                  const height = Math.max((duration / (24 * 60)) * 100, 2);
 
                   return (
                     <div
