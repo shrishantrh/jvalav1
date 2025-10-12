@@ -6,7 +6,7 @@ import { FlareEntry } from "@/types/flare";
 import { QuickEntry } from "@/components/QuickEntry";
 import { DetailedEntry } from "@/components/DetailedEntry";
 import { InsightsPanel } from "@/components/InsightsPanel";
-import { GanttTimeline } from "@/components/flare/GanttTimeline";
+import { FlareTimeline } from "@/components/flare/FlareTimeline";
 import { Calendar, TrendingUp, Plus, Activity, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format, isToday } from "date-fns";
@@ -57,8 +57,6 @@ const Index = () => {
           note: entry.note,
           environmentalData: entry.environmental_data,
           physiologicalData: entry.physiological_data,
-          duration_minutes: entry.duration_minutes,
-          end_timestamp: entry.end_timestamp ? new Date(entry.end_timestamp) : null,
         })));
       }
     } catch (error) {
@@ -285,7 +283,7 @@ const Index = () => {
 
         {/* Timeline View */}
         {currentView === 'timeline' && (
-          <GanttTimeline entries={entries} onEntriesUpdate={loadEntries} />
+          <FlareTimeline entries={entries} />
         )}
 
         {/* Insights View */}
