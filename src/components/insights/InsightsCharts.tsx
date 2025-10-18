@@ -42,58 +42,85 @@ export const InsightsCharts = ({ entries }: InsightsChartsProps) => {
     setOpenCharts(newOpenCharts);
   };
 
-  // Generate comprehensive fake data if entries are limited
+  // Process real user data
   const generateEnhancedData = () => {
     const last30Days = eachDayOfInterval({
       start: subDays(new Date(), 30),
       end: new Date()
     });
 
-    return last30Days.map((day, index) => {
+    return last30Days.map((day) => {
       const dayEntries = entries.filter(entry => 
         format(new Date(entry.timestamp), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd')
       );
 
-      // Generate realistic fake data patterns
-      const baseTemp = 18 + Math.sin((index / 30) * Math.PI * 2) * 8; // Seasonal variation
-      const tempVariation = (Math.random() - 0.5) * 6;
-      const temperature = Math.round(baseTemp + tempVariation);
+      const flareEntries = dayEntries.filter(e => e.type === 'flare');
+      const energyEntries = dayEntries.filter(e => e.type === 'energy');
       
-      const basePollen = 40 + Math.sin((index / 30) * Math.PI * 4) * 30; // Pollen seasons
-      const pollen = Math.max(0, Math.round(basePollen + (Math.random() - 0.5) * 20));
+      // Real flare count
+      const flareCount = flareEntries.length;
       
-      const pressure = Math.round(1013 + (Math.random() - 0.5) * 20);
-      const humidity = Math.round(45 + (Math.random() - 0.5) * 40);
+      // Calculate average severity from real data
+      const severityMap = { 'none': 0, 'mild': 1, 'moderate': 2, 'severe': 3 };
+      const avgSeverity = flareCount > 0 
+        ? flareEntries.reduce((sum, e) => sum + (severityMap[e.severity || 'none'] || 0), 0) / flareCount
+        : 0;
       
-      // Correlate flares with environmental factors
-      const flareChance = Math.max(0, 
-        (temperature > 28 ? 0.4 : 0) + 
-        (pollen > 60 ? 0.3 : 0) + 
-        (pressure < 1000 ? 0.2 : 0) +
-        Math.random() * 0.3
-      );
+      // Calculate average energy from real data
+      const energyMap = { 'very-low': 1, 'low': 2, 'moderate': 3, 'good': 4, 'high': 5 };
+      const avgEnergy = energyEntries.length > 0
+        ? energyEntries.reduce((sum, e) => sum + (energyMap[e.energyLevel || 'moderate'] || 3), 0) / energyEntries.length
+        : 0;
       
-      const flareCount = dayEntries.filter(e => e.type === 'flare').length || 
-        (Math.random() < flareChance ? Math.floor(Math.random() * 3) + 1 : 0);
+      // Extract environmental data from entries
+      const envData = dayEntries
+        .map(e => e.environmentalData)
+        .filter(Boolean);
       
-      const avgSeverity = flareCount > 0 ? 
-        Math.max(1, Math.min(4, 2 + (temperature > 25 ? 1 : 0) + (pollen > 70 ? 1 : 0))) : 0;
+      const temperature = envData.length > 0
+        ? Math.round(envData.reduce((sum, e) => sum + (e?.weather?.temperature || 0), 0) / envData.length)
+        : 0;
       
-      const energyLevel = Math.max(1, 5 - Math.floor(avgSeverity * 0.8) - (Math.random() < 0.3 ? 1 : 0));
+      const pollen = envData.length > 0
+        ? Math.round(envData.reduce((sum, e) => sum + (e?.airQuality?.pollen || 0), 0) / envData.length)
+        : 0;
       
-      // Physiological data
-      const heartRate = Math.round(65 + (avgSeverity * 5) + (Math.random() - 0.5) * 15);
-      const sleepHours = Math.max(4, 8 - (avgSeverity * 0.5) + (Math.random() - 0.5) * 2);
-      const stressLevel = Math.min(10, Math.max(1, Math.round(avgSeverity + (Math.random() - 0.5) * 3)));
-      const steps = Math.round(Math.max(2000, 8000 - (avgSeverity * 1000) + (Math.random() - 0.5) * 3000));
+      const pressure = envData.length > 0
+        ? Math.round(envData.reduce((sum, e) => sum + (e?.weather?.pressure || 0), 0) / envData.length)
+        : 0;
+      
+      const humidity = envData.length > 0
+        ? Math.round(envData.reduce((sum, e) => sum + (e?.weather?.humidity || 0), 0) / envData.length)
+        : 0;
+      
+      // Extract physiological data from entries
+      const physioData = dayEntries
+        .map(e => e.physiologicalData)
+        .filter(Boolean);
+      
+      const heartRate = physioData.length > 0
+        ? Math.round(physioData.reduce((sum, e) => sum + (e?.heartRate || 0), 0) / physioData.length)
+        : 0;
+      
+      const sleepHours = physioData.length > 0
+        ? Math.round((physioData.reduce((sum, e) => sum + (e?.sleepHours || 0), 0) / physioData.length) * 10) / 10
+        : 0;
+      
+      const stressLevel = physioData.length > 0
+        ? Math.round(physioData.reduce((sum, e) => sum + (e?.stressLevel || 0), 0) / physioData.length)
+        : 0;
+      
+      const steps = physioData.length > 0
+        ? Math.round(physioData.reduce((sum, e) => sum + (e?.steps || 0), 0) / physioData.length / 1000)
+        : 0;
 
       return {
         date: format(day, 'MMM dd'),
         fullDate: day,
         flares: flareCount,
-        severity: avgSeverity,
-        energy: energyLevel,
-        entries: dayEntries.length || Math.floor(Math.random() * 5),
+        severity: Math.round(avgSeverity * 10) / 10,
+        energy: Math.round(avgEnergy * 10) / 10,
+        entries: dayEntries.length,
         temperature,
         pollen,
         pressure,
@@ -101,50 +128,48 @@ export const InsightsCharts = ({ entries }: InsightsChartsProps) => {
         heartRate,
         sleepHours,
         stressLevel,
-        steps: steps / 1000 // Convert to thousands for chart readability
+        steps
       };
     });
   };
 
   const generateSymptomData = () => {
-    // Generate realistic symptom data
-    const commonSymptoms = [
-      { symptom: 'Joint Pain', count: Math.floor(Math.random() * 15) + 8 },
-      { symptom: 'Fatigue', count: Math.floor(Math.random() * 12) + 10 },
-      { symptom: 'Muscle Stiffness', count: Math.floor(Math.random() * 10) + 6 },
-      { symptom: 'Swelling', count: Math.floor(Math.random() * 8) + 4 },
-      { symptom: 'Morning Stiffness', count: Math.floor(Math.random() * 12) + 7 },
-      { symptom: 'Sleep Issues', count: Math.floor(Math.random() * 9) + 5 },
-      { symptom: 'Headache', count: Math.floor(Math.random() * 7) + 3 },
-      { symptom: 'Skin Rash', count: Math.floor(Math.random() * 6) + 2 }
-    ];
+    // Extract real symptom data from entries
+    const symptomCounts: { [key: string]: number } = {};
+    
+    entries.forEach(entry => {
+      if (entry.symptoms && entry.symptoms.length > 0) {
+        entry.symptoms.forEach(symptom => {
+          symptomCounts[symptom] = (symptomCounts[symptom] || 0) + 1;
+        });
+      }
+    });
 
-    return commonSymptoms.sort((a, b) => b.count - a.count);
+    const symptomData = Object.entries(symptomCounts)
+      .map(([symptom, count]) => ({ symptom, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10); // Top 10 symptoms
+
+    return symptomData;
   };
 
   const generateTimeOfDayData = () => {
-    // Generate realistic time-of-day patterns for flares
-    const timePatterns = Array.from({ length: 24 }, (_, hour) => {
-      let baseFlares = 0;
-      
-      // Morning stiffness peak (6-9 AM)
-      if (hour >= 6 && hour <= 9) baseFlares = Math.floor(Math.random() * 4) + 2;
-      // Afternoon stress peak (2-4 PM)  
-      else if (hour >= 14 && hour <= 16) baseFlares = Math.floor(Math.random() * 3) + 1;
-      // Evening fatigue (6-8 PM)
-      else if (hour >= 18 && hour <= 20) baseFlares = Math.floor(Math.random() * 3) + 1;
-      // Night rest (10 PM - 5 AM)
-      else if (hour >= 22 || hour <= 5) baseFlares = Math.floor(Math.random() * 2);
-      // Other hours
-      else baseFlares = Math.floor(Math.random() * 2);
+    // Extract real time-of-day patterns from flare entries
+    const hourCounts = Array.from({ length: 24 }, () => 0);
+    
+    entries
+      .filter(entry => entry.type === 'flare')
+      .forEach(entry => {
+        const hour = new Date(entry.timestamp).getHours();
+        hourCounts[hour]++;
+      });
 
-      return {
-        hour: hour === 0 ? '12 AM' : hour === 12 ? '12 PM' : 
-              hour < 12 ? `${hour} AM` : `${hour - 12} PM`,
-        flares: baseFlares,
-        hourNum: hour
-      };
-    });
+    const timePatterns = hourCounts.map((count, hour) => ({
+      hour: hour === 0 ? '12 AM' : hour === 12 ? '12 PM' : 
+            hour < 12 ? `${hour} AM` : `${hour - 12} PM`,
+      flares: count,
+      hourNum: hour
+    }));
 
     return timePatterns;
   };
