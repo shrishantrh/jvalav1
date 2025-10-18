@@ -55,6 +55,7 @@ const Index = () => {
           medications: entry.medications,
           triggers: entry.triggers,
           note: entry.note,
+          followUps: entry.follow_ups || [],
           environmentalData: entry.environmental_data,
           physiologicalData: entry.physiological_data,
         })));
@@ -186,6 +187,49 @@ const Index = () => {
       toast({
         title: "Error deleting entry",
         description: "Failed to delete your entry",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleAddFollowUp = async (entryId: string, followUpNote: string) => {
+    if (!user) return;
+
+    try {
+      // Get current entry
+      const entry = entries.find(e => e.id === entryId);
+      if (!entry) return;
+
+      const newFollowUp = {
+        timestamp: new Date().toISOString(),
+        note: followUpNote
+      };
+
+      const updatedFollowUps = [...(entry.followUps || []), newFollowUp];
+
+      const { error } = await supabase
+        .from('flare_entries')
+        .update({
+          follow_ups: updatedFollowUps
+        })
+        .eq('id', entryId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setEntries(prev => prev.map(e => 
+        e.id === entryId ? { ...e, followUps: updatedFollowUps } : e
+      ));
+
+      toast({
+        title: "Follow-up added",
+        description: "Update saved successfully",
+      });
+    } catch (error) {
+      console.error('Failed to add follow-up:', error);
+      toast({
+        title: "Error adding follow-up",
+        description: "Failed to save your update",
         variant: "destructive"
       });
     }
@@ -353,6 +397,7 @@ const Index = () => {
             entries={entries} 
             onUpdate={handleUpdateEntry}
             onDelete={handleDeleteEntry}
+            onAddFollowUp={handleAddFollowUp}
           />
         )}
 

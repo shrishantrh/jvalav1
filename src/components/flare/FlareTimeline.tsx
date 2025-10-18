@@ -23,11 +23,13 @@ import {
   Moon,
   Footprints,
   Edit2,
-  Trash2
+  Trash2,
+  MessageSquarePlus
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EditFlareDialog } from "./EditFlareDialog";
+import { FollowUpDialog } from "./FollowUpDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,13 +45,15 @@ interface FlareTimelineProps {
   entries: FlareEntry[];
   onUpdate?: (entryId: string, updates: Partial<FlareEntry>) => void;
   onDelete?: (entryId: string) => void;
+  onAddFollowUp?: (entryId: string, followUpNote: string) => void;
 }
 
-export const FlareTimeline = ({ entries, onUpdate, onDelete }: FlareTimelineProps) => {
+export const FlareTimeline = ({ entries, onUpdate, onDelete, onAddFollowUp }: FlareTimelineProps) => {
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
   const [hoveredEntry, setHoveredEntry] = useState<string | null>(null);
   const [editingEntry, setEditingEntry] = useState<FlareEntry | null>(null);
   const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
+  const [followUpEntry, setFollowUpEntry] = useState<FlareEntry | null>(null);
 
   const toggleEntry = (entryId: string) => {
     setExpandedEntries(prev => {
@@ -198,14 +202,24 @@ export const FlareTimeline = ({ entries, onUpdate, onDelete }: FlareTimelineProp
                         hoveredEntry === entry.id ? 'ml-0 mr-16' : ''
                       }`}
                     >
-                      {/* Edit/Delete Buttons */}
+                      {/* Edit/Delete/Follow-up Buttons */}
                       {hoveredEntry === entry.id && (
                         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1 z-10">
                           <Button
                             size="sm"
                             variant="ghost"
                             className="h-8 w-8 p-0 hover:bg-primary/10"
+                            onClick={() => setFollowUpEntry(entry)}
+                            title="Add follow-up"
+                          >
+                            <MessageSquarePlus className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 hover:bg-primary/10"
                             onClick={() => setEditingEntry(entry)}
+                            title="Edit entry"
                           >
                             <Edit2 className="w-4 h-4" />
                           </Button>
@@ -214,6 +228,7 @@ export const FlareTimeline = ({ entries, onUpdate, onDelete }: FlareTimelineProp
                             variant="ghost"
                             className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
                             onClick={() => setDeletingEntryId(entry.id)}
+                            title="Delete entry"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -265,6 +280,26 @@ export const FlareTimeline = ({ entries, onUpdate, onDelete }: FlareTimelineProp
                       {entry.note && (
                         <div className="text-xs text-foreground/80 mt-2 italic">
                           "{entry.note}"
+                        </div>
+                      )}
+
+                      {/* Follow-ups */}
+                      {entry.followUps && entry.followUps.length > 0 && (
+                        <div className="mt-3 pt-3 border-t space-y-2">
+                          <p className="text-xs font-clinical text-primary flex items-center gap-1.5">
+                            <MessageSquarePlus className="w-3.5 h-3.5" />
+                            Follow-ups ({entry.followUps.length})
+                          </p>
+                          <div className="space-y-2">
+                            {entry.followUps.map((followUp, index) => (
+                              <div key={index} className="text-xs border-l-2 border-primary/30 pl-3 py-1">
+                                <p className="text-foreground">{followUp.note}</p>
+                                <p className="text-muted-foreground text-[10px] mt-0.5">
+                                  {format(new Date(followUp.timestamp), "MMM d 'at' h:mm a")}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
 
@@ -426,6 +461,20 @@ export const FlareTimeline = ({ entries, onUpdate, onDelete }: FlareTimelineProp
           onSave={(updates) => {
             if (onUpdate) {
               onUpdate(editingEntry.id, updates);
+            }
+          }}
+        />
+      )}
+
+      {/* Follow-up Dialog */}
+      {followUpEntry && (
+        <FollowUpDialog
+          entry={followUpEntry}
+          open={!!followUpEntry}
+          onOpenChange={(open) => !open && setFollowUpEntry(null)}
+          onSave={(followUpNote) => {
+            if (onAddFollowUp) {
+              onAddFollowUp(followUpEntry.id, followUpNote);
             }
           }}
         />

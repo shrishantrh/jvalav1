@@ -29,6 +29,12 @@ export interface FlareEntry {
     mood?: string;
   };
 
+  // Follow-ups for tracking progress
+  followUps?: {
+    timestamp: string;
+    note: string;
+  }[];
+
   // Environmental data
   environmentalData?: {
     location?: {
