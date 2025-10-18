@@ -125,6 +125,72 @@ const Index = () => {
     }
   };
 
+  const handleUpdateEntry = async (entryId: string, updates: Partial<FlareEntry>) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('flare_entries')
+        .update({
+          timestamp: updates.timestamp?.toISOString(),
+          severity: updates.severity || null,
+          energy_level: updates.energyLevel || null,
+          symptoms: updates.symptoms || null,
+          medications: updates.medications || null,
+          triggers: updates.triggers || null,
+          note: updates.note || null,
+        })
+        .eq('id', entryId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setEntries(prev => prev.map(entry => 
+        entry.id === entryId ? { ...entry, ...updates } : entry
+      ));
+
+      toast({
+        title: "Entry updated",
+        description: "Changes saved successfully",
+      });
+    } catch (error) {
+      console.error('Failed to update entry:', error);
+      toast({
+        title: "Error updating entry",
+        description: "Failed to update your entry",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteEntry = async (entryId: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('flare_entries')
+        .delete()
+        .eq('id', entryId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setEntries(prev => prev.filter(entry => entry.id !== entryId));
+
+      toast({
+        title: "Entry deleted",
+        description: "Entry removed successfully",
+      });
+    } catch (error) {
+      console.error('Failed to delete entry:', error);
+      toast({
+        title: "Error deleting entry",
+        description: "Failed to delete your entry",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/auth');
@@ -283,7 +349,11 @@ const Index = () => {
 
         {/* Timeline View */}
         {currentView === 'timeline' && (
-          <FlareTimeline entries={entries} />
+          <FlareTimeline 
+            entries={entries} 
+            onUpdate={handleUpdateEntry}
+            onDelete={handleDeleteEntry}
+          />
         )}
 
         {/* Insights View */}
