@@ -264,22 +264,29 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-subtle">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b">
-        <div className="container max-w-md mx-auto px-4 py-3">
+      <header className="sticky top-0 z-50 glass border-b shadow-soft">
+        <div className="container max-w-md mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-lg font-medical text-primary">Flare Journal</h1>
-              <div className="text-xs text-muted-foreground">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center shadow-primary">
+                  <Activity className="w-4 h-4 text-white" />
+                </div>
+                <h1 className="text-lg font-medical bg-gradient-primary bg-clip-text text-transparent">
+                  Flare Journal
+                </h1>
+              </div>
+              <div className="text-xs text-muted-foreground ml-10">
                 {format(new Date(), 'EEEE, MMM d')}
               </div>
             </div>
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               onClick={handleSignOut}
-              className="h-9 w-9 p-0"
+              className="h-10 w-10 rounded-full hover:bg-destructive/10 hover:text-destructive transition-all"
             >
               <LogOut className="w-4 h-4" />
             </Button>
@@ -288,73 +295,89 @@ const Index = () => {
       </header>
 
       {/* Navigation */}
-      <div className="container max-w-md mx-auto px-4 py-4">
-        <div className="flex bg-muted rounded-medical p-1">
+      <div className="container max-w-md mx-auto px-4 py-5">
+        <div className="flex bg-card/80 backdrop-blur rounded-2xl p-1.5 shadow-soft border">
           <Button
             variant={currentView === 'today' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setCurrentView('today')}
-            className="flex-1 text-xs h-8"
+            className={`flex-1 text-xs h-9 rounded-xl transition-all ${
+              currentView === 'today' 
+                ? 'shadow-primary' 
+                : 'hover:bg-accent/50'
+            }`}
           >
-            <Activity className="w-3 h-3 mr-1" />
+            <Activity className="w-3.5 h-3.5 mr-1.5" />
             Today
           </Button>
           <Button
             variant={currentView === 'timeline' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setCurrentView('timeline')}
-            className="flex-1 text-xs h-8"
+            className={`flex-1 text-xs h-9 rounded-xl transition-all ${
+              currentView === 'timeline' 
+                ? 'shadow-primary' 
+                : 'hover:bg-accent/50'
+            }`}
           >
-            <Calendar className="w-3 h-3 mr-1" />
+            <Calendar className="w-3.5 h-3.5 mr-1.5" />
             History
           </Button>
           <Button
             variant={currentView === 'insights' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setCurrentView('insights')}
-            className="flex-1 text-xs h-8"
+            className={`flex-1 text-xs h-9 rounded-xl transition-all ${
+              currentView === 'insights' 
+                ? 'shadow-primary' 
+                : 'hover:bg-accent/50'
+            }`}
           >
-            <TrendingUp className="w-3 h-3 mr-1" />
+            <TrendingUp className="w-3.5 h-3.5 mr-1.5" />
             Insights
           </Button>
         </div>
       </div>
 
       {/* Content */}
-      <main className="container max-w-md mx-auto px-4 pb-6 space-y-4">
+      <main className="container max-w-md mx-auto px-4 pb-8 space-y-5">
         {/* Today View */}
         {currentView === 'today' && (
           <>
             {/* Today's Summary */}
             {todaysEntries.length > 0 && (
-              <Card className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-sm font-clinical">Today's Activity</h2>
-                  <span className="text-xs text-muted-foreground">
-                    {todaysEntries.length} entries
+              <Card className="p-5 shadow-soft-lg hover-lift bg-gradient-card border-0 animate-fade-in">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-base font-clinical">Today's Activity</h2>
+                  <span className="text-xs px-3 py-1 rounded-full bg-primary/10 text-primary font-medium">
+                    {todaysEntries.length} {todaysEntries.length === 1 ? 'entry' : 'entries'}
                   </span>
                 </div>
-                <div className="space-y-2">
-                  {todaysEntries.slice(0, 3).map((entry) => (
-                    <div key={entry.id} className="flex items-center justify-between p-2 bg-muted/30 rounded">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm">{getEntryIcon(entry.type)}</span>
+                <div className="space-y-2.5">
+                  {todaysEntries.slice(0, 3).map((entry, idx) => (
+                    <div 
+                      key={entry.id} 
+                      className="flex items-center justify-between p-3 bg-muted/40 rounded-xl hover:bg-muted/60 transition-all cursor-pointer hover-scale"
+                      style={{ animationDelay: `${idx * 0.1}s` }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg">{getEntryIcon(entry.type)}</span>
                         <div>
                           <span className="text-sm font-clinical capitalize">{entry.type}</span>
                           {entry.severity && (
-                            <span className={`text-xs ml-2 ${getSeverityColor(entry.severity)}`}>
+                            <span className={`text-xs ml-2 px-2 py-0.5 rounded-full ${getSeverityColor(entry.severity)} bg-current/10`}>
                               {entry.severity}
                             </span>
                           )}
                         </div>
                       </div>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-muted-foreground font-medium">
                         {format(entry.timestamp, 'h:mm a')}
                       </span>
                     </div>
                   ))}
                   {todaysEntries.length > 3 && (
-                    <div className="text-xs text-muted-foreground text-center pt-1">
+                    <div className="text-xs text-muted-foreground text-center pt-2 font-medium">
                       +{todaysEntries.length - 3} more entries
                     </div>
                   )}
@@ -363,27 +386,31 @@ const Index = () => {
             )}
 
             {/* Quick Entry */}
-            <Card className="p-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Plus className="w-4 h-4 text-primary" />
-                <h2 className="text-sm font-clinical">Quick Track</h2>
+            <Card className="p-5 shadow-soft-lg hover-lift bg-gradient-card border-0 animate-fade-in">
+              <div className="flex items-center gap-2 mb-5">
+                <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-soft">
+                  <Plus className="w-4 h-4 text-white" />
+                </div>
+                <h2 className="text-base font-clinical">Quick Track</h2>
               </div>
               <QuickEntry
                 onSave={handleSaveEntry}
               />
               
               {/* Detailed Entry Option */}
-              <div className="pt-3 border-t">
+              <div className="pt-4 mt-4 border-t">
                 <DetailedEntry onSave={handleSaveEntry} />
               </div>
             </Card>
 
             {/* Empty state */}
             {todaysEntries.length === 0 && (
-              <Card className="p-6 text-center">
-                <div className="text-4xl mb-2">🌟</div>
-                <h3 className="text-sm font-clinical mb-1">Start tracking today</h3>
-                <p className="text-xs text-muted-foreground">
+              <Card className="p-8 text-center shadow-soft-lg bg-gradient-card border-0 animate-scale-in">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-primary/10 flex items-center justify-center">
+                  <span className="text-4xl">🌟</span>
+                </div>
+                <h3 className="text-base font-clinical mb-2">Start tracking today</h3>
+                <p className="text-sm text-muted-foreground">
                   Use the quick actions above to log your first entry
                 </p>
               </Card>

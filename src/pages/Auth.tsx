@@ -78,20 +78,25 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-md p-8">
-        <div className="flex items-center justify-center mb-6">
-          <Activity className="w-8 h-8 text-primary mr-2" />
-          <h1 className="text-2xl font-medical text-primary">Flare Journal</h1>
+    <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-4">
+      <Card className="w-full max-w-md p-8 shadow-soft-xl hover-lift animate-scale-in bg-gradient-card border-0">
+        <div className="flex flex-col items-center justify-center mb-8">
+          <div className="w-16 h-16 rounded-full bg-gradient-primary flex items-center justify-center mb-4 shadow-primary">
+            <Activity className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-3xl font-medical bg-gradient-primary bg-clip-text text-transparent">
+            Flare Journal
+          </h1>
+          <p className="text-sm text-muted-foreground mt-2">Track your health journey</p>
         </div>
 
         <h2 className="text-xl font-clinical mb-6 text-center">
-          {isSignUp ? "Create Account" : "Sign In"}
+          {isSignUp ? "Create Account" : "Welcome Back"}
         </h2>
 
-        <form onSubmit={handleAuth} className="space-y-4">
+        <form onSubmit={handleAuth} className="space-y-5">
           <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-clinical">
+            <label htmlFor="email" className="text-sm font-clinical text-foreground">
               Email
             </label>
             <Input
@@ -102,11 +107,12 @@ const Auth = () => {
               placeholder="your@email.com"
               required
               disabled={loading}
+              className="h-11 transition-all focus:shadow-soft-md"
             />
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-clinical">
+            <label htmlFor="password" className="text-sm font-clinical text-foreground">
               Password
             </label>
             <Input
@@ -118,6 +124,7 @@ const Auth = () => {
               required
               disabled={loading}
               minLength={6}
+              className="h-11 transition-all focus:shadow-soft-md"
             />
             {isSignUp && (
               <p className="text-xs text-muted-foreground">
@@ -128,7 +135,8 @@ const Auth = () => {
 
           <Button
             type="submit"
-            className="w-full"
+            className="w-full mt-6"
+            size="lg"
             disabled={loading}
           >
             {loading ? (
@@ -137,15 +145,15 @@ const Auth = () => {
                 Please wait...
               </>
             ) : (
-              isSignUp ? "Sign Up" : "Sign In"
+              isSignUp ? "Create Account" : "Sign In"
             )}
           </Button>
         </form>
 
-        <div className="mt-4 text-center">
+        <div className="mt-6 text-center">
           <button
             onClick={() => setIsSignUp(!isSignUp)}
-            className="text-sm text-primary hover:underline"
+            className="text-sm text-primary hover:underline font-clinical transition-all"
             disabled={loading}
           >
             {isSignUp
