@@ -5,6 +5,7 @@ import { FlareEntry } from "@/types/flare";
 import { InsightsCharts } from "@/components/insights/InsightsCharts";
 import { FlareMap } from "@/components/insights/FlareMap";
 import { PDFExport } from "@/components/insights/PDFExport";
+import { MedicalExport } from "@/components/insights/MedicalExport";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Brain, 
@@ -236,15 +237,17 @@ export const InsightsPanel = ({ entries }: InsightsPanelProps) => {
         </TabsContent>
 
         <TabsContent value="export" className="space-y-6">
+          <MedicalExport entries={entries} onExport={() => setLastUpdated(new Date())} />
+          
           <Card>
             <CardHeader>
-              <CardTitle>Export Health Report</CardTitle>
+              <CardTitle>Simple PDF Report</CardTitle>
               <p className="text-sm text-muted-foreground">
                 Generate a comprehensive PDF report for your healthcare provider
               </p>
             </CardHeader>
             <CardContent>
-              <PDFExport entries={entries} />
+              <PDFExport entries={entries} onExport={() => setLastUpdated(new Date())} />
             </CardContent>
           </Card>
         </TabsContent>
