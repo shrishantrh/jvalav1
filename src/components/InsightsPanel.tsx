@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FlareEntry } from "@/types/flare";
 import { InsightsCharts } from "@/components/insights/InsightsCharts";
 import { FlareMap } from "@/components/insights/FlareMap";
 import { PDFExport } from "@/components/insights/PDFExport";
+import { ImprovedPDFExport } from "@/components/insights/ImprovedPDFExport";
 import { MedicalExport } from "@/components/insights/MedicalExport";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -37,6 +38,7 @@ export const InsightsPanel = ({ entries }: InsightsPanelProps) => {
   const [insights, setInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
+  const chartRefs = [useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null)];
 
   const getIconForType = (type: string) => {
     switch (type) {
@@ -173,7 +175,9 @@ export const InsightsPanel = ({ entries }: InsightsPanelProps) => {
         </TabsList>
 
         <TabsContent value="charts" className="space-y-6">
-          <InsightsCharts entries={entries} />
+          <div ref={chartRefs[0]}>
+            <InsightsCharts entries={entries} />
+          </div>
         </TabsContent>
 
         <TabsContent value="ai" className="space-y-6">
