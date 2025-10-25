@@ -274,7 +274,7 @@ const Index = () => {
                 <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center shadow-primary">
                   <Activity className="w-4 h-4 text-white" />
                 </div>
-                <h1 className="text-lg font-medical bg-gradient-primary bg-clip-text text-transparent">
+                <h1 className="text-lg font-medical text-foreground">
                   Flare Journal
                 </h1>
               </div>

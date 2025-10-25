@@ -8,6 +8,7 @@ import { SeveritySelector } from "@/components/flare/SeveritySelector";
 import { SymptomSelector } from "@/components/flare/SymptomSelector";
 import { EntryTypeSelector } from "@/components/flare/EntryTypeSelector";
 import { EnergySelector } from "@/components/flare/EnergySelector";
+import { MedicationInput } from "@/components/MedicationInput";
 import { Settings, X, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -183,11 +184,11 @@ export const DetailedEntry = ({ onSave }: DetailedEntryProps) => {
           )}
 
           {entryType === 'medication' && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-clinical">Medication details</h3>
-              <div className="text-xs text-muted-foreground">
-                Common medications will be suggested. Add details in the note below.
-              </div>
+            <div className="space-y-4">
+              <MedicationInput
+                selectedMedications={selectedMeds}
+                onMedicationsChange={setSelectedMeds}
+              />
             </div>
           )}
 

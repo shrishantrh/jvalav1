@@ -84,7 +84,7 @@ const Auth = () => {
           <div className="w-16 h-16 rounded-full bg-gradient-primary flex items-center justify-center mb-4 shadow-primary">
             <Activity className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-medical bg-gradient-primary bg-clip-text text-transparent">
+          <h1 className="text-3xl font-medical text-foreground">
             Flare Journal
           </h1>
           <p className="text-sm text-muted-foreground mt-2">Track your health journey</p>
