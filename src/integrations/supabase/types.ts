@@ -100,6 +100,42 @@ export type Database = {
         }
         Relationships: []
       }
+      report_exports: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          export_type: string
+          file_path: string | null
+          id: string
+          metadata: Json | null
+          password_hash: string | null
+          share_token: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          export_type: string
+          file_path?: string | null
+          id?: string
+          metadata?: Json | null
+          password_hash?: string | null
+          share_token?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          export_type?: string
+          file_path?: string | null
+          id?: string
+          metadata?: Json | null
+          password_hash?: string | null
+          share_token?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
