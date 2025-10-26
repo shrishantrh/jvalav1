@@ -47,8 +47,15 @@ export const ImprovedPDFExport = ({ entries, chartRefs }: ImprovedPDFExportProps
         return false;
       };
 
+      // Helper function to add text with word wrapping
+      const addText = (text: string, x: number, y: number) => {
+        const lines = pdf.splitTextToSize(text, pageWidth - 2 * margin);
+        pdf.text(lines, x, y);
+        return y + (lines.length * 6);
+      };
+
       // Header with professional styling
-      pdf.setFillColor(139, 39, 66); // Primary maroon color
+      pdf.setFillColor(139, 39, 66);
       pdf.rect(0, 0, pageWidth, 35, 'F');
       pdf.setTextColor(255, 255, 255);
       pdf.setFontSize(22);
@@ -75,10 +82,27 @@ export const ImprovedPDFExport = ({ entries, chartRefs }: ImprovedPDFExportProps
       pdf.text(`${format(subDays(new Date(), 30), 'MMM dd')} - ${format(new Date(), 'MMM dd, yyyy')}`, margin + 35, yPosition);
       yPosition += 10;
 
-      // Summary Statistics
-      const last30Days = entries.filter(e => new Date(e.timestamp) >= subDays(new Date(), 30));
-      const flares = last30Days.filter(e => e.type === 'flare');
+      // Calculate comprehensive insights
+      const last30Days = entries.filter(e => 
+        new Date(e.timestamp) >= subDays(new Date(), 30)
+      );
       
+      const flares = last30Days.filter(e => e.type === 'flare');
+      const totalFlares = flares.length;
+      const severeFlares = flares.filter(e => e.severity === 'severe').length;
+      const moderateFlares = flares.filter(e => e.severity === 'moderate').length;
+      const mildFlares = totalFlares - severeFlares - moderateFlares;
+      
+      const averageSeverity = totalFlares > 0 
+        ? flares.reduce((sum, e) => {
+            const severityValue = e.severity === 'severe' ? 4 : 
+                                 e.severity === 'moderate' ? 3 :
+                                 e.severity === 'mild' ? 2 : 1;
+            return sum + severityValue;
+          }, 0) / totalFlares
+        : 0;
+
+      // Summary Statistics
       pdf.setFillColor(245, 245, 250);
       pdf.rect(margin, yPosition, pageWidth - 2 * margin, 35, 'F');
       yPosition += 8;
@@ -92,9 +116,9 @@ export const ImprovedPDFExport = ({ entries, chartRefs }: ImprovedPDFExportProps
       pdf.setFont('helvetica', 'normal');
       const summaryItems = [
         `Total Entries: ${last30Days.length}`,
-        `Flare Episodes: ${flares.length}`,
-        `Severe Flares: ${flares.filter(f => f.severity === 'severe').length}`,
-        `Average per week: ${(flares.length / 4.3).toFixed(1)}`
+        `Flare Episodes: ${totalFlares}`,
+        `Severe Flares: ${severeFlares}`,
+        `Average per week: ${(totalFlares / 4.3).toFixed(1)}`
       ];
 
       summaryItems.forEach((item, idx) => {
@@ -105,9 +129,62 @@ export const ImprovedPDFExport = ({ entries, chartRefs }: ImprovedPDFExportProps
 
       yPosition += 25;
 
+      // Clinical Analysis Section
+      checkNewPage(100);
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(139, 39, 66);
+      yPosition = addText('CLINICAL ANALYSIS & INSIGHTS', margin, yPosition);
+      
+      pdf.setDrawColor(200, 200, 200);
+      pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+      yPosition += 10;
+      
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(0, 0, 0);
+      yPosition = addText('Disease Activity Assessment:', margin, yPosition);
+      
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'normal');
+
+      const flareFrequency = totalFlares / 30;
+      if (flareFrequency > 1) {
+        yPosition = addText(`• High disease activity detected: ${flareFrequency.toFixed(1)} episodes per day`, margin, yPosition + 8);
+        yPosition = addText('  Clinical Significance: Suggests suboptimal disease control', margin + 5, yPosition + 4);
+        yPosition = addText('  Recommendation: Immediate rheumatology consultation for treatment optimization', margin + 5, yPosition + 4);
+      } else if (flareFrequency > 0.5) {
+        yPosition = addText(`• Moderate disease activity: ${(flareFrequency * 7).toFixed(1)} episodes per week`, margin, yPosition + 8);
+        yPosition = addText('  Clinical Significance: Acceptable but room for improvement', margin + 5, yPosition + 4);
+        yPosition = addText('  Recommendation: Review current medications and lifestyle factors', margin + 5, yPosition + 4);
+      } else {
+        yPosition = addText(`• Good disease control: ${totalFlares} episodes in 30-day period`, margin, yPosition + 8);
+        yPosition = addText('  Clinical Significance: Disease well-controlled with current regimen', margin + 5, yPosition + 4);
+        yPosition = addText('  Recommendation: Continue current management strategy', margin + 5, yPosition + 4);
+      }
+
+      if (totalFlares > 0) {
+        yPosition += 8;
+        pdf.setFont('helvetica', 'bold');
+        yPosition = addText('Severity Distribution Analysis:', margin, yPosition);
+        pdf.setFont('helvetica', 'normal');
+        yPosition = addText(`• Severe episodes: ${severeFlares} (${((severeFlares/totalFlares)*100).toFixed(1)}%)`, margin, yPosition + 6);
+        yPosition = addText(`• Moderate episodes: ${moderateFlares} (${((moderateFlares/totalFlares)*100).toFixed(1)}%)`, margin, yPosition + 4);
+        yPosition = addText(`• Mild episodes: ${mildFlares} (${((mildFlares/totalFlares)*100).toFixed(1)}%)`, margin, yPosition + 4);
+
+        if (severeFlares > 3) {
+          yPosition += 6;
+          pdf.setTextColor(200, 0, 0);
+          yPosition = addText(`⚠ CLINICAL ALERT: ${severeFlares} severe episodes exceed acceptable threshold`, margin, yPosition);
+          pdf.setTextColor(0, 0, 0);
+          yPosition = addText('  Urgent Assessment Required: Schedule immediate consultation', margin + 5, yPosition + 4);
+        }
+      }
+
       // Capture and add charts
       if (chartRefs && chartRefs.length > 0) {
-        for (const chartRef of chartRefs) {
+        for (let i = 0; i < chartRefs.length; i++) {
+          const chartRef = chartRefs[i];
           if (chartRef.current) {
             checkNewPage(80);
             
@@ -126,6 +203,11 @@ export const ImprovedPDFExport = ({ entries, chartRefs }: ImprovedPDFExportProps
                 yPosition = margin;
               }
               
+              pdf.setFontSize(12);
+              pdf.setFont('helvetica', 'bold');
+              pdf.text(`Chart ${i + 1}`, margin, yPosition);
+              yPosition += 8;
+              
               pdf.addImage(imgData, 'PNG', margin, yPosition, imgWidth, Math.min(imgHeight, 120));
               yPosition += Math.min(imgHeight, 120) + 10;
             } catch (error) {
@@ -135,33 +217,46 @@ export const ImprovedPDFExport = ({ entries, chartRefs }: ImprovedPDFExportProps
         }
       }
 
-      // Clinical Notes Section
-      checkNewPage(40);
-      pdf.setFontSize(14);
+      // Clinical Recommendations
+      checkNewPage(100);
+      pdf.setFontSize(16);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(139, 39, 66);
-      pdf.text('CLINICAL OBSERVATIONS', margin, yPosition);
-      yPosition += 8;
+      yPosition = addText('CLINICAL RECOMMENDATIONS', margin, yPosition);
+      
       pdf.setDrawColor(200, 200, 200);
       pdf.line(margin, yPosition, pageWidth - margin, yPosition);
-      yPosition += 8;
-
-      pdf.setFontSize(10);
+      yPosition += 10;
+      
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(0, 0, 0);
+      yPosition = addText('Immediate Actions Required:', margin, yPosition);
+      
+      pdf.setFontSize(11);
       pdf.setFont('helvetica', 'normal');
       
-      const observations = [
-        `Disease Activity: ${flares.length > 10 ? 'High - Consider treatment review' : flares.length > 5 ? 'Moderate - Monitor closely' : 'Good control'}`,
-        `Pattern: ${flares.filter(f => f.severity === 'severe').length > 3 ? 'Frequent severe episodes noted' : 'Manageable symptom pattern'}`,
-        `Recommendation: ${flares.length > 10 ? 'Schedule consultation within 1-2 weeks' : 'Continue current monitoring'}`,
-      ];
+      if (severeFlares > 3) {
+        yPosition = addText('🔴 URGENT: Schedule rheumatology consultation within 1-2 weeks', margin, yPosition + 8);
+        yPosition = addText('   - Consider rescue therapy or medication adjustment', margin + 5, yPosition + 4);
+      } else {
+        yPosition = addText('• Continue current monitoring and treatment plan', margin, yPosition + 8);
+      }
 
-      observations.forEach(obs => {
-        checkNewPage(15);
-        const lines = pdf.splitTextToSize(obs, pageWidth - 2 * margin);
-        pdf.text(lines, margin, yPosition);
-        yPosition += (lines.length * 5) + 3;
-      });
+      yPosition += 10;
+      pdf.setFont('helvetica', 'bold');
+      yPosition = addText('Follow-up Monitoring Plan:', margin, yPosition);
+      pdf.setFont('helvetica', 'normal');
+      yPosition = addText('• Continue daily symptom tracking using this monitoring system', margin, yPosition + 8);
+      yPosition = addText('• Schedule follow-up appointment in 4-6 weeks to assess treatment response', margin, yPosition + 5);
+      yPosition = addText('• Laboratory monitoring as per current medication protocols', margin, yPosition + 5);
+
+      // Medical disclaimer
+      checkNewPage(40);
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'italic');
+      pdf.setTextColor(100, 100, 100);
+      yPosition = addText('MEDICAL DISCLAIMER: This report is generated from patient self-reported data and is intended for healthcare provider review only. Clinical decisions should not be based solely on this report.', margin, yPosition);
 
       // Footer
       pdf.setFontSize(8);
@@ -180,7 +275,7 @@ export const ImprovedPDFExport = ({ entries, chartRefs }: ImprovedPDFExportProps
         await supabase.from('report_exports').insert({
           user_id: user?.id,
           export_type: 'simple_pdf',
-          metadata: { entries_count: last30Days.length, flares_count: flares.length }
+          metadata: { entries_count: last30Days.length, flares_count: totalFlares }
         });
         
         toast({ title: "PDF exported successfully" });
@@ -254,7 +349,7 @@ export const ImprovedPDFExport = ({ entries, chartRefs }: ImprovedPDFExportProps
     
     setIsExporting(true);
     try {
-      const { error } = await supabase.functions.invoke('send-health-report', {
+      const { data, error } = await supabase.functions.invoke('send-health-report', {
         body: {
           toEmail: email,
           reportUrl: shareUrl,
@@ -265,12 +360,29 @@ export const ImprovedPDFExport = ({ entries, chartRefs }: ImprovedPDFExportProps
 
       if (error) throw error;
 
-      toast({ title: "Email sent successfully", description: `Report sent to ${email}` });
+      toast({ 
+        title: "Email sent successfully", 
+        description: `Report sent to ${email}`,
+      });
       setEmailDialogOpen(false);
       setEmail('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Email error:', error);
-      toast({ title: "Email failed", description: "Please try again", variant: "destructive" });
+      
+      // Check if it's a Resend domain verification error
+      if (error.message?.includes('verify a domain') || error.statusCode === 403) {
+        toast({ 
+          title: "Domain verification required", 
+          description: "Please verify your domain at resend.com/domains to send emails to others",
+          variant: "destructive"
+        });
+      } else {
+        toast({ 
+          title: "Email failed", 
+          description: error.message || "Please try again",
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsExporting(false);
     }
@@ -292,7 +404,7 @@ export const ImprovedPDFExport = ({ entries, chartRefs }: ImprovedPDFExportProps
         size="sm"
       >
         {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
-        Export PDF with Charts
+        Export Simple PDF with Charts
       </Button>
       
       <Button 
@@ -312,7 +424,7 @@ export const ImprovedPDFExport = ({ entries, chartRefs }: ImprovedPDFExportProps
           <DialogHeader>
             <DialogTitle>🔐 Secure Share Link Created</DialogTitle>
             <DialogDescription>
-              Share this password-protected link with healthcare providers or authorized individuals
+              Share this password-protected link with healthcare providers or authorized individuals (One-time use)
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -326,7 +438,7 @@ export const ImprovedPDFExport = ({ entries, chartRefs }: ImprovedPDFExportProps
               </div>
             </div>
             <div>
-              <Label className="text-sm font-medium">Access Password</Label>
+              <Label className="text-sm font-medium">Access Password (One-time use)</Label>
               <div className="flex gap-2 mt-1">
                 <Input value={sharePassword} readOnly className="font-mono text-lg font-bold" />
                 <Button size="sm" variant="outline" onClick={() => copyToClipboard(sharePassword)}>
@@ -334,7 +446,7 @@ export const ImprovedPDFExport = ({ entries, chartRefs }: ImprovedPDFExportProps
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                Recipient needs this password to access the report. Expires in 30 days.
+                Recipient needs this password to access the report. Link expires after first use or in 30 days.
               </p>
             </div>
             <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>

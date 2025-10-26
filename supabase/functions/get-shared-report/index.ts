@@ -63,6 +63,32 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error('Report file not found');
     }
 
+    // DELETE the share token to make it one-time use (do this in background)
+    supabaseClient
+      .from('report_exports')
+      .delete()
+      .eq('share_token', shareToken)
+      .then(({ error }) => {
+        if (error) {
+          console.error('Failed to delete share token:', error);
+        } else {
+          console.log('Share token deleted successfully (one-time use enforced)');
+        }
+      });
+
+    // Also delete the file from storage
+    supabaseClient
+      .storage
+      .from('health-reports')
+      .remove([exportRecord.file_path])
+      .then(({ error }) => {
+        if (error) {
+          console.error('Failed to delete file from storage:', error);
+        } else {
+          console.log('File deleted from storage successfully');
+        }
+      });
+
     // Return the PDF file
     return new Response(fileData, {
       status: 200,

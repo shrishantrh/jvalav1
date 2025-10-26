@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Lock, FileText, AlertTriangle } from 'lucide-react';
-import { supabase } from "@/integrations/supabase/client";
 
 const SharedReport = () => {
   const [searchParams] = useSearchParams();
@@ -27,14 +26,24 @@ const SharedReport = () => {
     setError('');
 
     try {
-      const { data, error } = await supabase.functions.invoke('get-shared-report', {
-        body: { token, password }
-      });
+      // Call the edge function with token and password as query params
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-shared-report?token=${token}&password=${password}`,
+        {
+          method: 'GET',
+          headers: {
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+          }
+        }
+      );
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to access report');
+      }
 
-      // Create blob URL from response
-      const blob = new Blob([data], { type: 'application/pdf' });
+      // Get the PDF blob
+      const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       setPdfUrl(url);
     } catch (err: any) {
@@ -69,7 +78,7 @@ const SharedReport = () => {
                 <FileText className="w-6 h-6 text-primary" />
                 <div>
                   <h1 className="text-xl font-medical">Secure Health Report</h1>
-                  <p className="text-sm text-muted-foreground">Password-protected medical document</p>
+                  <p className="text-sm text-muted-foreground">Password-protected medical document (One-time access)</p>
                 </div>
               </div>
               <Button onClick={() => window.print()}>
@@ -84,6 +93,12 @@ const SharedReport = () => {
               title="Health Report"
             />
           </Card>
+          <Alert className="mt-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Note: This link has been used and is no longer valid. The report was automatically deleted for security.
+            </AlertDescription>
+          </Alert>
         </div>
       </div>
     );
@@ -98,7 +113,7 @@ const SharedReport = () => {
           </div>
           <h1 className="text-2xl font-medical mb-2">🔐 Secure Health Report</h1>
           <p className="text-muted-foreground">
-            Enter the password to access this protected medical document
+            Enter the password to access this protected medical document (One-time access)
           </p>
         </div>
 
@@ -149,6 +164,7 @@ const SharedReport = () => {
         <div className="pt-4 border-t text-xs text-muted-foreground text-center">
           <p>⚕️ This is a protected medical document</p>
           <p className="mt-1">Unauthorized access or distribution is prohibited</p>
+          <p className="mt-1 text-destructive font-medium">This link is valid for ONE-TIME use only</p>
         </div>
       </Card>
     </div>
