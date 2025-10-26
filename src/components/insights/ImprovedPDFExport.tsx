@@ -358,31 +358,39 @@ export const ImprovedPDFExport = ({ entries, chartRefs }: ImprovedPDFExportProps
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        // Check if it's a Resend domain verification error
+        // The error details are in the response, not in the error object
+        if (error.message?.includes('non-2xx') || error.message?.includes('verify a domain')) {
+          toast({ 
+            title: "⚠️ Domain Verification Required", 
+            description: "Resend requires domain verification to send emails. For now, you can only send to shatt@illinois.edu. Verify a domain at resend.com/domains to send to others.",
+            variant: "destructive",
+            duration: 10000
+          });
+        } else {
+          toast({ 
+            title: "Email failed", 
+            description: error.message || "Please try again",
+            variant: "destructive"
+          });
+        }
+        return;
+      }
 
       toast({ 
-        title: "Email sent successfully", 
+        title: "✅ Email sent successfully", 
         description: `Report sent to ${email}`,
       });
       setEmailDialogOpen(false);
       setEmail('');
     } catch (error: any) {
       console.error('Email error:', error);
-      
-      // Check if it's a Resend domain verification error
-      if (error.message?.includes('verify a domain') || error.statusCode === 403) {
-        toast({ 
-          title: "Domain verification required", 
-          description: "Please verify your domain at resend.com/domains to send emails to others",
-          variant: "destructive"
-        });
-      } else {
-        toast({ 
-          title: "Email failed", 
-          description: error.message || "Please try again",
-          variant: "destructive"
-        });
-      }
+      toast({ 
+        title: "Email failed", 
+        description: "Unable to send email. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsExporting(false);
     }

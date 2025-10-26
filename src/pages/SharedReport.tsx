@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Lock, FileText, AlertTriangle } from 'lucide-react';
+import { supabase } from "@/integrations/supabase/client";
 
 const SharedReport = () => {
   const [searchParams] = useSearchParams();
@@ -26,26 +27,37 @@ const SharedReport = () => {
     setError('');
 
     try {
-      // Call the edge function with token and password as query params
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-shared-report?token=${token}&password=${password}`,
-        {
-          method: 'GET',
-          headers: {
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-          }
+      console.log('Calling get-shared-report with token:', token);
+      
+      // Use window.location to construct the edge function URL
+      const baseUrl = window.location.origin.includes('lovableproject.com') 
+        ? 'https://rvhpwjhemwvvdtnzmobs.supabase.co'
+        : import.meta.env.VITE_SUPABASE_URL;
+      
+      const url = `${baseUrl}/functions/v1/get-shared-report?token=${encodeURIComponent(token)}&password=${encodeURIComponent(password)}`;
+      console.log('Fetching from URL:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Content-Type': 'application/json'
         }
-      );
+      });
+
+      console.log('Response status:', response.status);
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('Error response:', errorData);
         throw new Error(errorData.error || 'Failed to access report');
       }
 
       // Get the PDF blob
       const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      setPdfUrl(url);
+      console.log('PDF blob size:', blob.size);
+      const blobUrl = URL.createObjectURL(blob);
+      setPdfUrl(blobUrl);
     } catch (err: any) {
       console.error('Access error:', err);
       setError(err.message || 'Invalid password or expired link');
