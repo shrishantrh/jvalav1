@@ -241,19 +241,12 @@ export const InsightsPanel = ({ entries }: InsightsPanelProps) => {
         </TabsContent>
 
         <TabsContent value="export" className="space-y-6">
-          <MedicalExport entries={entries} onExport={() => setLastUpdated(new Date())} />
+          <ImprovedPDFExport 
+            entries={entries} 
+            chartRefs={chartRefs}
+          />
           
-          <Card>
-            <CardHeader>
-              <CardTitle>Simple PDF Report</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Generate a comprehensive PDF report for your healthcare provider
-              </p>
-            </CardHeader>
-            <CardContent>
-              <PDFExport entries={entries} onExport={() => setLastUpdated(new Date())} />
-            </CardContent>
-          </Card>
+          <MedicalExport entries={entries} onExport={() => setLastUpdated(new Date())} />
         </TabsContent>
       </Tabs>
     </div>
