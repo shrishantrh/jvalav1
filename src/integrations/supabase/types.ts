@@ -83,19 +83,31 @@ export type Database = {
         Row: {
           created_at: string
           email: string | null
+          full_name: string | null
           id: string
+          share_enabled: boolean | null
+          share_password_hash: string | null
+          share_token: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           email?: string | null
+          full_name?: string | null
           id: string
+          share_enabled?: boolean | null
+          share_password_hash?: string | null
+          share_token?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           email?: string | null
+          full_name?: string | null
           id?: string
+          share_enabled?: boolean | null
+          share_password_hash?: string | null
+          share_token?: string | null
           updated_at?: string
         }
         Relationships: []

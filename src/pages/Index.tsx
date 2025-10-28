@@ -7,14 +7,15 @@ import { QuickEntry } from "@/components/QuickEntry";
 import { DetailedEntry } from "@/components/DetailedEntry";
 import { InsightsPanel } from "@/components/InsightsPanel";
 import { FlareTimeline } from "@/components/flare/FlareTimeline";
-import { Calendar, TrendingUp, Plus, Activity, LogOut } from "lucide-react";
+import { ProfileSettings } from "@/components/ProfileSettings";
+import { Calendar, TrendingUp, Plus, Activity, LogOut, User as UserIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format, isToday } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
-  const [currentView, setCurrentView] = useState<'today' | 'timeline' | 'insights'>('today');
+  const [currentView, setCurrentView] = useState<'today' | 'timeline' | 'insights' | 'profile'>('today');
   const [entries, setEntries] = useState<FlareEntry[]>([]);
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
@@ -336,6 +337,19 @@ const Index = () => {
             <TrendingUp className="w-3.5 h-3.5 mr-1.5" />
             Insights
           </Button>
+          <Button
+            variant={currentView === 'profile' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setCurrentView('profile')}
+            className={`flex-1 text-xs h-9 rounded-xl transition-all ${
+              currentView === 'profile' 
+                ? 'shadow-primary' 
+                : 'hover:bg-accent/50'
+            }`}
+          >
+            <UserIcon className="w-3.5 h-3.5 mr-1.5" />
+            Profile
+          </Button>
         </div>
       </div>
 
@@ -431,6 +445,11 @@ const Index = () => {
         {/* Insights View */}
         {currentView === 'insights' && (
           <InsightsPanel entries={entries} />
+        )}
+
+        {/* Profile View */}
+        {currentView === 'profile' && (
+          <ProfileSettings />
         )}
       </main>
     </div>
