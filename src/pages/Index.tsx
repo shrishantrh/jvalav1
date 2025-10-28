@@ -283,14 +283,26 @@ const Index = () => {
                 {format(new Date(), 'EEEE, MMM d')}
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleSignOut}
-              className="h-10 w-10 rounded-full hover:bg-destructive/10 hover:text-destructive transition-all"
-            >
-              <LogOut className="w-4 h-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setCurrentView('profile')}
+                className="h-10 w-10 rounded-full hover:bg-primary/10 hover:text-primary transition-all"
+                title="Profile"
+              >
+                <UserIcon className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleSignOut}
+                className="h-10 w-10 rounded-full hover:bg-destructive/10 hover:text-destructive transition-all"
+                title="Sign Out"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </header>

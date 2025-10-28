@@ -31,37 +31,36 @@ const SharedProfile = () => {
     setError('');
 
     try {
-      // Hash the password
-      const encoder = new TextEncoder();
-      const data = encoder.encode(password);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const passwordHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      console.log('Calling get-shared-profile with token:', token);
+      
+      const baseUrl = window.location.origin.includes('lovableproject.com') 
+        ? 'https://rvhpwjhemwvvdtnzmobs.supabase.co'
+        : import.meta.env.VITE_SUPABASE_URL;
+      
+      const url = `${baseUrl}/functions/v1/get-shared-profile?token=${encodeURIComponent(token)}&password=${encodeURIComponent(password)}`;
+      console.log('Fetching from URL:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          'Content-Type': 'application/json'
+        }
+      });
 
-      // Get profile with matching token and password (using service role via edge function would be better, but for simplicity using RLS)
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('share_token', token)
-        .eq('share_password_hash', passwordHash)
-        .eq('share_enabled', true)
-        .single();
+      console.log('Response status:', response.status);
 
-      if (profileError || !profile) {
-        throw new Error('Incorrect password or link expired');
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Error response:', errorData);
+        throw new Error(errorData.error || 'Failed to access profile');
       }
 
-      // Get user's flare entries (we need service role here - let's use an edge function instead)
-      const { data: flareData, error: flareError } = await supabase
-        .from('flare_entries')
-        .select('*')
-        .eq('user_id', profile.id)
-        .order('timestamp', { ascending: false });
-
-      if (flareError) throw flareError;
-
-      setProfileData(profile);
-      setEntries(flareData || []);
+      const data = await response.json();
+      console.log('Profile data received');
+      
+      setProfileData(data.profile);
+      setEntries(data.entries);
       setAuthenticated(true);
     } catch (err: any) {
       console.error('Access error:', err);

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FileDown, Share2, Mail, Loader2, Copy, Check } from 'lucide-react';
+import { FileDown, Loader2 } from 'lucide-react';
 import { FlareEntry } from "@/types/flare";
 import { format, subDays, eachDayOfInterval } from 'date-fns';
 import jsPDF from 'jspdf';
@@ -19,12 +19,6 @@ interface ImprovedPDFExportProps {
 
 export const ImprovedPDFExport = ({ entries, chartRefs }: ImprovedPDFExportProps) => {
   const [isExporting, setIsExporting] = useState(false);
-  const [shareDialogOpen, setShareDialogOpen] = useState(false);
-  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
-  const [email, setEmail] = useState('');
-  const [shareUrl, setShareUrl] = useState('');
-  const [sharePassword, setSharePassword] = useState('');
-  const [copied, setCopied] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
