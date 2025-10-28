@@ -359,22 +359,12 @@ export const ImprovedPDFExport = ({ entries, chartRefs }: ImprovedPDFExportProps
       });
 
       if (error) {
-        // Check if it's a Resend domain verification error
-        // The error details are in the response, not in the error object
-        if (error.message?.includes('non-2xx') || error.message?.includes('verify a domain')) {
-          toast({ 
-            title: "⚠️ Domain Verification Required", 
-            description: "Resend requires domain verification to send emails. For now, you can only send to shatt@illinois.edu. Verify a domain at resend.com/domains to send to others.",
-            variant: "destructive",
-            duration: 10000
-          });
-        } else {
-          toast({ 
-            title: "Email failed", 
-            description: error.message || "Please try again",
-            variant: "destructive"
-          });
-        }
+        toast({ 
+          title: "⚠️ Email Service Limitation", 
+          description: "Resend requires domain verification. You can only send to verified email addresses (like shatt@illinois.edu) until you verify your own domain at resend.com/domains. This is a Resend security requirement, not an app limitation.",
+          variant: "destructive",
+          duration: 12000
+        });
         return;
       }
 
