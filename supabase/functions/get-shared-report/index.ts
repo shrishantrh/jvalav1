@@ -17,7 +17,15 @@ const handler = async (req: Request): Promise<Response> => {
     const shareToken = url.searchParams.get('token');
     const password = url.searchParams.get('password');
 
+    console.log('🔍 Request received:', { 
+      hasToken: !!shareToken, 
+      hasPassword: !!password,
+      tokenLength: shareToken?.length,
+      passwordLength: password?.length 
+    });
+
     if (!shareToken || !password) {
+      console.error('❌ Missing parameters:', { shareToken: !!shareToken, password: !!password });
       throw new Error('Missing token or password');
     }
 
@@ -33,12 +41,20 @@ const handler = async (req: Request): Promise<Response> => {
       .eq('share_token', shareToken)
       .single();
 
+    console.log('📊 Export record lookup:', { 
+      found: !!exportRecord, 
+      error: exportError?.message,
+      hasPasswordHash: !!exportRecord?.password_hash 
+    });
+
     if (exportError || !exportRecord) {
+      console.error('❌ Export record not found or error:', exportError);
       throw new Error('Invalid or expired share link');
     }
 
     // Check expiration
     if (new Date(exportRecord.expires_at) < new Date()) {
+      console.error('❌ Link expired:', exportRecord.expires_at);
       throw new Error('This share link has expired');
     }
 
@@ -49,7 +65,14 @@ const handler = async (req: Request): Promise<Response> => {
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const passwordHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
+    console.log('🔐 Password verification:', { 
+      providedHash: passwordHash.substring(0, 10) + '...',
+      storedHash: exportRecord.password_hash.substring(0, 10) + '...',
+      match: passwordHash === exportRecord.password_hash
+    });
+
     if (passwordHash !== exportRecord.password_hash) {
+      console.error('❌ Password mismatch');
       throw new Error('Incorrect password');
     }
 
