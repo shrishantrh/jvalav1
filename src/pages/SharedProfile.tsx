@@ -35,14 +35,15 @@ const SharedProfile = () => {
     setError('');
 
     try {
-      console.log('Calling get-shared-profile with token:', token);
+      console.log('🔍 Calling get-shared-profile with token:', token);
       
       const baseUrl = window.location.origin.includes('lovableproject.com') 
         ? 'https://rvhpwjhemwvvdtnzmobs.supabase.co'
         : import.meta.env.VITE_SUPABASE_URL;
       
       const url = `${baseUrl}/functions/v1/get-shared-profile?token=${encodeURIComponent(token)}`;
-      console.log('Fetching from URL:', url);
+      console.log('📍 Fetching from URL:', url);
+      console.log('🔑 Using API key:', import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.substring(0, 20) + '...');
       
       const response = await fetch(url, {
         method: 'GET',
@@ -52,21 +53,32 @@ const SharedProfile = () => {
         }
       });
 
-      console.log('Response status:', response.status);
+      console.log('📊 Response status:', response.status);
+      console.log('📋 Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Error response:', errorData);
+        const errorText = await response.text();
+        console.error('❌ Error response text:', errorText);
+        
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          errorData = { error: errorText };
+        }
+        
+        console.error('❌ Parsed error:', errorData);
         throw new Error(errorData.error || 'Failed to access profile');
       }
 
       const data = await response.json();
-      console.log('Profile data received');
+      console.log('✅ Profile data received:', { hasProfile: !!data.profile, entriesCount: data.entries?.length });
       
       setProfileData(data.profile);
       setEntries(data.entries);
     } catch (err: any) {
-      console.error('Access error:', err);
+      console.error('💥 Access error:', err);
+      console.error('💥 Error stack:', err.stack);
       setError(err.message || 'Failed to load profile or link expired');
     } finally {
       setLoading(false);

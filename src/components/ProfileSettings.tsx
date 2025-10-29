@@ -8,14 +8,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, User, Share2, Copy, Check, Pill, Upload, Sparkles } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Badge } from "@/components/ui/badge";
+import { ProfileMedicationInput, type MedicationDetails } from "@/components/ProfileMedicationInput";
 
 export const ProfileSettings = () => {
   const [fullName, setFullName] = useState('');
   const [shareEnabled, setShareEnabled] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
-  const [currentMedications, setCurrentMedications] = useState<string[]>([]);
-  const [newMedication, setNewMedication] = useState('');
+  const [currentMedications, setCurrentMedications] = useState<MedicationDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -125,17 +124,6 @@ export const ProfileSettings = () => {
     toast({ title: "Copied to clipboard" });
   };
 
-  const addMedication = () => {
-    if (newMedication.trim()) {
-      setCurrentMedications(prev => [...prev, newMedication.trim()]);
-      setNewMedication('');
-    }
-  };
-
-  const removeMedication = (index: number) => {
-    setCurrentMedications(prev => prev.filter((_, i) => i !== index));
-  };
-
   const handleLabUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -213,40 +201,16 @@ export const ProfileSettings = () => {
             <div>
               <CardTitle>Current Medications</CardTitle>
               <CardDescription>
-                Track medications you're currently taking
+                Track medications you're currently taking with dosage and frequency
               </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input
-              value={newMedication}
-              onChange={(e) => setNewMedication(e.target.value)}
-              placeholder="Add medication name"
-              onKeyDown={(e) => e.key === 'Enter' && addMedication()}
-            />
-            <Button onClick={addMedication} disabled={!newMedication.trim()}>
-              Add
-            </Button>
-          </div>
-          
-          <div className="flex flex-wrap gap-2">
-            {currentMedications.map((med, index) => (
-              <Badge key={index} variant="secondary" className="px-3 py-1">
-                {med}
-                <button
-                  onClick={() => removeMedication(index)}
-                  className="ml-2 hover:text-destructive"
-                >
-                  ×
-                </button>
-              </Badge>
-            ))}
-            {currentMedications.length === 0 && (
-              <p className="text-sm text-muted-foreground">No medications added yet</p>
-            )}
-          </div>
+          <ProfileMedicationInput
+            medications={currentMedications}
+            onMedicationsChange={setCurrentMedications}
+          />
           
           {currentMedications.length > 0 && (
             <Button onClick={handleSaveProfile} variant="outline" disabled={saving}>
