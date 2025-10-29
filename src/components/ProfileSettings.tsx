@@ -41,7 +41,8 @@ export const ProfileSettings = () => {
         setFullName(profile.full_name || '');
         setShareEnabled(profile.share_enabled || false);
         // Load current medications from profile metadata or separate field
-        const meds = profile.metadata?.medications || [];
+        const profileData = profile as any; // Type assertion for metadata
+        const meds = profileData.metadata?.medications || [];
         setCurrentMedications(meds);
         
         if (profile.share_token) {
@@ -65,7 +66,7 @@ export const ProfileSettings = () => {
         .from('profiles')
         .update({ 
           full_name: fullName,
-          metadata: { medications: currentMedications }
+          metadata: { medications: currentMedications } as any
         })
         .eq('id', user.id);
 

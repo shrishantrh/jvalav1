@@ -85,6 +85,7 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          metadata: Json | null
           share_enabled: boolean | null
           share_password_hash: string | null
           share_token: string | null
@@ -95,6 +96,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id: string
+          metadata?: Json | null
           share_enabled?: boolean | null
           share_password_hash?: string | null
           share_token?: string | null
@@ -105,6 +107,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          metadata?: Json | null
           share_enabled?: boolean | null
           share_password_hash?: string | null
           share_token?: string | null

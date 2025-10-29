@@ -15,16 +15,12 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const url = new URL(req.url);
     const shareToken = url.searchParams.get('token');
-    const password = url.searchParams.get('password');
 
-    console.log('🔍 Request received:', { 
-      hasToken: !!shareToken, 
-      hasPassword: !!password 
-    });
+    console.log('🔍 Request received:', { hasToken: !!shareToken });
 
-    if (!shareToken || !password) {
-      console.error('❌ Missing parameters');
-      throw new Error('Missing token or password');
+    if (!shareToken) {
+      console.error('❌ Missing token');
+      throw new Error('Missing share token');
     }
 
     const supabaseClient = createClient(
@@ -32,21 +28,11 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Hash the provided password
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const passwordHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-    console.log('🔐 Password hash computed');
-
-    // Get profile with matching token and password
+    // Get profile with matching token (no password required)
     const { data: profile, error: profileError } = await supabaseClient
       .from('profiles')
       .select('*')
       .eq('share_token', shareToken)
-      .eq('share_password_hash', passwordHash)
       .eq('share_enabled', true)
       .single();
 
@@ -56,8 +42,8 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     if (profileError || !profile) {
-      console.error('❌ Profile not found or password mismatch');
-      throw new Error('Incorrect password or link expired');
+      console.error('❌ Profile not found or sharing disabled');
+      throw new Error('Profile not found or link expired');
     }
 
     // Get user's flare entries
@@ -93,7 +79,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({ error: error.message }),
       {
-        status: error.message.includes('Incorrect password') ? 403 : 404,
+        status: error.message.includes('not found') ? 404 : 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
