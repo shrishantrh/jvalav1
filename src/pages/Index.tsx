@@ -349,19 +349,6 @@ const Index = () => {
             <TrendingUp className="w-3.5 h-3.5 mr-1.5" />
             Insights
           </Button>
-          <Button
-            variant={currentView === 'profile' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setCurrentView('profile')}
-            className={`flex-1 text-xs h-9 rounded-xl transition-all ${
-              currentView === 'profile' 
-                ? 'shadow-primary' 
-                : 'hover:bg-accent/50'
-            }`}
-          >
-            <UserIcon className="w-3.5 h-3.5 mr-1.5" />
-            Profile
-          </Button>
         </div>
       </div>
 

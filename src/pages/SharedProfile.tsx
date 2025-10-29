@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,18 +12,22 @@ import { InsightsCharts } from "@/components/insights/InsightsCharts";
 
 const SharedProfile = () => {
   const [searchParams] = useSearchParams();
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [authenticated, setAuthenticated] = useState(false);
   const [profileData, setProfileData] = useState<any>(null);
   const [entries, setEntries] = useState<any[]>([]);
 
   const token = searchParams.get('token');
 
+  useEffect(() => {
+    if (token) {
+      handleAccess();
+    }
+  }, [token]);
+
   const handleAccess = async () => {
-    if (!token || !password) {
-      setError('Please enter the access password');
+    if (!token) {
+      setError('Missing share token');
       return;
     }
 
@@ -37,7 +41,7 @@ const SharedProfile = () => {
         ? 'https://rvhpwjhemwvvdtnzmobs.supabase.co'
         : import.meta.env.VITE_SUPABASE_URL;
       
-      const url = `${baseUrl}/functions/v1/get-shared-profile?token=${encodeURIComponent(token)}&password=${encodeURIComponent(password)}`;
+      const url = `${baseUrl}/functions/v1/get-shared-profile?token=${encodeURIComponent(token)}`;
       console.log('Fetching from URL:', url);
       
       const response = await fetch(url, {
@@ -61,10 +65,9 @@ const SharedProfile = () => {
       
       setProfileData(data.profile);
       setEntries(data.entries);
-      setAuthenticated(true);
     } catch (err: any) {
       console.error('Access error:', err);
-      setError(err.message || 'Invalid password or expired link');
+      setError(err.message || 'Failed to load profile or link expired');
     } finally {
       setLoading(false);
     }
@@ -84,7 +87,31 @@ const SharedProfile = () => {
     );
   }
 
-  if (authenticated && profileData) {
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-4">
+        <Card className="w-full max-w-md p-8 text-center">
+          <Loader2 className="w-12 h-12 mx-auto mb-4 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading profile...</p>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-4">
+        <Card className="w-full max-w-md p-8 text-center">
+          <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-destructive" />
+          <h1 className="text-2xl font-medical mb-2">Failed to Load Profile</h1>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={handleAccess}>Try Again</Button>
+        </Card>
+      </div>
+    );
+  }
+
+  if (profileData) {
     return (
       <div className="min-h-screen bg-gradient-subtle">
         <div className="container max-w-6xl mx-auto p-4 space-y-6">
@@ -118,70 +145,7 @@ const SharedProfile = () => {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-4">
-      <Card className="w-full max-w-md p-8 space-y-6">
-        <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
-            <Lock className="w-8 h-8 text-primary" />
-          </div>
-          <h1 className="text-2xl font-medical mb-2">🔐 Secure Patient Profile</h1>
-          <p className="text-muted-foreground">
-            Enter the password to access this patient's protected health data
-          </p>
-        </div>
-
-        {error && (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="password">Access Password</Label>
-            <Input
-              id="password"
-              type="text"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter 8-character password"
-              onKeyDown={(e) => e.key === 'Enter' && handleAccess()}
-              className="font-mono text-lg"
-            />
-            <p className="text-xs text-muted-foreground mt-2">
-              The password was provided to you by the patient
-            </p>
-          </div>
-
-          <Button 
-            onClick={handleAccess}
-            disabled={loading || !password}
-            className="w-full"
-            size="lg"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Verifying...
-              </>
-            ) : (
-              <>
-                <Lock className="w-4 h-4 mr-2" />
-                Access Profile
-              </>
-            )}
-          </Button>
-        </div>
-
-        <div className="pt-4 border-t text-xs text-muted-foreground text-center">
-          <p>⚕️ This is a protected medical profile</p>
-          <p className="mt-1">Unauthorized access or distribution is prohibited</p>
-        </div>
-      </Card>
-    </div>
-  );
+  return null;
 };
 
 export default SharedProfile;

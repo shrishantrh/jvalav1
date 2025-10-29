@@ -237,7 +237,18 @@ export const InsightsPanel = ({ entries }: InsightsPanelProps) => {
         </TabsContent>
 
         <TabsContent value="map" className="space-y-6">
-          <FlareMap />
+          <Card>
+            <CardContent className="p-12 text-center relative overflow-hidden">
+              <div className="absolute inset-0 backdrop-blur-sm bg-muted/30 z-10"></div>
+              <div className="relative z-20">
+                <Map className="w-16 h-16 mx-auto mb-4 text-primary opacity-50" />
+                <h3 className="text-2xl font-clinical mb-2">Coming Soon</h3>
+                <p className="text-muted-foreground">
+                  Community features will be available in a future update
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="export" className="space-y-6">
