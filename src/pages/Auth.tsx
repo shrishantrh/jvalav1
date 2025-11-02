@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Activity, Loader2 } from "lucide-react";
+import jvalaLogo from "@/assets/jvala-logo.png";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -81,9 +82,7 @@ const Auth = () => {
     <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-4">
       <Card className="w-full max-w-md p-8 shadow-soft-xl hover-lift animate-scale-in bg-gradient-card border-0">
         <div className="flex flex-col items-center justify-center mb-8">
-          <div className="w-16 h-16 rounded-full bg-gradient-primary flex items-center justify-center mb-4 shadow-primary">
-            <Activity className="w-8 h-8 text-white" />
-          </div>
+          <img src={jvalaLogo} alt="jvala" className="w-16 h-16 mb-4" />
           <h1 className="text-3xl font-medical text-foreground">
             Flare Journal <span className="text-lg text-primary">DEMO</span>
           </h1>

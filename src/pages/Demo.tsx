@@ -1,4 +1,5 @@
 import { useState } from "react";
+import jvalaLogo from "@/assets/jvala-logo.png";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FlareEntry } from "@/types/flare";
@@ -206,9 +207,7 @@ const Demo = () => {
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center shadow-primary">
-                  <Activity className="w-4 h-4 text-white" />
-                </div>
+                <img src={jvalaLogo} alt="jvala" className="w-8 h-8" />
                 <h1 className="text-lg font-medical text-foreground">
                   Flare Journal <span className="text-sm text-primary">DEMO</span>
                 </h1>
