@@ -103,7 +103,7 @@ export const DetailedEntry = ({ onSave }: DetailedEntryProps) => {
     
     toast({
       title: "Detailed entry saved",
-      description: `${entryType.charAt(0).toUpperCase() + entryType.slice(1)} entry recorded with full details`,
+      description: "Note: Health data is simulated for demo purposes. Real device integration coming soon.",
     });
   };
 

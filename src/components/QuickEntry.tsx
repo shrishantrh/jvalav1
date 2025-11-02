@@ -120,6 +120,13 @@ export const QuickEntry = ({ onSave }: QuickEntryProps) => {
     }
 
     onSave(entry);
+    
+    // Show demo data notice
+    toast({
+      title: "Entry logged",
+      description: "Note: Health data is simulated for demo purposes. Real device integration coming soon.",
+      duration: 3000,
+    });
   };
 
 

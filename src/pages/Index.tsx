@@ -276,7 +276,7 @@ const Index = () => {
                   <Activity className="w-4 h-4 text-white" />
                 </div>
                 <h1 className="text-lg font-medical text-foreground">
-                  Flare Journal
+                  Flare Journal <span className="text-sm text-primary">DEMO</span>
                 </h1>
               </div>
               <div className="text-xs text-muted-foreground ml-10">
