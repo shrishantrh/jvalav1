@@ -146,7 +146,7 @@ const handler = async (req: Request): Promise<Response> => {
     `;
 
     const { data, error } = await resend.send({
-      from: "Flare Journal <health-reports@resend.dev>",
+      from: "Jvala <onboarding@resend.dev>",
       to: [toEmail],
       subject: `🏥 Secure Health Report - ${(exportType || 'Health Report').replace(/_/g, ' ').toUpperCase()}`,
       html: emailHtml,

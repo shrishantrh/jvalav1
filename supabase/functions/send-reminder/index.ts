@@ -95,7 +95,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Jvala <reminders@jvala.app>',
+        from: 'Jvala <onboarding@resend.dev>',
         to: [email],
         subject,
         html: bodyHtml,
