@@ -3,7 +3,11 @@ import { format, isToday, parseISO } from "date-fns";
 
 export const useEngagement = () => {
   
-  const updateEngagementOnLog = async (userId: string) => {
+  const updateEngagementOnLog = async (userId: string): Promise<{
+    newBadges: string[];
+    streakIncreased: boolean;
+    currentStreak: number;
+  }> => {
     try {
       // Get current engagement
       const { data: engagement } = await supabase
@@ -24,7 +28,7 @@ export const useEngagement = () => {
             last_log_date: format(new Date(), 'yyyy-MM-dd'),
             badges: ['first_log']
           });
-        return { newBadges: ['first_log'], streakIncreased: true };
+        return { newBadges: ['first_log'], streakIncreased: true, currentStreak: 1 };
       }
 
       const today = format(new Date(), 'yyyy-MM-dd');
@@ -85,10 +89,10 @@ export const useEngagement = () => {
           .eq('user_id', userId);
       }
 
-      return { newBadges, streakIncreased };
+      return { newBadges, streakIncreased, currentStreak: newStreak };
     } catch (error) {
       console.error('Failed to update engagement:', error);
-      return { newBadges: [], streakIncreased: false };
+      return { newBadges: [], streakIncreased: false, currentStreak: 0 };
     }
   };
 
