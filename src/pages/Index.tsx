@@ -4,22 +4,20 @@ import jvalaLogo from "@/assets/jvala-logo.png";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FlareEntry } from "@/types/flare";
-import { ChatLog } from "@/components/chat/ChatLog";
+import { QuickTrack } from "@/components/tracking/QuickTrack";
 import { DetailedEntry } from "@/components/DetailedEntry";
-import { InsightsPanel } from "@/components/InsightsPanel";
+import { SmartInsights } from "@/components/insights/SmartInsights";
 import { CalendarHistory } from "@/components/history/CalendarHistory";
-import { FlareLocationMap } from "@/components/history/FlareLocationMap";
 import { FlareTimeline } from "@/components/flare/FlareTimeline";
-import { ProfileSettings } from "@/components/ProfileSettings";
-import { CorrelationAnalysis } from "@/components/insights/CorrelationAnalysis";
-import { EngagementPanel } from "@/components/engagement/EngagementPanel";
+import { ProfileManager } from "@/components/profile/ProfileManager";
 import { ProgressDashboard } from "@/components/engagement/ProgressDashboard";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
+import { StreakBadge } from "@/components/engagement/StreakBadge";
 import { CONDITIONS } from "@/data/conditions";
 import { useEngagement } from "@/hooks/useEngagement";
-import { MessageCircle, Calendar, BarChart3, LogOut, User as UserIcon, ChevronDown } from "lucide-react";
+import { Activity, Calendar, BarChart3, LogOut, User as UserIcon, ChevronDown, Flame } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { format, isToday, subDays } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -35,17 +33,18 @@ interface UserProfile {
 }
 
 const Index = () => {
-  const [currentView, setCurrentView] = useState<'chat' | 'history' | 'insights' | 'profile' | 'progress'>('chat');
+  const [currentView, setCurrentView] = useState<'track' | 'history' | 'insights' | 'profile' | 'progress'>('track');
   const [entries, setEntries] = useState<FlareEntry[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showDetailedEntry, setShowDetailedEntry] = useState(false);
+  const [currentStreak, setCurrentStreak] = useState(0);
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { updateEngagementOnLog } = useEngagement();
+  const { updateEngagementOnLog, getEngagement, syncEngagementTotals } = useEngagement();
 
   // Check auth and load data
   useEffect(() => {
@@ -57,8 +56,19 @@ const Index = () => {
     if (user) {
       loadProfile();
       loadEntries();
+      loadEngagementData();
     }
   }, [user, loading, navigate]);
+
+  const loadEngagementData = async () => {
+    if (!user) return;
+    const engagement = await getEngagement(user.id);
+    if (engagement) {
+      setCurrentStreak(engagement.current_streak || 0);
+      // Sync totals on load to fix any mismatches
+      await syncEngagementTotals(user.id);
+    }
+  };
 
   const loadProfile = async () => {
     if (!user) return;
@@ -112,6 +122,12 @@ const Index = () => {
           physician_email: data.physicianEmail || null,
           physician_phone: data.physicianPhone || null,
           physician_practice: data.physicianPractice || null,
+          date_of_birth: data.dateOfBirth || null,
+          gender: data.gender || null,
+          biological_sex: data.biologicalSex || null,
+          height_cm: data.heightCm || null,
+          weight_kg: data.weightKg || null,
+          blood_type: data.bloodType || null,
           onboarding_completed: true,
         })
         .eq('id', user.id);
@@ -132,8 +148,8 @@ const Index = () => {
       setShowOnboarding(false);
 
       toast({
-        title: "Welcome to Jvala!",
-        description: "Your profile is set up. Start tracking to see insights.",
+        title: "Welcome to Jvala! 💜",
+        description: "You're all set. Start tracking to see insights.",
       });
     } catch (error) {
       console.error('Failed to save onboarding:', error);
@@ -175,11 +191,6 @@ const Index = () => {
       }
     } catch (error) {
       console.error('Failed to load entries:', error);
-      toast({
-        title: "Error loading entries",
-        description: "Failed to load your health data",
-        variant: "destructive"
-      });
     }
   };
 
@@ -228,17 +239,13 @@ const Index = () => {
         setEntries(prev => [newEntry, ...prev]);
 
         // Update engagement
-        const { newBadges, streakIncreased } = await updateEngagementOnLog(user.id);
+        const { newBadges, streakIncreased, currentStreak: newStreak } = await updateEngagementOnLog(user.id);
+        setCurrentStreak(newStreak);
         
         if (newBadges.length > 0) {
           toast({
             title: "🏆 Badge Earned!",
             description: `You earned: ${newBadges.join(', ')}`,
-          });
-        } else if (streakIncreased) {
-          toast({
-            title: "Entry logged",
-            description: "Keep your streak going!",
           });
         }
       }
@@ -276,17 +283,10 @@ const Index = () => {
         entry.id === entryId ? { ...entry, ...updates } : entry
       ));
 
-      toast({
-        title: "Entry updated",
-        description: "Changes saved successfully",
-      });
+      toast({ title: "Entry updated" });
     } catch (error) {
       console.error('Failed to update entry:', error);
-      toast({
-        title: "Error updating entry",
-        description: "Failed to update your entry",
-        variant: "destructive"
-      });
+      toast({ title: "Error updating entry", variant: "destructive" });
     }
   };
 
@@ -303,18 +303,10 @@ const Index = () => {
       if (error) throw error;
 
       setEntries(prev => prev.filter(entry => entry.id !== entryId));
-
-      toast({
-        title: "Entry deleted",
-        description: "Entry removed successfully",
-      });
+      toast({ title: "Entry deleted" });
     } catch (error) {
       console.error('Failed to delete entry:', error);
-      toast({
-        title: "Error deleting entry",
-        description: "Failed to delete your entry",
-        variant: "destructive"
-      });
+      toast({ title: "Error deleting entry", variant: "destructive" });
     }
   };
 
@@ -334,9 +326,7 @@ const Index = () => {
 
       const { error } = await supabase
         .from('flare_entries')
-        .update({
-          follow_ups: updatedFollowUps
-        })
+        .update({ follow_ups: updatedFollowUps })
         .eq('id', entryId)
         .eq('user_id', user.id);
 
@@ -346,17 +336,9 @@ const Index = () => {
         e.id === entryId ? { ...e, followUps: updatedFollowUps } : e
       ));
 
-      toast({
-        title: "Follow-up added",
-        description: "Update saved successfully",
-      });
+      toast({ title: "Follow-up added" });
     } catch (error) {
       console.error('Failed to add follow-up:', error);
-      toast({
-        title: "Error adding follow-up",
-        description: "Failed to save your update",
-        variant: "destructive"
-      });
     }
   };
 
@@ -364,6 +346,11 @@ const Index = () => {
     await signOut();
     navigate('/auth');
   };
+
+  // Filter entries for selected date in history view
+  const selectedDateEntries = useMemo(() => {
+    return entries.filter(e => isSameDay(e.timestamp, selectedDate));
+  }, [entries, selectedDate]);
 
   // Show onboarding if needed
   if (showOnboarding && !isLoadingProfile) {
@@ -379,26 +366,28 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-subtle">
       {/* Header */}
       <header className="sticky top-0 z-50 glass border-b shadow-soft">
-        <div className="container max-w-md mx-auto px-4 py-4">
+        <div className="container max-w-md mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <img src={jvalaLogo} alt="jvala" className="w-8 h-8" />
-                <h1 className="text-lg font-medical text-foreground">
-                  Jvala
-                </h1>
-              </div>
-              <div className="text-xs text-muted-foreground ml-10">
-                {format(new Date(), 'EEEE, MMM d')}
+            <div className="flex items-center gap-2">
+              <img src={jvalaLogo} alt="jvala" className="w-7 h-7" />
+              <div>
+                <h1 className="text-base font-medical text-foreground leading-tight">Jvala</h1>
+                <p className="text-[10px] text-muted-foreground">{format(new Date(), 'EEEE, MMM d')}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+              {/* Streak Badge */}
+              {currentStreak > 0 && (
+                <StreakBadge 
+                  streak={currentStreak} 
+                  onClick={() => setCurrentView('progress')}
+                />
+              )}
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setCurrentView('profile')}
-                className="h-10 w-10 rounded-full hover:bg-primary/10 hover:text-primary transition-all"
-                title="Profile"
+                className="h-9 w-9 rounded-full"
               >
                 <UserIcon className="w-4 h-4" />
               </Button>
@@ -406,8 +395,7 @@ const Index = () => {
                 variant="ghost"
                 size="icon"
                 onClick={handleSignOut}
-                className="h-10 w-10 rounded-full hover:bg-destructive/10 hover:text-destructive transition-all"
-                title="Sign Out"
+                className="h-9 w-9 rounded-full hover:bg-destructive/10 hover:text-destructive"
               >
                 <LogOut className="w-4 h-4" />
               </Button>
@@ -417,30 +405,22 @@ const Index = () => {
       </header>
 
       {/* Navigation */}
-      <div className="container max-w-md mx-auto px-4 py-5">
-        <div className="flex bg-card/80 backdrop-blur rounded-2xl p-1.5 shadow-soft border">
+      <div className="container max-w-md mx-auto px-4 py-4">
+        <div className="flex bg-card/80 backdrop-blur rounded-2xl p-1 shadow-soft border">
           <Button
-            variant={currentView === 'chat' ? 'default' : 'ghost'}
+            variant={currentView === 'track' ? 'default' : 'ghost'}
             size="sm"
-            onClick={() => setCurrentView('chat')}
-            className={`flex-1 text-xs h-9 rounded-xl transition-all ${
-              currentView === 'chat' 
-                ? 'shadow-primary' 
-                : 'hover:bg-accent/50'
-            }`}
+            onClick={() => setCurrentView('track')}
+            className={`flex-1 text-xs h-9 rounded-xl ${currentView === 'track' ? 'shadow-primary' : ''}`}
           >
-            <MessageCircle className="w-3.5 h-3.5 mr-1.5" />
-            Chat
+            <Activity className="w-3.5 h-3.5 mr-1.5" />
+            Track
           </Button>
           <Button
             variant={currentView === 'history' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setCurrentView('history')}
-            className={`flex-1 text-xs h-9 rounded-xl transition-all ${
-              currentView === 'history' 
-                ? 'shadow-primary' 
-                : 'hover:bg-accent/50'
-            }`}
+            className={`flex-1 text-xs h-9 rounded-xl ${currentView === 'history' ? 'shadow-primary' : ''}`}
           >
             <Calendar className="w-3.5 h-3.5 mr-1.5" />
             History
@@ -449,11 +429,7 @@ const Index = () => {
             variant={currentView === 'insights' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setCurrentView('insights')}
-            className={`flex-1 text-xs h-9 rounded-xl transition-all ${
-              currentView === 'insights' 
-                ? 'shadow-primary' 
-                : 'hover:bg-accent/50'
-            }`}
+            className={`flex-1 text-xs h-9 rounded-xl ${currentView === 'insights' ? 'shadow-primary' : ''}`}
           >
             <BarChart3 className="w-3.5 h-3.5 mr-1.5" />
             Insights
@@ -462,63 +438,55 @@ const Index = () => {
       </div>
 
       {/* Content */}
-      <main className="container max-w-md mx-auto px-4 pb-8 space-y-5">
-        {/* Chat View */}
-        {currentView === 'chat' && user && (
-          <>
-            {/* Engagement Panel */}
-            <EngagementPanel 
-              userId={user.id} 
-              onOpenProgress={() => setCurrentView('progress')}
-            />
-
-            {/* Chat Log */}
-            <Card className="p-5 shadow-soft-lg hover-lift bg-gradient-card border-0 animate-fade-in">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-soft">
-                  <MessageCircle className="w-4 h-4 text-white" />
-                </div>
-                <div className="flex-1">
-                  <h2 className="text-base font-clinical">How are you feeling?</h2>
-                  {userConditionNames.length > 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      Tracking: {userConditionNames.slice(0, 2).join(', ')}
-                      {userConditionNames.length > 2 && ` +${userConditionNames.length - 2}`}
-                    </p>
-                  )}
-                </div>
+      <main className="container max-w-md mx-auto px-4 pb-8 space-y-4">
+        {/* Track View */}
+        {currentView === 'track' && user && (
+          <Card className="p-4 shadow-soft-lg bg-gradient-card border-0 animate-fade-in">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-soft">
+                <Activity className="w-4 h-4 text-white" />
               </div>
-              
-              <ChatLog
-                onSave={handleSaveEntry}
-                userSymptoms={userProfile?.known_symptoms || []}
-                userConditions={userProfile?.conditions || []}
-              />
-              
-              {/* Detailed Entry Toggle */}
-              <div className="pt-4 mt-4 border-t">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowDetailedEntry(!showDetailedEntry)}
-                  className="w-full text-xs text-muted-foreground"
-                >
-                  <ChevronDown className={`w-3 h-3 mr-1 transition-transform ${showDetailedEntry ? 'rotate-180' : ''}`} />
-                  {showDetailedEntry ? 'Hide detailed entry' : 'Need more options?'}
-                </Button>
-                {showDetailedEntry && (
-                  <div className="mt-3 animate-fade-in">
-                    <DetailedEntry onSave={handleSaveEntry} />
-                  </div>
+              <div className="flex-1">
+                <h2 className="text-sm font-clinical">How are you feeling?</h2>
+                {userConditionNames.length > 0 && (
+                  <p className="text-[10px] text-muted-foreground">
+                    {userConditionNames.slice(0, 2).join(', ')}
+                    {userConditionNames.length > 2 && ` +${userConditionNames.length - 2}`}
+                  </p>
                 )}
               </div>
-            </Card>
-          </>
+            </div>
+            
+            <QuickTrack
+              onSave={handleSaveEntry}
+              userSymptoms={userProfile?.known_symptoms || []}
+              userConditions={userProfile?.conditions || []}
+              userId={user.id}
+            />
+            
+            {/* Detailed Entry Toggle */}
+            <div className="pt-3 mt-3 border-t">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowDetailedEntry(!showDetailedEntry)}
+                className="w-full text-xs text-muted-foreground"
+              >
+                <ChevronDown className={`w-3 h-3 mr-1 transition-transform ${showDetailedEntry ? 'rotate-180' : ''}`} />
+                {showDetailedEntry ? 'Hide detailed entry' : 'Add more details'}
+              </Button>
+              {showDetailedEntry && (
+                <div className="mt-3 animate-fade-in">
+                  <DetailedEntry onSave={handleSaveEntry} />
+                </div>
+              )}
+            </div>
+          </Card>
         )}
 
         {/* History View */}
         {currentView === 'history' && (
-          <div className="space-y-5">
+          <div className="space-y-4">
             <Card className="p-4 shadow-soft-lg bg-gradient-card border-0">
               <CalendarHistory 
                 entries={entries}
@@ -527,33 +495,42 @@ const Index = () => {
               />
             </Card>
 
-            {/* Flare Location Map */}
-            <FlareLocationMap entries={entries} />
-
             {/* Timeline for selected date */}
-            <FlareTimeline 
-              entries={entries} 
-              onUpdate={handleUpdateEntry}
-              onDelete={handleDeleteEntry}
-              onAddFollowUp={handleAddFollowUp}
-            />
+            {selectedDateEntries.length > 0 ? (
+              <div className="animate-fade-in">
+                <h3 className="text-sm font-clinical mb-3 text-muted-foreground">
+                  {format(selectedDate, 'EEEE, MMMM d')} — {selectedDateEntries.length} {selectedDateEntries.length === 1 ? 'entry' : 'entries'}
+                </h3>
+                <FlareTimeline 
+                  entries={selectedDateEntries} 
+                  onUpdate={handleUpdateEntry}
+                  onDelete={handleDeleteEntry}
+                  onAddFollowUp={handleAddFollowUp}
+                />
+              </div>
+            ) : (
+              <Card className="p-6 text-center bg-gradient-card border-0">
+                <p className="text-sm text-muted-foreground">
+                  No entries on {format(selectedDate, 'MMMM d')}
+                </p>
+              </Card>
+            )}
           </div>
         )}
 
         {/* Insights View */}
         {currentView === 'insights' && (
-          <div className="space-y-5">
-            <CorrelationAnalysis 
-              entries={entries} 
-              userConditions={userProfile?.conditions}
-            />
-            <InsightsPanel entries={entries} />
-          </div>
+          <SmartInsights 
+            entries={entries} 
+            userConditions={userProfile?.conditions}
+          />
         )}
 
         {/* Profile View */}
         {currentView === 'profile' && (
-          <ProfileSettings />
+          <ProfileManager 
+            onRequireOnboarding={() => setShowOnboarding(true)}
+          />
         )}
 
         {/* Progress Dashboard */}
@@ -561,7 +538,7 @@ const Index = () => {
           <ProgressDashboard 
             userId={user.id}
             entries={entries}
-            onBack={() => setCurrentView('chat')}
+            onBack={() => setCurrentView('track')}
           />
         )}
       </main>
