@@ -132,10 +132,17 @@ export type Database = {
       }
       profiles: {
         Row: {
+          biological_sex: string | null
+          blood_type: string | null
           conditions: string[] | null
           created_at: string
+          date_of_birth: string | null
           email: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
           full_name: string | null
+          gender: string | null
+          height_cm: number | null
           id: string
           known_symptoms: string[] | null
           known_triggers: string[] | null
@@ -148,13 +155,22 @@ export type Database = {
           share_enabled: boolean | null
           share_password_hash: string | null
           share_token: string | null
+          timezone: string | null
           updated_at: string
+          weight_kg: number | null
         }
         Insert: {
+          biological_sex?: string | null
+          blood_type?: string | null
           conditions?: string[] | null
           created_at?: string
+          date_of_birth?: string | null
           email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           full_name?: string | null
+          gender?: string | null
+          height_cm?: number | null
           id: string
           known_symptoms?: string[] | null
           known_triggers?: string[] | null
@@ -167,13 +183,22 @@ export type Database = {
           share_enabled?: boolean | null
           share_password_hash?: string | null
           share_token?: string | null
+          timezone?: string | null
           updated_at?: string
+          weight_kg?: number | null
         }
         Update: {
+          biological_sex?: string | null
+          blood_type?: string | null
           conditions?: string[] | null
           created_at?: string
+          date_of_birth?: string | null
           email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           full_name?: string | null
+          gender?: string | null
+          height_cm?: number | null
           id?: string
           known_symptoms?: string[] | null
           known_triggers?: string[] | null
@@ -186,7 +211,9 @@ export type Database = {
           share_enabled?: boolean | null
           share_password_hash?: string | null
           share_token?: string | null
+          timezone?: string | null
           updated_at?: string
+          weight_kg?: number | null
         }
         Relationships: []
       }
