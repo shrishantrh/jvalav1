@@ -1,23 +1,41 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import jvalaLogo from "@/assets/jvala-logo.png";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FlareEntry } from "@/types/flare";
-import { QuickEntry } from "@/components/QuickEntry";
+import { SmartQuickLog } from "@/components/tracking/SmartQuickLog";
 import { DetailedEntry } from "@/components/DetailedEntry";
 import { InsightsPanel } from "@/components/InsightsPanel";
 import { FlareTimeline } from "@/components/flare/FlareTimeline";
 import { ProfileSettings } from "@/components/ProfileSettings";
-import { Calendar, TrendingUp, Plus, Activity, LogOut, User as UserIcon } from "lucide-react";
+import { CalendarHeatmap } from "@/components/insights/CalendarHeatmap";
+import { CorrelationAnalysis } from "@/components/insights/CorrelationAnalysis";
+import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
+import { CONDITIONS } from "@/data/conditions";
+import { Calendar, TrendingUp, Plus, Activity, LogOut, User as UserIcon, BarChart3 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { format, isToday } from "date-fns";
+import { format, isToday, subDays } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+
+interface UserProfile {
+  conditions: string[];
+  known_symptoms: string[];
+  known_triggers: string[];
+  physician_name: string | null;
+  physician_email: string | null;
+  physician_phone: string | null;
+  physician_practice: string | null;
+  onboarding_completed: boolean;
+}
 
 const Index = () => {
   const [currentView, setCurrentView] = useState<'today' | 'timeline' | 'insights' | 'profile'>('today');
   const [entries, setEntries] = useState<FlareEntry[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -30,9 +48,97 @@ const Index = () => {
     }
 
     if (user) {
+      loadProfile();
       loadEntries();
     }
   }, [user, loading, navigate]);
+
+  const loadProfile = async () => {
+    if (!user) return;
+    setIsLoadingProfile(true);
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('conditions, known_symptoms, known_triggers, physician_name, physician_email, physician_phone, physician_practice, onboarding_completed')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setUserProfile({
+          conditions: data.conditions || [],
+          known_symptoms: data.known_symptoms || [],
+          known_triggers: data.known_triggers || [],
+          physician_name: data.physician_name,
+          physician_email: data.physician_email,
+          physician_phone: data.physician_phone,
+          physician_practice: data.physician_practice,
+          onboarding_completed: data.onboarding_completed || false,
+        });
+
+        // Show onboarding if not completed
+        if (!data.onboarding_completed) {
+          setShowOnboarding(true);
+        }
+      } else {
+        // No profile exists, show onboarding
+        setShowOnboarding(true);
+      }
+    } catch (error) {
+      console.error('Failed to load profile:', error);
+    } finally {
+      setIsLoadingProfile(false);
+    }
+  };
+
+  const handleOnboardingComplete = async (data: any) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          conditions: data.conditions,
+          known_symptoms: data.symptoms,
+          known_triggers: data.triggers,
+          physician_name: data.physicianName || null,
+          physician_email: data.physicianEmail || null,
+          physician_phone: data.physicianPhone || null,
+          physician_practice: data.physicianPractice || null,
+          onboarding_completed: true,
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      setUserProfile({
+        conditions: data.conditions,
+        known_symptoms: data.symptoms,
+        known_triggers: data.triggers,
+        physician_name: data.physicianName || null,
+        physician_email: data.physicianEmail || null,
+        physician_phone: data.physicianPhone || null,
+        physician_practice: data.physicianPractice || null,
+        onboarding_completed: true,
+      });
+
+      setShowOnboarding(false);
+
+      toast({
+        title: "Welcome to Jvala!",
+        description: "Your profile is set up. Start tracking to see insights.",
+      });
+    } catch (error) {
+      console.error('Failed to save onboarding:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save your profile. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const loadEntries = async () => {
     if (!user) return;
@@ -71,6 +177,25 @@ const Index = () => {
       });
     }
   };
+
+  // Get recent symptoms from entries for personalized quick log
+  const recentSymptoms = useMemo(() => {
+    const symptomCounts: Record<string, number> = {};
+    const recentEntries = entries.filter(e => 
+      e.timestamp > subDays(new Date(), 30) && e.symptoms
+    );
+    
+    recentEntries.forEach(entry => {
+      entry.symptoms?.forEach(symptom => {
+        symptomCounts[symptom] = (symptomCounts[symptom] || 0) + 1;
+      });
+    });
+
+    return Object.entries(symptomCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([symptom]) => symptom)
+      .slice(0, 6);
+  }, [entries]);
 
   const handleSaveEntry = async (entryData: Partial<FlareEntry>) => {
     if (!user) return;
@@ -112,11 +237,6 @@ const Index = () => {
         };
 
         setEntries(prev => [newEntry, ...prev]);
-        
-        toast({
-          title: "Entry saved",
-          description: `${newEntry.type.charAt(0).toUpperCase() + newEntry.type.slice(1)} logged successfully`,
-        });
       }
     } catch (error) {
       console.error('Failed to save entry:', error);
@@ -198,7 +318,6 @@ const Index = () => {
     if (!user) return;
 
     try {
-      // Get current entry
       const entry = entries.find(e => e.id === entryId);
       if (!entry) return;
 
@@ -265,6 +384,16 @@ const Index = () => {
     }
   };
 
+  // Show onboarding if needed
+  if (showOnboarding && !isLoadingProfile) {
+    return <OnboardingFlow onComplete={handleOnboardingComplete} />;
+  }
+
+  // Get condition names for display
+  const userConditionNames = userProfile?.conditions
+    .map(id => CONDITIONS.find(c => c.id === id)?.name)
+    .filter(Boolean) || [];
+
   return (
     <div className="min-h-screen bg-gradient-subtle">
       {/* Header */}
@@ -275,7 +404,7 @@ const Index = () => {
               <div className="flex items-center gap-2 mb-1">
                 <img src={jvalaLogo} alt="jvala" className="w-8 h-8" />
                 <h1 className="text-lg font-medical text-foreground">
-                  Flare Journal <span className="text-sm text-primary">DEMO</span>
+                  Jvala
                 </h1>
               </div>
               <div className="text-xs text-muted-foreground ml-10">
@@ -319,8 +448,8 @@ const Index = () => {
                 : 'hover:bg-accent/50'
             }`}
           >
-            <Activity className="w-3.5 h-3.5 mr-1.5" />
-            Today
+            <Plus className="w-3.5 h-3.5 mr-1.5" />
+            Log
           </Button>
           <Button
             variant={currentView === 'timeline' ? 'default' : 'ghost'}
@@ -345,7 +474,7 @@ const Index = () => {
                 : 'hover:bg-accent/50'
             }`}
           >
-            <TrendingUp className="w-3.5 h-3.5 mr-1.5" />
+            <BarChart3 className="w-3.5 h-3.5 mr-1.5" />
             Insights
           </Button>
         </div>
@@ -356,7 +485,38 @@ const Index = () => {
         {/* Today View */}
         {currentView === 'today' && (
           <>
-            {/* Today's Summary */}
+            {/* Calendar Heatmap */}
+            <CalendarHeatmap entries={entries} />
+
+            {/* Quick Log */}
+            <Card className="p-5 shadow-soft-lg hover-lift bg-gradient-card border-0 animate-fade-in">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-soft">
+                  <Plus className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-base font-clinical">Quick Log</h2>
+                  {userConditionNames.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Tracking: {userConditionNames.slice(0, 2).join(', ')}
+                      {userConditionNames.length > 2 && ` +${userConditionNames.length - 2}`}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <SmartQuickLog
+                onSave={handleSaveEntry}
+                userSymptoms={userProfile?.known_symptoms || []}
+                recentSymptoms={recentSymptoms}
+              />
+              
+              {/* Detailed Entry Option */}
+              <div className="pt-4 mt-4 border-t">
+                <DetailedEntry onSave={handleSaveEntry} />
+              </div>
+            </Card>
+
+            {/* Today's Activity */}
             {todaysEntries.length > 0 && (
               <Card className="p-5 shadow-soft-lg hover-lift bg-gradient-card border-0 animate-fade-in">
                 <div className="flex items-center justify-between mb-4">
@@ -366,7 +526,7 @@ const Index = () => {
                   </span>
                 </div>
                 <div className="space-y-2.5">
-                  {todaysEntries.slice(0, 3).map((entry, idx) => (
+                  {todaysEntries.slice(0, 5).map((entry, idx) => (
                     <div 
                       key={entry.id} 
                       className="flex items-center justify-between p-3 bg-muted/40 rounded-xl hover:bg-muted/60 transition-all cursor-pointer hover-scale"
@@ -381,6 +541,12 @@ const Index = () => {
                               {entry.severity}
                             </span>
                           )}
+                          {entry.symptoms && entry.symptoms.length > 0 && (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {entry.symptoms.slice(0, 2).join(', ')}
+                              {entry.symptoms.length > 2 && ` +${entry.symptoms.length - 2}`}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <span className="text-xs text-muted-foreground font-medium">
@@ -388,42 +554,19 @@ const Index = () => {
                       </span>
                     </div>
                   ))}
-                  {todaysEntries.length > 3 && (
-                    <div className="text-xs text-muted-foreground text-center pt-2 font-medium">
-                      +{todaysEntries.length - 3} more entries
-                    </div>
-                  )}
                 </div>
               </Card>
             )}
 
-            {/* Quick Entry */}
-            <Card className="p-5 shadow-soft-lg hover-lift bg-gradient-card border-0 animate-fade-in">
-              <div className="flex items-center gap-2 mb-5">
-                <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-soft">
-                  <Plus className="w-4 h-4 text-white" />
-                </div>
-                <h2 className="text-base font-clinical">Quick Track</h2>
-              </div>
-              <QuickEntry
-                onSave={handleSaveEntry}
-              />
-              
-              {/* Detailed Entry Option */}
-              <div className="pt-4 mt-4 border-t">
-                <DetailedEntry onSave={handleSaveEntry} />
-              </div>
-            </Card>
-
             {/* Empty state */}
-            {todaysEntries.length === 0 && (
+            {todaysEntries.length === 0 && entries.length === 0 && (
               <Card className="p-8 text-center shadow-soft-lg bg-gradient-card border-0 animate-scale-in">
                 <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-primary/10 flex items-center justify-center">
                   <span className="text-4xl">🌟</span>
                 </div>
                 <h3 className="text-base font-clinical mb-2">Start tracking today</h3>
                 <p className="text-sm text-muted-foreground">
-                  Use the quick actions above to log your first entry
+                  Log your first entry to see patterns and insights
                 </p>
               </Card>
             )}
@@ -442,7 +585,13 @@ const Index = () => {
 
         {/* Insights View */}
         {currentView === 'insights' && (
-          <InsightsPanel entries={entries} />
+          <div className="space-y-5">
+            <CorrelationAnalysis 
+              entries={entries} 
+              userConditions={userProfile?.conditions}
+            />
+            <InsightsPanel entries={entries} />
+          </div>
         )}
 
         {/* Profile View */}
