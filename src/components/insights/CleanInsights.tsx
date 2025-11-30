@@ -31,7 +31,7 @@ interface CleanInsightsProps {
 export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsProps) => {
   const chartRef = React.useRef<HTMLDivElement>(null);
 
-  // Comprehensive analytics
+  // Comprehensive analytics with trigger extraction from notes
   const analytics = useMemo(() => {
     const now = new Date();
     const last7Days = entries.filter(e => 
@@ -78,6 +78,31 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
     const peakTime = Object.entries(timeSlots).sort((a, b) => b[1] - a[1])[0];
     const peakTimePercent = flares30d.length > 0 ? Math.round((peakTime[1] / flares30d.length) * 100) : 0;
 
+    // Extract potential triggers from notes
+    const extractTriggersFromNotes = (note: string): string[] => {
+      const triggers: string[] = [];
+      const patterns = [
+        /ate\s+(\w+(?:\s+\w+)?)/gi,
+        /had\s+(\w+(?:\s+\w+)?)/gi,
+        /eating\s+(\w+(?:\s+\w+)?)/gi,
+        /after\s+(\w+(?:\s+\w+)?)/gi,
+        /from\s+(\w+(?:\s+\w+)?)/gi,
+        /drank\s+(\w+(?:\s+\w+)?)/gi,
+      ];
+      const stopWords = ['the', 'and', 'some', 'lot', 'bit', 'too', 'much', 'very', 'really', 'today', 'yesterday'];
+      
+      patterns.forEach(pattern => {
+        const matches = note.toLowerCase().matchAll(pattern);
+        for (const match of matches) {
+          const trigger = match[1].trim();
+          if (trigger.length > 2 && !stopWords.includes(trigger)) {
+            triggers.push(trigger);
+          }
+        }
+      });
+      return triggers;
+    };
+
     // Symptom analysis with severity context
     const symptomData: Record<string, { count: number; severities: number[] }> = {};
     flares30d.forEach(f => {
@@ -98,19 +123,31 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
 
-    // Trigger analysis
+    // Trigger analysis - combine explicit triggers with note-extracted ones
     const triggerData: Record<string, { count: number; severities: number[] }> = {};
     flares30d.forEach(f => {
+      // Explicit triggers
       f.triggers?.forEach(t => {
-        if (!triggerData[t]) triggerData[t] = { count: 0, severities: [] };
-        triggerData[t].count++;
-        triggerData[t].severities.push(getSeverityScore(f.severity || 'mild'));
+        const key = t.toLowerCase();
+        if (!triggerData[key]) triggerData[key] = { count: 0, severities: [] };
+        triggerData[key].count++;
+        triggerData[key].severities.push(getSeverityScore(f.severity || 'mild'));
       });
+      // Extracted from notes
+      if (f.note) {
+        const noteTriggers = extractTriggersFromNotes(f.note);
+        noteTriggers.forEach(t => {
+          if (!triggerData[t]) triggerData[t] = { count: 0, severities: [] };
+          triggerData[t].count++;
+          triggerData[t].severities.push(getSeverityScore(f.severity || 'mild'));
+        });
+      }
     });
 
     const topTriggers = Object.entries(triggerData)
+      .filter(([_, data]) => data.count >= 2) // Only show if mentioned 2+ times
       .map(([name, data]) => ({
-        name,
+        name: name.charAt(0).toUpperCase() + name.slice(1),
         count: data.count,
         percentage: Math.round((data.count / flares30d.length) * 100),
         avgSeverity: data.severities.reduce((a, b) => a + b, 0) / data.severities.length

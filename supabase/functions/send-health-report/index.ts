@@ -65,9 +65,17 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error('Unauthorized');
     }
 
-    const { toEmail, reportUrl, password, exportType }: SendReportRequest = await req.json();
+    const body = await req.json();
+    const toEmail = body.toEmail;
+    const reportUrl = body.reportUrl;
+    const password = body.password;
+    const exportType = body.exportType || 'health_report';
 
-    console.log('Sending health report email to:', toEmail);
+    console.log('Sending health report email to:', toEmail, 'type:', exportType);
+    
+    if (!toEmail || !reportUrl || !password) {
+      throw new Error('Missing required fields: toEmail, reportUrl, password');
+    }
 
     const emailHtml = `
       <!DOCTYPE html>
@@ -140,7 +148,7 @@ const handler = async (req: Request): Promise<Response> => {
     const { data, error } = await resend.send({
       from: "Flare Journal <health-reports@resend.dev>",
       to: [toEmail],
-      subject: `🏥 Secure Health Report - ${exportType.toUpperCase()}`,
+      subject: `🏥 Secure Health Report - ${(exportType || 'Health Report').replace(/_/g, ' ').toUpperCase()}`,
       html: emailHtml,
     });
 
