@@ -4,9 +4,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { FlareEntry } from "@/types/flare";
 import { InsightsCharts } from "@/components/insights/InsightsCharts";
-import { ImprovedPDFExport } from "@/components/insights/ImprovedPDFExport";
-import { MedicalExport } from "@/components/insights/MedicalExport";
+import { EnhancedMedicalExport } from "@/components/insights/EnhancedMedicalExport";
 import { FlareLocationMap } from "@/components/history/FlareLocationMap";
+import { CommunityHotspots } from "@/components/insights/CommunityHotspots";
 import { 
   Brain, 
   TrendingUp, 
@@ -284,14 +284,18 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
 
       {/* Detailed Views */}
       <Tabs defaultValue="charts" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 h-9">
+        <TabsList className="grid w-full grid-cols-4 h-9">
           <TabsTrigger value="charts" className="text-xs">
             <BarChart3 className="w-3 h-3 mr-1" />
             Charts
           </TabsTrigger>
           <TabsTrigger value="map" className="text-xs">
             <MapPin className="w-3 h-3 mr-1" />
-            Locations
+            Your Map
+          </TabsTrigger>
+          <TabsTrigger value="community" className="text-xs">
+            🌍
+            Community
           </TabsTrigger>
           <TabsTrigger value="export" className="text-xs">
             <Download className="w-3 h-3 mr-1" />
@@ -309,9 +313,12 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
           <FlareLocationMap entries={entries} />
         </TabsContent>
 
+        <TabsContent value="community" className="mt-4">
+          <CommunityHotspots entries={entries} userConditions={userConditions} />
+        </TabsContent>
+
         <TabsContent value="export" className="mt-4 space-y-4">
-          <ImprovedPDFExport entries={entries} chartRefs={[chartRef]} />
-          <MedicalExport entries={entries} onExport={() => {}} />
+          <EnhancedMedicalExport entries={entries} conditions={userConditions} />
         </TabsContent>
       </Tabs>
     </div>

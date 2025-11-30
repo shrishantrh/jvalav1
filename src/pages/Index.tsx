@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import jvalaLogo from "@/assets/jvala-logo.png";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FlareEntry } from "@/types/flare";
-import { SmartTrack } from "@/components/tracking/SmartTrack";
+import { SmartTrack, SmartTrackRef } from "@/components/tracking/SmartTrack";
 import { DetailedEntry } from "@/components/DetailedEntry";
 import { CleanInsights } from "@/components/insights/CleanInsights";
 import { CalendarHistory } from "@/components/history/CalendarHistory";
@@ -41,6 +41,7 @@ const Index = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showDetailedEntry, setShowDetailedEntry] = useState(false);
   const [currentStreak, setCurrentStreak] = useState(0);
+  const smartTrackRef = useRef<SmartTrackRef>(null);
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -458,6 +459,7 @@ const Index = () => {
             </div>
             
             <SmartTrack
+              ref={smartTrackRef}
               onSave={handleSaveEntry}
               userSymptoms={userProfile?.known_symptoms || []}
               userConditions={userProfile?.conditions || []}
@@ -479,7 +481,13 @@ const Index = () => {
               </Button>
               {showDetailedEntry && (
                 <div className="mt-3 animate-fade-in">
-                  <DetailedEntry onSave={handleSaveEntry} />
+                  <DetailedEntry 
+                    onSave={handleSaveEntry} 
+                    onDetailedSave={(entry) => {
+                      smartTrackRef.current?.addDetailedEntry(entry);
+                      setShowDetailedEntry(false);
+                    }}
+                  />
                 </div>
               )}
             </div>

@@ -14,9 +14,10 @@ import { useToast } from "@/hooks/use-toast";
 
 interface DetailedEntryProps {
   onSave: (entry: Partial<FlareEntry>) => void;
+  onDetailedSave?: (entry: Partial<FlareEntry>) => void;
 }
 
-export const DetailedEntry = ({ onSave }: DetailedEntryProps) => {
+export const DetailedEntry = ({ onSave, onDetailedSave }: DetailedEntryProps) => {
   const [open, setOpen] = useState(false);
   const [entryType, setEntryType] = useState<EntryType>('flare');
   const [selectedSeverity, setSelectedSeverity] = useState<FlareSeverity | null>(null);
@@ -99,6 +100,12 @@ export const DetailedEntry = ({ onSave }: DetailedEntryProps) => {
     }
 
     onSave(newEntry);
+    
+    // Notify chat about detailed entry
+    if (onDetailedSave) {
+      onDetailedSave(newEntry);
+    }
+    
     resetForm();
     
     toast({
