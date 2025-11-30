@@ -15,6 +15,9 @@ verify_jwt = true
 [functions.chat-assistant]
 verify_jwt = false
 
+[functions.smart-assistant]
+verify_jwt = false
+
 [functions.get-shared-report]
 verify_jwt = false
 
@@ -23,3 +26,6 @@ verify_jwt = false
 
 [functions.send-health-report]
 verify_jwt = true
+
+[functions.send-reminder]
+verify_jwt = false
