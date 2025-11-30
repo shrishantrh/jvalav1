@@ -1,47 +1,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.74.0';
 
-// Resend API client
-class ResendClient {
-  private apiKey: string;
-  
-  constructor(apiKey: string) {
-    this.apiKey = apiKey;
-  }
-
-  async send(emailData: any) {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(emailData),
-    });
-
-    const data = await response.json();
-    
-    if (!response.ok) {
-      return { error: data };
-    }
-    
-    return { data, error: null };
-  }
-}
-
-const resend = new ResendClient(Deno.env.get("RESEND_API_KEY") ?? '');
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-interface SendReportRequest {
-  toEmail: string;
-  reportUrl: string;
-  password: string;
-  exportType: string;
-}
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -49,6 +12,11 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    if (!resendApiKey) {
+      throw new Error('RESEND_API_KEY not configured');
+    }
+
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       throw new Error('Missing authorization header');
@@ -66,15 +34,18 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const body = await req.json();
-    const toEmail = body.toEmail;
-    const reportUrl = body.reportUrl;
-    const password = body.password;
-    const exportType = body.exportType || 'health_report';
-
-    console.log('Sending health report email to:', toEmail, 'type:', exportType);
     
-    if (!toEmail || !reportUrl || !password) {
-      throw new Error('Missing required fields: toEmail, reportUrl, password');
+    // Support both old format (toEmail, reportUrl, password) and new format (recipientEmail, summary)
+    const toEmail = body.toEmail || body.recipientEmail;
+    const summary = body.summary || body.reportUrl || '';
+    const patientName = body.patientName || 'Patient';
+    const dateRange = body.dateRange || '30';
+    const exportType = body.exportType || 'health_summary';
+
+    console.log('Sending health report email to:', toEmail);
+    
+    if (!toEmail) {
+      throw new Error('Missing required field: recipient email');
     }
 
     const emailHtml = `
@@ -82,62 +53,111 @@ const handler = async (req: Request): Promise<Response> => {
       <html>
         <head>
           <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: linear-gradient(135deg, #8B2742 0%, #6B1E3A 50%, #4A2055 100%); color: white; padding: 30px; border-radius: 12px 12px 0 0; text-align: center; }
-            .content { background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 12px 12px; }
-            .button { display: inline-block; background: #8B2742; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; margin: 20px 0; font-weight: 600; }
-            .password-box { background: #f5f5f5; border-left: 4px solid #8B2742; padding: 15px; margin: 20px 0; border-radius: 4px; }
-            .password { font-family: 'Courier New', monospace; font-size: 18px; font-weight: bold; color: #8B2742; letter-spacing: 2px; }
-            .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
-            .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin: 15px 0; color: #856404; }
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; 
+              line-height: 1.6; 
+              color: #333; 
+              margin: 0;
+              padding: 0;
+              background: #f5f5f5;
+            }
+            .container { 
+              max-width: 600px; 
+              margin: 0 auto; 
+              background: #ffffff;
+            }
+            .header { 
+              background: linear-gradient(135deg, #D6006C 0%, #892EFF 100%); 
+              color: white; 
+              padding: 30px; 
+              text-align: center; 
+            }
+            .header h1 {
+              margin: 0;
+              font-size: 24px;
+              font-weight: 600;
+            }
+            .header p {
+              margin: 8px 0 0 0;
+              opacity: 0.9;
+              font-size: 14px;
+            }
+            .content { 
+              padding: 30px; 
+            }
+            .summary-box {
+              background: #f8f9fa;
+              border-radius: 8px;
+              padding: 20px;
+              margin: 20px 0;
+              font-family: 'Courier New', monospace;
+              font-size: 12px;
+              white-space: pre-wrap;
+              max-height: 400px;
+              overflow-y: auto;
+            }
+            .info-row {
+              display: flex;
+              justify-content: space-between;
+              padding: 10px 0;
+              border-bottom: 1px solid #eee;
+            }
+            .footer { 
+              text-align: center; 
+              padding: 20px 30px;
+              background: #f8f9fa;
+              border-top: 1px solid #eee;
+            }
+            .footer p {
+              margin: 5px 0;
+              font-size: 12px;
+              color: #666;
+            }
+            .warning { 
+              background: #fff3cd; 
+              border-left: 4px solid #D6006C; 
+              padding: 12px 15px; 
+              margin: 20px 0; 
+              font-size: 13px;
+              color: #856404; 
+            }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h1 style="margin: 0; font-size: 28px;">🏥 Health Report Shared</h1>
-              <p style="margin: 10px 0 0 0; opacity: 0.9;">Secure Medical Document Access</p>
+              <h1>📋 Health Summary Report</h1>
+              <p>Generated from Jvala Health Tracker</p>
             </div>
             <div class="content">
-              <p>You've received a health monitoring report from Flare Journal.</p>
+              <p>A health tracking report has been shared with you.</p>
               
-              <p><strong>Report Type:</strong> ${exportType === 'simple_pdf' ? 'Patient Summary Report' : 
-                exportType === 'medical_pdf' ? 'Comprehensive Clinical Report' :
-                exportType === 'hl7_fhir' ? 'HL7 FHIR R4 Bundle' :
-                exportType === 'e2b_icsr' ? 'E2B(R3) ICSR Report' : 
-                'MedDRA-Coded Analysis'}</p>
-              
-              <div class="password-box">
-                <p style="margin: 0 0 8px 0;"><strong>🔐 Access Password:</strong></p>
-                <p class="password">${password}</p>
-                <p style="margin: 12px 0 0 0; font-size: 13px; color: #666;">
-                  <em>Keep this password confidential. It's required to view the report.</em>
-                </p>
+              <div class="info-row">
+                <span><strong>Patient:</strong></span>
+                <span>${patientName}</span>
+              </div>
+              <div class="info-row">
+                <span><strong>Report Period:</strong></span>
+                <span>Last ${dateRange} days</span>
+              </div>
+              <div class="info-row">
+                <span><strong>Report Type:</strong></span>
+                <span>${exportType.replace(/_/g, ' ')}</span>
               </div>
               
-              <div style="text-align: center;">
-                <a href="${reportUrl}" class="button">Access Secure Report</a>
-              </div>
+              <div class="summary-box">${summary.substring(0, 5000)}</div>
               
               <div class="warning">
-                <strong>⚕️ Medical Confidentiality Notice:</strong><br>
-                This report contains protected health information (PHI). Only authorized healthcare providers and designated individuals should access this content. Unauthorized disclosure may violate HIPAA regulations.
+                <strong>⚕️ Medical Information Notice:</strong><br>
+                This report contains health information for clinical review. 
+                Data is self-reported by the patient using Jvala health tracking app.
               </div>
-              
-              <p style="margin-top: 25px; font-size: 14px; color: #666;">
-                <strong>Security Features:</strong><br>
-                ✓ Password-protected access<br>
-                ✓ Encrypted storage<br>
-                ✓ Time-limited availability (30 days)<br>
-                ✓ Audit trail maintained
-              </p>
             </div>
             <div class="footer">
-              <p><strong>Flare Journal</strong> | Professional Health Monitoring System</p>
-              <p style="font-size: 12px; color: #999;">
-                This email contains confidential medical information.<br>
-                If you received this in error, please delete it immediately.
+              <p><strong>Jvala</strong> | Personal Health Tracking</p>
+              <p>This is an automated message. Do not reply directly.</p>
+              <p style="font-size: 11px; color: #999; margin-top: 10px;">
+                If you received this in error, please disregard.
               </p>
             </div>
           </div>
@@ -145,16 +165,25 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    const { data, error } = await resend.send({
-      from: "Jvala <onboarding@resend.dev>",
-      to: [toEmail],
-      subject: `🏥 Secure Health Report - ${(exportType || 'Health Report').replace(/_/g, ' ').toUpperCase()}`,
-      html: emailHtml,
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: "Jvala <onboarding@resend.dev>",
+        to: [toEmail],
+        subject: `Health Report - ${patientName} (${dateRange} days)`,
+        html: emailHtml,
+      }),
     });
 
-    if (error) {
-      console.error('Resend error:', error);
-      throw error;
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('Resend error:', data);
+      throw new Error(`Failed to send email: ${JSON.stringify(data)}`);
     }
 
     console.log('Email sent successfully:', data);

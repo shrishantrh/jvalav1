@@ -6,6 +6,23 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Personalized message templates
+const MORNING_MESSAGES = [
+  (streak: number) => streak > 0 
+    ? `Rise and shine! Your ${streak}-day streak is waiting. A quick check-in keeps your patterns clear.`
+    : `Good morning! How are you starting the day? A quick log helps track your patterns.`,
+  (streak: number) => streak > 7 
+    ? `Amazing ${streak}-day streak! Keep it going with a morning check-in.`
+    : `New day, new data point! Your future self will thank you for tracking.`,
+  (streak: number) => `Morning! ${streak > 0 ? `Day ${streak + 1} of your streak awaits.` : 'Ready to log how you feel?'}`,
+];
+
+const EVENING_MESSAGES = [
+  (streak: number) => `Evening reflection time. ${streak > 0 ? `Keep that ${streak}-day streak alive!` : 'How was today?'}`,
+  (streak: number) => `Day winding down? ${streak > 0 ? `Your ${streak}-day streak is strong!` : 'Capture today before it fades.'}`,
+  (streak: number) => `Before bed check-in. ${streak > 0 ? `Streak: ${streak} days and counting!` : 'A quick log helps you sleep knowing tomorrow will have context.'}`,
+];
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -21,7 +38,7 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const { userId, email, type } = await req.json();
+    const { userId, email, type, medicationName } = await req.json();
 
     console.log(`📧 Sending ${type} reminder to ${email}`);
 
@@ -43,50 +60,63 @@ serve(async (req) => {
     const hasLoggedToday = recentLogs && recentLogs.length > 0 && 
       new Date(recentLogs[0].timestamp).toDateString() === new Date().toDateString();
 
-    if (hasLoggedToday && type === 'morning') {
+    // Skip reminder if already logged today (unless it's medication)
+    if (hasLoggedToday && type !== 'medication') {
       console.log('User already logged today, skipping reminder');
-      return new Response(JSON.stringify({ skipped: true }), {
+      return new Response(JSON.stringify({ skipped: true, reason: 'already_logged' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const subject = type === 'morning' 
-      ? `Good morning! ${streak > 0 ? `Keep your ${streak}-day streak going 🔥` : 'Time to check in'}`
-      : `Evening check-in ${streak > 0 ? `• ${streak}-day streak` : ''}`;
+    let subject = '';
+    let bodyText = '';
 
-    const bodyHtml = type === 'morning' 
-      ? `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
-          <h2 style="color: #B40078; margin-bottom: 10px;">Good morning! ☀️</h2>
-          <p style="color: #444; line-height: 1.6;">
-            ${streak > 0 
-              ? `You're on a <strong>${streak}-day logging streak</strong>. A quick log keeps your data accurate and your streak alive!`
-              : `Starting your day with a quick health check-in helps track patterns over time.`
-            }
-          </p>
-          <a href="https://jvala.app" style="display: inline-block; background: linear-gradient(135deg, #D6006C, #892EFF); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 15px;">
-            Log how you're feeling
-          </a>
-          <p style="color: #888; font-size: 12px; margin-top: 30px;">
-            You can manage reminders in your Jvala settings.
-          </p>
-        </div>
-      `
-      : `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
-          <h2 style="color: #B40078; margin-bottom: 10px;">Evening check-in 🌙</h2>
-          <p style="color: #444; line-height: 1.6;">
-            How was today? A quick log before bed helps capture your day while it's fresh.
-            ${streak > 0 ? `<br><br><strong>Current streak:</strong> ${streak} days` : ''}
-          </p>
-          <a href="https://jvala.app" style="display: inline-block; background: linear-gradient(135deg, #D6006C, #892EFF); color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; margin-top: 15px;">
-            Quick log now
-          </a>
-          <p style="color: #888; font-size: 12px; margin-top: 30px;">
-            Manage reminders in your Jvala settings.
-          </p>
-        </div>
-      `;
+    if (type === 'medication') {
+      subject = `💊 ${medicationName || 'Medication'} Reminder`;
+      bodyText = `Time for ${medicationName || 'your medication'}. Did you take it?`;
+    } else if (type === 'morning') {
+      const morningMsg = MORNING_MESSAGES[Math.floor(Math.random() * MORNING_MESSAGES.length)];
+      subject = streak > 0 ? `Day ${streak + 1} - Keep your streak!` : `Good morning - Time to check in`;
+      bodyText = morningMsg(streak);
+    } else {
+      const eveningMsg = EVENING_MESSAGES[Math.floor(Math.random() * EVENING_MESSAGES.length)];
+      subject = streak > 0 ? `Evening check-in • ${streak}-day streak` : `How was your day?`;
+      bodyText = eveningMsg(streak);
+    }
+
+    const bodyHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
+            .container { max-width: 400px; margin: 0 auto; background: white; }
+            .header { background: linear-gradient(135deg, #D6006C, #892EFF); padding: 24px; text-align: center; }
+            .header h1 { color: white; margin: 0; font-size: 20px; font-weight: 600; }
+            .content { padding: 24px; text-align: center; }
+            .message { font-size: 16px; color: #333; line-height: 1.6; margin-bottom: 24px; }
+            .cta-button { display: inline-block; background: linear-gradient(135deg, #D6006C, #892EFF); color: white !important; padding: 14px 32px; border-radius: 25px; text-decoration: none; font-weight: 600; font-size: 15px; }
+            .streak-badge { display: inline-block; background: #FFF3CD; color: #856404; padding: 6px 12px; border-radius: 20px; font-size: 13px; margin-bottom: 16px; }
+            .footer { padding: 16px 24px; text-align: center; background: #f8f9fa; border-top: 1px solid #eee; }
+            .footer p { margin: 4px 0; font-size: 11px; color: #888; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header"><h1>Jvala</h1></div>
+            <div class="content">
+              ${streak > 0 && type !== 'medication' ? `<div class="streak-badge">🔥 ${streak}-day streak</div>` : ''}
+              <p class="message">${bodyText}</p>
+              <a href="https://jvala.tech" class="cta-button">${type === 'medication' ? 'Log Medication' : 'Quick Log'}</a>
+            </div>
+            <div class="footer">
+              <p>You're receiving this because you enabled reminders.</p>
+              <p>Manage in Settings → Reminders</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
 
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
