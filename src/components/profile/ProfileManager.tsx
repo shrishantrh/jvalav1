@@ -8,11 +8,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, User, Share2, Copy, Check, Pill, AlertTriangle, Stethoscope, Heart } from 'lucide-react';
+import { Loader2, User, Share2, Copy, Check, Pill, AlertTriangle, Stethoscope, Heart, Bell, Clock, Mail } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ProfileMedicationInput, type MedicationDetails } from "@/components/ProfileMedicationInput";
 import { CONDITIONS } from "@/data/conditions";
+import { ReminderSettings } from "./ReminderSettings";
 
 interface ProfileData {
   full_name: string | null;
@@ -578,24 +579,7 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
         </TabsContent>
 
         <TabsContent value="reminders" className="mt-4 space-y-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Daily Reminders</CardTitle>
-              <CardDescription className="text-xs">
-                Get gentle nudges to keep tracking
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Alert className="bg-muted/50">
-                <AlertDescription className="text-xs">
-                  Email reminders help maintain your logging streak. You'll receive a morning reminder if you haven't logged, and an optional evening check-in.
-                </AlertDescription>
-              </Alert>
-              <p className="text-xs text-muted-foreground text-center py-4">
-                Email reminders are configured. Check your inbox for daily nudges!
-              </p>
-            </CardContent>
-          </Card>
+          <ReminderSettings userEmail={profile.email} />
         </TabsContent>
       </Tabs>
     </div>

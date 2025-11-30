@@ -28,14 +28,12 @@ export const CalendarHistory = ({ entries, onSelectDate, selectedDate }: Calenda
     return entriesByDate.get(format(date, 'yyyy-MM-dd')) || [];
   };
 
-  // Get severity color - consistent yellow/orange/red scale
-  const getDayColor = (entries: FlareEntry[]) => {
-    if (entries.length === 0) return null;
+  // Get severity level for a day
+  const getDaySeverity = (dayEntries: FlareEntry[]): 'none' | 'tracked' | 'mild' | 'moderate' | 'severe' => {
+    if (dayEntries.length === 0) return 'none';
     
-    const flares = entries.filter(e => e.type === 'flare' && e.severity);
-    if (flares.length === 0) {
-      return 'tracked';
-    }
+    const flares = dayEntries.filter(e => e.type === 'flare' && e.severity);
+    if (flares.length === 0) return 'tracked';
 
     const severityScore = flares.reduce((sum, f) => {
       if (f.severity === 'severe') return sum + 3;
@@ -47,16 +45,6 @@ export const CalendarHistory = ({ entries, onSelectDate, selectedDate }: Calenda
     if (severityScore >= 2.5) return 'severe';
     if (severityScore >= 1.5) return 'moderate';
     return 'mild';
-  };
-
-  const getColorClasses = (severity: string | null) => {
-    switch (severity) {
-      case 'mild': return 'bg-severity-mild';
-      case 'moderate': return 'bg-severity-moderate';
-      case 'severe': return 'bg-severity-severe';
-      case 'tracked': return 'bg-primary/20';
-      default: return '';
-    }
   };
 
   const navigatePrev = () => setCurrentDate(subMonths(currentDate, 1));
@@ -116,8 +104,25 @@ export const CalendarHistory = ({ entries, onSelectDate, selectedDate }: Calenda
           const dayEntries = getEntriesForDate(day);
           const isSelected = isSameDay(day, selectedDate);
           const isCurrentMonth = isSameMonth(day, currentDate);
-          const dayColor = getDayColor(dayEntries);
+          const severity = getDaySeverity(dayEntries);
           const hasEntries = dayEntries.length > 0;
+          
+          // Determine background and text colors based on severity
+          const getBgClass = () => {
+            switch (severity) {
+              case 'mild': return 'bg-severity-mild';
+              case 'moderate': return 'bg-severity-moderate';
+              case 'severe': return 'bg-severity-severe';
+              case 'tracked': return 'bg-primary/20';
+              default: return '';
+            }
+          };
+          
+          const getTextClass = () => {
+            if (isToday(day)) return 'text-primary font-bold';
+            if (severity === 'severe' || severity === 'moderate') return 'text-white';
+            return 'text-foreground';
+          };
           
           return (
             <button
@@ -131,26 +136,29 @@ export const CalendarHistory = ({ entries, onSelectDate, selectedDate }: Calenda
               )}
             >
               {/* Background color for heatmap */}
-              {dayColor && (
+              {severity !== 'none' && (
                 <div className={cn(
                   "absolute inset-1 rounded-md transition-colors",
-                  dayColor
+                  getBgClass()
                 )} />
               )}
               
               {/* Day number */}
               <span className={cn(
                 "relative z-10 text-xs font-medium",
-                isToday(day) && "text-primary font-bold",
-                dayColor && dayColor !== 'mild' && dayColor !== 'tracked' && !isToday(day) && "text-white",
-                (dayColor === 'mild' || dayColor === 'tracked') && "text-foreground"
+                getTextClass()
               )}>
                 {format(day, 'd')}
               </span>
               
               {/* Entry count indicator */}
               {hasEntries && dayEntries.length > 1 && (
-                <span className="absolute bottom-0.5 right-0.5 text-[8px] text-muted-foreground bg-background/80 rounded px-0.5">
+                <span className={cn(
+                  "absolute bottom-0.5 right-0.5 text-[8px] rounded px-0.5 z-10",
+                  severity === 'severe' || severity === 'moderate' 
+                    ? "text-white/80" 
+                    : "text-muted-foreground bg-background/80"
+                )}>
                   {dayEntries.length}
                 </span>
               )}

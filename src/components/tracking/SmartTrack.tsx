@@ -3,10 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { FlareEntry } from "@/types/flare";
-import { Send, Mic, MicOff, Check, Plus, X, Sparkles } from "lucide-react";
+import { Send, Mic, MicOff, Check, Plus, X, Sparkles, Info, Sun, Cloud, MapPin } from "lucide-react";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ChatMessage {
   id: string;
@@ -16,6 +17,7 @@ interface ChatMessage {
   entryData?: Partial<FlareEntry>;
   isAIGenerated?: boolean;
   dataUsed?: string[];
+  suggestedFollowUp?: string;
 }
 
 interface SmartTrackProps {
@@ -40,6 +42,49 @@ const COMMON_SYMPTOMS = [
   'Brain fog', 'Sensitivity', 'Cramping', 'Weakness'
 ];
 
+const QUICK_ACTIONS = [
+  { label: "How's my week?", icon: "📊" },
+  { label: "Weather risks?", icon: "🌤️" },
+  { label: "My patterns", icon: "📈" },
+];
+
+// Generate personalized greeting based on time and context
+const getPersonalizedGreeting = (conditions: string[], recentEntries: any[]): string => {
+  const hour = new Date().getHours();
+  const recentFlares = recentEntries.filter(e => e.type === 'flare').slice(0, 3);
+  const lastFlare = recentFlares[0];
+  
+  let timeGreeting = '';
+  if (hour < 12) timeGreeting = 'Good morning';
+  else if (hour < 17) timeGreeting = 'Good afternoon';
+  else timeGreeting = 'Good evening';
+  
+  // Check recent activity
+  if (lastFlare) {
+    const hoursSinceFlare = (Date.now() - new Date(lastFlare.timestamp).getTime()) / (1000 * 60 * 60);
+    if (hoursSinceFlare < 24 && lastFlare.severity === 'severe') {
+      return `${timeGreeting}. How are you feeling after yesterday's flare? 💜`;
+    }
+    if (hoursSinceFlare < 6) {
+      return `${timeGreeting}. I see you logged earlier. Any updates?`;
+    }
+  }
+  
+  // No recent flares
+  if (recentFlares.length === 0) {
+    return `${timeGreeting}! Ready to track how you're feeling?`;
+  }
+  
+  const daysSinceFlare = lastFlare ? 
+    Math.floor((Date.now() - new Date(lastFlare.timestamp).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+  
+  if (daysSinceFlare >= 3) {
+    return `${timeGreeting}! ${daysSinceFlare} days since your last flare - great streak! 🎉`;
+  }
+  
+  return `${timeGreeting}! How are you feeling right now?`;
+};
+
 export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({ 
   onSave, 
   userSymptoms = [], 
@@ -48,32 +93,68 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   recentEntries = [],
   userId 
 }, ref) => {
-  const [messages, setMessages] = useState<ChatMessage[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_${userId}`);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return parsed.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }));
-      } catch { }
-    }
-    return [{
-      id: '1',
-      role: 'assistant',
-      content: "Hey! Quick log below, or ask me anything about your health patterns.",
-      timestamp: new Date(),
-    }];
-  });
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [showSymptoms, setShowSymptoms] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number; city?: string } | null>(null);
   const { isRecording, transcript, startRecording, stopRecording, clearRecording } = useVoiceRecording();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const hasLoadedMessages = useRef(false);
+
+  // Load messages and set personalized greeting
+  useEffect(() => {
+    if (hasLoadedMessages.current) return;
+    hasLoadedMessages.current = true;
+    
+    const saved = localStorage.getItem(`${STORAGE_KEY}_${userId}`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Only load if less than 24 hours old
+        const lastMsg = parsed[parsed.length - 1];
+        if (lastMsg && (Date.now() - new Date(lastMsg.timestamp).getTime()) < 24 * 60 * 60 * 1000) {
+          setMessages(parsed.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })));
+          return;
+        }
+      } catch {}
+    }
+    
+    // Create fresh greeting
+    const greeting = getPersonalizedGreeting(userConditions, recentEntries);
+    setMessages([{
+      id: '1',
+      role: 'assistant',
+      content: greeting,
+      timestamp: new Date(),
+    }]);
+  }, [userId, userConditions, recentEntries]);
+
+  // Get current location on mount
+  useEffect(() => {
+    const getLocation = async () => {
+      try {
+        const { getCurrentLocation, fetchWeatherData } = await import("@/services/weatherService");
+        const location = await getCurrentLocation();
+        if (location) {
+          setCurrentLocation(location);
+          // Try to get city name
+          const weatherData = await fetchWeatherData(location.latitude, location.longitude);
+          if (weatherData?.location?.city) {
+            setCurrentLocation(prev => prev ? { ...prev, city: weatherData.location.city } : null);
+          }
+        }
+      } catch (e) {
+        console.log('Could not get location');
+      }
+    };
+    getLocation();
+  }, []);
 
   // Expose method to add detailed entry as a message
   useImperativeHandle(ref, () => ({
     addDetailedEntry: (entry: Partial<FlareEntry>) => {
-      // Build user message describing what was logged
       const parts: string[] = [];
       if (entry.type) parts.push(`[${entry.type.toUpperCase()}]`);
       if (entry.severity) parts.push(`Severity: ${entry.severity}`);
@@ -103,7 +184,9 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   }));
 
   useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_${userId}`, JSON.stringify(messages));
+    if (messages.length > 0) {
+      localStorage.setItem(`${STORAGE_KEY}_${userId}`, JSON.stringify(messages));
+    }
   }, [messages, userId]);
 
   useEffect(() => {
@@ -172,14 +255,14 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     setMessages(prev => [...prev, confirmMessage]);
   };
 
-  const handleSend = async () => {
-    const messageText = input.trim();
-    if (!messageText || isProcessing) return;
+  const handleSend = async (messageText?: string) => {
+    const text = messageText || input.trim();
+    if (!text || isProcessing) return;
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
-      content: messageText,
+      content: text,
       timestamp: new Date(),
     };
     setMessages(prev => [...prev, userMessage]);
@@ -192,6 +275,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         conditions: userConditions,
         knownSymptoms: userSymptoms,
         knownTriggers: userTriggers,
+        currentLocation,
         recentEntries: recentEntries.slice(0, 30).map(e => ({
           severity: e.severity,
           symptoms: e.symptoms || [],
@@ -204,9 +288,9 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
 
       const { data, error } = await supabase.functions.invoke('smart-assistant', {
         body: { 
-          message: messageText,
+          message: text,
           userContext,
-          history: messages.slice(-6).map(m => ({ 
+          history: messages.slice(-8).map(m => ({ 
             role: m.role === 'system' ? 'assistant' : m.role, 
             content: m.content 
           }))
@@ -223,13 +307,14 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         entryData: data.entryData,
         isAIGenerated: data.isAIGenerated,
         dataUsed: data.dataUsed,
+        suggestedFollowUp: data.suggestedFollowUp,
       };
       setMessages(prev => [...prev, assistantMessage]);
 
       if (data.entryData && data.shouldLog) {
         const entry: Partial<FlareEntry> = {
           ...data.entryData,
-          note: messageText,
+          note: text,
           timestamp: new Date(),
         };
 
@@ -265,10 +350,34 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   };
 
   return (
-    <div className="flex flex-col h-[460px]">
+    <div className="flex flex-col h-[500px]">
+      {/* Header with info */}
+      <div className="flex items-center justify-between mb-2 px-1">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          {currentLocation?.city && (
+            <>
+              <MapPin className="w-3 h-3" />
+              <span>{currentLocation.city}</span>
+            </>
+          )}
+        </div>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                <Info className="w-3 h-3 text-muted-foreground" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="max-w-[200px] text-xs">
+              <p>Quick log with severity buttons below, or ask me anything about your health patterns, travel risks, or triggers.</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto space-y-2 mb-3 pr-1">
-        {messages.map((message) => (
+        {messages.map((message, idx) => (
           <div
             key={message.id}
             className={cn(
@@ -297,7 +406,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                     <Sparkles className="w-2.5 h-2.5" />
                     <span>AI-generated</span>
                     {message.dataUsed && message.dataUsed.length > 0 && (
-                      <span className="opacity-60">• Using: {message.dataUsed.join(', ')}</span>
+                      <span className="opacity-60">• {message.dataUsed.join(', ')}</span>
                     )}
                   </div>
                 )}
@@ -310,6 +419,18 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                       <span> • {message.entryData.symptoms.length} symptoms</span>
                     )}
                   </div>
+                )}
+
+                {/* Suggested follow-up button */}
+                {message.suggestedFollowUp && idx === messages.length - 1 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 h-7 text-xs"
+                    onClick={() => handleSend(message.suggestedFollowUp)}
+                  >
+                    {message.suggestedFollowUp}
+                  </Button>
                 )}
               </div>
             )}
@@ -327,6 +448,23 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
           </div>
         )}
         <div ref={messagesEndRef} />
+      </div>
+
+      {/* Quick Action Buttons */}
+      <div className="flex gap-1.5 mb-2 overflow-x-auto pb-1">
+        {QUICK_ACTIONS.map(action => (
+          <Button
+            key={action.label}
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs whitespace-nowrap flex-shrink-0"
+            onClick={() => handleSend(action.label)}
+            disabled={isProcessing}
+          >
+            <span className="mr-1">{action.icon}</span>
+            {action.label}
+          </Button>
+        ))}
       </div>
 
       {/* Symptom Selection */}
@@ -418,7 +556,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         </Button>
         
         <Input
-          placeholder={isRecording ? "Listening..." : "Ask about patterns, travel risks, triggers..."}
+          placeholder={isRecording ? "Listening..." : "Ask about patterns, travel, triggers..."}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={handleKeyPress}
@@ -426,7 +564,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
           disabled={isRecording || isProcessing}
         />
 
-        <Button onClick={handleSend} disabled={isProcessing || !input.trim()} size="icon" className="h-9 w-9 rounded-full">
+        <Button onClick={() => handleSend()} disabled={isProcessing || !input.trim()} size="icon" className="h-9 w-9 rounded-full">
           <Send className="w-4 h-4" />
         </Button>
       </div>
