@@ -14,8 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      engagement: {
+        Row: {
+          badges: string[] | null
+          created_at: string
+          current_streak: number | null
+          home_shortcuts: string[] | null
+          last_log_date: string | null
+          longest_streak: number | null
+          reminder_enabled: boolean | null
+          reminder_times: string[] | null
+          total_logs: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          badges?: string[] | null
+          created_at?: string
+          current_streak?: number | null
+          home_shortcuts?: string[] | null
+          last_log_date?: string | null
+          longest_streak?: number | null
+          reminder_enabled?: boolean | null
+          reminder_times?: string[] | null
+          total_logs?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          badges?: string[] | null
+          created_at?: string
+          current_streak?: number | null
+          home_shortcuts?: string[] | null
+          last_log_date?: string | null
+          longest_streak?: number | null
+          reminder_enabled?: boolean | null
+          reminder_times?: string[] | null
+          total_logs?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       flare_entries: {
         Row: {
+          city: string | null
           created_at: string
           duration_minutes: number | null
           end_timestamp: string | null
@@ -24,6 +67,8 @@ export type Database = {
           environmental_data: Json | null
           follow_ups: Json | null
           id: string
+          latitude: number | null
+          longitude: number | null
           medications: string[] | null
           note: string | null
           physiological_data: Json | null
@@ -34,6 +79,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          city?: string | null
           created_at?: string
           duration_minutes?: number | null
           end_timestamp?: string | null
@@ -42,6 +88,8 @@ export type Database = {
           environmental_data?: Json | null
           follow_ups?: Json | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           medications?: string[] | null
           note?: string | null
           physiological_data?: Json | null
@@ -52,6 +100,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          city?: string | null
           created_at?: string
           duration_minutes?: number | null
           end_timestamp?: string | null
@@ -60,6 +109,8 @@ export type Database = {
           environmental_data?: Json | null
           follow_ups?: Json | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           medications?: string[] | null
           note?: string | null
           physiological_data?: Json | null

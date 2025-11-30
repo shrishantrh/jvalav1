@@ -11,3 +11,15 @@ verify_jwt = true
 
 [functions.generate-suggestions]
 verify_jwt = true
+
+[functions.chat-assistant]
+verify_jwt = false
+
+[functions.get-shared-report]
+verify_jwt = false
+
+[functions.get-shared-profile]
+verify_jwt = false
+
+[functions.send-health-report]
+verify_jwt = true

@@ -4,16 +4,20 @@ import jvalaLogo from "@/assets/jvala-logo.png";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FlareEntry } from "@/types/flare";
-import { SmartQuickLog } from "@/components/tracking/SmartQuickLog";
+import { ChatLog } from "@/components/chat/ChatLog";
 import { DetailedEntry } from "@/components/DetailedEntry";
 import { InsightsPanel } from "@/components/InsightsPanel";
+import { CalendarHistory } from "@/components/history/CalendarHistory";
+import { FlareLocationMap } from "@/components/history/FlareLocationMap";
 import { FlareTimeline } from "@/components/flare/FlareTimeline";
 import { ProfileSettings } from "@/components/ProfileSettings";
-import { CalendarHeatmap } from "@/components/insights/CalendarHeatmap";
 import { CorrelationAnalysis } from "@/components/insights/CorrelationAnalysis";
+import { EngagementPanel } from "@/components/engagement/EngagementPanel";
+import { ProgressDashboard } from "@/components/engagement/ProgressDashboard";
 import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { CONDITIONS } from "@/data/conditions";
-import { Calendar, TrendingUp, Plus, Activity, LogOut, User as UserIcon, BarChart3 } from "lucide-react";
+import { useEngagement } from "@/hooks/useEngagement";
+import { MessageCircle, Calendar, BarChart3, LogOut, User as UserIcon, ChevronDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format, isToday, subDays } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,14 +35,17 @@ interface UserProfile {
 }
 
 const Index = () => {
-  const [currentView, setCurrentView] = useState<'today' | 'timeline' | 'insights' | 'profile'>('today');
+  const [currentView, setCurrentView] = useState<'chat' | 'history' | 'insights' | 'profile' | 'progress'>('chat');
   const [entries, setEntries] = useState<FlareEntry[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showDetailedEntry, setShowDetailedEntry] = useState(false);
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { updateEngagementOnLog } = useEngagement();
 
   // Check auth and load data
   useEffect(() => {
@@ -78,12 +85,10 @@ const Index = () => {
           onboarding_completed: data.onboarding_completed || false,
         });
 
-        // Show onboarding if not completed
         if (!data.onboarding_completed) {
           setShowOnboarding(true);
         }
       } else {
-        // No profile exists, show onboarding
         setShowOnboarding(true);
       }
     } catch (error) {
@@ -178,25 +183,6 @@ const Index = () => {
     }
   };
 
-  // Get recent symptoms from entries for personalized quick log
-  const recentSymptoms = useMemo(() => {
-    const symptomCounts: Record<string, number> = {};
-    const recentEntries = entries.filter(e => 
-      e.timestamp > subDays(new Date(), 30) && e.symptoms
-    );
-    
-    recentEntries.forEach(entry => {
-      entry.symptoms?.forEach(symptom => {
-        symptomCounts[symptom] = (symptomCounts[symptom] || 0) + 1;
-      });
-    });
-
-    return Object.entries(symptomCounts)
-      .sort((a, b) => b[1] - a[1])
-      .map(([symptom]) => symptom)
-      .slice(0, 6);
-  }, [entries]);
-
   const handleSaveEntry = async (entryData: Partial<FlareEntry>) => {
     if (!user) return;
 
@@ -215,6 +201,9 @@ const Index = () => {
           note: entryData.note || null,
           environmental_data: entryData.environmentalData as any || null,
           physiological_data: entryData.physiologicalData as any || null,
+          latitude: entryData.environmentalData?.location?.latitude || null,
+          longitude: entryData.environmentalData?.location?.longitude || null,
+          city: entryData.environmentalData?.location?.city || null,
         })
         .select()
         .single();
@@ -237,6 +226,21 @@ const Index = () => {
         };
 
         setEntries(prev => [newEntry, ...prev]);
+
+        // Update engagement
+        const { newBadges, streakIncreased } = await updateEngagementOnLog(user.id);
+        
+        if (newBadges.length > 0) {
+          toast({
+            title: "🏆 Badge Earned!",
+            description: `You earned: ${newBadges.join(', ')}`,
+          });
+        } else if (streakIncreased) {
+          toast({
+            title: "Entry logged",
+            description: "Keep your streak going!",
+          });
+        }
       }
     } catch (error) {
       console.error('Failed to save entry:', error);
@@ -361,29 +365,6 @@ const Index = () => {
     navigate('/auth');
   };
 
-  const getTodaysEntries = () => entries.filter(entry => isToday(entry.timestamp));
-  const todaysEntries = getTodaysEntries();
-
-  const getEntryIcon = (type: string) => {
-    switch (type) {
-      case 'flare': return '🔥';
-      case 'energy': return '⚡';
-      case 'medication': return '💊';
-      case 'trigger': return '⚠️';
-      case 'recovery': return '💚';
-      default: return '📝';
-    }
-  };
-
-  const getSeverityColor = (severity?: string) => {
-    switch (severity) {
-      case 'mild': return 'text-severity-mild';
-      case 'moderate': return 'text-severity-moderate';
-      case 'severe': return 'text-severity-severe';
-      default: return 'text-muted-foreground';
-    }
-  };
-
   // Show onboarding if needed
   if (showOnboarding && !isLoadingProfile) {
     return <OnboardingFlow onComplete={handleOnboardingComplete} />;
@@ -439,24 +420,24 @@ const Index = () => {
       <div className="container max-w-md mx-auto px-4 py-5">
         <div className="flex bg-card/80 backdrop-blur rounded-2xl p-1.5 shadow-soft border">
           <Button
-            variant={currentView === 'today' ? 'default' : 'ghost'}
+            variant={currentView === 'chat' ? 'default' : 'ghost'}
             size="sm"
-            onClick={() => setCurrentView('today')}
+            onClick={() => setCurrentView('chat')}
             className={`flex-1 text-xs h-9 rounded-xl transition-all ${
-              currentView === 'today' 
+              currentView === 'chat' 
                 ? 'shadow-primary' 
                 : 'hover:bg-accent/50'
             }`}
           >
-            <Plus className="w-3.5 h-3.5 mr-1.5" />
-            Log
+            <MessageCircle className="w-3.5 h-3.5 mr-1.5" />
+            Chat
           </Button>
           <Button
-            variant={currentView === 'timeline' ? 'default' : 'ghost'}
+            variant={currentView === 'history' ? 'default' : 'ghost'}
             size="sm"
-            onClick={() => setCurrentView('timeline')}
+            onClick={() => setCurrentView('history')}
             className={`flex-1 text-xs h-9 rounded-xl transition-all ${
-              currentView === 'timeline' 
+              currentView === 'history' 
                 ? 'shadow-primary' 
                 : 'hover:bg-accent/50'
             }`}
@@ -482,20 +463,23 @@ const Index = () => {
 
       {/* Content */}
       <main className="container max-w-md mx-auto px-4 pb-8 space-y-5">
-        {/* Today View */}
-        {currentView === 'today' && (
+        {/* Chat View */}
+        {currentView === 'chat' && user && (
           <>
-            {/* Calendar Heatmap */}
-            <CalendarHeatmap entries={entries} />
+            {/* Engagement Panel */}
+            <EngagementPanel 
+              userId={user.id} 
+              onOpenProgress={() => setCurrentView('progress')}
+            />
 
-            {/* Quick Log */}
+            {/* Chat Log */}
             <Card className="p-5 shadow-soft-lg hover-lift bg-gradient-card border-0 animate-fade-in">
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-soft">
-                  <Plus className="w-4 h-4 text-white" />
+                  <MessageCircle className="w-4 h-4 text-white" />
                 </div>
-                <div>
-                  <h2 className="text-base font-clinical">Quick Log</h2>
+                <div className="flex-1">
+                  <h2 className="text-base font-clinical">How are you feeling?</h2>
                   {userConditionNames.length > 0 && (
                     <p className="text-xs text-muted-foreground">
                       Tracking: {userConditionNames.slice(0, 2).join(', ')}
@@ -504,83 +488,56 @@ const Index = () => {
                   )}
                 </div>
               </div>
-              <SmartQuickLog
+              
+              <ChatLog
                 onSave={handleSaveEntry}
                 userSymptoms={userProfile?.known_symptoms || []}
-                recentSymptoms={recentSymptoms}
+                userConditions={userProfile?.conditions || []}
               />
               
-              {/* Detailed Entry Option */}
+              {/* Detailed Entry Toggle */}
               <div className="pt-4 mt-4 border-t">
-                <DetailedEntry onSave={handleSaveEntry} />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowDetailedEntry(!showDetailedEntry)}
+                  className="w-full text-xs text-muted-foreground"
+                >
+                  <ChevronDown className={`w-3 h-3 mr-1 transition-transform ${showDetailedEntry ? 'rotate-180' : ''}`} />
+                  {showDetailedEntry ? 'Hide detailed entry' : 'Need more options?'}
+                </Button>
+                {showDetailedEntry && (
+                  <div className="mt-3 animate-fade-in">
+                    <DetailedEntry onSave={handleSaveEntry} />
+                  </div>
+                )}
               </div>
             </Card>
-
-            {/* Today's Activity */}
-            {todaysEntries.length > 0 && (
-              <Card className="p-5 shadow-soft-lg hover-lift bg-gradient-card border-0 animate-fade-in">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-base font-clinical">Today's Activity</h2>
-                  <span className="text-xs px-3 py-1 rounded-full bg-primary/10 text-primary font-medium">
-                    {todaysEntries.length} {todaysEntries.length === 1 ? 'entry' : 'entries'}
-                  </span>
-                </div>
-                <div className="space-y-2.5">
-                  {todaysEntries.slice(0, 5).map((entry, idx) => (
-                    <div 
-                      key={entry.id} 
-                      className="flex items-center justify-between p-3 bg-muted/40 rounded-xl hover:bg-muted/60 transition-all cursor-pointer hover-scale"
-                      style={{ animationDelay: `${idx * 0.1}s` }}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-lg">{getEntryIcon(entry.type)}</span>
-                        <div>
-                          <span className="text-sm font-clinical capitalize">{entry.type}</span>
-                          {entry.severity && (
-                            <span className={`text-xs ml-2 px-2 py-0.5 rounded-full ${getSeverityColor(entry.severity)} bg-current/10`}>
-                              {entry.severity}
-                            </span>
-                          )}
-                          {entry.symptoms && entry.symptoms.length > 0 && (
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {entry.symptoms.slice(0, 2).join(', ')}
-                              {entry.symptoms.length > 2 && ` +${entry.symptoms.length - 2}`}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <span className="text-xs text-muted-foreground font-medium">
-                        {format(entry.timestamp, 'h:mm a')}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
-
-            {/* Empty state */}
-            {todaysEntries.length === 0 && entries.length === 0 && (
-              <Card className="p-8 text-center shadow-soft-lg bg-gradient-card border-0 animate-scale-in">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-primary/10 flex items-center justify-center">
-                  <span className="text-4xl">🌟</span>
-                </div>
-                <h3 className="text-base font-clinical mb-2">Start tracking today</h3>
-                <p className="text-sm text-muted-foreground">
-                  Log your first entry to see patterns and insights
-                </p>
-              </Card>
-            )}
           </>
         )}
 
-        {/* Timeline View */}
-        {currentView === 'timeline' && (
-          <FlareTimeline 
-            entries={entries} 
-            onUpdate={handleUpdateEntry}
-            onDelete={handleDeleteEntry}
-            onAddFollowUp={handleAddFollowUp}
-          />
+        {/* History View */}
+        {currentView === 'history' && (
+          <div className="space-y-5">
+            <Card className="p-4 shadow-soft-lg bg-gradient-card border-0">
+              <CalendarHistory 
+                entries={entries}
+                selectedDate={selectedDate}
+                onSelectDate={setSelectedDate}
+              />
+            </Card>
+
+            {/* Flare Location Map */}
+            <FlareLocationMap entries={entries} />
+
+            {/* Timeline for selected date */}
+            <FlareTimeline 
+              entries={entries} 
+              onUpdate={handleUpdateEntry}
+              onDelete={handleDeleteEntry}
+              onAddFollowUp={handleAddFollowUp}
+            />
+          </div>
         )}
 
         {/* Insights View */}
@@ -597,6 +554,15 @@ const Index = () => {
         {/* Profile View */}
         {currentView === 'profile' && (
           <ProfileSettings />
+        )}
+
+        {/* Progress Dashboard */}
+        {currentView === 'progress' && user && (
+          <ProgressDashboard 
+            userId={user.id}
+            entries={entries}
+            onBack={() => setCurrentView('chat')}
+          />
         )}
       </main>
     </div>
