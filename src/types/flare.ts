@@ -1,4 +1,4 @@
-export type EntryType = 'flare' | 'medication' | 'trigger' | 'recovery' | 'energy' | 'note';
+export type EntryType = 'flare' | 'medication' | 'trigger' | 'recovery' | 'energy' | 'note' | 'wellness';
 
 export type FlareSeverity = 'none' | 'mild' | 'moderate' | 'severe';
 export type EnergyLevel = 'very-low' | 'low' | 'moderate' | 'good' | 'high';

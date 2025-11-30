@@ -43,9 +43,10 @@ const COMMON_SYMPTOMS = [
 ];
 
 const QUICK_ACTIONS = [
-  { label: "How's my week?", icon: "📊" },
-  { label: "Weather risks?", icon: "🌤️" },
-  { label: "My patterns", icon: "📈" },
+  { label: "Feeling good!", icon: "😊", type: "positive" },
+  { label: "Took meds", icon: "💊", type: "medication" },
+  { label: "Low energy", icon: "😴", type: "energy" },
+  { label: "My week", icon: "📊", type: "query" },
 ];
 
 // Generate personalized greeting based on time and context
@@ -349,6 +350,86 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     }
   };
 
+  const handleQuickAction = async (action: typeof QUICK_ACTIONS[0]) => {
+    if (action.type === 'positive') {
+      const userMessage: ChatMessage = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: 'Feeling good! 😊',
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, userMessage]);
+
+      const entry: Partial<FlareEntry> = {
+        type: 'wellness',
+        energyLevel: 'high',
+        note: 'Feeling good',
+        timestamp: new Date(),
+      };
+      onSave(entry);
+
+      const confirmMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: "Great to hear! Logged your positive update 💜",
+        timestamp: new Date(),
+        entryData: entry,
+      };
+      setMessages(prev => [...prev, confirmMessage]);
+    } else if (action.type === 'medication') {
+      const userMessage: ChatMessage = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: 'Took my medication',
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, userMessage]);
+
+      const entry: Partial<FlareEntry> = {
+        type: 'medication',
+        note: 'Medication taken',
+        timestamp: new Date(),
+      };
+      onSave(entry);
+
+      const confirmMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: "Medication logged! Keep it up 💊",
+        timestamp: new Date(),
+        entryData: entry,
+      };
+      setMessages(prev => [...prev, confirmMessage]);
+    } else if (action.type === 'energy') {
+      const userMessage: ChatMessage = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: 'Feeling low energy today',
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, userMessage]);
+
+      const entry: Partial<FlareEntry> = {
+        type: 'energy',
+        energyLevel: 'low',
+        note: 'Low energy',
+        timestamp: new Date(),
+      };
+      onSave(entry);
+
+      const confirmMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: "Noted. Rest if you can. I'll track how this correlates with other factors.",
+        timestamp: new Date(),
+        entryData: entry,
+      };
+      setMessages(prev => [...prev, confirmMessage]);
+    } else {
+      handleSend(action.label);
+    }
+  };
+
   return (
     <div className="flex flex-col h-[500px]">
       {/* Header with info */}
@@ -369,14 +450,14 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
               </Button>
             </TooltipTrigger>
             <TooltipContent side="left" className="max-w-[200px] text-xs">
-              <p>Quick log with severity buttons below, or ask me anything about your health patterns, travel risks, or triggers.</p>
+              <p>Quick log below, or ask me anything about your health patterns, travel risks, or triggers.</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-2 mb-3 pr-1">
+      {/* Messages - hide scrollbar */}
+      <div className="flex-1 overflow-y-auto space-y-2 mb-3 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         {messages.map((message, idx) => (
           <div
             key={message.id}
@@ -450,15 +531,15 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick Action Buttons */}
-      <div className="flex gap-1.5 mb-2 overflow-x-auto pb-1">
+      {/* Quick Actions - compact row */}
+      <div className="flex gap-1.5 mb-2 flex-wrap">
         {QUICK_ACTIONS.map(action => (
           <Button
             key={action.label}
             variant="outline"
             size="sm"
-            className="h-7 text-xs whitespace-nowrap flex-shrink-0"
-            onClick={() => handleSend(action.label)}
+            className="h-7 text-xs"
+            onClick={() => handleQuickAction(action)}
             disabled={isProcessing}
           >
             <span className="mr-1">{action.icon}</span>
@@ -467,11 +548,45 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         ))}
       </div>
 
-      {/* Symptom Selection */}
-      {showSymptoms && (
-        <div className="mb-3 p-3 bg-muted/30 rounded-xl border animate-fade-in">
+      {/* Severity Buttons */}
+      <div className="flex gap-2 mb-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleQuickLog('mild')}
+          disabled={isProcessing}
+          className="flex-1 h-9 border-severity-mild/50 hover:bg-severity-mild/20 hover:border-severity-mild text-xs font-medium"
+        >
+          <span className="w-2 h-2 rounded-full bg-severity-mild mr-1.5" />
+          Mild
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleQuickLog('moderate')}
+          disabled={isProcessing}
+          className="flex-1 h-9 border-severity-moderate/50 hover:bg-severity-moderate/20 hover:border-severity-moderate text-xs font-medium"
+        >
+          <span className="w-2 h-2 rounded-full bg-severity-moderate mr-1.5" />
+          Moderate
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleQuickLog('severe')}
+          disabled={isProcessing}
+          className="flex-1 h-9 border-severity-severe/50 hover:bg-severity-severe/20 hover:border-severity-severe text-xs font-medium"
+        >
+          <span className="w-2 h-2 rounded-full bg-severity-severe mr-1.5" />
+          Severe
+        </Button>
+      </div>
+
+      {/* Symptom Selection - expandable */}
+      {showSymptoms ? (
+        <div className="mb-2 p-3 bg-muted/30 rounded-xl border animate-fade-in">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium">Add symptoms (optional)</span>
+            <span className="text-xs font-medium">Add symptoms</span>
             <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setShowSymptoms(false)}>
               <X className="w-3 h-3" />
             </Button>
@@ -492,49 +607,12 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             <p className="text-xs text-muted-foreground mt-2">Selected: {selectedSymptoms.join(', ')}</p>
           )}
         </div>
-      )}
-
-      {/* Quick Log Buttons */}
-      <div className="flex gap-2 mb-3">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handleQuickLog('mild')}
-          disabled={isProcessing}
-          className="flex-1 h-10 border-severity-mild/50 hover:bg-severity-mild/20 hover:border-severity-mild text-xs font-medium"
-        >
-          <span className="w-2.5 h-2.5 rounded-full bg-severity-mild mr-2" />
-          Mild
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handleQuickLog('moderate')}
-          disabled={isProcessing}
-          className="flex-1 h-10 border-severity-moderate/50 hover:bg-severity-moderate/20 hover:border-severity-moderate text-xs font-medium"
-        >
-          <span className="w-2.5 h-2.5 rounded-full bg-severity-moderate mr-2" />
-          Moderate
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handleQuickLog('severe')}
-          disabled={isProcessing}
-          className="flex-1 h-10 border-severity-severe/50 hover:bg-severity-severe/20 hover:border-severity-severe text-xs font-medium"
-        >
-          <span className="w-2.5 h-2.5 rounded-full bg-severity-severe mr-2" />
-          Severe
-        </Button>
-      </div>
-
-      {/* Symptom Toggle */}
-      {!showSymptoms && (
+      ) : (
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setShowSymptoms(true)}
-          className="mb-3 text-xs text-muted-foreground h-8"
+          className="mb-2 text-xs text-muted-foreground h-7 w-full justify-start"
         >
           <Plus className="w-3 h-3 mr-1" />
           Add symptoms to log
@@ -556,7 +634,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         </Button>
         
         <Input
-          placeholder={isRecording ? "Listening..." : "Ask about patterns, travel, triggers..."}
+          placeholder={isRecording ? "Listening..." : "Ask about patterns, travel..."}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={handleKeyPress}
