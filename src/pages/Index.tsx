@@ -15,7 +15,7 @@ import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { StreakBadge } from "@/components/engagement/StreakBadge";
 import { CONDITIONS } from "@/data/conditions";
 import { useEngagement } from "@/hooks/useEngagement";
-import { Activity, Calendar, BarChart3, LogOut, User as UserIcon, ChevronDown, Flame } from "lucide-react";
+import { Activity, Calendar, BarChart3, User as UserIcon, ChevronDown, Flame, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format, isSameDay } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
@@ -395,10 +395,10 @@ const Index = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={handleSignOut}
-                className="h-9 w-9 rounded-full hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => navigate('/settings')}
+                className="h-9 w-9 rounded-full"
               >
-                <LogOut className="w-4 h-4" />
+                <Settings className="w-4 h-4" />
               </Button>
             </div>
           </div>

@@ -6,6 +6,7 @@ import { HashRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Demo from "./pages/Demo";
+import Settings from "./pages/Settings";
 import SharedReport from "./pages/SharedReport";
 import SharedProfile from "./pages/SharedProfile";
 import NotFound from "./pages/NotFound";
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/demo" element={<Demo />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="/shared-report" element={<SharedReport />} />
           <Route path="/shared-profile" element={<SharedProfile />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
