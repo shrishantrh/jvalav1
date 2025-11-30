@@ -1,8 +1,7 @@
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { FlareEntry } from "@/types/flare";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, startOfWeek, endOfWeek, addMonths, subMonths, isToday } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -29,17 +28,15 @@ export const CalendarHistory = ({ entries, onSelectDate, selectedDate }: Calenda
     return entriesByDate.get(format(date, 'yyyy-MM-dd')) || [];
   };
 
-  // Get severity color for heatmap - uses consistent color scale
+  // Get severity color - consistent yellow/orange/red scale
   const getDayColor = (entries: FlareEntry[]) => {
     if (entries.length === 0) return null;
     
     const flares = entries.filter(e => e.type === 'flare' && e.severity);
     if (flares.length === 0) {
-      // Has entries but no flares - show as tracked day
-      return 'bg-primary/20';
+      return 'tracked';
     }
 
-    // Calculate average severity score
     const severityScore = flares.reduce((sum, f) => {
       if (f.severity === 'severe') return sum + 3;
       if (f.severity === 'moderate') return sum + 2;
@@ -47,9 +44,19 @@ export const CalendarHistory = ({ entries, onSelectDate, selectedDate }: Calenda
       return sum;
     }, 0) / flares.length;
 
-    if (severityScore >= 2.5) return 'bg-severity-severe';
-    if (severityScore >= 1.5) return 'bg-severity-moderate';
-    return 'bg-severity-mild';
+    if (severityScore >= 2.5) return 'severe';
+    if (severityScore >= 1.5) return 'moderate';
+    return 'mild';
+  };
+
+  const getColorClasses = (severity: string | null) => {
+    switch (severity) {
+      case 'mild': return 'bg-severity-mild';
+      case 'moderate': return 'bg-severity-moderate';
+      case 'severe': return 'bg-severity-severe';
+      case 'tracked': return 'bg-primary/20';
+      default: return '';
+    }
   };
 
   const navigatePrev = () => setCurrentDate(subMonths(currentDate, 1));
@@ -135,9 +142,8 @@ export const CalendarHistory = ({ entries, onSelectDate, selectedDate }: Calenda
               <span className={cn(
                 "relative z-10 text-xs font-medium",
                 isToday(day) && "text-primary font-bold",
-                dayColor && !isToday(day) && "text-white",
-                dayColor === 'bg-severity-mild' && "text-foreground",
-                dayColor === 'bg-primary/20' && "text-foreground"
+                dayColor && dayColor !== 'mild' && dayColor !== 'tracked' && !isToday(day) && "text-white",
+                (dayColor === 'mild' || dayColor === 'tracked') && "text-foreground"
               )}>
                 {format(day, 'd')}
               </span>

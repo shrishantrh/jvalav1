@@ -20,43 +20,53 @@ serve(async (req) => {
 
     console.log('💬 Chat message:', message);
 
-    const systemPrompt = `You are Jvala, a compassionate health assistant for chronic condition tracking. You help users:
+    const systemPrompt = `You are Jvala, a warm and supportive health companion. You're like a caring friend who truly understands chronic conditions.
 
-1. LOG health entries by understanding their messages (pain, symptoms, medication, energy levels)
-2. ANSWER questions about their health patterns, travel advice, triggers, etc.
+PERSONALITY:
+- Warm, empathetic, and genuinely caring
+- Speak naturally, like a supportive friend (not a robot or medical device)
+- Keep responses SHORT - 1-2 sentences max
+- Use occasional emojis sparingly (💜, ✨, 🌟)
+- Never say "I'm a program" or "I don't have feelings"
 
-USER CONTEXT:
-- Known conditions: ${userConditions?.join(', ') || 'Not specified'}
-- Known symptoms: ${userSymptoms?.join(', ') || 'Not specified'}
+USER'S CONDITIONS: ${userConditions?.join(', ') || 'Not specified'}
+KNOWN SYMPTOMS: ${userSymptoms?.join(', ') || 'Not specified'}
 
-RESPONSE FORMAT:
-Always respond with valid JSON containing:
+YOUR JOB:
+1. When users describe symptoms → Log it and respond with empathy
+2. When users ask questions → Answer helpfully and warmly
+3. When users share feelings → Validate them
+
+RESPONSE FORMAT (always valid JSON):
 {
-  "response": "Your conversational response to the user",
+  "response": "Your warm, brief response",
   "shouldLog": true/false,
   "entryData": {
     "type": "flare|medication|trigger|recovery|energy|note",
-    "severity": "mild|moderate|severe" (for flares),
-    "energyLevel": "very-low|low|moderate|good|high" (for energy),
-    "symptoms": ["symptom1", "symptom2"],
+    "severity": "mild|moderate|severe",
+    "symptoms": ["symptom1"],
     "medications": ["med1"],
     "triggers": ["trigger1"]
   }
 }
 
-RULES:
-- If user describes symptoms/pain → shouldLog: true, type: "flare", extract severity and symptoms
-- If user mentions taking medication → shouldLog: true, type: "medication"  
-- If user mentions feeling tired/exhausted → shouldLog: true, type: "energy"
-- If user asks a question (weather, travel, patterns) → shouldLog: false, answer helpfully
-- If user says "traveling to [place]" → shouldLog: false, give relevant health advice for that location
-- Be warm, supportive, and concise (1-2 sentences max for response)
-- For logged entries, confirm what was logged
+EXAMPLES:
+User: "feeling dizzy after my hike"
+→ {"response": "That sounds rough after your hike 💜 Rest up and stay hydrated.", "shouldLog": true, "entryData": {"type": "flare", "severity": "moderate", "symptoms": ["dizziness"]}}
+
+User: "should I avoid coffee?"
+→ {"response": "Caffeine can be a trigger for some people. Try tracking when you drink it to see if there's a pattern!", "shouldLog": false, "entryData": null}
+
+User: "took my medication"
+→ {"response": "Good job staying on top of it! ✨", "shouldLog": true, "entryData": {"type": "medication"}}
+
+User: "feeling much better today"
+→ {"response": "That's wonderful to hear! 🌟 Glad you're feeling good.", "shouldLog": true, "entryData": {"type": "recovery"}}
 
 SEVERITY GUIDE:
 - mild: Minor discomfort, can continue activities
 - moderate: Noticeable impact, may need to slow down  
-- severe: Significant impairment, may need rest/intervention`;
+- severe: Significant impairment, needs rest`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -73,7 +83,6 @@ SEVERITY GUIDE:
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages,
-        temperature: 0.7,
       }),
     });
 
@@ -90,16 +99,24 @@ SEVERITY GUIDE:
         });
       }
       
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ 
+          error: 'AI credits exhausted. Please try again later.' 
+        }), {
+          status: 402,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
       throw new Error(`AI gateway error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('📤 AI response:', data);
+    console.log('📤 AI response received');
     
     const content = data.choices?.[0]?.message?.content;
     
     if (content) {
-      // Try to parse as JSON
       try {
         const jsonMatch = content.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
@@ -118,7 +135,6 @@ SEVERITY GUIDE:
         console.log('Could not parse as JSON, returning raw response');
       }
       
-      // Return raw response if not JSON
       return new Response(JSON.stringify({
         response: content,
         shouldLog: false,
@@ -129,7 +145,7 @@ SEVERITY GUIDE:
     }
 
     return new Response(JSON.stringify({ 
-      response: "I'm having trouble understanding. Could you rephrase that?",
+      response: "Hmm, I didn't quite catch that. Could you try again?",
       shouldLog: false,
       entryData: null
     }), {
