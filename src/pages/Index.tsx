@@ -1,12 +1,12 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import jvalaLogo from "@/assets/jvala-logo.png";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FlareEntry } from "@/types/flare";
-import { QuickTrack } from "@/components/tracking/QuickTrack";
+import { SmartTrack } from "@/components/tracking/SmartTrack";
 import { DetailedEntry } from "@/components/DetailedEntry";
-import { SmartInsights } from "@/components/insights/SmartInsights";
+import { CleanInsights } from "@/components/insights/CleanInsights";
 import { CalendarHistory } from "@/components/history/CalendarHistory";
 import { FlareTimeline } from "@/components/flare/FlareTimeline";
 import { ProfileManager } from "@/components/profile/ProfileManager";
@@ -457,10 +457,12 @@ const Index = () => {
               </div>
             </div>
             
-            <QuickTrack
+            <SmartTrack
               onSave={handleSaveEntry}
               userSymptoms={userProfile?.known_symptoms || []}
               userConditions={userProfile?.conditions || []}
+              userTriggers={userProfile?.known_triggers || []}
+              recentEntries={entries}
               userId={user.id}
             />
             
@@ -520,7 +522,7 @@ const Index = () => {
 
         {/* Insights View */}
         {currentView === 'insights' && (
-          <SmartInsights 
+          <CleanInsights 
             entries={entries} 
             userConditions={userProfile?.conditions}
           />

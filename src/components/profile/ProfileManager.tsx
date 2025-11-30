@@ -232,7 +232,7 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
   return (
     <div className="space-y-4">
       <Tabs defaultValue="personal" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 h-9">
+        <TabsList className="grid w-full grid-cols-4 h-9">
           <TabsTrigger value="personal" className="text-xs">
             <User className="w-3 h-3 mr-1" />
             Personal
@@ -241,9 +241,13 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
             <Heart className="w-3 h-3 mr-1" />
             Health
           </TabsTrigger>
+          <TabsTrigger value="reminders" className="text-xs">
+            🔔
+            Reminders
+          </TabsTrigger>
           <TabsTrigger value="share" className="text-xs">
             <Share2 className="w-3 h-3 mr-1" />
-            Sharing
+            Share
           </TabsTrigger>
         </TabsList>
 
@@ -359,17 +363,104 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Your Conditions</CardTitle>
               <CardDescription className="text-xs">
-                These were set during onboarding
+                Select the conditions you're tracking
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-2">
-                {conditionNames.map(name => (
-                  <Badge key={name} variant="secondary">{name}</Badge>
+                {CONDITIONS.map(condition => (
+                  <Badge 
+                    key={condition.id}
+                    variant={profile.conditions.includes(condition.id) ? "default" : "outline"}
+                    className="cursor-pointer text-xs"
+                    onClick={() => {
+                      const newConditions = profile.conditions.includes(condition.id)
+                        ? profile.conditions.filter(c => c !== condition.id)
+                        : [...profile.conditions, condition.id];
+                      updateField('conditions', newConditions);
+                    }}
+                  >
+                    {condition.name}
+                  </Badge>
                 ))}
-                {conditionNames.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No conditions set</p>
-                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Known Symptoms */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Known Symptoms</CardTitle>
+              <CardDescription className="text-xs">
+                Symptoms you commonly experience
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-1.5">
+                  {profile.known_symptoms.map(symptom => (
+                    <Badge 
+                      key={symptom}
+                      variant="secondary"
+                      className="cursor-pointer"
+                      onClick={() => updateField('known_symptoms', profile.known_symptoms.filter(s => s !== symptom))}
+                    >
+                      {symptom} ×
+                    </Badge>
+                  ))}
+                </div>
+                <Input
+                  placeholder="Add symptom and press Enter"
+                  className="text-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                      const newSymptom = e.currentTarget.value.trim();
+                      if (!profile.known_symptoms.includes(newSymptom)) {
+                        updateField('known_symptoms', [...profile.known_symptoms, newSymptom]);
+                      }
+                      e.currentTarget.value = '';
+                    }
+                  }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Known Triggers */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Known Triggers</CardTitle>
+              <CardDescription className="text-xs">
+                Things that trigger your symptoms
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-1.5">
+                  {profile.known_triggers.map(trigger => (
+                    <Badge 
+                      key={trigger}
+                      variant="outline"
+                      className="cursor-pointer border-severity-moderate/50"
+                      onClick={() => updateField('known_triggers', profile.known_triggers.filter(t => t !== trigger))}
+                    >
+                      {trigger} ×
+                    </Badge>
+                  ))}
+                </div>
+                <Input
+                  placeholder="Add trigger and press Enter"
+                  className="text-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                      const newTrigger = e.currentTarget.value.trim();
+                      if (!profile.known_triggers.includes(newTrigger)) {
+                        updateField('known_triggers', [...profile.known_triggers, newTrigger]);
+                      }
+                      e.currentTarget.value = '';
+                    }
+                  }}
+                />
               </div>
             </CardContent>
           </Card>
@@ -482,6 +573,27 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
                   </AlertDescription>
                 </Alert>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="reminders" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Daily Reminders</CardTitle>
+              <CardDescription className="text-xs">
+                Get gentle nudges to keep tracking
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Alert className="bg-muted/50">
+                <AlertDescription className="text-xs">
+                  Email reminders help maintain your logging streak. You'll receive a morning reminder if you haven't logged, and an optional evening check-in.
+                </AlertDescription>
+              </Alert>
+              <p className="text-xs text-muted-foreground text-center py-4">
+                Email reminders are configured. Check your inbox for daily nudges!
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
