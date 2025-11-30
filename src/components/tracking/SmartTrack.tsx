@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +27,10 @@ interface SmartTrackProps {
   userId: string;
 }
 
+export interface SmartTrackRef {
+  addDetailedEntry: (entry: Partial<FlareEntry>) => void;
+}
+
 type Severity = 'mild' | 'moderate' | 'severe';
 
 const STORAGE_KEY = 'jvala_smart_chat';
@@ -36,14 +40,14 @@ const COMMON_SYMPTOMS = [
   'Brain fog', 'Sensitivity', 'Cramping', 'Weakness'
 ];
 
-export const SmartTrack = ({ 
+export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({ 
   onSave, 
   userSymptoms = [], 
   userConditions = [], 
   userTriggers = [],
   recentEntries = [],
   userId 
-}: SmartTrackProps) => {
+}, ref) => {
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_${userId}`);
     if (saved) {
@@ -65,6 +69,38 @@ export const SmartTrack = ({
   const [showSymptoms, setShowSymptoms] = useState(false);
   const { isRecording, transcript, startRecording, stopRecording, clearRecording } = useVoiceRecording();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Expose method to add detailed entry as a message
+  useImperativeHandle(ref, () => ({
+    addDetailedEntry: (entry: Partial<FlareEntry>) => {
+      // Build user message describing what was logged
+      const parts: string[] = [];
+      if (entry.type) parts.push(`[${entry.type.toUpperCase()}]`);
+      if (entry.severity) parts.push(`Severity: ${entry.severity}`);
+      if (entry.symptoms?.length) parts.push(`Symptoms: ${entry.symptoms.join(', ')}`);
+      if (entry.medications?.length) parts.push(`Meds: ${entry.medications.join(', ')}`);
+      if (entry.triggers?.length) parts.push(`Triggers: ${entry.triggers.join(', ')}`);
+      if (entry.energyLevel) parts.push(`Energy: ${entry.energyLevel}`);
+      if (entry.note) parts.push(`Note: ${entry.note}`);
+
+      const userMessage: ChatMessage = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: parts.join(' • '),
+        timestamp: new Date(),
+      };
+
+      const confirmMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: "Detailed entry logged! 💜 I'll factor this into your pattern analysis.",
+        timestamp: new Date(),
+        entryData: entry,
+      };
+
+      setMessages(prev => [...prev, userMessage, confirmMessage]);
+    }
+  }));
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_${userId}`, JSON.stringify(messages));
@@ -152,7 +188,6 @@ export const SmartTrack = ({
     setIsProcessing(true);
 
     try {
-      // Build full user context for smart AI
       const userContext = {
         conditions: userConditions,
         knownSymptoms: userSymptoms,
@@ -270,7 +305,7 @@ export const SmartTrack = ({
                 {message.entryData && message.role === 'assistant' && (
                   <div className="mt-1.5 pt-1.5 border-t border-current/10 text-xs opacity-75 flex items-center gap-1">
                     <Check className="w-3 h-3" />
-                    {message.entryData.severity} logged
+                    {message.entryData.severity || message.entryData.type} logged
                     {message.entryData.symptoms && message.entryData.symptoms.length > 0 && (
                       <span> • {message.entryData.symptoms.length} symptoms</span>
                     )}
@@ -397,4 +432,6 @@ export const SmartTrack = ({
       </div>
     </div>
   );
-};
+});
+
+SmartTrack.displayName = 'SmartTrack';
