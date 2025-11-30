@@ -81,33 +81,57 @@ export type Database = {
       }
       profiles: {
         Row: {
+          conditions: string[] | null
           created_at: string
           email: string | null
           full_name: string | null
           id: string
+          known_symptoms: string[] | null
+          known_triggers: string[] | null
           metadata: Json | null
+          onboarding_completed: boolean | null
+          physician_email: string | null
+          physician_name: string | null
+          physician_phone: string | null
+          physician_practice: string | null
           share_enabled: boolean | null
           share_password_hash: string | null
           share_token: string | null
           updated_at: string
         }
         Insert: {
+          conditions?: string[] | null
           created_at?: string
           email?: string | null
           full_name?: string | null
           id: string
+          known_symptoms?: string[] | null
+          known_triggers?: string[] | null
           metadata?: Json | null
+          onboarding_completed?: boolean | null
+          physician_email?: string | null
+          physician_name?: string | null
+          physician_phone?: string | null
+          physician_practice?: string | null
           share_enabled?: boolean | null
           share_password_hash?: string | null
           share_token?: string | null
           updated_at?: string
         }
         Update: {
+          conditions?: string[] | null
           created_at?: string
           email?: string | null
           full_name?: string | null
           id?: string
+          known_symptoms?: string[] | null
+          known_triggers?: string[] | null
           metadata?: Json | null
+          onboarding_completed?: boolean | null
+          physician_email?: string | null
+          physician_name?: string | null
+          physician_phone?: string | null
+          physician_practice?: string | null
           share_enabled?: boolean | null
           share_password_hash?: string | null
           share_token?: string | null
