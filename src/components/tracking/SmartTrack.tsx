@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { FlareEntry } from "@/types/flare";
-import { Send, Mic, MicOff, Check, Sparkles, Cloud, Pill } from "lucide-react";
+import { Send, Mic, MicOff, Check, Sparkles, Cloud, Thermometer, Droplets } from "lucide-react";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -18,7 +18,28 @@ interface ChatMessage {
   isAIGenerated?: boolean;
   dataUsed?: string[];
   weatherUsed?: boolean;
-  suggestedFollowUp?: string;
+  weatherCard?: {
+    location: string;
+    country?: string;
+    current: {
+      temp_f: number;
+      temp_c: number;
+      condition: string;
+      icon: string;
+      humidity: number;
+      uv: number;
+      feelslike_f: number;
+    };
+    forecast?: {
+      date?: string;
+      maxtemp_f: number;
+      mintemp_f: number;
+      condition: string;
+      icon: string;
+      daily_chance_of_rain: number;
+    };
+    aqi?: number;
+  };
 }
 
 interface MedicationDetails {
@@ -47,7 +68,7 @@ const STORAGE_KEY = 'jvala_smart_chat';
 // Generate personalized greeting based on time and context
 const getPersonalizedGreeting = (conditions: string[], recentEntries: any[]): string => {
   const hour = new Date().getHours();
-  const recentFlares = recentEntries.filter(e => e.type === 'flare').slice(0, 3);
+  const recentFlares = recentEntries.filter(e => e.type === 'flare').slice(0, 10);
   const lastFlare = recentFlares[0];
   
   let timeGreeting = '';
@@ -55,30 +76,88 @@ const getPersonalizedGreeting = (conditions: string[], recentEntries: any[]): st
   else if (hour < 17) timeGreeting = 'Good afternoon';
   else timeGreeting = 'Good evening';
   
-  // Check recent activity
+  // Check for high flare activity recently
+  const last24hFlares = recentFlares.filter(f => {
+    const hoursSince = (Date.now() - new Date(f.timestamp).getTime()) / (1000 * 60 * 60);
+    return hoursSince < 24;
+  });
+  
+  if (last24hFlares.length >= 3) {
+    return `${timeGreeting}. I noticed you've had ${last24hFlares.length} flares in the last day. How are you feeling now?`;
+  }
+  
+  // Check recent severe flare
   if (lastFlare) {
     const hoursSinceFlare = (Date.now() - new Date(lastFlare.timestamp).getTime()) / (1000 * 60 * 60);
     if (hoursSinceFlare < 24 && lastFlare.severity === 'severe') {
-      return `${timeGreeting}. How are you feeling after yesterday's flare? 💜`;
+      return `${timeGreeting}. How are you feeling after yesterday's severe flare?`;
     }
     if (hoursSinceFlare < 6) {
       return `${timeGreeting}. I see you logged earlier. Any updates?`;
     }
   }
   
-  // No recent flares
+  // Calculate days since last flare
+  const daysSinceFlare = lastFlare ? 
+    Math.floor((Date.now() - new Date(lastFlare.timestamp).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+  
+  if (daysSinceFlare >= 3 && recentFlares.length > 0) {
+    return `${timeGreeting}! ${daysSinceFlare} days flare-free - great streak! 🎉`;
+  }
+  
   if (recentFlares.length === 0) {
     return `${timeGreeting}! Tap a symptom below to start logging.`;
   }
   
-  const daysSinceFlare = lastFlare ? 
-    Math.floor((Date.now() - new Date(lastFlare.timestamp).getTime()) / (1000 * 60 * 60 * 24)) : 0;
-  
-  if (daysSinceFlare >= 3) {
-    return `${timeGreeting}! ${daysSinceFlare} days since your last flare - great streak! 🎉`;
-  }
-  
   return `${timeGreeting}! How are you feeling right now?`;
+};
+
+// Weather card component
+const WeatherCard = ({ weather }: { weather: ChatMessage['weatherCard'] }) => {
+  if (!weather) return null;
+  
+  return (
+    <Card className="p-3 bg-gradient-to-br from-blue-500/10 to-purple-500/10 border-0 mt-2">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs text-muted-foreground">{weather.location}{weather.country ? `, ${weather.country}` : ''}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <Thermometer className="w-4 h-4 text-orange-500" />
+            <span className="text-lg font-bold">{weather.current?.temp_f}°F</span>
+            <span className="text-xs text-muted-foreground">Feels {weather.current?.feelslike_f}°F</span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">{weather.current?.condition}</p>
+        </div>
+        <div className="text-right text-xs space-y-1">
+          <div className="flex items-center gap-1 justify-end">
+            <Droplets className="w-3 h-3 text-blue-400" />
+            <span>{weather.current?.humidity}%</span>
+          </div>
+          {weather.aqi && (
+            <div className="flex items-center gap-1 justify-end">
+              <span className={cn(
+                "text-[10px] px-1.5 py-0.5 rounded",
+                weather.aqi <= 2 ? "bg-green-500/20 text-green-600" :
+                weather.aqi <= 4 ? "bg-yellow-500/20 text-yellow-600" :
+                "bg-red-500/20 text-red-600"
+              )}>
+                AQI {weather.aqi}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+      {weather.forecast && (
+        <div className="mt-2 pt-2 border-t border-border/50 flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">{weather.forecast.date || 'Today'}</span>
+          <span>H: {weather.forecast.maxtemp_f}° L: {weather.forecast.mintemp_f}°</span>
+          {weather.forecast.daily_chance_of_rain > 0 && (
+            <span className="text-blue-400">{weather.forecast.daily_chance_of_rain}% rain</span>
+          )}
+        </div>
+      )}
+    </Card>
+  );
 };
 
 export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({ 
@@ -169,7 +248,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       const confirmMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: "Detailed entry logged! 💜 I'll factor this into your pattern analysis.",
+        content: "Detailed entry logged! I'll factor this into your pattern analysis.",
         timestamp: new Date(),
         entryData: entry,
       };
@@ -292,6 +371,66 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     setMessages(prev => [...prev, confirmMessage]);
   };
 
+  const handleEnergyLog = async (level: 'low' | 'moderate' | 'high') => {
+    const labels = { low: 'Low energy', moderate: 'Moderate energy', high: 'High energy' };
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: labels[level],
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, userMessage]);
+
+    const entry: Partial<FlareEntry> = {
+      type: 'energy',
+      energyLevel: level === 'high' ? 'high' : level === 'moderate' ? 'moderate' : 'low',
+      note: labels[level],
+      timestamp: new Date(),
+    };
+    onSave(entry);
+
+    const responses: Record<string, string> = {
+      low: "Logged low energy. Take it easy today 💜",
+      moderate: "Noted. Pace yourself!",
+      high: "Great energy! Make the most of it 🎉",
+    };
+
+    const confirmMessage: ChatMessage = {
+      id: (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: responses[level],
+      timestamp: new Date(),
+      entryData: entry,
+    };
+    setMessages(prev => [...prev, confirmMessage]);
+  };
+
+  const handleRecoveryLog = async () => {
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: 'Feeling better / Recovery',
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, userMessage]);
+
+    const entry: Partial<FlareEntry> = {
+      type: 'recovery',
+      note: 'Feeling better',
+      timestamp: new Date(),
+    };
+    onSave(entry);
+
+    const confirmMessage: ChatMessage = {
+      id: (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: "So glad you're recovering! Logged 💜",
+      timestamp: new Date(),
+      entryData: entry,
+    };
+    setMessages(prev => [...prev, confirmMessage]);
+  };
+
   const handleSend = async (messageText?: string) => {
     const text = messageText || input.trim();
     if (!text || isProcessing) return;
@@ -347,7 +486,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         isAIGenerated: data.isAIGenerated,
         dataUsed: data.dataUsed,
         weatherUsed: data.weatherUsed,
-        suggestedFollowUp: data.suggestedFollowUp,
+        weatherCard: data.weatherCard,
       };
       setMessages(prev => [...prev, assistantMessage]);
 
@@ -397,7 +536,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         <style>{`.hide-scrollbar::-webkit-scrollbar { display: none; }`}</style>
-        {messages.map((message, idx) => (
+        {messages.map((message) => (
           <div
             key={message.id}
             className={cn(
@@ -420,15 +559,20 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
               )}>
                 <p className="whitespace-pre-wrap">{message.content}</p>
                 
-                {/* AI Generated indicator with weather icon */}
+                {/* Weather Card if available */}
+                {message.weatherCard && (
+                  <WeatherCard weather={message.weatherCard} />
+                )}
+                
+                {/* AI Generated indicator with data sources */}
                 {message.role === 'assistant' && message.isAIGenerated && (
                   <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-muted-foreground/70">
                     <Sparkles className="w-2.5 h-2.5" />
-                    <span>AI-generated</span>
+                    <span>AI</span>
                     {message.weatherUsed && (
-                      <span className="flex items-center gap-0.5 text-primary/70">
+                      <span className="flex items-center gap-0.5 text-blue-400">
                         <Cloud className="w-2.5 h-2.5" />
-                        live weather
+                        weather
                       </span>
                     )}
                   </div>
@@ -442,18 +586,6 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                       <span> • {message.entryData.symptoms.length} symptoms</span>
                     )}
                   </div>
-                )}
-
-                {/* Suggested follow-up button */}
-                {message.suggestedFollowUp && idx === messages.length - 1 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-2 h-7 text-xs"
-                    onClick={() => handleSend(message.suggestedFollowUp)}
-                  >
-                    {message.suggestedFollowUp}
-                  </Button>
                 )}
               </div>
             )}
@@ -480,6 +612,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         onLogSymptom={handleFluidLog}
         onLogMedication={handleMedicationLog}
         onLogWellness={handleWellnessLog}
+        onLogEnergy={handleEnergyLog}
+        onLogRecovery={handleRecoveryLog}
         disabled={isProcessing}
       />
 
@@ -498,15 +632,21 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         </Button>
         
         <Input
-          placeholder={isRecording ? "Listening..." : "Ask about patterns, travel..."}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyPress={handleKeyPress}
-          className="flex-1 rounded-full h-9 text-sm"
-          disabled={isRecording || isProcessing}
+          onKeyDown={handleKeyPress}
+          placeholder="Ask me anything..."
+          className="h-9 text-sm rounded-full"
+          disabled={isProcessing}
         />
-
-        <Button onClick={() => handleSend()} disabled={isProcessing || !input.trim()} size="icon" className="h-9 w-9 rounded-full">
+        
+        <Button
+          variant="default"
+          size="icon"
+          onClick={() => handleSend()}
+          disabled={!input.trim() || isProcessing}
+          className="h-9 w-9 flex-shrink-0 rounded-full"
+        >
           <Send className="w-4 h-4" />
         </Button>
       </div>
