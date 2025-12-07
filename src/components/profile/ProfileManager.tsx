@@ -8,12 +8,11 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, User, Share2, Copy, Check, Pill, AlertTriangle, Stethoscope, Heart, Bell, Clock, Mail } from 'lucide-react';
+import { Loader2, User, Share2, Copy, Check, Pill, AlertTriangle, Stethoscope, Heart } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ProfileMedicationInput, type MedicationDetails } from "@/components/ProfileMedicationInput";
 import { CONDITIONS } from "@/data/conditions";
-import { ReminderSettings } from "./ReminderSettings";
 
 interface ProfileData {
   full_name: string | null;
@@ -94,7 +93,6 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
         const profileData = data as any;
         setCurrentMedications(profileData.metadata?.medications || []);
 
-        // Check if onboarding incomplete
         if (!data.onboarding_completed && onRequireOnboarding) {
           onRequireOnboarding();
         }
@@ -197,7 +195,6 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
 
   if (!profile) return null;
 
-  // Show warning if onboarding incomplete
   if (!profile.onboarding_completed) {
     return (
       <Card className="border-severity-moderate">
@@ -233,7 +230,7 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
   return (
     <div className="space-y-4">
       <Tabs defaultValue="personal" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 h-9">
+        <TabsList className="grid w-full grid-cols-3 h-9">
           <TabsTrigger value="personal" className="text-xs">
             <User className="w-3 h-3 mr-1" />
             Personal
@@ -241,10 +238,6 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
           <TabsTrigger value="health" className="text-xs">
             <Heart className="w-3 h-3 mr-1" />
             Health
-          </TabsTrigger>
-          <TabsTrigger value="reminders" className="text-xs">
-            🔔
-            Reminders
           </TabsTrigger>
           <TabsTrigger value="share" className="text-xs">
             <Share2 className="w-3 h-3 mr-1" />
@@ -473,21 +466,24 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
                 <Pill className="w-4 h-4 text-primary" />
                 <CardTitle className="text-base">Current Medications</CardTitle>
               </div>
+              <CardDescription className="text-xs">
+                Medications you're currently taking (with dosage and schedule)
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <ProfileMedicationInput
+              <ProfileMedicationInput 
                 medications={currentMedications}
                 onMedicationsChange={setCurrentMedications}
               />
             </CardContent>
           </Card>
 
-          {/* Physician */}
+          {/* Physician Info */}
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2">
-                <Stethoscope className="w-4 h-4 text-primary" />
-                <CardTitle className="text-base">Healthcare Provider</CardTitle>
+                <Stethoscope className="w-4 h-4 text-muted-foreground" />
+                <CardTitle className="text-base">Physician Information</CardTitle>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -497,7 +493,15 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
                   <Input
                     value={profile.physician_name || ''}
                     onChange={(e) => updateField('physician_name', e.target.value)}
-                    placeholder="Dr. Smith"
+                    placeholder="Dr. John Smith"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-xs">Practice/Clinic</Label>
+                  <Input
+                    value={profile.physician_practice || ''}
+                    onChange={(e) => updateField('physician_practice', e.target.value)}
+                    placeholder="Medical Center Name"
                   />
                 </div>
                 <div>
@@ -505,6 +509,7 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
                   <Input
                     value={profile.physician_phone || ''}
                     onChange={(e) => updateField('physician_phone', e.target.value)}
+                    placeholder="+1 (555) 000-0000"
                   />
                 </div>
                 <div>
@@ -512,14 +517,7 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
                   <Input
                     value={profile.physician_email || ''}
                     onChange={(e) => updateField('physician_email', e.target.value)}
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label className="text-xs">Practice</Label>
-                  <Input
-                    value={profile.physician_practice || ''}
-                    onChange={(e) => updateField('physician_practice', e.target.value)}
-                    placeholder="Medical center name"
+                    placeholder="doctor@clinic.com"
                   />
                 </div>
               </div>
@@ -535,17 +533,17 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
         <TabsContent value="share" className="mt-4 space-y-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Share with Healthcare Providers</CardTitle>
+              <CardTitle className="text-base">Share with Healthcare Provider</CardTitle>
               <CardDescription className="text-xs">
-                Generate a secure link to share your health data
+                Allow your physician to view your health data
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                 <div>
-                  <Label>Enable Sharing</Label>
+                  <Label className="font-medium">Enable Sharing</Label>
                   <p className="text-xs text-muted-foreground">
-                    Doctors can view your history and insights
+                    Generate a secure link for your provider
                   </p>
                 </div>
                 <Switch
@@ -556,30 +554,72 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
               </div>
 
               {profile.share_enabled && shareUrl && (
-                <Alert>
-                  <Share2 className="h-4 w-4" />
-                  <AlertDescription>
-                    <div className="space-y-2 mt-2">
-                      <Label className="text-xs">Share URL</Label>
-                      <div className="flex gap-2">
-                        <Input value={shareUrl} readOnly className="text-xs" />
-                        <Button size="sm" variant="outline" onClick={() => copyToClipboard(shareUrl)}>
-                          {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                        </Button>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground">
-                        Anyone with this link can view your profile
-                      </p>
-                    </div>
-                  </AlertDescription>
-                </Alert>
+                <div className="space-y-2 animate-fade-in">
+                  <Label className="text-xs">Share Link</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={shareUrl}
+                      readOnly
+                      className="text-xs font-mono"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => copyToClipboard(shareUrl)}
+                    >
+                      {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Share this link with your healthcare provider. They'll be able to view your logged data and insights.
+                  </p>
+                </div>
               )}
             </CardContent>
           </Card>
-        </TabsContent>
 
-        <TabsContent value="reminders" className="mt-4 space-y-4">
-          <ReminderSettings userEmail={profile.email} />
+          {/* Conditions Summary for sharing context */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Shared Information</CardTitle>
+              <CardDescription className="text-xs">
+                What your provider will see
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Conditions:</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {conditionNames.length > 0 ? (
+                      conditionNames.map(c => (
+                        <Badge key={c} variant="secondary" className="text-xs">{c}</Badge>
+                      ))
+                    ) : (
+                      <span className="text-xs text-muted-foreground">None specified</span>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Medications:</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {currentMedications.length > 0 ? (
+                      currentMedications.map(m => (
+                        <Badge key={m.name} variant="outline" className="text-xs">
+                          {m.name} {m.dosage && `(${m.dosage})`}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-xs text-muted-foreground">None specified</span>
+                    )}
+                  </div>
+                </div>
+                <div className="pt-2 border-t text-xs text-muted-foreground">
+                  Your flare logs, symptoms, triggers, and insights will also be visible.
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
