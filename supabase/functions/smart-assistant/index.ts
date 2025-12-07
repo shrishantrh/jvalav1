@@ -36,11 +36,53 @@ interface UserContext {
 }
 
 interface ConversationContext {
-  recentMentions: string[]; // Foods, activities mentioned in last few messages
-  pendingTrigger?: string; // Something mentioned that might be a trigger
+  recentMentions: string[];
+  pendingTrigger?: string;
 }
 
-// Helper to get weather for a destination with optional date
+// Average weather data for popular destinations by month (for future date queries)
+const HISTORICAL_WEATHER: Record<string, Record<number, { avgTemp: number; humidity: number; condition: string; rain: number }>> = {
+  'machu picchu': {
+    1: { avgTemp: 55, humidity: 85, condition: 'Rainy season - frequent afternoon showers', rain: 75 },
+    2: { avgTemp: 55, humidity: 85, condition: 'Rainy season - wettest month', rain: 80 },
+    3: { avgTemp: 55, humidity: 80, condition: 'Rainy season ending', rain: 65 },
+    4: { avgTemp: 54, humidity: 75, condition: 'Transition to dry season', rain: 45 },
+    5: { avgTemp: 52, humidity: 65, condition: 'Dry season begins', rain: 20 },
+    6: { avgTemp: 50, humidity: 60, condition: 'Dry and cool', rain: 10 },
+    7: { avgTemp: 50, humidity: 55, condition: 'Driest month, cold mornings', rain: 8 },
+    8: { avgTemp: 52, humidity: 55, condition: 'Dry season', rain: 12 },
+    9: { avgTemp: 55, humidity: 60, condition: 'Warming up', rain: 25 },
+    10: { avgTemp: 57, humidity: 70, condition: 'Transition season', rain: 40 },
+    11: { avgTemp: 57, humidity: 75, condition: 'Rainy season starting', rain: 55 },
+    12: { avgTemp: 56, humidity: 80, condition: 'Rainy season', rain: 65 },
+  },
+  'cusco': {
+    1: { avgTemp: 54, humidity: 80, condition: 'Rainy season', rain: 70 },
+    6: { avgTemp: 48, humidity: 50, condition: 'Dry and cold', rain: 5 },
+    7: { avgTemp: 47, humidity: 45, condition: 'Coldest month, very dry', rain: 3 },
+  },
+  'paris': {
+    1: { avgTemp: 40, humidity: 85, condition: 'Cold and gray', rain: 55 },
+    7: { avgTemp: 75, humidity: 60, condition: 'Warm and pleasant', rain: 30 },
+  },
+  'tokyo': {
+    1: { avgTemp: 42, humidity: 55, condition: 'Cold and dry', rain: 25 },
+    7: { avgTemp: 80, humidity: 80, condition: 'Hot and humid', rain: 50 },
+  },
+};
+
+// Get historical average weather for a destination
+function getHistoricalWeather(location: string, month: number): { avgTemp: number; humidity: number; condition: string; rain: number } | null {
+  const locationLower = location.toLowerCase();
+  for (const [key, data] of Object.entries(HISTORICAL_WEATHER)) {
+    if (locationLower.includes(key)) {
+      return data[month] || data[Object.keys(data)[0] as any] || null;
+    }
+  }
+  return null;
+}
+
+// Get weather - current or forecast
 async function getWeather(query: string, dateStr?: string): Promise<any> {
   const apiKey = Deno.env.get('WEATHER_API_KEY');
   if (!apiKey) {
@@ -51,7 +93,29 @@ async function getWeather(query: string, dateStr?: string): Promise<any> {
   try {
     console.log('🌍 Fetching weather for:', query, dateStr ? `on ${dateStr}` : '');
     
-    let url = `https://api.weatherapi.com/v1/forecast.json?key=${apiKey}&q=${encodeURIComponent(query)}&days=14&aqi=yes`;
+    // Check if date is too far in future (>14 days)
+    if (dateStr) {
+      const targetDate = parseFutureDate(dateStr);
+      if (targetDate) {
+        const daysAway = (targetDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+        if (daysAway > 14) {
+          console.log('Date is too far in future, using historical averages');
+          const historical = getHistoricalWeather(query, targetDate.getMonth() + 1);
+          if (historical) {
+            return {
+              isFutureForecast: true,
+              historical: true,
+              location: { name: query },
+              targetMonth: targetDate.toLocaleString('default', { month: 'long' }),
+              targetYear: targetDate.getFullYear(),
+              averageConditions: historical,
+            };
+          }
+        }
+      }
+    }
+    
+    const url = `https://api.weatherapi.com/v1/forecast.json?key=${apiKey}&q=${encodeURIComponent(query)}&days=14&aqi=yes`;
     
     const response = await fetch(url);
     if (!response.ok) {
@@ -98,10 +162,11 @@ function parseFutureDate(dateStr: string): Date | null {
   
   const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
   for (let i = 0; i < monthNames.length; i++) {
-    const regex = new RegExp(`${monthNames[i]}\\w*\\s+(\\d{1,2})`, 'i');
-    const match = lower.match(regex);
+    // Match "jan", "january", "next jan", etc with optional day number
+    const regexWithDay = new RegExp(`(?:next\\s+)?${monthNames[i]}\\w*(?:\\s+(\\d{1,2}))?`, 'i');
+    const match = lower.match(regexWithDay);
     if (match) {
-      const day = parseInt(match[1]);
+      const day = match[1] ? parseInt(match[1]) : 15; // Default to middle of month
       const targetDate = new Date(now.getFullYear(), i, day);
       if (targetDate < now) {
         targetDate.setFullYear(targetDate.getFullYear() + 1);
@@ -113,49 +178,15 @@ function parseFutureDate(dateStr: string): Date | null {
   return null;
 }
 
+// Improved location extraction - handles more cases
 function extractLocationFromMessage(message: string): { location: string; date?: string } | null {
   const lower = message.toLowerCase();
   
-  const cityPatterns = [
-    { pattern: /\bsfo\b/i, city: 'San Francisco' },
-    { pattern: /\blax\b/i, city: 'Los Angeles' },
-    { pattern: /\bjfk\b/i, city: 'New York' },
-    { pattern: /\bnyc\b/i, city: 'New York' },
-    { pattern: /\bord\b/i, city: 'Chicago' },
-    { pattern: /\bdfw\b/i, city: 'Dallas' },
-    { pattern: /\bsea\b/i, city: 'Seattle' },
-    { pattern: /\bmia\b/i, city: 'Miami' },
-    { pattern: /\batl\b/i, city: 'Atlanta' },
-    { pattern: /\bden\b/i, city: 'Denver' },
-    { pattern: /\blas\b/i, city: 'Las Vegas' },
-    { pattern: /\bphx\b/i, city: 'Phoenix' },
-    { pattern: /\bsf\b/i, city: 'San Francisco' },
-    { pattern: /\bla\b/i, city: 'Los Angeles' },
-    { pattern: /\bdc\b/i, city: 'Washington DC' },
-    { pattern: /\bmachu\s*pichu\b/i, city: 'Machu Picchu, Peru' },
-    { pattern: /\bmachu\s*picchu\b/i, city: 'Machu Picchu, Peru' },
-    { pattern: /\bcusco\b/i, city: 'Cusco, Peru' },
-    { pattern: /\bparis\b/i, city: 'Paris, France' },
-    { pattern: /\blondon\b/i, city: 'London, UK' },
-    { pattern: /\btokyo\b/i, city: 'Tokyo, Japan' },
-    { pattern: /\bsydney\b/i, city: 'Sydney, Australia' },
-  ];
-  
+  // Extract date first
   let extractedDate: string | undefined;
   const datePatterns = [
-    /(?:on|for)\s+(jan(?:uary)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
-    /(?:on|for)\s+(feb(?:ruary)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
-    /(?:on|for)\s+(mar(?:ch)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
-    /(?:on|for)\s+(apr(?:il)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
-    /(?:on|for)\s+(may\s+\d{1,2}(?:st|nd|rd|th)?)/i,
-    /(?:on|for)\s+(jun(?:e)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
-    /(?:on|for)\s+(jul(?:y)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
-    /(?:on|for)\s+(aug(?:ust)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
-    /(?:on|for)\s+(sep(?:tember)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
-    /(?:on|for)\s+(oct(?:ober)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
-    /(?:on|for)\s+(nov(?:ember)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
-    /(?:on|for)\s+(dec(?:ember)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
-    /(next\s+jan(?:uary)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
+    /(?:next|this|in)\s+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s*(\d{1,2})?/i,
+    /(?:on|for)\s+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s*(\d{1,2})?/i,
     /(tomorrow)/i,
     /(next\s+week)/i,
   ];
@@ -163,10 +194,45 @@ function extractLocationFromMessage(message: string): { location: string; date?:
   for (const pattern of datePatterns) {
     const match = message.match(pattern);
     if (match) {
-      extractedDate = match[1];
+      extractedDate = match[0];
       break;
     }
   }
+  
+  // Known city mappings
+  const cityPatterns = [
+    { pattern: /\bmachu\s*pich?u\b/i, city: 'Machu Picchu, Peru' },
+    { pattern: /\bcusco\b/i, city: 'Cusco, Peru' },
+    { pattern: /\bdoor\s*county\b/i, city: 'Door County, Wisconsin' },
+    { pattern: /\byellowstone\b/i, city: 'Yellowstone National Park, Wyoming' },
+    { pattern: /\bgrand\s*canyon\b/i, city: 'Grand Canyon, Arizona' },
+    { pattern: /\byosemite\b/i, city: 'Yosemite National Park, California' },
+    { pattern: /\bparis\b/i, city: 'Paris, France' },
+    { pattern: /\blondon\b/i, city: 'London, UK' },
+    { pattern: /\btokyo\b/i, city: 'Tokyo, Japan' },
+    { pattern: /\bsydney\b/i, city: 'Sydney, Australia' },
+    { pattern: /\brome\b/i, city: 'Rome, Italy' },
+    { pattern: /\bbarcelona\b/i, city: 'Barcelona, Spain' },
+    { pattern: /\bamsterdam\b/i, city: 'Amsterdam, Netherlands' },
+    { pattern: /\bdenver\b/i, city: 'Denver, Colorado' },
+    { pattern: /\bseattle\b/i, city: 'Seattle, Washington' },
+    { pattern: /\bmiami\b/i, city: 'Miami, Florida' },
+    { pattern: /\bnyc\b|\bnew\s*york\b/i, city: 'New York City' },
+    { pattern: /\bla\b|\blos\s*angeles\b/i, city: 'Los Angeles, California' },
+    { pattern: /\bsf\b|\bsan\s*francisco\b/i, city: 'San Francisco, California' },
+    { pattern: /\bchicago\b/i, city: 'Chicago, Illinois' },
+    { pattern: /\bboston\b/i, city: 'Boston, Massachusetts' },
+    { pattern: /\baustin\b/i, city: 'Austin, Texas' },
+    { pattern: /\bdallas\b/i, city: 'Dallas, Texas' },
+    { pattern: /\bhouston\b/i, city: 'Houston, Texas' },
+    { pattern: /\bphoenix\b/i, city: 'Phoenix, Arizona' },
+    { pattern: /\bvegas\b|\blas\s*vegas\b/i, city: 'Las Vegas, Nevada' },
+    { pattern: /\batlanta\b/i, city: 'Atlanta, Georgia' },
+    { pattern: /\borlando\b/i, city: 'Orlando, Florida' },
+    { pattern: /\bsalt\s*lake\b/i, city: 'Salt Lake City, Utah' },
+    { pattern: /\bportland\b/i, city: 'Portland, Oregon' },
+    { pattern: /\bsan\s*diego\b/i, city: 'San Diego, California' },
+  ];
   
   for (const { pattern, city } of cityPatterns) {
     if (pattern.test(lower)) {
@@ -174,26 +240,19 @@ function extractLocationFromMessage(message: string): { location: string; date?:
     }
   }
   
+  // Try to extract from travel patterns
   const travelPatterns = [
-    /travel(?:ing|s|led)?\s+to\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for|on)|$)/i,
-    /going\s+(?:on\s+a\s+)?(?:hike|trip|vacation)?\s*(?:to|in)\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for|on)|$)/i,
-    /trip\s+to\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for|on)|$)/i,
-    /flying\s+to\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for|on)|$)/i,
-    /visiting\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for|on)|$)/i,
-    /heading\s+to\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for|on)|$)/i,
-    /vacation\s+(?:in|to)\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for|on)|$)/i,
-    /mountain\s+hike\s+(?:to|in)\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for|on)|$)/i,
-    /hike\s+(?:to|in|at)\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for|on)|$)/i,
-    /weather\s+in\s+([a-zA-Z\s,]+?)(?:\?|$)/i,
-    /weather\s+(?:like|for)\s+([a-zA-Z\s,]+?)(?:\?|$)/i,
-    /(?:in|at)\s+([a-zA-Z\s,]+?)\s+(?:weather|temperature|pollen)/i,
+    /(?:going|traveling|hiking|camping|visiting|heading)\s+(?:to|in)\s+([a-zA-Z][a-zA-Z\s,]+?)(?:\s+(?:next|tomorrow|this|for|on)|[?.!]|$)/i,
+    /trip\s+to\s+([a-zA-Z][a-zA-Z\s,]+?)(?:\s+(?:next|tomorrow|this|for|on)|[?.!]|$)/i,
+    /weather\s+(?:in|for|at)\s+([a-zA-Z][a-zA-Z\s,]+?)(?:\?|$)/i,
+    /(?:in|at)\s+([a-zA-Z][a-zA-Z\s,]+?)\s+(?:weather|anything|what)/i,
   ];
   
   for (const pattern of travelPatterns) {
     const match = message.match(pattern);
     if (match) {
       let destination = match[1].trim().replace(/[,.]$/, '');
-      const stopWords = ['work', 'home', 'bed', 'sleep', 'dinner', 'lunch', 'breakfast', 'the', 'a', 'like', 'about'];
+      const stopWords = ['work', 'home', 'bed', 'sleep', 'dinner', 'lunch', 'breakfast', 'the', 'a', 'like', 'about', 'my', 'your'];
       if (!stopWords.includes(destination.toLowerCase()) && destination.length > 2) {
         return { location: destination, date: extractedDate };
       }
@@ -203,17 +262,154 @@ function extractLocationFromMessage(message: string): { location: string; date?:
   return null;
 }
 
-// Extract potential triggers from conversation context
-function extractPotentialTriggers(history: Array<{ role: string; content: string }>): ConversationContext {
+// Analyze user's flare history comprehensively
+function analyzeFlareHistory(entries: FlareEntry[], period: 'week' | 'month' | 'all' = 'month') {
+  if (!entries || entries.length === 0) {
+    return null;
+  }
+  
+  const now = Date.now();
+  const dayMs = 1000 * 60 * 60 * 24;
+  
+  // Filter by period
+  let periodEntries = entries;
+  let periodLabel = '';
+  
+  if (period === 'week') {
+    periodEntries = entries.filter(e => (now - new Date(e.timestamp).getTime()) <= 7 * dayMs);
+    periodLabel = 'this week';
+  } else if (period === 'month') {
+    periodEntries = entries.filter(e => (now - new Date(e.timestamp).getTime()) <= 30 * dayMs);
+    periodLabel = 'this month';
+  }
+  
+  const flares = periodEntries.filter(e => e.type === 'flare' || e.severity);
+  
+  // Previous period for comparison
+  let prevPeriodEntries: FlareEntry[] = [];
+  if (period === 'week') {
+    prevPeriodEntries = entries.filter(e => {
+      const age = (now - new Date(e.timestamp).getTime()) / dayMs;
+      return age > 7 && age <= 14;
+    });
+  } else if (period === 'month') {
+    prevPeriodEntries = entries.filter(e => {
+      const age = (now - new Date(e.timestamp).getTime()) / dayMs;
+      return age > 30 && age <= 60;
+    });
+  }
+  const prevFlares = prevPeriodEntries.filter(e => e.type === 'flare' || e.severity);
+  
+  // Severity breakdown
+  const severeCount = flares.filter(f => f.severity === 'severe').length;
+  const moderateCount = flares.filter(f => f.severity === 'moderate').length;
+  const mildCount = flares.filter(f => f.severity === 'mild').length;
+  
+  // Average severity (1-3 scale)
+  const avgSeverity = flares.length > 0 
+    ? flares.reduce((sum, f) => sum + (f.severity === 'severe' ? 3 : f.severity === 'moderate' ? 2 : 1), 0) / flares.length
+    : 0;
+  
+  // Symptom frequency
+  const symptomCounts: Record<string, number> = {};
+  flares.forEach(f => {
+    f.symptoms?.forEach(s => { symptomCounts[s] = (symptomCounts[s] || 0) + 1; });
+  });
+  const topSymptoms = Object.entries(symptomCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  
+  // Trigger frequency (from explicit triggers + extracted from notes)
+  const triggerCounts: Record<string, number> = {};
+  flares.forEach(f => {
+    f.triggers?.forEach(t => { triggerCounts[t] = (triggerCounts[t] || 0) + 1; });
+    // Also extract from notes
+    if (f.note) {
+      const foodMatch = f.note.match(/(?:ate|eat|had)\s+(\w+)/gi);
+      if (foodMatch) {
+        foodMatch.forEach(m => {
+          const food = m.replace(/ate|eat|had/gi, '').trim();
+          if (food.length > 2) triggerCounts[food] = (triggerCounts[food] || 0) + 1;
+        });
+      }
+    }
+  });
+  const topTriggers = Object.entries(triggerCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  
+  // Time patterns
+  const hourCounts: Record<string, number> = { morning: 0, afternoon: 0, evening: 0, night: 0 };
+  flares.forEach(f => {
+    const hour = new Date(f.timestamp).getHours();
+    if (hour >= 6 && hour < 12) hourCounts.morning++;
+    else if (hour >= 12 && hour < 18) hourCounts.afternoon++;
+    else if (hour >= 18 && hour < 22) hourCounts.evening++;
+    else hourCounts.night++;
+  });
+  const peakTime = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0];
+  
+  // Day of week patterns
+  const dayCounts: Record<string, number> = {};
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  flares.forEach(f => {
+    const day = dayNames[new Date(f.timestamp).getDay()];
+    dayCounts[day] = (dayCounts[day] || 0) + 1;
+  });
+  const peakDay = Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0];
+  
+  // Weather correlations
+  const weatherCounts: Record<string, number> = {};
+  flares.forEach(f => {
+    const condition = f.environmental_data?.weather?.condition;
+    if (condition) {
+      weatherCounts[condition] = (weatherCounts[condition] || 0) + 1;
+    }
+  });
+  const topWeather = Object.entries(weatherCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
+  
+  // Trend
+  let trend: 'increasing' | 'decreasing' | 'stable' = 'stable';
+  if (flares.length > prevFlares.length * 1.3) trend = 'increasing';
+  else if (flares.length < prevFlares.length * 0.7 && prevFlares.length > 0) trend = 'decreasing';
+  
+  // Days since last flare
+  const lastFlare = flares[0];
+  const daysSinceFlare = lastFlare 
+    ? Math.floor((now - new Date(lastFlare.timestamp).getTime()) / dayMs)
+    : null;
+  
+  return {
+    periodLabel,
+    totalFlares: flares.length,
+    prevPeriodFlares: prevFlares.length,
+    trend,
+    severeCount,
+    moderateCount,
+    mildCount,
+    avgSeverity: avgSeverity.toFixed(1),
+    topSymptoms,
+    topTriggers,
+    peakTime: peakTime ? { time: peakTime[0], count: peakTime[1] } : null,
+    peakDay: peakDay ? { day: peakDay[0], count: peakDay[1] } : null,
+    topWeather,
+    daysSinceFlare,
+    medicationLogs: periodEntries.filter(e => e.type === 'medication').length,
+    wellnessLogs: periodEntries.filter(e => e.type === 'wellness').length,
+  };
+}
+
+// Extract conversation context for trigger linking
+function extractConversationContext(history: Array<{ role: string; content: string }>): ConversationContext {
   const recentMentions: string[] = [];
   let pendingTrigger: string | undefined;
   
-  // Look at last 5 messages for context
   const recentHistory = history.slice(-5);
   
   const foodPatterns = [
     /(?:ate|eat|eating|had|consumed|tried|drank|drinking)\s+(?:some\s+)?(\w+(?:\s+\w+)?)/gi,
-    /(\w+)\s+(?:for\s+)?(?:breakfast|lunch|dinner|snack)/gi,
   ];
   
   recentHistory.forEach(msg => {
@@ -226,7 +422,7 @@ function extractPotentialTriggers(history: Array<{ role: string; content: string
         const item = match[1]?.trim();
         if (item && item.length > 2 && item.length < 20) {
           recentMentions.push(item);
-          pendingTrigger = item; // Last mentioned item is pending
+          pendingTrigger = item;
         }
       }
     });
@@ -235,260 +431,59 @@ function extractPotentialTriggers(history: Array<{ role: string; content: string
   return { recentMentions: [...new Set(recentMentions)], pendingTrigger };
 }
 
-// Advanced trigger extraction from notes
-function extractTriggersFromNotes(entries: FlareEntry[]): Record<string, { count: number; severities: string[] }> {
-  const potentialTriggers: Record<string, { count: number; severities: string[] }> = {};
-  
-  const triggerPatterns = [
-    /(?:ate|eat|eating|had|drank|drinking)\s+(?:some\s+)?(\w+(?:\s+\w+)?(?:\s+\w+)?)/gi,
-    /after\s+(?:eating|having|drinking)\s+(\w+(?:\s+\w+)?)/gi,
-    /(?:after|during|while)\s+(\w+ing)/gi,
-    /(?:exposure\s+to|exposed\s+to|around)\s+(\w+(?:\s+\w+)?)/gi,
-    /(?:triggered\s+by|caused\s+by|because\s+of|due\s+to)\s+(\w+(?:\s+\w+)?)/gi,
-  ];
-  
-  const stopWords = ['the', 'and', 'some', 'lot', 'bit', 'too', 'much', 'very', 'really', 'today', 'yesterday', 'just', 'like', 'been', 'have', 'had', 'was', 'were', 'that', 'this', 'with'];
-  
-  entries.forEach(entry => {
-    if (!entry.note) return;
-    const note = entry.note.toLowerCase();
-    
-    triggerPatterns.forEach(pattern => {
-      const matches = note.matchAll(pattern);
-      for (const match of matches) {
-        let trigger = match[1]?.trim();
-        if (!trigger || trigger.length < 3) continue;
-        
-        const words = trigger.split(' ').filter(w => !stopWords.includes(w) && w.length > 2);
-        trigger = words.join(' ');
-        
-        if (trigger.length > 2) {
-          if (!potentialTriggers[trigger]) {
-            potentialTriggers[trigger] = { count: 0, severities: [] };
-          }
-          potentialTriggers[trigger].count++;
-          if (entry.severity) potentialTriggers[trigger].severities.push(entry.severity);
-        }
-      }
-    });
-    
-    entry.triggers?.forEach(t => {
-      const trigger = t.toLowerCase();
-      if (!potentialTriggers[trigger]) {
-        potentialTriggers[trigger] = { count: 0, severities: [] };
-      }
-      potentialTriggers[trigger].count++;
-      if (entry.severity) potentialTriggers[trigger].severities.push(entry.severity);
-    });
-  });
-  
-  return potentialTriggers;
-}
-
-function analyzeUserHistory(entries: FlareEntry[], conditions: string[]) {
-  if (entries.length === 0) return null;
-  
-  const last30Days = entries.slice(0, 50);
-  
-  const triggerCounts: Record<string, number> = {};
-  const symptomCounts: Record<string, number> = {};
-  const weatherCounts: Record<string, number> = {};
-  let severeSeverityCount = 0;
-  let moderateCount = 0;
-  
-  last30Days.forEach(e => {
-    if (e.severity === 'severe') severeSeverityCount++;
-    if (e.severity === 'moderate') moderateCount++;
-    
-    e.triggers?.forEach(t => {
-      triggerCounts[t] = (triggerCounts[t] || 0) + 1;
-    });
-    e.symptoms?.forEach(s => {
-      symptomCounts[s] = (symptomCounts[s] || 0) + 1;
-    });
-    if (e.environmental_data?.weather?.condition) {
-      weatherCounts[e.environmental_data.weather.condition] = 
-        (weatherCounts[e.environmental_data.weather.condition] || 0) + 1;
-    }
-  });
-  
-  // Also extract triggers from notes
-  const noteTriggers = extractTriggersFromNotes(last30Days);
-  Object.entries(noteTriggers).forEach(([trigger, data]) => {
-    if (data.count >= 2) {
-      triggerCounts[trigger] = (triggerCounts[trigger] || 0) + data.count;
-    }
-  });
-  
-  const topTriggers = Object.entries(triggerCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8)
-    .map(([name, count]) => ({ name, count }));
-    
-  const topSymptoms = Object.entries(symptomCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([name, count]) => ({ name, count }));
-    
-  const weatherTriggers = Object.entries(weatherCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([condition, count]) => ({ condition, count }));
-  
-  const hourCounts: Record<string, number> = { morning: 0, afternoon: 0, evening: 0, night: 0 };
-  last30Days.forEach(e => {
-    const hour = new Date(e.timestamp).getHours();
-    if (hour >= 6 && hour < 12) hourCounts.morning++;
-    else if (hour >= 12 && hour < 18) hourCounts.afternoon++;
-    else if (hour >= 18 && hour < 22) hourCounts.evening++;
-    else hourCounts.night++;
-  });
-  
-  const peakTime = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0];
-  
-  const last7Days = entries.filter(e => {
-    const daysDiff = (Date.now() - new Date(e.timestamp).getTime()) / (1000 * 60 * 60 * 24);
-    return daysDiff <= 7;
-  });
-  
-  const weekSummary = {
-    totalFlares: last7Days.filter(e => e.type === 'flare' || e.severity).length,
-    severeCount: last7Days.filter(e => e.severity === 'severe').length,
-    medicationLogs: last7Days.filter(e => e.type === 'medication').length,
-    wellnessLogs: last7Days.filter(e => e.type === 'wellness').length,
-  };
-  
-  return {
-    totalFlares: last30Days.length,
-    severePercentage: Math.round((severeSeverityCount / last30Days.length) * 100),
-    topTriggers,
-    topSymptoms,
-    weatherTriggers,
-    peakTime: peakTime[0],
-    conditions,
-    weekSummary
-  };
-}
-
-function needsWeatherInfo(message: string): boolean {
-  const lower = message.toLowerCase();
-  const weatherKeywords = [
-    'weather', 'temperature', 'humidity', 'pollen', 'air quality', 'aqi',
-    'outside', 'outdoor', 'go out', 'travel', 'trip', 'flying', 'going to',
-    'visiting', 'vacation', 'heading to', 'watch out', 'be careful', 'forecast',
-    'hike', 'hiking', 'mountain', 'altitude', 'meters', 'climb'
-  ];
-  return weatherKeywords.some(kw => lower.includes(kw));
-}
-
 function classifyIntent(message: string): { type: string; confidence: number; extractedData: any } {
   const lower = message.toLowerCase();
   
-  // Food/consumption patterns - important for trigger tracking
-  const foodPatterns = [
-    /(?:ate|eat|eating|had|consumed|tried|drank|drinking)\s+(\w+)/i,
-  ];
-  
-  for (const pattern of foodPatterns) {
-    const match = lower.match(pattern);
-    if (match) {
-      return { type: 'food_log', confidence: 0.9, extractedData: { food: match[1] } };
-    }
+  // Flare analysis queries
+  if (/\b(?:how(?:'s| is| are)?|what(?:'s| is)?|show|tell|give)\b.*\b(?:flares?|symptoms?|my (?:week|month|data|history|patterns?|triggers?))\b/i.test(lower) ||
+      /\bpast (?:week|month|day|year)\b/i.test(lower) ||
+      /\bflares? (?:this|the|past|last)\b/i.test(lower) ||
+      /\banalysis|analytics|insights?\b/i.test(lower)) {
+    const period = /\bweek\b/i.test(lower) ? 'week' : /\bmonth\b/i.test(lower) ? 'month' : 'month';
+    return { type: 'flare_analysis', confidence: 0.95, extractedData: { period } };
   }
   
-  // Positive/wellness patterns
-  const positivePatterns = [
-    /feeling\s+(good|great|better|amazing|wonderful|fantastic|well|fine|okay)/i,
-    /feel\s+(good|great|better|amazing|wonderful|fantastic|well|fine|okay)/i,
-    /doing\s+(good|great|better|well|okay|fine)/i,
-    /(good|great|better)\s+day/i,
-    /no\s+(pain|symptoms|issues|problems|flares?)/i,
-    /pain\s*free/i,
-    /symptom\s*free/i,
-  ];
-  
-  for (const pattern of positivePatterns) {
-    if (pattern.test(lower)) {
-      return { type: 'wellness', confidence: 0.9, extractedData: { energyLevel: 'good' } };
-    }
+  // Travel/weather queries
+  const locationInfo = extractLocationFromMessage(message);
+  if (locationInfo) {
+    return { type: 'travel_query', confidence: 0.95, extractedData: locationInfo };
   }
   
-  // Medication patterns
-  const medicationPatterns = [
-    /took\s+(my\s+)?(medication|medicine|meds?|pills?|insulin|dose)/i,
-    /taking\s+(my\s+)?(medication|medicine|meds?|pills?)/i,
-    /had\s+(my\s+)?(medication|medicine|meds?|pills?)/i,
-    /(medication|medicine|meds?|pills?)\s+taken/i,
-    /(\d+)\s*(?:units?|mg|ml)\s+(?:of\s+)?(\w+)/i,
-  ];
-  
-  for (const pattern of medicationPatterns) {
-    if (pattern.test(lower)) {
-      return { type: 'medication', confidence: 0.9, extractedData: { note: message } };
-    }
+  // Food mentions
+  const foodMatch = lower.match(/(?:ate|eat|eating|had|consumed)\s+(\w+)/i);
+  if (foodMatch) {
+    return { type: 'food_log', confidence: 0.9, extractedData: { food: foodMatch[1] } };
   }
   
-  // Energy patterns
-  const energyPatterns = [
-    /(low|no|zero)\s+energy/i,
-    /feeling\s+(tired|exhausted|drained|fatigued)/i,
-    /(high|lots?\s+of|full\s+of)\s+energy/i,
-    /very\s+(tired|exhausted)/i,
-    /so\s+tired/i,
-  ];
-  
-  for (const pattern of energyPatterns) {
-    const match = lower.match(pattern);
-    if (match) {
-      const isLow = /(low|no|zero|tired|exhausted|drained|fatigued)/.test(match[0]);
-      return { type: 'energy', confidence: 0.85, extractedData: { energyLevel: isLow ? 'low' : 'high' } };
-    }
+  // Wellness
+  if (/feeling\s+(good|great|better|amazing|wonderful|fantastic|well|fine|okay)/i.test(lower) ||
+      /no\s+(pain|symptoms|issues|problems|flares?)/i.test(lower)) {
+    return { type: 'wellness', confidence: 0.9, extractedData: { energyLevel: 'good' } };
   }
   
-  // Flare/symptom patterns
-  const flarePatterns = [
-    /feeling\s+(terrible|awful|bad|horrible|sick|unwell|rough|worse)/i,
-    /(severe|bad|terrible|horrible)\s+(pain|headache|migraine)/i,
-    /having\s+a\s+(flare|attack|episode)/i,
-    /(headache|migraine|nausea|dizzy|dizziness|pain|cramp)/i,
-  ];
-  
-  for (const pattern of flarePatterns) {
-    if (pattern.test(lower)) {
-      let severity = 'moderate';
-      if (/(severe|terrible|horrible|awful|worst)/i.test(lower)) severity = 'severe';
-      else if (/(mild|slight|little|bit)/i.test(lower)) severity = 'mild';
-      
-      const symptoms: string[] = [];
-      const symptomList = ['headache', 'migraine', 'nausea', 'dizziness', 'fatigue', 'pain', 'cramping', 'brain fog', 'loss of appetite'];
-      symptomList.forEach(s => {
-        if (lower.includes(s)) symptoms.push(s);
-      });
-      
-      return { 
-        type: 'flare', 
-        confidence: 0.8, 
-        extractedData: { severity, symptoms: symptoms.length > 0 ? symptoms : undefined } 
-      };
-    }
+  // Medication
+  if (/took\s+(my\s+)?(medication|medicine|meds?|pills?|insulin|dose)/i.test(lower)) {
+    return { type: 'medication', confidence: 0.9, extractedData: { note: message } };
   }
   
-  // Travel query
-  if (needsWeatherInfo(message)) {
-    return { type: 'travel_query', confidence: 0.9, extractedData: {} };
+  // Symptoms
+  if (/(severe|bad|terrible|horrible)\s+(pain|headache|migraine)/i.test(lower) ||
+      /having\s+a\s+(flare|attack|episode)/i.test(lower) ||
+      /(headache|migraine|nausea|dizzy|dizziness|pain|cramp|fatigue)/i.test(lower)) {
+    let severity = 'moderate';
+    if (/(severe|terrible|horrible|awful|worst)/i.test(lower)) severity = 'severe';
+    else if (/(mild|slight|little|bit)/i.test(lower)) severity = 'mild';
+    
+    const symptoms: string[] = [];
+    const symptomList = ['headache', 'migraine', 'nausea', 'dizziness', 'fatigue', 'pain', 'cramping', 'brain fog', 'loss of appetite', 'joint pain'];
+    symptomList.forEach(s => { if (lower.includes(s)) symptoms.push(s); });
+    
+    return { type: 'flare', confidence: 0.8, extractedData: { severity, symptoms } };
   }
   
-  // Query patterns
-  const queryPatterns = [
-    /(how|what).*(week|today|patterns?|triggers?|symptoms?)/i,
-    /(show|tell|give).*(summary|report|analysis|insights?)/i,
-    /(any|are\s+there).*(patterns?|correlations?|trends?)/i,
-  ];
-  
-  for (const pattern of queryPatterns) {
-    if (pattern.test(lower)) {
-      return { type: 'query', confidence: 0.8, extractedData: {} };
-    }
+  // Energy
+  if (/(low|no|zero)\s+energy/i.test(lower) || /feeling\s+(tired|exhausted)/i.test(lower)) {
+    return { type: 'energy', confidence: 0.85, extractedData: { energyLevel: 'low' } };
   }
   
   return { type: 'unknown', confidence: 0, extractedData: {} };
@@ -509,201 +504,183 @@ serve(async (req) => {
     const apiKey = Deno.env.get('LOVABLE_API_KEY');
     if (!apiKey) throw new Error('LOVABLE_API_KEY not configured');
 
-    console.log('💬 Smart assistant message:', message);
-    console.log('📍 User conditions:', userContext.conditions);
+    console.log('💬 Message:', message);
+    console.log('📍 Conditions:', userContext.conditions);
     
-    // Extract conversation context for trigger detection
-    const conversationContext = extractPotentialTriggers(history || []);
-    console.log('🔍 Conversation context:', conversationContext);
-    
-    // Classify the intent
     const intent = classifyIntent(message);
-    console.log('🎯 Detected intent:', intent.type, 'confidence:', intent.confidence);
+    console.log('🎯 Intent:', intent.type, intent.confidence);
     
-    // If user is reporting a symptom and we have a pending trigger, link them
+    const conversationContext = extractConversationContext(history || []);
+    
+    // Link symptoms to pending triggers
     let linkedTrigger: string | undefined;
     if ((intent.type === 'flare' || message.toLowerCase().includes('symptom')) && conversationContext.pendingTrigger) {
       linkedTrigger = conversationContext.pendingTrigger;
-      console.log('🔗 Linking symptom to potential trigger:', linkedTrigger);
+      console.log('🔗 Linked trigger:', linkedTrigger);
     }
     
-    // Analyze user's history
-    const userAnalysis = analyzeUserHistory(userContext.recentEntries || [], userContext.conditions || []);
+    // Analyze flare history
+    const flareAnalysis = analyzeFlareHistory(
+      userContext.recentEntries || [], 
+      intent.extractedData?.period || 'month'
+    );
     
-    // Get weather data
+    // Get weather for travel queries
     let weatherData = null;
-    let weatherLocation = '';
-    let targetDate = '';
-    
-    const locationInfo = extractLocationFromMessage(message);
-    if (locationInfo) {
-      console.log('🌍 Extracted location:', locationInfo.location, 'Date:', locationInfo.date);
-      weatherData = await getWeather(locationInfo.location, locationInfo.date);
-      weatherLocation = locationInfo.location;
-      targetDate = locationInfo.date || '';
-    } else if (needsWeatherInfo(message) && userContext.currentLocation) {
-      const query = userContext.currentLocation.city || 
-        `${userContext.currentLocation.latitude},${userContext.currentLocation.longitude}`;
-      console.log('🌍 Using current location for weather:', query);
-      weatherData = await getWeather(query);
-      weatherLocation = userContext.currentLocation.city || 'your current location';
-    }
-    
-    // Build weather info
-    let weatherInfo = '';
     let weatherCard = null;
-    if (weatherData) {
-      const current = weatherData.current;
-      const forecast = weatherData.forecast?.forecastday?.[0]?.day;
-      const tomorrow = weatherData.forecast?.forecastday?.[1]?.day;
-      const targetDay = weatherData.targetDayForecast?.day;
-      const aqi = current?.air_quality;
+    let weatherInfo = '';
+    let isFutureForecast = false;
+    
+    if (intent.type === 'travel_query' && intent.extractedData?.location) {
+      const { location, date } = intent.extractedData;
+      console.log('🌍 Getting weather for:', location, 'date:', date);
+      weatherData = await getWeather(location, date);
       
-      weatherCard = {
-        location: weatherData.location?.name || weatherLocation,
-        country: weatherData.location?.country,
-        current: {
-          temp_f: current?.temp_f,
-          temp_c: current?.temp_c,
-          condition: current?.condition?.text,
-          icon: current?.condition?.icon,
-          humidity: current?.humidity,
-          uv: current?.uv,
-          feelslike_f: current?.feelslike_f,
-        },
-        forecast: targetDay ? {
-          date: weatherData.targetDayForecast?.date,
-          maxtemp_f: targetDay.maxtemp_f,
-          mintemp_f: targetDay.mintemp_f,
-          condition: targetDay.condition?.text,
-          icon: targetDay.condition?.icon,
-          daily_chance_of_rain: targetDay.daily_chance_of_rain,
-        } : forecast ? {
-          maxtemp_f: forecast.maxtemp_f,
-          mintemp_f: forecast.mintemp_f,
-          condition: forecast.condition?.text,
-          icon: forecast.condition?.icon,
-          daily_chance_of_rain: forecast.daily_chance_of_rain,
-        } : null,
-        aqi: aqi?.['us-epa-index'],
-      };
-      
-      const relevantForecast = targetDay || forecast;
-      
-      weatherInfo = `
-REAL-TIME WEATHER DATA for ${weatherData.location?.name || weatherLocation}, ${weatherData.location?.country || ''}:
-${targetDay ? `(Forecast for ${weatherData.targetDayForecast?.date})` : ''}
+      if (weatherData?.historical) {
+        // Future forecast using historical averages
+        isFutureForecast = true;
+        const avg = weatherData.averageConditions;
+        weatherInfo = `
+HISTORICAL WEATHER DATA for ${weatherData.location.name} in ${weatherData.targetMonth}:
+This is a FAR FUTURE date, so we use historical averages:
+- Average Temperature: ${avg.avgTemp}°F
+- Typical Humidity: ${avg.humidity}%
+- Typical Conditions: ${avg.condition}
+- Chance of Rain: ${avg.rain}%
 
-Current Conditions:
-- Condition: ${current?.condition?.text || 'Unknown'}
-- Temperature: ${current?.temp_f || 'Unknown'}°F (feels like ${current?.feelslike_f}°F)
-- Humidity: ${current?.humidity || 'Unknown'}%
-- UV Index: ${current?.uv || 'Unknown'} ${current?.uv >= 6 ? '(HIGH - protect yourself!)' : ''}
-- Air Quality (US EPA): ${aqi?.['us-epa-index'] || 'Unknown'} (1=Good, 6=Hazardous)
-- PM2.5: ${aqi?.pm2_5?.toFixed(1) || 'Unknown'}
+NOTE: This is based on historical averages for ${weatherData.targetMonth}. Exact forecast not available this far in advance.`;
+
+        weatherCard = {
+          location: weatherData.location.name,
+          country: '',
+          isHistorical: true,
+          historicalNote: `Average conditions for ${weatherData.targetMonth} ${weatherData.targetYear}`,
+          current: {
+            temp_f: avg.avgTemp,
+            condition: avg.condition,
+            humidity: avg.humidity,
+            feelslike_f: avg.avgTemp,
+          },
+          forecast: {
+            date: `${weatherData.targetMonth} ${weatherData.targetYear}`,
+            maxtemp_f: avg.avgTemp + 5,
+            mintemp_f: avg.avgTemp - 5,
+            condition: avg.condition,
+            daily_chance_of_rain: avg.rain,
+          },
+        };
+      } else if (weatherData?.current) {
+        const current = weatherData.current;
+        const forecast = weatherData.forecast?.forecastday?.[0]?.day;
+        const targetDay = weatherData.targetDayForecast?.day;
+        const aqi = current?.air_quality;
+        
+        weatherCard = {
+          location: weatherData.location?.name,
+          country: weatherData.location?.country,
+          current: {
+            temp_f: current?.temp_f,
+            temp_c: current?.temp_c,
+            condition: current?.condition?.text,
+            icon: current?.condition?.icon,
+            humidity: current?.humidity,
+            uv: current?.uv,
+            feelslike_f: current?.feelslike_f,
+          },
+          forecast: targetDay ? {
+            date: weatherData.targetDayForecast?.date,
+            maxtemp_f: targetDay.maxtemp_f,
+            mintemp_f: targetDay.mintemp_f,
+            condition: targetDay.condition?.text,
+            daily_chance_of_rain: targetDay.daily_chance_of_rain,
+          } : forecast ? {
+            maxtemp_f: forecast.maxtemp_f,
+            mintemp_f: forecast.mintemp_f,
+            condition: forecast.condition?.text,
+            daily_chance_of_rain: forecast.daily_chance_of_rain,
+          } : null,
+          aqi: aqi?.['us-epa-index'],
+        };
+        
+        const relevantForecast = targetDay || forecast;
+        weatherInfo = `
+CURRENT WEATHER DATA for ${weatherData.location?.name}, ${weatherData.location?.country || ''}:
+- Current: ${current?.condition?.text}, ${current?.temp_f}°F (feels like ${current?.feelslike_f}°F)
+- Humidity: ${current?.humidity}%
+- UV Index: ${current?.uv}
+- AQI: ${aqi?.['us-epa-index'] || 'N/A'}
 
 ${targetDay ? `Forecast for ${weatherData.targetDayForecast?.date}:` : "Today's Forecast:"}
-- High: ${relevantForecast?.maxtemp_f || 'Unknown'}°F, Low: ${relevantForecast?.mintemp_f || 'Unknown'}°F
-- Condition: ${relevantForecast?.condition?.text || 'Unknown'}
-- Chance of rain: ${relevantForecast?.daily_chance_of_rain || 0}%
-
-Tomorrow's Forecast:
-- Condition: ${tomorrow?.condition?.text || 'Unknown'}
-- High: ${tomorrow?.maxtemp_f || 'Unknown'}°F, Low: ${tomorrow?.mintemp_f || 'Unknown'}°F
-
-CRITICAL: Use specific numbers from this data in your response.`;
+- High: ${relevantForecast?.maxtemp_f}°F, Low: ${relevantForecast?.mintemp_f}°F
+- Condition: ${relevantForecast?.condition?.text}
+- Rain chance: ${relevantForecast?.daily_chance_of_rain}%`;
+      }
     }
     
-    // Build medication info
-    let medicationInfo = '';
-    if (userContext.medications && userContext.medications.length > 0) {
-      medicationInfo = `
-USER'S MEDICATIONS:
-${userContext.medications.map(m => `- ${m.name}${m.dosage ? ` (${m.dosage})` : ''}${m.frequency ? ` - ${m.frequency}` : ''}${m.notes ? ` - Notes: ${m.notes}` : ''}`).join('\n')}`;
+    // Build flare analysis summary for AI
+    let flareAnalysisInfo = '';
+    if (flareAnalysis) {
+      flareAnalysisInfo = `
+FLARE ANALYSIS for ${flareAnalysis.periodLabel}:
+- Total flares: ${flareAnalysis.totalFlares}
+- Previous period: ${flareAnalysis.prevPeriodFlares} flares
+- Trend: ${flareAnalysis.trend.toUpperCase()}
+- Severity breakdown: ${flareAnalysis.severeCount} severe, ${flareAnalysis.moderateCount} moderate, ${flareAnalysis.mildCount} mild
+- Average severity: ${flareAnalysis.avgSeverity}/3.0
+${flareAnalysis.daysSinceFlare !== null ? `- Days since last flare: ${flareAnalysis.daysSinceFlare}` : ''}
+
+Top Symptoms: ${flareAnalysis.topSymptoms.map(([s, c]) => `${s} (${c}x)`).join(', ') || 'None recorded'}
+Top Triggers: ${flareAnalysis.topTriggers.map(([t, c]) => `${t} (${c}x)`).join(', ') || 'None recorded'}
+Peak Time: ${flareAnalysis.peakTime ? `${flareAnalysis.peakTime.time} (${flareAnalysis.peakTime.count} flares)` : 'No pattern'}
+Peak Day: ${flareAnalysis.peakDay ? `${flareAnalysis.peakDay.day} (${flareAnalysis.peakDay.count} flares)` : 'No pattern'}
+Weather Correlations: ${flareAnalysis.topWeather.map(([w, c]) => `${w} (${c}x)`).join(', ') || 'Not enough data'}
+
+Also logged: ${flareAnalysis.medicationLogs} medications, ${flareAnalysis.wellnessLogs} wellness entries`;
     }
     
-    // Build trigger summary - be specific
-    const triggerSummary = userAnalysis?.topTriggers?.length 
-      ? userAnalysis.topTriggers.map(t => `${t.name} (${t.count}x)`).join(', ')
-      : 'Tracking patterns from notes...';
-    
-    const symptomSummary = userAnalysis?.topSymptoms?.length
-      ? userAnalysis.topSymptoms.map(s => `${s.name} (${s.count}x)`).join(', ')
-      : 'Building symptom patterns...';
-      
-    const weatherSummary = userAnalysis?.weatherTriggers?.length
-      ? userAnalysis.weatherTriggers.map(w => `${w.condition} (${w.count}x)`).join(', ')
-      : 'Analyzing weather correlations...';
-    
-    // Build context-aware system prompt
-    const systemPrompt = `You are Jvala, a smart health companion with REAL DATA about this user. Be warm, caring, and data-driven.
+    // Build system prompt
+    const systemPrompt = `You are Jvala, a smart health companion. Be warm, concise, and data-driven.
 
 CRITICAL RULES:
-1. NEVER say "still gathering data", "None identified yet", "no data available"
-2. When weather data is provided, USE SPECIFIC NUMBERS (e.g., "72°F, 65% humidity")
-3. Be PROACTIVE about concerning patterns
-4. Keep responses SHORT (2-4 sentences) unless it's a detailed query
-5. For food logs, note what they ate and ask how they're feeling
-6. When symptoms follow food mentions in conversation, LINK THEM as potential triggers
+1. For FLARE ANALYSIS queries: Give specific numbers from the data. Never say "still gathering" or generic phrases.
+2. For TRAVEL queries: 
+   - If far future (>2 weeks), use HISTORICAL AVERAGES and say "Based on historical data for [Month]..."
+   - If within 2 weeks, use actual forecast data
+   - Compare conditions to user's known triggers
+3. Keep responses SHORT (2-4 sentences max) unless detailed analysis requested
+4. When symptoms follow food mentions, LINK THEM as triggers
 
-USER'S HEALTH PROFILE:
-- Conditions: ${userContext.conditions?.length ? userContext.conditions.join(', ') : 'General health tracking'}
-- Known symptoms: ${userContext.knownSymptoms?.join(', ') || 'Building profile...'}
-- Known triggers: ${userContext.knownTriggers?.join(', ') || 'Analyzing patterns...'}
-${medicationInfo}
+USER PROFILE:
+- Conditions: ${userContext.conditions?.join(', ') || 'General health tracking'}
+- Known triggers: ${userContext.knownTriggers?.join(', ') || 'Analyzing...'}
+- Known symptoms: ${userContext.knownSymptoms?.join(', ') || 'Analyzing...'}
 
-CONVERSATION CONTEXT:
-- Recently mentioned foods/activities: ${conversationContext.recentMentions.join(', ') || 'None'}
-${linkedTrigger ? `- IMPORTANT: User mentioned "${linkedTrigger}" recently and now has symptoms. This should be logged as a potential trigger!` : ''}
-
-USER'S FLARE HISTORY (${userAnalysis?.totalFlares || 0} entries):
-${userAnalysis ? `
-- Total entries: ${userAnalysis.totalFlares}
-- Severe flares: ${userAnalysis.severePercentage}%
-- Peak time: ${userAnalysis.peakTime}
-- Top triggers: ${triggerSummary}
-- Top symptoms: ${symptomSummary}
-- Weather correlations: ${weatherSummary}
-
-THIS WEEK:
-- Flares: ${userAnalysis.weekSummary.totalFlares}
-- Severe: ${userAnalysis.weekSummary.severeCount}
-- Medications: ${userAnalysis.weekSummary.medicationLogs}
-- Wellness: ${userAnalysis.weekSummary.wellnessLogs}
-` : 'First-time user - welcome them!'}
+${flareAnalysisInfo}
 
 ${weatherInfo}
 
-DETECTED INTENT: ${intent.type} (confidence: ${intent.confidence})
-${intent.extractedData?.food ? `FOOD MENTIONED: ${intent.extractedData.food}` : ''}
+INTENT: ${intent.type} (${intent.confidence})
+${linkedTrigger ? `IMPORTANT: User mentioned "${linkedTrigger}" recently and now has symptoms - log as trigger!` : ''}
+${conversationContext.recentMentions.length ? `Recent conversation mentions: ${conversationContext.recentMentions.join(', ')}` : ''}
 
 RESPONSE FORMAT (valid JSON):
 {
-  "response": "Your personalized response",
+  "response": "Your response with SPECIFIC DATA",
   "isAIGenerated": true,
-  "dataUsed": ["weather_api", "flare_history", "user_profile"],
+  "dataUsed": ["flare_history", "weather_api"],
   "weatherUsed": ${weatherData ? 'true' : 'false'},
   "shouldLog": true/false,
-  "entryData": { 
-    "type": "flare|medication|wellness|energy", 
-    "severity": "mild|moderate|severe", 
-    "energyLevel": "low|moderate|high|good",
-    "triggers": ["trigger1", "trigger2"],
-    "symptoms": ["symptom1"]
-  } or null
+  "entryData": { "type": "flare|medication|wellness|energy", "severity": "mild|moderate|severe", "triggers": [], "symptoms": [] } or null
 }
 
-LOGGING RULES:
-- Food mentions → shouldLog: false (just note it, don't log yet)
-- "feeling good/great/better" → shouldLog: true, type: "wellness"
-- "took medication/meds" → shouldLog: true, type: "medication"
-- "low energy/tired" → shouldLog: true, type: "energy"
-- Symptom with recent food mention → shouldLog: true, type: "flare", triggers: [the food]${linkedTrigger ? `, include "${linkedTrigger}" in triggers!` : ''}
-- Questions → shouldLog: false`;
+EXAMPLES:
+- Flare analysis: "This month you had 12 flares (4 severe, 5 moderate, 3 mild). That's up from 8 last month. Your top trigger is stress (5x) and most flares happen in the evening."
+- Travel (future): "January in Machu Picchu is rainy season—expect ~55°F with 75% chance of rain and 85% humidity. High humidity has triggered 6 of your past flares, so pack accordingly."
+- Travel (current): "Door County is currently 30°F with mist. The high humidity (96%) matches conditions that triggered 4 of your past flares."`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
-      ...(history || []).slice(-8),
+      ...(history || []).slice(-6),
       { role: 'user', content: message }
     ];
 
@@ -713,41 +690,21 @@ LOGGING RULES:
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages,
-      }),
+      body: JSON.stringify({ model: 'google/gemini-2.5-flash', messages }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('AI gateway error:', response.status, errorText);
+      console.error('AI error:', response.status, errorText);
       
       if (response.status === 429) {
         return new Response(JSON.stringify({ 
-          response: "I'm getting a lot of requests right now. Give me a moment and try again! 💜",
-          isAIGenerated: false,
-          dataUsed: [],
-          shouldLog: false,
-        }), {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+          response: "Rate limited. Try again in a moment!",
+          isAIGenerated: false, dataUsed: [], shouldLog: false,
+        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
       
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ 
-          response: "AI features are temporarily limited. Basic logging still works!",
-          isAIGenerated: false,
-          dataUsed: [],
-          shouldLog: false,
-        }), {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      
-      throw new Error(`AI gateway error: ${response.status}`);
+      throw new Error(`AI error: ${response.status}`);
     }
 
     const data = await response.json();
@@ -758,11 +715,10 @@ LOGGING RULES:
         const jsonMatch = content.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);
-          console.log('✅ Smart response:', parsed.response?.substring(0, 100));
           
-          // If we detected a linked trigger, ensure it's in the entry data
+          // Ensure linked trigger is in entry data
           let entryData = parsed.entryData;
-          if (linkedTrigger && entryData && entryData.type === 'flare') {
+          if (linkedTrigger && entryData?.type === 'flare') {
             entryData.triggers = entryData.triggers || [];
             if (!entryData.triggers.includes(linkedTrigger)) {
               entryData.triggers.push(linkedTrigger);
@@ -770,55 +726,41 @@ LOGGING RULES:
           }
           
           return new Response(JSON.stringify({
-            response: parsed.response || "I need more context to help with that.",
+            response: parsed.response,
             isAIGenerated: true,
             dataUsed: parsed.dataUsed || [],
-            weatherUsed: weatherData ? true : false,
-            weatherCard: weatherCard,
+            weatherUsed: !!weatherData,
+            weatherCard,
             shouldLog: parsed.shouldLog || false,
-            entryData: entryData,
-          }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
+            entryData,
+          }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
-      } catch (parseError) {
-        console.log('Could not parse JSON, returning raw content');
+      } catch (e) {
+        console.log('Parse error, returning raw');
       }
       
       return new Response(JSON.stringify({
         response: content.replace(/```json\n?|\n?```/g, '').trim(),
         isAIGenerated: true,
         dataUsed: [],
-        weatherUsed: weatherData ? true : false,
-        weatherCard: weatherCard,
+        weatherUsed: !!weatherData,
+        weatherCard,
         shouldLog: false,
         entryData: null
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     return new Response(JSON.stringify({ 
-      response: "I couldn't process that. Could you rephrase?",
-      isAIGenerated: false,
-      dataUsed: [],
-      shouldLog: false,
-      entryData: null
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+      response: "Could you rephrase that?",
+      isAIGenerated: false, dataUsed: [], shouldLog: false, entryData: null
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
-    console.error('❌ Smart assistant error:', error);
+    console.error('❌ Error:', error);
     return new Response(JSON.stringify({ 
-      response: "Something went wrong. Basic logging still works though!",
-      isAIGenerated: false,
-      dataUsed: [],
-      shouldLog: false,
+      response: "Something went wrong. Basic logging still works!",
+      isAIGenerated: false, dataUsed: [], shouldLog: false,
       error: error instanceof Error ? error.message : 'Unknown error'
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });

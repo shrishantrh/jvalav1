@@ -3,11 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { FlareEntry } from "@/types/flare";
-import { Send, Mic, MicOff, Check, Sparkles, Cloud, Thermometer, Droplets } from "lucide-react";
+import { Send, Mic, MicOff, Check, Sparkles, Thermometer, Droplets, Calendar, AlertTriangle } from "lucide-react";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { FluidLogSelector } from "./FluidLogSelector";
+import { Badge } from "@/components/ui/badge";
 
 interface ChatMessage {
   id: string;
@@ -21,13 +22,15 @@ interface ChatMessage {
   weatherCard?: {
     location: string;
     country?: string;
+    isHistorical?: boolean;
+    historicalNote?: string;
     current: {
       temp_f: number;
-      temp_c: number;
+      temp_c?: number;
       condition: string;
-      icon: string;
+      icon?: string;
       humidity: number;
-      uv: number;
+      uv?: number;
       feelslike_f: number;
     };
     forecast?: {
@@ -35,7 +38,7 @@ interface ChatMessage {
       maxtemp_f: number;
       mintemp_f: number;
       condition: string;
-      icon: string;
+      icon?: string;
       daily_chance_of_rain: number;
     };
     aqi?: number;
@@ -65,7 +68,6 @@ export interface SmartTrackRef {
 
 const STORAGE_KEY = 'jvala_smart_chat';
 
-// Generate personalized greeting based on time and context
 const getPersonalizedGreeting = (conditions: string[], recentEntries: any[]): string => {
   const hour = new Date().getHours();
   const recentFlares = recentEntries.filter(e => e.type === 'flare').slice(0, 10);
@@ -76,7 +78,6 @@ const getPersonalizedGreeting = (conditions: string[], recentEntries: any[]): st
   else if (hour < 17) timeGreeting = 'Good afternoon';
   else timeGreeting = 'Good evening';
   
-  // Check for high flare activity recently
   const last24hFlares = recentFlares.filter(f => {
     const hoursSince = (Date.now() - new Date(f.timestamp).getTime()) / (1000 * 60 * 60);
     return hoursSince < 24;
@@ -86,7 +87,6 @@ const getPersonalizedGreeting = (conditions: string[], recentEntries: any[]): st
     return `${timeGreeting}. I noticed you've had ${last24hFlares.length} flares in the last day. How are you feeling now?`;
   }
   
-  // Check recent severe flare
   if (lastFlare) {
     const hoursSinceFlare = (Date.now() - new Date(lastFlare.timestamp).getTime()) / (1000 * 60 * 60);
     if (hoursSinceFlare < 24 && lastFlare.severity === 'severe') {
@@ -97,7 +97,6 @@ const getPersonalizedGreeting = (conditions: string[], recentEntries: any[]): st
     }
   }
   
-  // Calculate days since last flare
   const daysSinceFlare = lastFlare ? 
     Math.floor((Date.now() - new Date(lastFlare.timestamp).getTime()) / (1000 * 60 * 60 * 24)) : 0;
   
@@ -112,21 +111,42 @@ const getPersonalizedGreeting = (conditions: string[], recentEntries: any[]): st
   return `${timeGreeting}! How are you feeling right now?`;
 };
 
-// Weather card component
+// Enhanced weather card with historical data support
 const WeatherCard = ({ weather }: { weather: ChatMessage['weatherCard'] }) => {
   if (!weather) return null;
   
   return (
-    <Card className="p-3 bg-gradient-to-br from-blue-500/10 to-purple-500/10 border-0 mt-2">
+    <Card className={cn(
+      "p-3 border-0 mt-2",
+      weather.isHistorical 
+        ? "bg-gradient-to-br from-amber-500/10 to-orange-500/10"
+        : "bg-gradient-to-br from-blue-500/10 to-purple-500/10"
+    )}>
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs text-muted-foreground">{weather.location}{weather.country ? `, ${weather.country}` : ''}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs text-muted-foreground">{weather.location}{weather.country ? `, ${weather.country}` : ''}</p>
+            {weather.isHistorical && (
+              <Badge variant="outline" className="text-[10px] h-4 bg-amber-500/10">
+                <Calendar className="w-2.5 h-2.5 mr-1" />
+                Historical
+              </Badge>
+            )}
+          </div>
           <div className="flex items-center gap-2 mt-1">
             <Thermometer className="w-4 h-4 text-orange-500" />
             <span className="text-lg font-bold">{weather.current?.temp_f}°F</span>
-            <span className="text-xs text-muted-foreground">Feels {weather.current?.feelslike_f}°F</span>
+            {!weather.isHistorical && (
+              <span className="text-xs text-muted-foreground">Feels {weather.current?.feelslike_f}°F</span>
+            )}
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">{weather.current?.condition}</p>
+          {weather.historicalNote && (
+            <p className="text-[10px] text-amber-600 mt-1 flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3" />
+              {weather.historicalNote}
+            </p>
+          )}
         </div>
         <div className="text-right text-xs space-y-1">
           <div className="flex items-center gap-1 justify-end">
@@ -177,7 +197,6 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const hasLoadedMessages = useRef(false);
 
-  // Load messages and set personalized greeting
   useEffect(() => {
     if (hasLoadedMessages.current) return;
     hasLoadedMessages.current = true;
@@ -186,7 +205,6 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        // Only load if less than 24 hours old
         const lastMsg = parsed[parsed.length - 1];
         if (lastMsg && (Date.now() - new Date(lastMsg.timestamp).getTime()) < 24 * 60 * 60 * 1000) {
           setMessages(parsed.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })));
@@ -195,7 +213,6 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       } catch {}
     }
     
-    // Create fresh greeting
     const greeting = getPersonalizedGreeting(userConditions, recentEntries);
     setMessages([{
       id: '1',
@@ -205,7 +222,6 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     }]);
   }, [userId, userConditions, recentEntries]);
 
-  // Get current location on mount
   useEffect(() => {
     const getLocation = async () => {
       try {
@@ -213,7 +229,6 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         const location = await getCurrentLocation();
         if (location) {
           setCurrentLocation(location);
-          // Try to get city name
           const weatherData = await fetchWeatherData(location.latitude, location.longitude);
           if (weatherData?.location?.city) {
             setCurrentLocation(prev => prev ? { ...prev, city: weatherData.location.city } : null);
@@ -226,7 +241,6 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     getLocation();
   }, []);
 
-  // Expose method to add detailed entry as a message
   useImperativeHandle(ref, () => ({
     addDetailedEntry: (entry: Partial<FlareEntry>) => {
       const parts: string[] = [];
@@ -453,7 +467,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         knownTriggers: userTriggers,
         medications: userMedications,
         currentLocation,
-        recentEntries: recentEntries.slice(0, 30).map(e => ({
+        recentEntries: recentEntries.slice(0, 50).map(e => ({
           type: e.type,
           severity: e.severity,
           symptoms: e.symptoms || [],
@@ -504,18 +518,19 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             const weatherData = await fetchWeatherData(location.latitude, location.longitude);
             if (weatherData) entry.environmentalData = weatherData;
           }
-        } catch {}
+        } catch (e) {}
 
         onSave(entry);
       }
     } catch (error) {
-      console.error('Smart assistant error:', error);
-      setMessages(prev => [...prev, {
+      console.error('Error:', error);
+      const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: "Sorry, I couldn't process that. Try again?",
+        content: "Something went wrong. Basic logging still works!",
         timestamp: new Date(),
-      }]);
+      };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsProcessing(false);
     }
@@ -528,130 +543,116 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     }
   };
 
+  const toggleRecording = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      clearRecording();
+      startRecording();
+    }
+  };
+
   return (
-    <div className="flex flex-col h-[520px]">
-      {/* Messages - hidden scrollbar */}
-      <div 
-        className="flex-1 overflow-y-auto space-y-2 mb-3 pr-1" 
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-      >
-        <style>{`.hide-scrollbar::-webkit-scrollbar { display: none; }`}</style>
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={cn(
-              "flex gap-2 animate-fade-in",
-              message.role === 'user' ? 'flex-row-reverse' : '',
-              message.role === 'system' ? 'justify-center' : ''
-            )}
-          >
-            {message.role === 'system' ? (
-              <div className="flex items-center gap-1.5 text-xs text-severity-none bg-severity-none/10 px-3 py-1.5 rounded-full">
-                <Check className="w-3 h-3" />
-                {message.content}
+    <Card className="flex flex-col h-full bg-gradient-card border-0 shadow-soft overflow-hidden">
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
+        {messages.map((msg) => (
+          <div key={msg.id} className={cn(
+            "flex flex-col",
+            msg.role === 'user' ? "items-end" : "items-start"
+          )}>
+            <div className={cn(
+              "max-w-[85%] rounded-2xl px-4 py-2.5",
+              msg.role === 'user' 
+                ? "bg-primary text-primary-foreground rounded-br-md" 
+                : "bg-muted/50 rounded-bl-md"
+            )}>
+              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+            </div>
+            
+            {msg.weatherCard && <WeatherCard weather={msg.weatherCard} />}
+            
+            {msg.entryData && (
+              <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                <Check className="w-3 h-3 text-green-500" />
+                <span>{msg.entryData.type} logged</span>
+                {msg.entryData.symptoms?.length ? (
+                  <span>• {msg.entryData.symptoms.length} symptoms</span>
+                ) : null}
+                {msg.entryData.triggers?.length ? (
+                  <span>• triggers: {msg.entryData.triggers.join(', ')}</span>
+                ) : null}
               </div>
-            ) : (
-              <div className={cn(
-                "max-w-[85%] rounded-2xl px-3 py-2 text-sm",
-                message.role === 'user'
-                  ? 'bg-primary text-primary-foreground rounded-tr-sm'
-                  : 'bg-muted rounded-tl-sm'
-              )}>
-                <p className="whitespace-pre-wrap">{message.content}</p>
-                
-                {/* Weather Card if available */}
-                {message.weatherCard && (
-                  <WeatherCard weather={message.weatherCard} />
-                )}
-                
-                {/* AI Generated indicator with data sources */}
-                {message.role === 'assistant' && message.isAIGenerated && (
-                  <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-muted-foreground/70">
-                    <Sparkles className="w-2.5 h-2.5" />
-                    <span>AI</span>
-                    {message.weatherUsed && (
-                      <span className="flex items-center gap-0.5 text-blue-400">
-                        <Cloud className="w-2.5 h-2.5" />
-                        weather
-                      </span>
-                    )}
-                  </div>
-                )}
-                
-                {message.entryData && message.role === 'assistant' && (
-                  <div className="mt-1.5 pt-1.5 border-t border-current/10 text-xs opacity-75 flex items-center gap-1">
-                    <Check className="w-3 h-3" />
-                    {message.entryData.type || message.entryData.severity} logged
-                    {message.entryData.symptoms && message.entryData.symptoms.length > 0 && (
-                      <span> • {message.entryData.symptoms.length} symptoms</span>
-                    )}
-                  </div>
-                )}
+            )}
+            
+            {msg.isAIGenerated && msg.dataUsed && msg.dataUsed.length > 0 && (
+              <div className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                <Sparkles className="w-3 h-3" />
+                <span className="opacity-75">{msg.dataUsed.join(', ')}</span>
               </div>
             )}
           </div>
         ))}
+        
         {isProcessing && (
-          <div className="flex gap-2 animate-fade-in">
-            <div className="bg-muted rounded-2xl rounded-tl-sm px-3 py-2">
+          <div className="flex items-start">
+            <div className="bg-muted/50 rounded-2xl rounded-bl-md px-4 py-3">
               <div className="flex gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-foreground/30 animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1.5 h-1.5 rounded-full bg-foreground/30 animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1.5 h-1.5 rounded-full bg-foreground/30 animate-bounce" style={{ animationDelay: '300ms' }} />
+                <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
             </div>
           </div>
         )}
+        
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Fluid Log Selector */}
-      <FluidLogSelector
-        userSymptoms={userSymptoms}
-        userMedications={userMedications}
-        onLogSymptom={handleFluidLog}
-        onLogMedication={handleMedicationLog}
-        onLogWellness={handleWellnessLog}
-        onLogEnergy={handleEnergyLog}
-        onLogRecovery={handleRecoveryLog}
-        disabled={isProcessing}
-      />
+      {/* Quick actions */}
+      <div className="px-4 pb-2">
+        <FluidLogSelector
+          userSymptoms={userSymptoms}
+          userMedications={userMedications}
+          onLogSymptom={handleFluidLog}
+          onLogMedication={handleMedicationLog}
+          onLogWellness={handleWellnessLog}
+          onLogEnergy={handleEnergyLog}
+          onLogRecovery={handleRecoveryLog}
+        />
+      </div>
 
       {/* Input */}
-      <div className="flex gap-2 items-center border-t pt-3 mt-3">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={isRecording ? stopRecording : startRecording}
-          className={cn(
-            "h-9 w-9 flex-shrink-0 rounded-full transition-all",
-            isRecording && "bg-destructive/10 border-destructive animate-pulse"
-          )}
-        >
-          {isRecording ? <MicOff className="w-4 h-4 text-destructive" /> : <Mic className="w-4 h-4" />}
-        </Button>
-        
-        <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyPress}
-          placeholder="Ask me anything..."
-          className="h-9 text-sm rounded-full"
-          disabled={isProcessing}
-        />
-        
-        <Button
-          variant="default"
-          size="icon"
-          onClick={() => handleSend()}
-          disabled={!input.trim() || isProcessing}
-          className="h-9 w-9 flex-shrink-0 rounded-full"
-        >
-          <Send className="w-4 h-4" />
-        </Button>
+      <div className="p-4 pt-2 border-t bg-background/50">
+        <div className="flex items-center gap-2">
+          <Button
+            variant={isRecording ? "destructive" : "outline"}
+            size="icon"
+            className="shrink-0"
+            onClick={toggleRecording}
+          >
+            {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+          </Button>
+          
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder={isRecording ? "Listening..." : "How are you feeling?"}
+            className="flex-1"
+            disabled={isProcessing}
+          />
+          
+          <Button
+            onClick={() => handleSend()}
+            disabled={!input.trim() || isProcessing}
+            size="icon"
+            className="shrink-0"
+          >
+            <Send className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
-    </div>
+    </Card>
   );
 });
-
-SmartTrack.displayName = 'SmartTrack';
