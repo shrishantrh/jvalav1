@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { FlareEntry } from "@/types/flare";
-import { Send, Mic, MicOff, Check, Sparkles, Thermometer, Droplets, Calendar, AlertTriangle } from "lucide-react";
+import { Send, Mic, MicOff, Check, Sparkles, Thermometer, Droplets, Calendar, AlertTriangle, BarChart3 } from "lucide-react";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -43,6 +43,14 @@ interface ChatMessage {
     };
     aqi?: number;
   };
+  chartData?: {
+    type: 'severity' | 'symptoms' | 'triggers' | 'timeline';
+    data: any;
+  };
+  updateInfo?: {
+    entryId: string;
+    updates: Partial<FlareEntry>;
+  };
 }
 
 interface MedicationDetails {
@@ -54,6 +62,7 @@ interface MedicationDetails {
 
 interface SmartTrackProps {
   onSave: (entry: Partial<FlareEntry>) => void;
+  onUpdateEntry?: (entryId: string, updates: Partial<FlareEntry>) => void;
   userSymptoms?: string[];
   userConditions?: string[];
   userTriggers?: string[];
@@ -111,7 +120,7 @@ const getPersonalizedGreeting = (conditions: string[], recentEntries: any[]): st
   return `${timeGreeting}! How are you feeling right now?`;
 };
 
-// Enhanced weather card with historical data support
+// Weather card component
 const WeatherCard = ({ weather }: { weather: ChatMessage['weatherCard'] }) => {
   if (!weather) return null;
   
@@ -180,8 +189,93 @@ const WeatherCard = ({ weather }: { weather: ChatMessage['weatherCard'] }) => {
   );
 };
 
+// Mini chart for severity/symptoms
+const MiniChart = ({ chartData }: { chartData: ChatMessage['chartData'] }) => {
+  if (!chartData) return null;
+  
+  if (chartData.type === 'severity') {
+    const { severe = 0, moderate = 0, mild = 0 } = chartData.data || {};
+    const total = severe + moderate + mild;
+    if (total === 0) return null;
+    
+    return (
+      <Card className="p-3 border-0 mt-2 bg-muted/30">
+        <div className="flex items-center gap-2 mb-2">
+          <BarChart3 className="w-3.5 h-3.5 text-primary" />
+          <span className="text-xs font-medium">Severity Breakdown</span>
+        </div>
+        <div className="flex gap-1 h-6 rounded overflow-hidden">
+          {severe > 0 && (
+            <div 
+              className="bg-severity-severe flex items-center justify-center text-[10px] font-medium text-white"
+              style={{ width: `${(severe / total) * 100}%` }}
+            >
+              {severe}
+            </div>
+          )}
+          {moderate > 0 && (
+            <div 
+              className="bg-severity-moderate flex items-center justify-center text-[10px] font-medium text-white"
+              style={{ width: `${(moderate / total) * 100}%` }}
+            >
+              {moderate}
+            </div>
+          )}
+          {mild > 0 && (
+            <div 
+              className="bg-severity-mild flex items-center justify-center text-[10px] font-medium"
+              style={{ width: `${(mild / total) * 100}%` }}
+            >
+              {mild}
+            </div>
+          )}
+        </div>
+        <div className="flex justify-between mt-1.5 text-[10px] text-muted-foreground">
+          <span>🔴 Severe: {severe}</span>
+          <span>🟠 Moderate: {moderate}</span>
+          <span>🟡 Mild: {mild}</span>
+        </div>
+      </Card>
+    );
+  }
+  
+  if (chartData.type === 'symptoms' || chartData.type === 'triggers') {
+    const items = chartData.data || [];
+    if (items.length === 0) return null;
+    
+    return (
+      <Card className="p-3 border-0 mt-2 bg-muted/30">
+        <div className="flex items-center gap-2 mb-2">
+          <BarChart3 className="w-3.5 h-3.5 text-primary" />
+          <span className="text-xs font-medium">Top {chartData.type === 'symptoms' ? 'Symptoms' : 'Triggers'}</span>
+        </div>
+        <div className="space-y-1.5">
+          {items.slice(0, 4).map(([name, count]: [string, number], i: number) => (
+            <div key={name} className="flex items-center gap-2">
+              <div className="flex-1 h-4 bg-muted rounded overflow-hidden">
+                <div 
+                  className={cn(
+                    "h-full rounded transition-all",
+                    chartData.type === 'symptoms' ? 'bg-primary/70' : 'bg-orange-500/70'
+                  )}
+                  style={{ width: `${(count / items[0][1]) * 100}%` }}
+                />
+              </div>
+              <span className="text-[10px] w-20 truncate">{name}</span>
+              <span className="text-[10px] text-muted-foreground w-6 text-right">{count}x</span>
+            </div>
+          ))}
+        </div>
+      </Card>
+    );
+  }
+  
+  return null;
+};
+
 export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({ 
-  onSave, 
+  onSave,
+  onUpdateEntry,
   userSymptoms = [], 
   userConditions = [], 
   userTriggers = [],
@@ -193,6 +287,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number; city?: string } | null>(null);
+  const [lastLoggedEntryId, setLastLoggedEntryId] = useState<string | null>(null);
   const { isRecording, transcript, startRecording, stopRecording, clearRecording } = useVoiceRecording();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -279,7 +374,6 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   }, [messages, userId]);
 
   useEffect(() => {
-    // Scroll within the messages container only
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
@@ -317,17 +411,15 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     }
 
     onSave(entry);
-
-    const responses = [
-      `Logged ${severity} ${symptom}. Take care.`,
-      `Got it. ${symptom} noted as ${severity}.`,
-      `Tracked. Rest up if you need to.`,
-    ];
     
+    // Track the last logged entry for potential updates
+    const entryId = Date.now().toString();
+    setLastLoggedEntryId(entryId);
+
     const confirmMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
       role: 'assistant',
-      content: responses[Math.floor(Math.random() * responses.length)],
+      content: `Logged ${severity} ${symptom}.`,
       timestamp: new Date(),
       entryData: entry,
     };
@@ -355,7 +447,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     const confirmMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
       role: 'assistant',
-      content: `${medicationName} logged!`,
+      content: `${medicationName} logged.`,
       timestamp: new Date(),
       entryData: entry,
     };
@@ -442,7 +534,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     const confirmMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
       role: 'assistant',
-      content: "So glad you're recovering! Logged.",
+      content: "Glad you're recovering! Logged.",
       timestamp: new Date(),
       entryData: entry,
     };
@@ -465,13 +557,18 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     setIsProcessing(true);
 
     try {
+      // Get the most recent entry ID for potential updates
+      const mostRecentEntry = recentEntries[0];
+      
       const userContext = {
         conditions: userConditions,
         knownSymptoms: userSymptoms,
         knownTriggers: userTriggers,
         medications: userMedications,
         currentLocation,
+        mostRecentEntryId: mostRecentEntry?.id,
         recentEntries: recentEntries.slice(0, 50).map(e => ({
+          id: e.id,
           type: e.type,
           severity: e.severity,
           symptoms: e.symptoms || [],
@@ -495,6 +592,11 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
 
       if (error) throw error;
 
+      // Handle entry updates if AI suggests one
+      if (data.updateEntry && data.updateEntry.entryId && onUpdateEntry) {
+        onUpdateEntry(data.updateEntry.entryId, data.updateEntry.updates);
+      }
+
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -505,6 +607,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         dataUsed: data.dataUsed,
         weatherUsed: data.weatherUsed,
         weatherCard: data.weatherCard,
+        chartData: data.chartData,
+        updateInfo: data.updateEntry,
       };
       setMessages(prev => [...prev, assistantMessage]);
 
@@ -557,7 +661,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   };
 
   return (
-    <div className="flex flex-col h-[450px] bg-gradient-card rounded-xl overflow-hidden">
+    <div className="flex flex-col h-[520px] bg-gradient-card rounded-xl overflow-hidden">
       {/* Messages - scrollable container */}
       <div 
         ref={messagesContainerRef}
@@ -578,8 +682,16 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             </div>
             
             {msg.weatherCard && <WeatherCard weather={msg.weatherCard} />}
+            {msg.chartData && <MiniChart chartData={msg.chartData} />}
             
-            {msg.entryData && (
+            {msg.updateInfo && (
+              <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-primary">
+                <Check className="w-3 h-3" />
+                <span>Entry updated</span>
+              </div>
+            )}
+            
+            {msg.entryData && !msg.updateInfo && (
               <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
                 <Check className="w-3 h-3 text-green-500" />
                 <span>{msg.entryData.type} logged</span>
@@ -610,8 +722,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick actions - fixed at bottom */}
-      <div className="px-4 py-2 border-t bg-background/50">
+      {/* Quick actions - compact */}
+      <div className="px-3 py-2 border-t bg-background/50">
         <FluidLogSelector
           userSymptoms={userSymptoms}
           userMedications={userMedications}

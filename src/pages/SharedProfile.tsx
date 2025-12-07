@@ -4,9 +4,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Lock, User, AlertTriangle, Activity, TrendingUp, TrendingDown, Clock, Pill, Calendar, BarChart3 } from 'lucide-react';
-import { supabase } from "@/integrations/supabase/client";
+import { Loader2, Lock, User, AlertTriangle, Activity, TrendingUp, Clock, Pill, Calendar, BarChart3, RefreshCw } from 'lucide-react';
 import { format, subDays, isWithinInterval } from 'date-fns';
+import jvalaLogo from "@/assets/jvala-logo.png";
 
 interface FlareEntry {
   id: string;
@@ -26,7 +26,6 @@ interface ProfileData {
   conditions: string[] | null;
   known_symptoms: string[] | null;
   known_triggers: string[] | null;
-  metadata: any;
 }
 
 const SharedProfile = () => {
@@ -35,18 +34,19 @@ const SharedProfile = () => {
   const [error, setError] = useState('');
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [entries, setEntries] = useState<FlareEntry[]>([]);
+  const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
 
   const token = searchParams.get('token');
 
   useEffect(() => {
     if (token) {
-      handleAccess();
+      fetchData();
     } else {
       setLoading(false);
     }
   }, [token]);
 
-  const handleAccess = async () => {
+  const fetchData = async () => {
     if (!token) {
       setError('Missing share token');
       setLoading(false);
@@ -57,18 +57,16 @@ const SharedProfile = () => {
     setError('');
 
     try {
-      const { data, error: fnError } = await supabase.functions.invoke('get-shared-profile', {
-        body: {},
-        headers: {},
-      });
+      // Use direct fetch to bypass any auth requirements
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       
-      // Use query params approach
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-shared-profile?token=${encodeURIComponent(token)}`,
+        `${supabaseUrl}/functions/v1/get-shared-profile?token=${encodeURIComponent(token)}`,
         {
           method: 'GET',
           headers: {
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'apikey': supabaseKey,
             'Content-Type': 'application/json'
           }
         }
@@ -82,15 +80,16 @@ const SharedProfile = () => {
       const result = await response.json();
       setProfileData(result.profile);
       setEntries(result.entries || []);
+      setLastRefreshed(new Date());
     } catch (err: any) {
       console.error('Access error:', err);
-      setError(err.message || 'Failed to load profile or link expired');
+      setError(err.message || 'Failed to load profile. The link may be expired or invalid.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Analytics
+  // Analytics calculations
   const analytics = useMemo(() => {
     if (!entries.length) return null;
 
@@ -172,7 +171,7 @@ const SharedProfile = () => {
           <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-destructive" />
           <h1 className="text-2xl font-bold mb-2">Invalid Share Link</h1>
           <p className="text-muted-foreground">
-            This link appears to be invalid or incomplete.
+            This link appears to be invalid or incomplete. Please check the URL and try again.
           </p>
         </Card>
       </div>
@@ -195,9 +194,9 @@ const SharedProfile = () => {
       <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center p-4">
         <Card className="w-full max-w-md p-8 text-center">
           <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-destructive" />
-          <h1 className="text-2xl font-bold mb-2">Failed to Load Profile</h1>
+          <h1 className="text-2xl font-bold mb-2">Unable to Load Profile</h1>
           <p className="text-muted-foreground mb-4">{error}</p>
-          <Button onClick={handleAccess}>Try Again</Button>
+          <Button onClick={fetchData}>Try Again</Button>
         </Card>
       </div>
     );
@@ -207,26 +206,35 @@ const SharedProfile = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background to-muted">
         {/* Header */}
-        <div className="bg-primary text-primary-foreground py-6 px-4">
+        <div className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground py-6 px-4">
           <div className="container max-w-4xl mx-auto">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-primary-foreground/20 flex items-center justify-center">
-                <User className="w-6 h-6" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <img src={jvalaLogo} alt="Jvala" className="w-10 h-10" />
+                <div>
+                  <h1 className="text-xl font-bold">{profileData.full_name || 'Patient Profile'}</h1>
+                  <p className="text-sm opacity-80">Healthcare Provider Dashboard</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-xl font-bold">{profileData.full_name || 'Patient Profile'}</h1>
-                <p className="text-sm opacity-80">Healthcare Provider View • Live Updates</p>
-              </div>
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                onClick={fetchData}
+                className="gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Refresh
+              </Button>
             </div>
           </div>
         </div>
 
         <div className="container max-w-4xl mx-auto p-4 space-y-4">
           {/* Security Notice */}
-          <Alert className="bg-muted/50">
+          <Alert className="bg-muted/50 border-primary/20">
             <Lock className="h-4 w-4" />
             <AlertDescription>
-              This is a secure, read-only view of the patient's health data. Data updates in real-time as the patient logs entries.
+              Secure read-only view. Last updated: {format(lastRefreshed, 'PPp')}
             </AlertDescription>
           </Alert>
 
@@ -275,26 +283,38 @@ const SharedProfile = () => {
               <BarChart3 className="w-4 h-4 text-primary" />
               Severity Distribution (30 days)
             </h3>
-            <div className="flex gap-2">
-              <div className="flex-1 p-3 rounded-lg bg-severity-mild/20 text-center">
-                <p className="text-2xl font-bold text-severity-mild">{analytics.severityBreakdown.mild}</p>
-                <p className="text-xs text-muted-foreground">Mild</p>
-              </div>
-              <div className="flex-1 p-3 rounded-lg bg-severity-moderate/20 text-center">
-                <p className="text-2xl font-bold text-severity-moderate">{analytics.severityBreakdown.moderate}</p>
-                <p className="text-xs text-muted-foreground">Moderate</p>
-              </div>
-              <div className="flex-1 p-3 rounded-lg bg-severity-severe/20 text-center">
-                <p className="text-2xl font-bold text-severity-severe">{analytics.severityBreakdown.severe}</p>
-                <p className="text-xs text-muted-foreground">Severe</p>
-              </div>
+            <div className="flex gap-2 h-8 rounded overflow-hidden">
+              {analytics.severityBreakdown.mild > 0 && (
+                <div 
+                  className="bg-severity-mild flex items-center justify-center text-xs font-medium"
+                  style={{ flex: analytics.severityBreakdown.mild }}
+                >
+                  {analytics.severityBreakdown.mild} Mild
+                </div>
+              )}
+              {analytics.severityBreakdown.moderate > 0 && (
+                <div 
+                  className="bg-severity-moderate flex items-center justify-center text-xs font-medium text-white"
+                  style={{ flex: analytics.severityBreakdown.moderate }}
+                >
+                  {analytics.severityBreakdown.moderate} Moderate
+                </div>
+              )}
+              {analytics.severityBreakdown.severe > 0 && (
+                <div 
+                  className="bg-severity-severe flex items-center justify-center text-xs font-medium text-white"
+                  style={{ flex: analytics.severityBreakdown.severe }}
+                >
+                  {analytics.severityBreakdown.severe} Severe
+                </div>
+              )}
             </div>
           </Card>
 
           {/* Symptoms & Triggers */}
           <div className="grid md:grid-cols-2 gap-4">
             <Card className="p-4">
-              <h3 className="text-sm font-medium mb-3">Top Symptoms</h3>
+              <h3 className="text-sm font-medium mb-3">Top Symptoms (30 days)</h3>
               {analytics.topSymptoms.length > 0 ? (
                 <div className="space-y-2">
                   {analytics.topSymptoms.map(([symptom, count]) => (
@@ -305,12 +325,12 @@ const SharedProfile = () => {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No symptoms logged yet</p>
+                <p className="text-sm text-muted-foreground">No symptoms logged</p>
               )}
             </Card>
 
             <Card className="p-4">
-              <h3 className="text-sm font-medium mb-3">Top Triggers</h3>
+              <h3 className="text-sm font-medium mb-3">Top Triggers (30 days)</h3>
               {analytics.topTriggers.length > 0 ? (
                 <div className="space-y-2">
                   {analytics.topTriggers.map(([trigger, count]) => (
@@ -321,7 +341,7 @@ const SharedProfile = () => {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No triggers identified yet</p>
+                <p className="text-sm text-muted-foreground">No triggers identified</p>
               )}
             </Card>
           </div>
@@ -331,7 +351,7 @@ const SharedProfile = () => {
             <Card className="p-4">
               <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
                 <Pill className="w-4 h-4 text-primary" />
-                Medications Logged
+                Medications Logged (30 days)
               </h3>
               <div className="flex flex-wrap gap-2">
                 {analytics.topMedications.map(([med, count]) => (
@@ -382,8 +402,7 @@ const SharedProfile = () => {
 
           {/* Footer */}
           <div className="text-center py-4 text-xs text-muted-foreground">
-            <p>Powered by Jvala • Patient health tracking</p>
-            <p className="mt-1">Last updated: {format(new Date(), 'PPpp')}</p>
+            <p>Powered by Jvala • Patient Health Tracking</p>
           </div>
         </div>
       </div>
