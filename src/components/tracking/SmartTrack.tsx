@@ -662,18 +662,23 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
 
   return (
     <div className="flex flex-col h-[520px] bg-gradient-card rounded-xl overflow-hidden">
-      {/* Messages - scrollable container */}
-      <div 
-        ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0"
-      >
-        {/* Location indicator at top of messages */}
+      {/* Header with location */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border/30">
+        <span className="text-sm font-medium text-foreground">How are you feeling?</span>
         {currentLocation?.city && (
-          <div className="flex items-center justify-end gap-1 text-[10px] text-muted-foreground mb-2">
+          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
             <MapPin className="w-2.5 h-2.5" />
             <span>{currentLocation.city}</span>
           </div>
         )}
+      </div>
+      
+      {/* Messages - scrollable container with hidden scrollbar */}
+      <div 
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0 scrollbar-hide"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
         {messages.map((msg) => (
           <div key={msg.id} className={cn(
             "flex flex-col",
