@@ -16,7 +16,7 @@ import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { StreakBadge } from "@/components/engagement/StreakBadge";
 import { CONDITIONS } from "@/data/conditions";
 import { useEngagement } from "@/hooks/useEngagement";
-import { Activity, Calendar, BarChart3, User as UserIcon, ChevronDown, Flame, Settings } from "lucide-react";
+import { Activity, Calendar, BarChart3, User as UserIcon, ChevronDown, Flame, Settings, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format, isSameDay } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
@@ -50,6 +50,7 @@ const Index = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showDetailedEntry, setShowDetailedEntry] = useState(false);
   const [currentStreak, setCurrentStreak] = useState(0);
+  const [currentLocation, setCurrentLocation] = useState<{ city?: string } | null>(null);
   const smartTrackRef = useRef<SmartTrackRef>(null);
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
@@ -69,6 +70,25 @@ const Index = () => {
       loadEngagementData();
     }
   }, [user, loading, navigate]);
+
+  // Get location
+  useEffect(() => {
+    const getLocation = async () => {
+      try {
+        const { getCurrentLocation, fetchWeatherData } = await import("@/services/weatherService");
+        const location = await getCurrentLocation();
+        if (location) {
+          const weatherData = await fetchWeatherData(location.latitude, location.longitude);
+          if (weatherData?.location?.city) {
+            setCurrentLocation({ city: weatherData.location.city });
+          }
+        }
+      } catch (e) {
+        console.log('Could not get location');
+      }
+    };
+    getLocation();
+  }, []);
 
   const loadEngagementData = async () => {
     if (!user) return;
@@ -470,7 +490,15 @@ const Index = () => {
                 <Activity className="w-4 h-4 text-white" />
               </div>
               <div className="flex-1">
-                <h2 className="text-sm font-clinical">How are you feeling?</h2>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-clinical">How are you feeling?</h2>
+                  {currentLocation?.city && (
+                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <MapPin className="w-2.5 h-2.5" />
+                      <span>{currentLocation.city}</span>
+                    </div>
+                  )}
+                </div>
                 {userConditionNames.length > 0 && (
                   <p className="text-[10px] text-muted-foreground">
                     {userConditionNames.slice(0, 2).join(', ')}
