@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FlareEntry } from "@/types/flare";
-import { MapPin, Users, AlertTriangle, Info, Shield } from 'lucide-react';
+import { MapPin, Users, AlertTriangle, Info, Shield, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CommunityHotspotsProps {
   entries: FlareEntry[];
@@ -12,73 +13,76 @@ interface CommunityHotspotsProps {
 }
 
 interface Hotspot {
-  id: string;
   city: string;
-  region: string;
-  count: number;
-  avgSeverity: number;
-  topSymptoms: string[];
-  recentActivity: 'high' | 'moderate' | 'low';
+  report_count: number;
+  avg_severity: number;
+  top_symptom: string | null;
+  recent_count: number;
+  monthly_count: number;
+  topSymptoms?: string[];
+  topTriggers?: string[];
 }
-
-// Simulated community data - in production this would come from aggregated, anonymized data
-const SAMPLE_HOTSPOTS: Hotspot[] = [
-  {
-    id: '1',
-    city: 'San Francisco',
-    region: 'Bay Area',
-    count: 127,
-    avgSeverity: 2.1,
-    topSymptoms: ['Headache', 'Fatigue', 'Brain fog'],
-    recentActivity: 'high'
-  },
-  {
-    id: '2',
-    city: 'Los Angeles',
-    region: 'Southern California',
-    count: 89,
-    avgSeverity: 1.8,
-    topSymptoms: ['Respiratory issues', 'Headache'],
-    recentActivity: 'moderate'
-  },
-  {
-    id: '3',
-    city: 'New York',
-    region: 'Northeast',
-    count: 156,
-    avgSeverity: 2.3,
-    topSymptoms: ['Stress', 'Fatigue', 'Joint pain'],
-    recentActivity: 'high'
-  },
-  {
-    id: '4',
-    city: 'Phoenix',
-    region: 'Southwest',
-    count: 42,
-    avgSeverity: 1.5,
-    topSymptoms: ['Dehydration', 'Heat sensitivity'],
-    recentActivity: 'low'
-  },
-  {
-    id: '5',
-    city: 'Seattle',
-    region: 'Pacific Northwest',
-    count: 78,
-    avgSeverity: 1.9,
-    topSymptoms: ['Seasonal affective', 'Fatigue', 'Joint pain'],
-    recentActivity: 'moderate'
-  }
-];
 
 export const CommunityHotspots = ({ entries, userConditions = [] }: CommunityHotspotsProps) => {
   const [showPrivacyInfo, setShowPrivacyInfo] = useState(false);
+  const [hotspots, setHotspots] = useState<Hotspot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [totalReports, setTotalReports] = useState(0);
+
+  // Fetch real anonymized community data
+  useEffect(() => {
+    const fetchHotspots = async () => {
+      setLoading(true);
+      try {
+        // Fetch from the anonymized view
+        const { data, error } = await supabase
+          .from('community_hotspots')
+          .select('*')
+          .order('report_count', { ascending: false })
+          .limit(10);
+
+        if (error) {
+          console.error('Error fetching hotspots:', error);
+          setHotspots([]);
+        } else if (data && data.length > 0) {
+          // Fetch top symptoms and triggers for each city
+          const hotspotsWithDetails = await Promise.all(
+            data.map(async (hotspot) => {
+              const [symptomsResult, triggersResult] = await Promise.all([
+                supabase.rpc('get_city_symptom_stats', { city_name: hotspot.city }),
+                supabase.rpc('get_city_trigger_stats', { city_name: hotspot.city })
+              ]);
+
+              return {
+                ...hotspot,
+                topSymptoms: symptomsResult.data?.map((s: any) => s.symptom) || [],
+                topTriggers: triggersResult.data?.map((t: any) => t.trigger) || []
+              };
+            })
+          );
+
+          setHotspots(hotspotsWithDetails);
+          setTotalReports(data.reduce((sum, h) => sum + (h.report_count || 0), 0));
+        } else {
+          setHotspots([]);
+        }
+      } catch (err) {
+        console.error('Hotspots fetch error:', err);
+        setHotspots([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHotspots();
+  }, []);
 
   // Calculate user's own location patterns
   const userLocationData = useMemo(() => {
     const locationCounts: Record<string, { count: number; severities: number[] }> = {};
     
     entries.forEach(e => {
-      const city = e.environmentalData?.location?.city;
+      const city = e.environmentalData?.location?.city || (e as any).city;
       if (city) {
         if (!locationCounts[city]) {
           locationCounts[city] = { count: 0, severities: [] };
@@ -103,15 +107,14 @@ export const CommunityHotspots = ({ entries, userConditions = [] }: CommunityHot
       .slice(0, 5);
   }, [entries]);
 
-  const getActivityBadge = (activity: 'high' | 'moderate' | 'low') => {
-    switch (activity) {
-      case 'high':
-        return <Badge variant="destructive" className="text-[10px]">High activity</Badge>;
-      case 'moderate':
-        return <Badge variant="secondary" className="text-[10px]">Moderate</Badge>;
-      case 'low':
-        return <Badge variant="outline" className="text-[10px]">Low</Badge>;
+  const getActivityBadge = (hotspot: Hotspot) => {
+    const recentRatio = hotspot.monthly_count > 0 ? hotspot.recent_count / hotspot.monthly_count : 0;
+    if (recentRatio > 0.5) {
+      return <Badge variant="destructive" className="text-[10px]">High activity</Badge>;
+    } else if (recentRatio > 0.2) {
+      return <Badge variant="secondary" className="text-[10px]">Moderate</Badge>;
     }
+    return <Badge variant="outline" className="text-[10px]">Low</Badge>;
   };
 
   const getSeverityColor = (severity: number) => {
@@ -137,8 +140,8 @@ export const CommunityHotspots = ({ entries, userConditions = [] }: CommunityHot
           </Button>
           {showPrivacyInfo && (
             <p className="mt-2 text-muted-foreground">
-              Hotspots are calculated using differential privacy techniques. Location data is 
-              rounded to city-level and requires minimum 20 users per area before displaying. 
+              Hotspots are calculated from aggregated data only. Location data is 
+              city-level and requires minimum 3 reports per area before displaying. 
               Your individual entries are never shared.
             </p>
           )}
@@ -177,49 +180,79 @@ export const CommunityHotspots = ({ entries, userConditions = [] }: CommunityHot
           Community Hotspots
         </h3>
         <p className="text-xs text-muted-foreground mb-3">
-          Areas with elevated flare activity from similar conditions
+          Areas with elevated flare activity from the community
         </p>
 
-        <div className="space-y-3">
-          {SAMPLE_HOTSPOTS.slice(0, 5).map(hotspot => (
-            <div 
-              key={hotspot.id} 
-              className="p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-            >
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <p className="text-sm font-medium">{hotspot.city}</p>
-                  <p className="text-xs text-muted-foreground">{hotspot.region}</p>
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+          </div>
+        ) : hotspots.length > 0 ? (
+          <div className="space-y-3">
+            {hotspots.map((hotspot, idx) => (
+              <div 
+                key={idx} 
+                className="p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <p className="text-sm font-medium">{hotspot.city}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Avg severity: <span className={getSeverityColor(Number(hotspot.avg_severity))}>
+                        {Number(hotspot.avg_severity).toFixed(1)}/3
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    {getActivityBadge(hotspot)}
+                    <span className="text-xs text-muted-foreground">
+                      {hotspot.report_count} reports
+                    </span>
+                  </div>
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  {getActivityBadge(hotspot.recentActivity)}
-                  <span className="text-xs text-muted-foreground">
-                    {hotspot.count} reports
-                  </span>
-                </div>
-              </div>
-              
-              <div className="flex flex-wrap gap-1">
-                {hotspot.topSymptoms.map((symptom, i) => (
-                  <Badge key={i} variant="outline" className="text-[10px]">
-                    {symptom}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+                
+                {hotspot.topSymptoms && hotspot.topSymptoms.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {hotspot.topSymptoms.slice(0, 3).map((symptom, i) => (
+                      <Badge key={i} variant="outline" className="text-[10px]">
+                        {symptom}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
 
-        <div className="mt-4 pt-3 border-t text-center">
-          <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-            <Info className="w-3 h-3" />
-            Data from {SAMPLE_HOTSPOTS.reduce((sum, h) => sum + h.count, 0).toLocaleString()} anonymous reports
-          </p>
-        </div>
+                {hotspot.topTriggers && hotspot.topTriggers.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {hotspot.topTriggers.slice(0, 2).map((trigger, i) => (
+                      <Badge key={i} variant="secondary" className="text-[10px]">
+                        {trigger}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-6 text-muted-foreground">
+            <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">Not enough community data yet</p>
+            <p className="text-xs mt-1">Keep logging to help build community insights!</p>
+          </div>
+        )}
+
+        {totalReports > 0 && (
+          <div className="mt-4 pt-3 border-t text-center">
+            <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+              <Info className="w-3 h-3" />
+              Data from {totalReports.toLocaleString()} anonymous reports
+            </p>
+          </div>
+        )}
       </Card>
 
       {/* Travel Warning */}
-      {userConditions.length > 0 && (
+      {userConditions.length > 0 && hotspots.length > 0 && (
         <Card className="p-4 border-severity-moderate/30 bg-severity-moderate/5">
           <div className="flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 text-severity-moderate flex-shrink-0 mt-0.5" />

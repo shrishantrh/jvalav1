@@ -35,6 +35,11 @@ interface UserContext {
   medications?: MedicationDetails[];
 }
 
+interface ConversationContext {
+  recentMentions: string[]; // Foods, activities mentioned in last few messages
+  pendingTrigger?: string; // Something mentioned that might be a trigger
+}
+
 // Helper to get weather for a destination with optional date
 async function getWeather(query: string, dateStr?: string): Promise<any> {
   const apiKey = Deno.env.get('WEATHER_API_KEY');
@@ -46,7 +51,6 @@ async function getWeather(query: string, dateStr?: string): Promise<any> {
   try {
     console.log('🌍 Fetching weather for:', query, dateStr ? `on ${dateStr}` : '');
     
-    // If date is provided and in future, use forecast endpoint
     let url = `https://api.weatherapi.com/v1/forecast.json?key=${apiKey}&q=${encodeURIComponent(query)}&days=14&aqi=yes`;
     
     const response = await fetch(url);
@@ -57,7 +61,6 @@ async function getWeather(query: string, dateStr?: string): Promise<any> {
     const data = await response.json();
     console.log('✅ Weather data received for:', data.location?.name);
     
-    // If specific date requested, find that day in forecast
     if (dateStr && data.forecast?.forecastday) {
       const targetDate = parseFutureDate(dateStr);
       if (targetDate) {
@@ -77,7 +80,6 @@ async function getWeather(query: string, dateStr?: string): Promise<any> {
   }
 }
 
-// Parse dates like "Jan 10th", "tomorrow", "next week"
 function parseFutureDate(dateStr: string): Date | null {
   const lower = dateStr.toLowerCase();
   const now = new Date();
@@ -94,7 +96,6 @@ function parseFutureDate(dateStr: string): Date | null {
     return d;
   }
   
-  // Try parsing "Jan 10", "January 10th", etc.
   const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
   for (let i = 0; i < monthNames.length; i++) {
     const regex = new RegExp(`${monthNames[i]}\\w*\\s+(\\d{1,2})`, 'i');
@@ -102,7 +103,6 @@ function parseFutureDate(dateStr: string): Date | null {
     if (match) {
       const day = parseInt(match[1]);
       const targetDate = new Date(now.getFullYear(), i, day);
-      // If date has passed this year, use next year
       if (targetDate < now) {
         targetDate.setFullYear(targetDate.getFullYear() + 1);
       }
@@ -113,11 +113,9 @@ function parseFutureDate(dateStr: string): Date | null {
   return null;
 }
 
-// Extract location mentions from message
 function extractLocationFromMessage(message: string): { location: string; date?: string } | null {
   const lower = message.toLowerCase();
   
-  // Common city abbreviations and full names
   const cityPatterns = [
     { pattern: /\bsfo\b/i, city: 'San Francisco' },
     { pattern: /\blax\b/i, city: 'Los Angeles' },
@@ -143,7 +141,6 @@ function extractLocationFromMessage(message: string): { location: string; date?:
     { pattern: /\bsydney\b/i, city: 'Sydney, Australia' },
   ];
   
-  // Extract date from message
   let extractedDate: string | undefined;
   const datePatterns = [
     /(?:on|for)\s+(jan(?:uary)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
@@ -177,7 +174,6 @@ function extractLocationFromMessage(message: string): { location: string; date?:
     }
   }
   
-  // Try to extract from travel patterns
   const travelPatterns = [
     /travel(?:ing|s|led)?\s+to\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for|on)|$)/i,
     /going\s+(?:on\s+a\s+)?(?:hike|trip|vacation)?\s*(?:to|in)\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for|on)|$)/i,
@@ -197,7 +193,6 @@ function extractLocationFromMessage(message: string): { location: string; date?:
     const match = message.match(pattern);
     if (match) {
       let destination = match[1].trim().replace(/[,.]$/, '');
-      // Filter out non-location words
       const stopWords = ['work', 'home', 'bed', 'sleep', 'dinner', 'lunch', 'breakfast', 'the', 'a', 'like', 'about'];
       if (!stopWords.includes(destination.toLowerCase()) && destination.length > 2) {
         return { location: destination, date: extractedDate };
@@ -205,16 +200,42 @@ function extractLocationFromMessage(message: string): { location: string; date?:
     }
   }
   
-  // Check for altitude/mountain mentions
-  if (/\b\d{3,5}\s*meters?\b/i.test(message) && !extractedDate) {
-    // Mentions altitude, might need general high-altitude advice
-    return null;
-  }
-  
   return null;
 }
 
-// Advanced NLP-based trigger extraction
+// Extract potential triggers from conversation context
+function extractPotentialTriggers(history: Array<{ role: string; content: string }>): ConversationContext {
+  const recentMentions: string[] = [];
+  let pendingTrigger: string | undefined;
+  
+  // Look at last 5 messages for context
+  const recentHistory = history.slice(-5);
+  
+  const foodPatterns = [
+    /(?:ate|eat|eating|had|consumed|tried|drank|drinking)\s+(?:some\s+)?(\w+(?:\s+\w+)?)/gi,
+    /(\w+)\s+(?:for\s+)?(?:breakfast|lunch|dinner|snack)/gi,
+  ];
+  
+  recentHistory.forEach(msg => {
+    if (msg.role !== 'user') return;
+    const content = msg.content.toLowerCase();
+    
+    foodPatterns.forEach(pattern => {
+      const matches = content.matchAll(pattern);
+      for (const match of matches) {
+        const item = match[1]?.trim();
+        if (item && item.length > 2 && item.length < 20) {
+          recentMentions.push(item);
+          pendingTrigger = item; // Last mentioned item is pending
+        }
+      }
+    });
+  });
+  
+  return { recentMentions: [...new Set(recentMentions)], pendingTrigger };
+}
+
+// Advanced trigger extraction from notes
 function extractTriggersFromNotes(entries: FlareEntry[]): Record<string, { count: number; severities: string[] }> {
   const potentialTriggers: Record<string, { count: number; severities: string[] }> = {};
   
@@ -224,7 +245,6 @@ function extractTriggersFromNotes(entries: FlareEntry[]): Record<string, { count
     /(?:after|during|while)\s+(\w+ing)/gi,
     /(?:exposure\s+to|exposed\s+to|around)\s+(\w+(?:\s+\w+)?)/gi,
     /(?:triggered\s+by|caused\s+by|because\s+of|due\s+to)\s+(\w+(?:\s+\w+)?)/gi,
-    /(?:woke\s+up\s+with|started\s+after|began\s+when)\s+(\w+(?:\s+\w+)?)/gi,
   ];
   
   const stopWords = ['the', 'and', 'some', 'lot', 'bit', 'too', 'much', 'very', 'really', 'today', 'yesterday', 'just', 'like', 'been', 'have', 'had', 'was', 'were', 'that', 'this', 'with'];
@@ -265,7 +285,6 @@ function extractTriggersFromNotes(entries: FlareEntry[]): Record<string, { count
   return potentialTriggers;
 }
 
-// Analyze user's history for patterns
 function analyzeUserHistory(entries: FlareEntry[], conditions: string[]) {
   if (entries.length === 0) return null;
   
@@ -293,6 +312,7 @@ function analyzeUserHistory(entries: FlareEntry[], conditions: string[]) {
     }
   });
   
+  // Also extract triggers from notes
   const noteTriggers = extractTriggersFromNotes(last30Days);
   Object.entries(noteTriggers).forEach(([trigger, data]) => {
     if (data.count >= 2) {
@@ -350,7 +370,6 @@ function analyzeUserHistory(entries: FlareEntry[], conditions: string[]) {
   };
 }
 
-// Detect if user needs weather info - now much more aggressive
 function needsWeatherInfo(message: string): boolean {
   const lower = message.toLowerCase();
   const weatherKeywords = [
@@ -362,9 +381,20 @@ function needsWeatherInfo(message: string): boolean {
   return weatherKeywords.some(kw => lower.includes(kw));
 }
 
-// Classify user message intent
 function classifyIntent(message: string): { type: string; confidence: number; extractedData: any } {
   const lower = message.toLowerCase();
+  
+  // Food/consumption patterns - important for trigger tracking
+  const foodPatterns = [
+    /(?:ate|eat|eating|had|consumed|tried|drank|drinking)\s+(\w+)/i,
+  ];
+  
+  for (const pattern of foodPatterns) {
+    const match = lower.match(pattern);
+    if (match) {
+      return { type: 'food_log', confidence: 0.9, extractedData: { food: match[1] } };
+    }
+  }
   
   // Positive/wellness patterns
   const positivePatterns = [
@@ -430,7 +460,7 @@ function classifyIntent(message: string): { type: string; confidence: number; ex
       else if (/(mild|slight|little|bit)/i.test(lower)) severity = 'mild';
       
       const symptoms: string[] = [];
-      const symptomList = ['headache', 'migraine', 'nausea', 'dizziness', 'fatigue', 'pain', 'cramping', 'brain fog'];
+      const symptomList = ['headache', 'migraine', 'nausea', 'dizziness', 'fatigue', 'pain', 'cramping', 'brain fog', 'loss of appetite'];
       symptomList.forEach(s => {
         if (lower.includes(s)) symptoms.push(s);
       });
@@ -443,7 +473,7 @@ function classifyIntent(message: string): { type: string; confidence: number; ex
     }
   }
   
-  // Travel query - needs weather
+  // Travel query
   if (needsWeatherInfo(message)) {
     return { type: 'travel_query', confidence: 0.9, extractedData: {} };
   }
@@ -481,30 +511,37 @@ serve(async (req) => {
 
     console.log('💬 Smart assistant message:', message);
     console.log('📍 User conditions:', userContext.conditions);
-    console.log('📍 User location:', userContext.currentLocation);
     
-    // Classify the intent first
+    // Extract conversation context for trigger detection
+    const conversationContext = extractPotentialTriggers(history || []);
+    console.log('🔍 Conversation context:', conversationContext);
+    
+    // Classify the intent
     const intent = classifyIntent(message);
     console.log('🎯 Detected intent:', intent.type, 'confidence:', intent.confidence);
     
-    // Analyze the user's history
+    // If user is reporting a symptom and we have a pending trigger, link them
+    let linkedTrigger: string | undefined;
+    if ((intent.type === 'flare' || message.toLowerCase().includes('symptom')) && conversationContext.pendingTrigger) {
+      linkedTrigger = conversationContext.pendingTrigger;
+      console.log('🔗 Linking symptom to potential trigger:', linkedTrigger);
+    }
+    
+    // Analyze user's history
     const userAnalysis = analyzeUserHistory(userContext.recentEntries || [], userContext.conditions || []);
     
-    // ALWAYS try to extract location and get weather for travel queries
+    // Get weather data
     let weatherData = null;
     let weatherLocation = '';
     let targetDate = '';
     
-    // First check for destination in message
     const locationInfo = extractLocationFromMessage(message);
     if (locationInfo) {
       console.log('🌍 Extracted location:', locationInfo.location, 'Date:', locationInfo.date);
       weatherData = await getWeather(locationInfo.location, locationInfo.date);
       weatherLocation = locationInfo.location;
       targetDate = locationInfo.date || '';
-    } 
-    // If message seems to need weather but no location, use current location
-    else if (needsWeatherInfo(message) && userContext.currentLocation) {
+    } else if (needsWeatherInfo(message) && userContext.currentLocation) {
       const query = userContext.currentLocation.city || 
         `${userContext.currentLocation.latitude},${userContext.currentLocation.longitude}`;
       console.log('🌍 Using current location for weather:', query);
@@ -512,7 +549,7 @@ serve(async (req) => {
       weatherLocation = userContext.currentLocation.city || 'your current location';
     }
     
-    // Build weather info string
+    // Build weather info
     let weatherInfo = '';
     let weatherCard = null;
     if (weatherData) {
@@ -522,7 +559,6 @@ serve(async (req) => {
       const targetDay = weatherData.targetDayForecast?.day;
       const aqi = current?.air_quality;
       
-      // Build weather card data for frontend
       weatherCard = {
         location: weatherData.location?.name || weatherLocation,
         country: weatherData.location?.country,
@@ -575,7 +611,7 @@ Tomorrow's Forecast:
 - Condition: ${tomorrow?.condition?.text || 'Unknown'}
 - High: ${tomorrow?.maxtemp_f || 'Unknown'}°F, Low: ${tomorrow?.mintemp_f || 'Unknown'}°F
 
-CRITICAL: You HAVE this weather data. Use specific numbers in your response. Compare these conditions to the user's known triggers.`;
+CRITICAL: Use specific numbers from this data in your response.`;
     }
     
     // Build medication info
@@ -586,82 +622,84 @@ USER'S MEDICATIONS:
 ${userContext.medications.map(m => `- ${m.name}${m.dosage ? ` (${m.dosage})` : ''}${m.frequency ? ` - ${m.frequency}` : ''}${m.notes ? ` - Notes: ${m.notes}` : ''}`).join('\n')}`;
     }
     
-    // Build trigger summary - be specific, never say "none identified"
+    // Build trigger summary - be specific
     const triggerSummary = userAnalysis?.topTriggers?.length 
       ? userAnalysis.topTriggers.map(t => `${t.name} (${t.count}x)`).join(', ')
-      : 'No explicit triggers logged yet, but analyzing patterns from notes';
+      : 'Tracking patterns from notes...';
     
     const symptomSummary = userAnalysis?.topSymptoms?.length
       ? userAnalysis.topSymptoms.map(s => `${s.name} (${s.count}x)`).join(', ')
-      : 'Track more entries to identify patterns';
+      : 'Building symptom patterns...';
       
     const weatherSummary = userAnalysis?.weatherTriggers?.length
       ? userAnalysis.weatherTriggers.map(w => `${w.condition} (${w.count}x)`).join(', ')
-      : 'Weather patterns building';
+      : 'Analyzing weather correlations...';
     
     // Build context-aware system prompt
-    const systemPrompt = `You are Jvala, an intelligent health companion with REAL DATA about this specific user. You are warm, caring, and knowledgeable.
+    const systemPrompt = `You are Jvala, a smart health companion with REAL DATA about this user. Be warm, caring, and data-driven.
 
 CRITICAL RULES:
-1. NEVER say "still gathering data", "None identified yet", or similar vague phrases
-2. If weather data is provided, YOU MUST use specific numbers (e.g., "72°F, 65% humidity")
-3. Be PROACTIVE - if you see concerning patterns, mention them
+1. NEVER say "still gathering data", "None identified yet", "no data available"
+2. When weather data is provided, USE SPECIFIC NUMBERS (e.g., "72°F, 65% humidity")
+3. Be PROACTIVE about concerning patterns
 4. Keep responses SHORT (2-4 sentences) unless it's a detailed query
-5. For travel/weather queries with weather data, give specific forecasts and compare to their triggers
-6. Be warm and supportive, like a knowledgeable friend
+5. For food logs, note what they ate and ask how they're feeling
+6. When symptoms follow food mentions in conversation, LINK THEM as potential triggers
 
 USER'S HEALTH PROFILE:
-- Conditions: ${userContext.conditions?.length ? userContext.conditions.join(', ') : 'Not specified'}
-- Known symptoms: ${userContext.knownSymptoms?.join(', ') || 'Not specified'}
-- Known triggers: ${userContext.knownTriggers?.join(', ') || 'Not specified'}
+- Conditions: ${userContext.conditions?.length ? userContext.conditions.join(', ') : 'General health tracking'}
+- Known symptoms: ${userContext.knownSymptoms?.join(', ') || 'Building profile...'}
+- Known triggers: ${userContext.knownTriggers?.join(', ') || 'Analyzing patterns...'}
 ${medicationInfo}
 
-USER'S FLARE HISTORY ANALYSIS (${userAnalysis?.totalFlares || 0} entries analyzed):
+CONVERSATION CONTEXT:
+- Recently mentioned foods/activities: ${conversationContext.recentMentions.join(', ') || 'None'}
+${linkedTrigger ? `- IMPORTANT: User mentioned "${linkedTrigger}" recently and now has symptoms. This should be logged as a potential trigger!` : ''}
+
+USER'S FLARE HISTORY (${userAnalysis?.totalFlares || 0} entries):
 ${userAnalysis ? `
 - Total entries: ${userAnalysis.totalFlares}
-- Severe flares: ${userAnalysis.severePercentage}% of total
-- Peak flare time: ${userAnalysis.peakTime}
-- Top triggers from data: ${triggerSummary}
+- Severe flares: ${userAnalysis.severePercentage}%
+- Peak time: ${userAnalysis.peakTime}
+- Top triggers: ${triggerSummary}
 - Top symptoms: ${symptomSummary}
 - Weather correlations: ${weatherSummary}
 
-THIS WEEK (last 7 days):
+THIS WEEK:
 - Flares: ${userAnalysis.weekSummary.totalFlares}
 - Severe: ${userAnalysis.weekSummary.severeCount}
-- Medication logs: ${userAnalysis.weekSummary.medicationLogs}
-- Wellness logs: ${userAnalysis.weekSummary.wellnessLogs}
-${userAnalysis.weekSummary.totalFlares > 10 ? '\n⚠️ HIGH FLARE ACTIVITY this week - consider mentioning this concern' : ''}
-` : 'First-time user - welcome them warmly!'}
+- Medications: ${userAnalysis.weekSummary.medicationLogs}
+- Wellness: ${userAnalysis.weekSummary.wellnessLogs}
+` : 'First-time user - welcome them!'}
 
 ${weatherInfo}
 
-DETECTED USER INTENT: ${intent.type} (confidence: ${intent.confidence})
+DETECTED INTENT: ${intent.type} (confidence: ${intent.confidence})
+${intent.extractedData?.food ? `FOOD MENTIONED: ${intent.extractedData.food}` : ''}
 
-TRAVEL/WEATHER RESPONSE RULES:
-If user asks about traveling somewhere:
-1. ALWAYS use the specific weather data provided above with numbers
-2. Compare destination conditions to their known triggers (humidity, conditions, etc.)
-3. Give specific, actionable tips based on the forecast
-4. If high altitude mentioned, warn about altitude effects on their condition
-
-RESPONSE FORMAT (MUST be valid JSON):
+RESPONSE FORMAT (valid JSON):
 {
-  "response": "Your personalized, data-backed response here",
+  "response": "Your personalized response",
   "isAIGenerated": true,
   "dataUsed": ["weather_api", "flare_history", "user_profile"],
   "weatherUsed": ${weatherData ? 'true' : 'false'},
   "shouldLog": true/false,
-  "entryData": { "type": "flare|medication|wellness|energy", "severity": "mild|moderate|severe", "energyLevel": "low|moderate|high|good" } or null
+  "entryData": { 
+    "type": "flare|medication|wellness|energy", 
+    "severity": "mild|moderate|severe", 
+    "energyLevel": "low|moderate|high|good",
+    "triggers": ["trigger1", "trigger2"],
+    "symptoms": ["symptom1"]
+  } or null
 }
 
-DO NOT include suggestedFollowUp in your response. The user controls the conversation.
-
 LOGGING RULES:
-- "feeling good/great/better" → shouldLog: true, entryData: { type: "wellness", energyLevel: "good" }
-- "took medication/meds" → shouldLog: true, entryData: { type: "medication" }
-- "low energy/tired" → shouldLog: true, entryData: { type: "energy", energyLevel: "low" }
-- Symptom mentions → shouldLog: true, entryData: { type: "flare", severity: based on words }
-- Questions/queries → shouldLog: false`;
+- Food mentions → shouldLog: false (just note it, don't log yet)
+- "feeling good/great/better" → shouldLog: true, type: "wellness"
+- "took medication/meds" → shouldLog: true, type: "medication"
+- "low energy/tired" → shouldLog: true, type: "energy"
+- Symptom with recent food mention → shouldLog: true, type: "flare", triggers: [the food]${linkedTrigger ? `, include "${linkedTrigger}" in triggers!` : ''}
+- Questions → shouldLog: false`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -722,6 +760,15 @@ LOGGING RULES:
           const parsed = JSON.parse(jsonMatch[0]);
           console.log('✅ Smart response:', parsed.response?.substring(0, 100));
           
+          // If we detected a linked trigger, ensure it's in the entry data
+          let entryData = parsed.entryData;
+          if (linkedTrigger && entryData && entryData.type === 'flare') {
+            entryData.triggers = entryData.triggers || [];
+            if (!entryData.triggers.includes(linkedTrigger)) {
+              entryData.triggers.push(linkedTrigger);
+            }
+          }
+          
           return new Response(JSON.stringify({
             response: parsed.response || "I need more context to help with that.",
             isAIGenerated: true,
@@ -729,7 +776,7 @@ LOGGING RULES:
             weatherUsed: weatherData ? true : false,
             weatherCard: weatherCard,
             shouldLog: parsed.shouldLog || false,
-            entryData: parsed.entryData || null,
+            entryData: entryData,
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
