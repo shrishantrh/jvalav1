@@ -161,6 +161,16 @@ All colors MUST be HSL for proper theming.
 }
 
 @layer utilities {
+  /* Hide scrollbars */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
   /* Smooth transitions */
   .transition-smooth {
     transition: var(--transition-smooth);
