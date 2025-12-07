@@ -662,16 +662,13 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
 
   return (
     <div className="flex flex-col h-[520px] bg-gradient-card rounded-xl overflow-hidden">
-      {/* Header with location */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border/30">
-        <span className="text-sm font-medium text-foreground">How are you feeling?</span>
-        {currentLocation?.city && (
-          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-            <MapPin className="w-2.5 h-2.5" />
-            <span>{currentLocation.city}</span>
-          </div>
-        )}
-      </div>
+      {/* Location indicator at top */}
+      {currentLocation?.city && (
+        <div className="flex items-center justify-end gap-1 px-3 py-1.5 text-[10px] text-muted-foreground border-b border-border/20">
+          <MapPin className="w-2.5 h-2.5" />
+          <span>{currentLocation.city}</span>
+        </div>
+      )}
       
       {/* Messages - scrollable container with hidden scrollbar */}
       <div 
