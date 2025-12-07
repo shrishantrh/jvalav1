@@ -15,7 +15,6 @@ import { useToast } from "@/hooks/use-toast";
 import { ReminderSettings } from "@/components/profile/ReminderSettings";
 
 export default function Settings() {
-  const [isDarkMode, setIsDarkMode] = useState<boolean | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
@@ -26,20 +25,14 @@ export default function Settings() {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
 
-  // Load theme from localStorage on mount - only once
-  useEffect(() => {
+  // Initialize dark mode state from localStorage WITHOUT modifying it
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const savedTheme = localStorage.getItem('jvala-theme');
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const shouldBeDark = savedTheme === 'dark' || (savedTheme === null && systemPrefersDark);
-    
-    setIsDarkMode(shouldBeDark);
-    
-    if (shouldBeDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, []);
+    if (savedTheme === 'dark') return true;
+    if (savedTheme === 'light') return false;
+    // Check system preference only if no saved theme
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
 
   // Load user settings
   useEffect(() => {
@@ -153,11 +146,6 @@ export default function Settings() {
   };
 
   const needsAcceptance = !termsAccepted || !privacyAccepted;
-
-  // Don't render toggle until we know the actual state
-  if (isDarkMode === null) {
-    return null;
-  }
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
