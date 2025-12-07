@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ReminderSettings } from "@/components/profile/ReminderSettings";
 
 export default function Settings() {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState<boolean | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
@@ -26,17 +26,26 @@ export default function Settings() {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
 
+  // Load theme from localStorage on mount - only once
   useEffect(() => {
-    // Check system preference and saved preference
     const savedTheme = localStorage.getItem('jvala-theme');
     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const shouldBeDark = savedTheme === 'dark' || (savedTheme === null && systemPrefersDark);
     
-    if (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) {
-      setIsDarkMode(true);
+    setIsDarkMode(shouldBeDark);
+    
+    if (shouldBeDark) {
       document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
     }
+  }, []);
 
-    loadUserSettings();
+  // Load user settings
+  useEffect(() => {
+    if (user) {
+      loadUserSettings();
+    }
   }, [user]);
 
   const loadUserSettings = async () => {
@@ -62,8 +71,7 @@ export default function Settings() {
     }
   };
 
-  const toggleDarkMode = () => {
-    const newMode = !isDarkMode;
+  const toggleDarkMode = (newMode: boolean) => {
     setIsDarkMode(newMode);
     
     if (newMode) {
@@ -145,6 +153,11 @@ export default function Settings() {
   };
 
   const needsAcceptance = !termsAccepted || !privacyAccepted;
+
+  // Don't render toggle until we know the actual state
+  if (isDarkMode === null) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -241,7 +254,7 @@ export default function Settings() {
                 <DialogContent className="max-w-md max-h-[80vh]">
                   <DialogHeader>
                     <DialogTitle>Terms of Service</DialogTitle>
-                    <DialogDescription>Last updated: November 2024</DialogDescription>
+                    <DialogDescription>Last updated: December 2024</DialogDescription>
                   </DialogHeader>
                   <ScrollArea className="h-[50vh] pr-4">
                     <div className="text-sm space-y-4">
@@ -354,7 +367,7 @@ export default function Settings() {
                 <DialogContent className="max-w-md max-h-[80vh]">
                   <DialogHeader>
                     <DialogTitle>Privacy Policy</DialogTitle>
-                    <DialogDescription>Last updated: November 2024</DialogDescription>
+                    <DialogDescription>Last updated: December 2024</DialogDescription>
                   </DialogHeader>
                   <ScrollArea className="h-[50vh] pr-4">
                     <div className="text-sm space-y-4">
@@ -402,61 +415,29 @@ export default function Settings() {
                       <section>
                         <h3 className="font-semibold mb-2">4. Data Sharing</h3>
                         <p className="text-muted-foreground">
-                          We do NOT sell your personal health data. Data may be shared:
+                          We never sell your personal health data. We may share data only when:
                         </p>
                         <p className="text-muted-foreground mt-2">
-                          • With healthcare providers you explicitly authorize<br/>
-                          • In anonymized, aggregated form for research<br/>
-                          • As required by law or legal process<br/>
-                          • With service providers under strict data protection agreements
+                          • You explicitly request it (e.g., exporting to your doctor)<br/>
+                          • Required by law<br/>
+                          • Necessary for service providers under confidentiality agreements
                         </p>
                       </section>
                       <section>
-                        <h3 className="font-semibold mb-2">5. Community Data</h3>
-                        <p className="text-muted-foreground">
-                          Anonymized and aggregated data may be used to show community health trends 
-                          (e.g., flare hotspots). Individual users cannot be identified from this data.
-                        </p>
-                      </section>
-                      <section>
-                        <h3 className="font-semibold mb-2">6. Your Rights</h3>
+                        <h3 className="font-semibold mb-2">5. Your Rights</h3>
                         <p className="text-muted-foreground">
                           You have the right to:<br/>
-                          • Access all your personal data<br/>
+                          • Access all your data<br/>
                           • Export your data in standard formats<br/>
-                          • Request data deletion<br/>
-                          • Opt out of non-essential data collection<br/>
-                          • Withdraw consent at any time
+                          • Correct any inaccuracies<br/>
+                          • Delete your account and all associated data<br/>
+                          • Opt out of non-essential data processing
                         </p>
                       </section>
                       <section>
-                        <h3 className="font-semibold mb-2">7. Data Retention</h3>
+                        <h3 className="font-semibold mb-2">6. Contact</h3>
                         <p className="text-muted-foreground">
-                          Your data is retained as long as your account is active. Upon account deletion, 
-                          personal data is removed within 30 days. Anonymized data may be retained for research.
-                        </p>
-                      </section>
-                      <section>
-                        <h3 className="font-semibold mb-2">8. Third-Party Services</h3>
-                        <p className="text-muted-foreground">
-                          We use trusted third-party services:<br/>
-                          • Supabase (database and authentication)<br/>
-                          • Google Gemini (AI insights - no PII sent)<br/>
-                          • Weather APIs (using approximate location only)<br/>
-                          • Resend (email notifications)
-                        </p>
-                      </section>
-                      <section>
-                        <h3 className="font-semibold mb-2">9. Children's Privacy</h3>
-                        <p className="text-muted-foreground">
-                          Jvala is not intended for users under 13. We do not knowingly collect 
-                          data from children under 13.
-                        </p>
-                      </section>
-                      <section>
-                        <h3 className="font-semibold mb-2">10. Contact</h3>
-                        <p className="text-muted-foreground">
-                          For privacy concerns, contact our Data Protection Officer at privacy@jvala.tech
+                          For privacy concerns, contact us at privacy@jvala.tech
                         </p>
                       </section>
                     </div>
@@ -484,22 +465,17 @@ export default function Settings() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Account</CardTitle>
+            {userEmail && (
+              <CardDescription className="text-xs">{userEmail}</CardDescription>
+            )}
           </CardHeader>
           <CardContent>
-            <Button 
-              variant="destructive" 
-              onClick={handleSignOut}
-              className="w-full"
-            >
+            <Button variant="destructive" onClick={handleSignOut} className="w-full">
               <LogOut className="w-4 h-4 mr-2" />
               Sign Out
             </Button>
           </CardContent>
         </Card>
-
-        <p className="text-center text-xs text-muted-foreground py-4">
-          Jvala v1.0 • Made with 💜 for better health tracking
-        </p>
       </main>
     </div>
   );

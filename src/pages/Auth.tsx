@@ -4,8 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Activity, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import jvalaLogo from "@/assets/jvala-logo.png";
 
 const Auth = () => {
@@ -13,6 +16,10 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -34,12 +41,22 @@ const Auth = () => {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (isSignUp && (!termsAccepted || !privacyAccepted)) {
+      toast({
+        title: "Please accept the terms",
+        description: "You must accept the Terms of Service and Privacy Policy to create an account.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setLoading(true);
 
     try {
       if (isSignUp) {
         const redirectUrl = `${window.location.origin}/`;
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -48,6 +65,18 @@ const Auth = () => {
         });
 
         if (error) throw error;
+
+        // Save terms acceptance to profile metadata
+        if (data.user) {
+          await supabase.from('profiles').update({
+            metadata: {
+              terms_accepted: true,
+              terms_accepted_at: new Date().toISOString(),
+              privacy_accepted: true,
+              privacy_accepted_at: new Date().toISOString(),
+            }
+          }).eq('id', data.user.id);
+        }
 
         toast({
           title: "Success!",
@@ -132,11 +161,58 @@ const Auth = () => {
             )}
           </div>
 
+          {/* Terms and Privacy for Sign Up */}
+          {isSignUp && (
+            <div className="space-y-3 p-4 bg-muted/30 rounded-xl">
+              <p className="text-xs font-medium text-foreground">By creating an account, you agree to:</p>
+              
+              <div className="flex items-start gap-3">
+                <Checkbox 
+                  id="terms" 
+                  checked={termsAccepted}
+                  onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+                />
+                <div className="flex-1">
+                  <label htmlFor="terms" className="text-sm cursor-pointer">
+                    <button 
+                      type="button"
+                      onClick={() => setShowTerms(true)} 
+                      className="text-primary hover:underline font-medium"
+                    >
+                      Terms of Service
+                    </button>
+                    <span className="text-muted-foreground"> *</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <Checkbox 
+                  id="privacy" 
+                  checked={privacyAccepted}
+                  onCheckedChange={(checked) => setPrivacyAccepted(checked === true)}
+                />
+                <div className="flex-1">
+                  <label htmlFor="privacy" className="text-sm cursor-pointer">
+                    <button 
+                      type="button"
+                      onClick={() => setShowPrivacy(true)} 
+                      className="text-primary hover:underline font-medium"
+                    >
+                      Privacy Policy
+                    </button>
+                    <span className="text-muted-foreground"> *</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+
           <Button
             type="submit"
             className="w-full mt-6"
             size="lg"
-            disabled={loading}
+            disabled={loading || (isSignUp && (!termsAccepted || !privacyAccepted))}
           >
             {loading ? (
               <>
@@ -151,7 +227,11 @@ const Auth = () => {
 
         <div className="mt-6 text-center">
           <button
-            onClick={() => setIsSignUp(!isSignUp)}
+            onClick={() => {
+              setIsSignUp(!isSignUp);
+              setTermsAccepted(false);
+              setPrivacyAccepted(false);
+            }}
             className="text-sm text-primary hover:underline font-clinical transition-all"
             disabled={loading}
           >
@@ -161,6 +241,160 @@ const Auth = () => {
           </button>
         </div>
       </Card>
+
+      {/* Terms Dialog */}
+      <Dialog open={showTerms} onOpenChange={setShowTerms}>
+        <DialogContent className="max-w-md max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Terms of Service</DialogTitle>
+            <DialogDescription>Last updated: December 2024</DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="h-[50vh] pr-4">
+            <div className="text-sm space-y-4">
+              <section>
+                <h3 className="font-semibold mb-2">1. Acceptance of Terms</h3>
+                <p className="text-muted-foreground">
+                  By accessing or using Jvala ("the App"), you agree to be bound by these Terms of Service. 
+                  If you do not agree, do not use the App.
+                </p>
+              </section>
+              <section>
+                <h3 className="font-semibold mb-2">2. Description of Service</h3>
+                <p className="text-muted-foreground">
+                  Jvala is a personal health tracking application designed to help users monitor symptoms, 
+                  triggers, and health patterns. The App is NOT a medical device and should NOT be used 
+                  for medical diagnosis or treatment decisions.
+                </p>
+              </section>
+              <section>
+                <h3 className="font-semibold mb-2">3. Medical Disclaimer</h3>
+                <p className="text-muted-foreground">
+                  <strong>IMPORTANT:</strong> Jvala does not provide medical advice. The information and 
+                  insights generated by the App are for informational purposes only. Always consult with 
+                  qualified healthcare professionals for medical decisions. Never disregard professional 
+                  medical advice or delay seeking it because of information from the App.
+                </p>
+              </section>
+              <section>
+                <h3 className="font-semibold mb-2">4. AI-Generated Content</h3>
+                <p className="text-muted-foreground">
+                  The App uses artificial intelligence to generate insights and suggestions. AI-generated 
+                  content may contain errors or inaccuracies. Users should verify any AI-generated information 
+                  before acting on it, especially regarding health decisions.
+                </p>
+              </section>
+              <section>
+                <h3 className="font-semibold mb-2">5. User Responsibilities</h3>
+                <p className="text-muted-foreground">
+                  You are responsible for maintaining the confidentiality of your account and for all 
+                  activities that occur under your account. You agree to provide accurate information 
+                  and to use the App in compliance with all applicable laws.
+                </p>
+              </section>
+              <section>
+                <h3 className="font-semibold mb-2">6. Data Accuracy</h3>
+                <p className="text-muted-foreground">
+                  The accuracy of insights depends on the data you provide. Jvala is not responsible 
+                  for conclusions drawn from incomplete or inaccurate data entry.
+                </p>
+              </section>
+              <section>
+                <h3 className="font-semibold mb-2">7. Limitation of Liability</h3>
+                <p className="text-muted-foreground">
+                  To the maximum extent permitted by law, Jvala shall not be liable for any indirect, 
+                  incidental, special, consequential, or punitive damages, including but not limited to 
+                  loss of health, well-being, or any other damages arising from use of the App.
+                </p>
+              </section>
+              <section>
+                <h3 className="font-semibold mb-2">8. Changes to Terms</h3>
+                <p className="text-muted-foreground">
+                  We reserve the right to modify these terms at any time. Continued use of the App 
+                  after changes constitutes acceptance of the modified terms.
+                </p>
+              </section>
+              <section>
+                <h3 className="font-semibold mb-2">9. Contact</h3>
+                <p className="text-muted-foreground">
+                  For questions about these Terms, contact us at support@jvala.tech
+                </p>
+              </section>
+            </div>
+          </ScrollArea>
+          <Button onClick={() => { setTermsAccepted(true); setShowTerms(false); }} className="w-full">
+            I Accept
+          </Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* Privacy Dialog */}
+      <Dialog open={showPrivacy} onOpenChange={setShowPrivacy}>
+        <DialogContent className="max-w-md max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Privacy Policy</DialogTitle>
+            <DialogDescription>Last updated: December 2024</DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="h-[50vh] pr-4">
+            <div className="text-sm space-y-4">
+              <section>
+                <h3 className="font-semibold mb-2">1. Information We Collect</h3>
+                <p className="text-muted-foreground">
+                  <strong>Account Information:</strong> Email address, name (optional), and profile preferences.
+                </p>
+                <p className="text-muted-foreground mt-2">
+                  <strong>Health Data:</strong> Symptom logs, severity ratings, triggers, medications, 
+                  and any notes you enter. This data is encrypted and stored securely.
+                </p>
+                <p className="text-muted-foreground mt-2">
+                  <strong>Location Data:</strong> City-level location (optional) for environmental 
+                  correlation analysis. We do NOT collect precise GPS coordinates.
+                </p>
+              </section>
+              <section>
+                <h3 className="font-semibold mb-2">2. How We Use Your Data</h3>
+                <p className="text-muted-foreground">
+                  • To provide personalized health tracking and insights<br/>
+                  • To generate AI-powered pattern analysis<br/>
+                  • To enable data export for healthcare providers<br/>
+                  • To improve our services (anonymized data only)<br/>
+                  • To send reminders if you've opted in
+                </p>
+              </section>
+              <section>
+                <h3 className="font-semibold mb-2">3. Data Security</h3>
+                <p className="text-muted-foreground">
+                  Your health data is encrypted at rest and in transit. We use industry-standard 
+                  security measures including AES-256 encryption, TLS 1.3, and row-level security policies.
+                </p>
+              </section>
+              <section>
+                <h3 className="font-semibold mb-2">4. Data Sharing</h3>
+                <p className="text-muted-foreground">
+                  We never sell your data. We only share data with third parties when: you explicitly 
+                  request it (e.g., exporting to your doctor), required by law, or necessary for 
+                  essential service providers under strict confidentiality agreements.
+                </p>
+              </section>
+              <section>
+                <h3 className="font-semibold mb-2">5. Your Rights</h3>
+                <p className="text-muted-foreground">
+                  You have the right to: access your data, export your data, correct inaccuracies, 
+                  delete your account and all data, and opt out of non-essential data processing.
+                </p>
+              </section>
+              <section>
+                <h3 className="font-semibold mb-2">6. Contact</h3>
+                <p className="text-muted-foreground">
+                  For privacy concerns, contact privacy@jvala.tech
+                </p>
+              </section>
+            </div>
+          </ScrollArea>
+          <Button onClick={() => { setPrivacyAccepted(true); setShowPrivacy(false); }} className="w-full">
+            I Accept
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
