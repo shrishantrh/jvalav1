@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { supabase } from "@/integrations/supabase/client";
 
 interface LocationData {
   latitude: number;
@@ -42,7 +43,11 @@ export const useLocationWeatherData = () => {
     setError(null);
 
     try {
-      // Get location
+      // Get real location from browser
+      if (!navigator.geolocation) {
+        throw new Error('Geolocation not supported');
+      }
+
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, {
           enableHighAccuracy: true,
@@ -53,39 +58,26 @@ export const useLocationWeatherData = () => {
 
       const { latitude, longitude } = position.coords;
       
-      // For demo purposes, we'll simulate API calls since we don't have real API keys
-      // In a real app, you'd integrate with services like OpenWeatherMap, etc.
-      
-      const locationData: LocationData = {
-        latitude,
-        longitude,
-        address: "Sample Address",
-        city: "Sample City",
-        country: "Sample Country"
-      };
+      // Call the real weather API
+      const { data, error: apiError } = await supabase.functions.invoke('get-weather', {
+        body: { latitude, longitude }
+      });
 
-      // Simulate weather data (normally from OpenWeatherMap API)
-      const weatherData: WeatherData = {
-        temperature: Math.round(15 + Math.random() * 20), // 15-35°C
-        humidity: Math.round(30 + Math.random() * 50), // 30-80%
-        pressure: Math.round(1000 + Math.random() * 50), // 1000-1050 hPa
-        condition: ['sunny', 'cloudy', 'rainy', 'partly-cloudy'][Math.floor(Math.random() * 4)],
-        windSpeed: Math.round(Math.random() * 20) // 0-20 km/h
-      };
+      if (apiError) {
+        throw new Error(apiError.message || 'Weather API error');
+      }
 
-      // Simulate air quality data (normally from AirNow or similar API)
-      const airQualityData: AirQualityData = {
-        pollen: Math.round(Math.random() * 100), // 0-100 scale
-        pollutants: Math.round(Math.random() * 150), // 0-150 AQI
-        aqi: Math.round(50 + Math.random() * 100) // 50-150 AQI
-      };
-
-      setLocation(locationData);
-      setWeather(weatherData);
-      setAirQuality(airQualityData);
-    } catch (err) {
-      setError('Failed to collect environmental data');
+      if (data) {
+        setLocation(data.location);
+        setWeather(data.weather);
+        setAirQuality(data.airQuality);
+      }
+    } catch (err: any) {
+      const errorMessage = err?.message || 'Failed to collect environmental data';
+      setError(errorMessage);
       console.error('Environmental data collection error:', err);
+      
+      // Don't set fake data - just leave as null so UI can handle it
     } finally {
       setLoading(false);
     }
@@ -93,17 +85,18 @@ export const useLocationWeatherData = () => {
 
   const getPhysiologicalData = () => {
     // Simulate physiological data (normally from health apps/devices)
+    // TODO: Integrate with HealthKit / Google Fit when available
     return {
-      heartRate: Math.round(60 + Math.random() * 40), // 60-100 bpm
-      heartRateVariability: Math.round(20 + Math.random() * 80), // 20-100 ms
+      heartRate: Math.round(60 + Math.random() * 40),
+      heartRateVariability: Math.round(20 + Math.random() * 80),
       bloodPressure: {
-        systolic: Math.round(110 + Math.random() * 30), // 110-140
-        diastolic: Math.round(70 + Math.random() * 20)  // 70-90
+        systolic: Math.round(110 + Math.random() * 30),
+        diastolic: Math.round(70 + Math.random() * 20)
       },
-      sleepHours: Math.round((6 + Math.random() * 3) * 10) / 10, // 6-9 hours
+      sleepHours: Math.round((6 + Math.random() * 3) * 10) / 10,
       sleepQuality: (['poor', 'fair', 'good', 'excellent'] as const)[Math.floor(Math.random() * 4)],
-      stressLevel: Math.round(1 + Math.random() * 9), // 1-10
-      steps: Math.round(3000 + Math.random() * 12000) // 3000-15000 steps
+      stressLevel: Math.round(1 + Math.random() * 9),
+      steps: Math.round(3000 + Math.random() * 12000)
     };
   };
 
