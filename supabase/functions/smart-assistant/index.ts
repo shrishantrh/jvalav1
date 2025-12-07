@@ -464,6 +464,23 @@ function isUpdateIntent(message: string, history: Array<{ role: string; content:
 function classifyIntent(message: string, userContext?: UserContext): { type: string; confidence: number; extractedData: any } {
   const lower = message.toLowerCase();
   
+  // OFF-TOPIC DETECTION - reject non-health queries
+  const offTopicPatterns = [
+    /\b(?:write|code|program|script|python|javascript|java|c\+\+|html|css)\b/i,
+    /\b(?:calculate|compute|math|equation|algebra|calculus)\b/i,
+    /\b(?:recipe|cook|cooking|bake|baking)\b.*(?:how|make|prepare)/i,
+    /\b(?:tell me a joke|sing|poem|story|write a|create a)\b/i,
+    /\b(?:translate|translation)\b/i,
+    /\b(?:stock|crypto|bitcoin|investment|trading)\b/i,
+    /\b(?:game|gaming|play|movie|music|song|book)\b.*(?:recommend|suggest)/i,
+  ];
+  
+  for (const pattern of offTopicPatterns) {
+    if (pattern.test(lower)) {
+      return { type: 'off_topic', confidence: 0.99, extractedData: { reason: 'non-health-query' } };
+    }
+  }
+  
   // Flare analysis queries - expanded patterns
   if (/\b(?:how(?:'s| is| are)?|what(?:'s| is)?|show|tell|give|my)\b.*\b(?:flares?|symptoms?|week|month|data|history|patterns?|triggers?|progress)\b/i.test(lower) ||
       /\bpast (?:week|month|day|year)\b/i.test(lower) ||
@@ -581,6 +598,17 @@ serve(async (req) => {
     
     const intent = classifyIntent(message, userContext);
     console.log('🎯 Intent:', intent.type, intent.confidence);
+    
+    // Handle off-topic requests immediately
+    if (intent.type === 'off_topic') {
+      return new Response(JSON.stringify({
+        response: "I'm Jvala, your health tracking assistant. I can help with logging symptoms, tracking flares, checking weather for your activities, and analyzing your health patterns. What would you like to do?",
+        isAIGenerated: false,
+        dataUsed: [],
+        shouldLog: false,
+        entryData: null,
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
     
     const conversationContext = extractConversationContext(history || []);
     

@@ -7,6 +7,7 @@ import { FlareEntry } from "@/types/flare";
 import { SmartTrack, SmartTrackRef } from "@/components/tracking/SmartTrack";
 import { DetailedEntry } from "@/components/DetailedEntry";
 import { CleanInsights } from "@/components/insights/CleanInsights";
+import { ProactiveRiskAlerts } from "@/components/insights/ProactiveRiskAlerts";
 import { CalendarHistory } from "@/components/history/CalendarHistory";
 import { FlareTimeline } from "@/components/flare/FlareTimeline";
 import { ProfileManager } from "@/components/profile/ProfileManager";
@@ -452,6 +453,15 @@ const Index = () => {
 
       {/* Content */}
       <main className="container max-w-md mx-auto px-4 pb-8 space-y-4">
+        {/* Proactive Risk Alerts */}
+        {currentView === 'track' && entries.length > 0 && (
+          <ProactiveRiskAlerts 
+            recentEntries={entries}
+            userTriggers={userProfile?.known_triggers || []}
+            userConditions={userProfile?.conditions || []}
+          />
+        )}
+        
         {/* Track View */}
         {currentView === 'track' && user && (
           <Card className="p-4 shadow-soft-lg bg-gradient-card border-0 animate-fade-in">
