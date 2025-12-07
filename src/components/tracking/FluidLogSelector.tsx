@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Smile, Pill, ChevronRight, X } from "lucide-react";
+import { Smile, Pill, ChevronRight, X, Zap, Heart, Activity, Moon, Coffee } from "lucide-react";
 
 interface MedicationDetails {
   name: string;
@@ -17,6 +17,8 @@ interface FluidLogSelectorProps {
   onLogSymptom: (symptom: string, severity: string) => void;
   onLogMedication: (medicationName: string) => void;
   onLogWellness: () => void;
+  onLogEnergy?: (level: 'low' | 'moderate' | 'high') => void;
+  onLogRecovery?: () => void;
   disabled?: boolean;
 }
 
@@ -31,20 +33,31 @@ const SEVERITIES = [
   { value: 'severe', label: 'Severe', color: 'bg-severity-severe' },
 ];
 
+const ENERGY_LEVELS = [
+  { value: 'low', label: 'Low', icon: Moon, color: 'text-severity-moderate' },
+  { value: 'moderate', label: 'OK', icon: Coffee, color: 'text-muted-foreground' },
+  { value: 'high', label: 'High', icon: Zap, color: 'text-severity-none' },
+];
+
+type ActivePanel = null | 'symptom' | 'medication' | 'energy';
+
 export const FluidLogSelector = ({
   userSymptoms,
   userMedications,
   onLogSymptom,
   onLogMedication,
   onLogWellness,
+  onLogEnergy,
+  onLogRecovery,
   disabled
 }: FluidLogSelectorProps) => {
   const [selectedSymptom, setSelectedSymptom] = useState<string | null>(null);
-  const [showMedications, setShowMedications] = useState(false);
+  const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   
   const allSymptoms = [...new Set([...userSymptoms, ...COMMON_SYMPTOMS])].slice(0, 9);
 
   const handleSymptomClick = (symptom: string) => {
+    setActivePanel(null);
     if (selectedSymptom === symptom) {
       setSelectedSymptom(null);
     } else {
@@ -61,7 +74,19 @@ export const FluidLogSelector = ({
 
   const handleMedicationClick = (medName: string) => {
     onLogMedication(medName);
-    setShowMedications(false);
+    setActivePanel(null);
+  };
+
+  const handleEnergyClick = (level: 'low' | 'moderate' | 'high') => {
+    if (onLogEnergy) {
+      onLogEnergy(level);
+    }
+    setActivePanel(null);
+  };
+
+  const closePanel = () => {
+    setActivePanel(null);
+    setSelectedSymptom(null);
   };
 
   // Severity selector overlay
@@ -74,7 +99,7 @@ export const FluidLogSelector = ({
             variant="ghost" 
             size="sm" 
             className="h-6 w-6 p-0"
-            onClick={() => setSelectedSymptom(null)}
+            onClick={closePanel}
           >
             <X className="w-3.5 h-3.5" />
           </Button>
@@ -103,8 +128,8 @@ export const FluidLogSelector = ({
     );
   }
 
-  // Medication selector
-  if (showMedications) {
+  // Medication selector panel
+  if (activePanel === 'medication') {
     return (
       <div className="animate-scale-in">
         <div className="flex items-center justify-between mb-2">
@@ -116,7 +141,7 @@ export const FluidLogSelector = ({
             variant="ghost" 
             size="sm" 
             className="h-6 w-6 p-0"
-            onClick={() => setShowMedications(false)}
+            onClick={closePanel}
           >
             <X className="w-3.5 h-3.5" />
           </Button>
@@ -144,15 +169,55 @@ export const FluidLogSelector = ({
     );
   }
 
+  // Energy selector panel
+  if (activePanel === 'energy') {
+    return (
+      <div className="animate-scale-in">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium flex items-center gap-1.5">
+            <Zap className="w-4 h-4" />
+            Energy Level
+          </span>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-6 w-6 p-0"
+            onClick={closePanel}
+          >
+            <X className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+        <div className="flex gap-2">
+          {ENERGY_LEVELS.map(level => {
+            const Icon = level.icon;
+            return (
+              <Button
+                key={level.value}
+                variant="outline"
+                size="sm"
+                onClick={() => handleEnergyClick(level.value as 'low' | 'moderate' | 'high')}
+                disabled={disabled}
+                className="flex-1 h-12 text-sm font-medium transition-all hover:scale-105"
+              >
+                <Icon className={cn("w-4 h-4 mr-1.5", level.color)} />
+                {level.label}
+              </Button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   // Main selector
   return (
     <div className="space-y-2">
-      {/* Quick actions row */}
-      <div className="flex gap-1.5">
+      {/* Quick actions row - all entry types */}
+      <div className="flex gap-1.5 flex-wrap">
         <Button
           variant="outline"
           size="sm"
-          className="h-8 text-xs flex-1 hover:bg-severity-none/20 hover:border-severity-none"
+          className="h-8 text-xs hover:bg-severity-none/20 hover:border-severity-none"
           onClick={onLogWellness}
           disabled={disabled}
         >
@@ -162,14 +227,37 @@ export const FluidLogSelector = ({
         <Button
           variant="outline"
           size="sm"
-          className="h-8 text-xs flex-1"
-          onClick={() => setShowMedications(true)}
+          className="h-8 text-xs"
+          onClick={() => setActivePanel('medication')}
           disabled={disabled}
         >
           <Pill className="w-3.5 h-3.5 mr-1" />
           Took meds
           <ChevronRight className="w-3 h-3 ml-1 opacity-50" />
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-xs"
+          onClick={() => setActivePanel('energy')}
+          disabled={disabled}
+        >
+          <Zap className="w-3.5 h-3.5 mr-1" />
+          Energy
+          <ChevronRight className="w-3 h-3 ml-1 opacity-50" />
+        </Button>
+        {onLogRecovery && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs hover:bg-primary/10 hover:border-primary"
+            onClick={onLogRecovery}
+            disabled={disabled}
+          >
+            <Heart className="w-3.5 h-3.5 mr-1 text-primary" />
+            Recovery
+          </Button>
+        )}
       </div>
       
       {/* Symptom chips - tap to select, then choose severity */}

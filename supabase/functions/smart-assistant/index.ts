@@ -35,8 +35,8 @@ interface UserContext {
   medications?: MedicationDetails[];
 }
 
-// Helper to get weather for a destination or current location
-async function getWeather(query: string): Promise<any> {
+// Helper to get weather for a destination with optional date
+async function getWeather(query: string, dateStr?: string): Promise<any> {
   const apiKey = Deno.env.get('WEATHER_API_KEY');
   if (!apiKey) {
     console.log('No WEATHER_API_KEY configured');
@@ -44,16 +44,32 @@ async function getWeather(query: string): Promise<any> {
   }
   
   try {
-    console.log('🌍 Fetching weather for:', query);
-    const response = await fetch(
-      `https://api.weatherapi.com/v1/forecast.json?key=${apiKey}&q=${encodeURIComponent(query)}&days=3&aqi=yes`
-    );
+    console.log('🌍 Fetching weather for:', query, dateStr ? `on ${dateStr}` : '');
+    
+    // If date is provided and in future, use forecast endpoint
+    let url = `https://api.weatherapi.com/v1/forecast.json?key=${apiKey}&q=${encodeURIComponent(query)}&days=14&aqi=yes`;
+    
+    const response = await fetch(url);
     if (!response.ok) {
       console.error('Weather API error:', response.status);
       return null;
     }
     const data = await response.json();
     console.log('✅ Weather data received for:', data.location?.name);
+    
+    // If specific date requested, find that day in forecast
+    if (dateStr && data.forecast?.forecastday) {
+      const targetDate = parseFutureDate(dateStr);
+      if (targetDate) {
+        const matchingDay = data.forecast.forecastday.find((day: any) => 
+          day.date === targetDate.toISOString().split('T')[0]
+        );
+        if (matchingDay) {
+          data.targetDayForecast = matchingDay;
+        }
+      }
+    }
+    
     return data;
   } catch (e) {
     console.error('Weather fetch error:', e);
@@ -61,13 +77,48 @@ async function getWeather(query: string): Promise<any> {
   }
 }
 
+// Parse dates like "Jan 10th", "tomorrow", "next week"
+function parseFutureDate(dateStr: string): Date | null {
+  const lower = dateStr.toLowerCase();
+  const now = new Date();
+  
+  if (lower.includes('tomorrow')) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + 1);
+    return d;
+  }
+  
+  if (lower.includes('next week')) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + 7);
+    return d;
+  }
+  
+  // Try parsing "Jan 10", "January 10th", etc.
+  const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+  for (let i = 0; i < monthNames.length; i++) {
+    const regex = new RegExp(`${monthNames[i]}\\w*\\s+(\\d{1,2})`, 'i');
+    const match = lower.match(regex);
+    if (match) {
+      const day = parseInt(match[1]);
+      const targetDate = new Date(now.getFullYear(), i, day);
+      // If date has passed this year, use next year
+      if (targetDate < now) {
+        targetDate.setFullYear(targetDate.getFullYear() + 1);
+      }
+      return targetDate;
+    }
+  }
+  
+  return null;
+}
+
 // Extract location mentions from message
-function extractLocationFromMessage(message: string): string | null {
+function extractLocationFromMessage(message: string): { location: string; date?: string } | null {
   const lower = message.toLowerCase();
   
   // Common city abbreviations and full names
   const cityPatterns = [
-    // Airport codes / abbreviations
     { pattern: /\bsfo\b/i, city: 'San Francisco' },
     { pattern: /\blax\b/i, city: 'Los Angeles' },
     { pattern: /\bjfk\b/i, city: 'New York' },
@@ -83,24 +134,60 @@ function extractLocationFromMessage(message: string): string | null {
     { pattern: /\bsf\b/i, city: 'San Francisco' },
     { pattern: /\bla\b/i, city: 'Los Angeles' },
     { pattern: /\bdc\b/i, city: 'Washington DC' },
+    { pattern: /\bmachu\s*pichu\b/i, city: 'Machu Picchu, Peru' },
+    { pattern: /\bmachu\s*picchu\b/i, city: 'Machu Picchu, Peru' },
+    { pattern: /\bcusco\b/i, city: 'Cusco, Peru' },
+    { pattern: /\bparis\b/i, city: 'Paris, France' },
+    { pattern: /\blondon\b/i, city: 'London, UK' },
+    { pattern: /\btokyo\b/i, city: 'Tokyo, Japan' },
+    { pattern: /\bsydney\b/i, city: 'Sydney, Australia' },
   ];
+  
+  // Extract date from message
+  let extractedDate: string | undefined;
+  const datePatterns = [
+    /(?:on|for)\s+(jan(?:uary)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
+    /(?:on|for)\s+(feb(?:ruary)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
+    /(?:on|for)\s+(mar(?:ch)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
+    /(?:on|for)\s+(apr(?:il)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
+    /(?:on|for)\s+(may\s+\d{1,2}(?:st|nd|rd|th)?)/i,
+    /(?:on|for)\s+(jun(?:e)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
+    /(?:on|for)\s+(jul(?:y)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
+    /(?:on|for)\s+(aug(?:ust)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
+    /(?:on|for)\s+(sep(?:tember)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
+    /(?:on|for)\s+(oct(?:ober)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
+    /(?:on|for)\s+(nov(?:ember)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
+    /(?:on|for)\s+(dec(?:ember)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
+    /(next\s+jan(?:uary)?\s+\d{1,2}(?:st|nd|rd|th)?)/i,
+    /(tomorrow)/i,
+    /(next\s+week)/i,
+  ];
+  
+  for (const pattern of datePatterns) {
+    const match = message.match(pattern);
+    if (match) {
+      extractedDate = match[1];
+      break;
+    }
+  }
   
   for (const { pattern, city } of cityPatterns) {
     if (pattern.test(lower)) {
-      return city;
+      return { location: city, date: extractedDate };
     }
   }
   
   // Try to extract from travel patterns
   const travelPatterns = [
-    /travel(?:ing|s|led)?\s+to\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for)|$)/i,
-    /going\s+to\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for)|$)/i,
-    /trip\s+to\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for)|$)/i,
-    /flying\s+to\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for)|$)/i,
-    /visiting\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for)|$)/i,
-    /heading\s+to\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for)|$)/i,
-    /vacation\s+(?:in|to)\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for)|$)/i,
-    /moving\s+to\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for)|$)/i,
+    /travel(?:ing|s|led)?\s+to\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for|on)|$)/i,
+    /going\s+(?:on\s+a\s+)?(?:hike|trip|vacation)?\s*(?:to|in)\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for|on)|$)/i,
+    /trip\s+to\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for|on)|$)/i,
+    /flying\s+to\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for|on)|$)/i,
+    /visiting\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for|on)|$)/i,
+    /heading\s+to\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for|on)|$)/i,
+    /vacation\s+(?:in|to)\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for|on)|$)/i,
+    /mountain\s+hike\s+(?:to|in)\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for|on)|$)/i,
+    /hike\s+(?:to|in|at)\s+([a-zA-Z\s,]+?)(?:\s+(?:tomorrow|today|next|this|for|on)|$)/i,
     /weather\s+in\s+([a-zA-Z\s,]+?)(?:\?|$)/i,
     /weather\s+(?:like|for)\s+([a-zA-Z\s,]+?)(?:\?|$)/i,
     /(?:in|at)\s+([a-zA-Z\s,]+?)\s+(?:weather|temperature|pollen)/i,
@@ -109,12 +196,19 @@ function extractLocationFromMessage(message: string): string | null {
   for (const pattern of travelPatterns) {
     const match = message.match(pattern);
     if (match) {
-      const destination = match[1].trim().replace(/[,.]$/, '');
+      let destination = match[1].trim().replace(/[,.]$/, '');
       // Filter out non-location words
-      if (!['work', 'home', 'bed', 'sleep', 'dinner', 'lunch', 'breakfast', 'the', 'a'].includes(destination.toLowerCase())) {
-        return destination;
+      const stopWords = ['work', 'home', 'bed', 'sleep', 'dinner', 'lunch', 'breakfast', 'the', 'a', 'like', 'about'];
+      if (!stopWords.includes(destination.toLowerCase()) && destination.length > 2) {
+        return { location: destination, date: extractedDate };
       }
     }
+  }
+  
+  // Check for altitude/mountain mentions
+  if (/\b\d{3,5}\s*meters?\b/i.test(message) && !extractedDate) {
+    // Mentions altitude, might need general high-altitude advice
+    return null;
   }
   
   return null;
@@ -256,13 +350,14 @@ function analyzeUserHistory(entries: FlareEntry[], conditions: string[]) {
   };
 }
 
-// Detect if user needs weather info
+// Detect if user needs weather info - now much more aggressive
 function needsWeatherInfo(message: string): boolean {
   const lower = message.toLowerCase();
   const weatherKeywords = [
     'weather', 'temperature', 'humidity', 'pollen', 'air quality', 'aqi',
     'outside', 'outdoor', 'go out', 'travel', 'trip', 'flying', 'going to',
-    'visiting', 'vacation', 'heading to', 'watch out', 'be careful', 'forecast'
+    'visiting', 'vacation', 'heading to', 'watch out', 'be careful', 'forecast',
+    'hike', 'hiking', 'mountain', 'altitude', 'meters', 'climb'
   ];
   return weatherKeywords.some(kw => lower.includes(kw));
 }
@@ -348,6 +443,11 @@ function classifyIntent(message: string): { type: string; confidence: number; ex
     }
   }
   
+  // Travel query - needs weather
+  if (needsWeatherInfo(message)) {
+    return { type: 'travel_query', confidence: 0.9, extractedData: {} };
+  }
+  
   // Query patterns
   const queryPatterns = [
     /(how|what).*(week|today|patterns?|triggers?|symptoms?)/i,
@@ -390,16 +490,18 @@ serve(async (req) => {
     // Analyze the user's history
     const userAnalysis = analyzeUserHistory(userContext.recentEntries || [], userContext.conditions || []);
     
-    // ALWAYS try to extract location and get weather if relevant
+    // ALWAYS try to extract location and get weather for travel queries
     let weatherData = null;
     let weatherLocation = '';
+    let targetDate = '';
     
     // First check for destination in message
-    const extractedLocation = extractLocationFromMessage(message);
-    if (extractedLocation) {
-      console.log('🌍 Extracted location from message:', extractedLocation);
-      weatherData = await getWeather(extractedLocation);
-      weatherLocation = extractedLocation;
+    const locationInfo = extractLocationFromMessage(message);
+    if (locationInfo) {
+      console.log('🌍 Extracted location:', locationInfo.location, 'Date:', locationInfo.date);
+      weatherData = await getWeather(locationInfo.location, locationInfo.date);
+      weatherLocation = locationInfo.location;
+      targetDate = locationInfo.date || '';
     } 
     // If message seems to need weather but no location, use current location
     else if (needsWeatherInfo(message) && userContext.currentLocation) {
@@ -412,33 +514,68 @@ serve(async (req) => {
     
     // Build weather info string
     let weatherInfo = '';
+    let weatherCard = null;
     if (weatherData) {
       const current = weatherData.current;
       const forecast = weatherData.forecast?.forecastday?.[0]?.day;
       const tomorrow = weatherData.forecast?.forecastday?.[1]?.day;
+      const targetDay = weatherData.targetDayForecast?.day;
       const aqi = current?.air_quality;
       
+      // Build weather card data for frontend
+      weatherCard = {
+        location: weatherData.location?.name || weatherLocation,
+        country: weatherData.location?.country,
+        current: {
+          temp_f: current?.temp_f,
+          temp_c: current?.temp_c,
+          condition: current?.condition?.text,
+          icon: current?.condition?.icon,
+          humidity: current?.humidity,
+          uv: current?.uv,
+          feelslike_f: current?.feelslike_f,
+        },
+        forecast: targetDay ? {
+          date: weatherData.targetDayForecast?.date,
+          maxtemp_f: targetDay.maxtemp_f,
+          mintemp_f: targetDay.mintemp_f,
+          condition: targetDay.condition?.text,
+          icon: targetDay.condition?.icon,
+          daily_chance_of_rain: targetDay.daily_chance_of_rain,
+        } : forecast ? {
+          maxtemp_f: forecast.maxtemp_f,
+          mintemp_f: forecast.mintemp_f,
+          condition: forecast.condition?.text,
+          icon: forecast.condition?.icon,
+          daily_chance_of_rain: forecast.daily_chance_of_rain,
+        } : null,
+        aqi: aqi?.['us-epa-index'],
+      };
+      
+      const relevantForecast = targetDay || forecast;
+      
       weatherInfo = `
-REAL-TIME WEATHER DATA for ${weatherData.location?.name || weatherLocation}:
-Current:
+REAL-TIME WEATHER DATA for ${weatherData.location?.name || weatherLocation}, ${weatherData.location?.country || ''}:
+${targetDay ? `(Forecast for ${weatherData.targetDayForecast?.date})` : ''}
+
+Current Conditions:
 - Condition: ${current?.condition?.text || 'Unknown'}
 - Temperature: ${current?.temp_f || 'Unknown'}°F (feels like ${current?.feelslike_f}°F)
 - Humidity: ${current?.humidity || 'Unknown'}%
-- UV Index: ${current?.uv || 'Unknown'}
+- UV Index: ${current?.uv || 'Unknown'} ${current?.uv >= 6 ? '(HIGH - protect yourself!)' : ''}
 - Air Quality (US EPA): ${aqi?.['us-epa-index'] || 'Unknown'} (1=Good, 6=Hazardous)
 - PM2.5: ${aqi?.pm2_5?.toFixed(1) || 'Unknown'}
-- Pollen estimate: ${current?.humidity > 50 && current?.temp_f > 50 ? 'Moderate-High' : 'Low-Moderate'}
 
-Today's Forecast:
-- High: ${forecast?.maxtemp_f || 'Unknown'}°F, Low: ${forecast?.mintemp_f || 'Unknown'}°F
-- Condition: ${forecast?.condition?.text || 'Unknown'}
-- Chance of rain: ${forecast?.daily_chance_of_rain || 0}%
+${targetDay ? `Forecast for ${weatherData.targetDayForecast?.date}:` : "Today's Forecast:"}
+- High: ${relevantForecast?.maxtemp_f || 'Unknown'}°F, Low: ${relevantForecast?.mintemp_f || 'Unknown'}°F
+- Condition: ${relevantForecast?.condition?.text || 'Unknown'}
+- Chance of rain: ${relevantForecast?.daily_chance_of_rain || 0}%
 
 Tomorrow's Forecast:
 - Condition: ${tomorrow?.condition?.text || 'Unknown'}
 - High: ${tomorrow?.maxtemp_f || 'Unknown'}°F, Low: ${tomorrow?.mintemp_f || 'Unknown'}°F
 
-CRITICAL: You MUST use this actual weather data in your response with specific numbers. Do not say you don't have weather data.`;
+CRITICAL: You HAVE this weather data. Use specific numbers in your response. Compare these conditions to the user's known triggers.`;
     }
     
     // Build medication info
@@ -449,81 +586,82 @@ USER'S MEDICATIONS:
 ${userContext.medications.map(m => `- ${m.name}${m.dosage ? ` (${m.dosage})` : ''}${m.frequency ? ` - ${m.frequency}` : ''}${m.notes ? ` - Notes: ${m.notes}` : ''}`).join('\n')}`;
     }
     
+    // Build trigger summary - be specific, never say "none identified"
+    const triggerSummary = userAnalysis?.topTriggers?.length 
+      ? userAnalysis.topTriggers.map(t => `${t.name} (${t.count}x)`).join(', ')
+      : 'No explicit triggers logged yet, but analyzing patterns from notes';
+    
+    const symptomSummary = userAnalysis?.topSymptoms?.length
+      ? userAnalysis.topSymptoms.map(s => `${s.name} (${s.count}x)`).join(', ')
+      : 'Track more entries to identify patterns';
+      
+    const weatherSummary = userAnalysis?.weatherTriggers?.length
+      ? userAnalysis.weatherTriggers.map(w => `${w.condition} (${w.count}x)`).join(', ')
+      : 'Weather patterns building';
+    
     // Build context-aware system prompt
     const systemPrompt = `You are Jvala, an intelligent health companion with REAL DATA about this specific user. You are warm, caring, and knowledgeable.
 
 CRITICAL RULES:
-- NEVER give generic advice like "listen to your body" or "stay hydrated" without backing it with data
-- If weather data is provided, YOU MUST include specific numbers like "72°F" and "humidity at 65%" in your response
-- NEVER say "I don't have weather data" or "still gathering data" - you have the user's full history
-- Give insights based on whatever data exists - even 5 entries is enough for patterns
-- Keep responses SHORT (2-3 sentences max) unless answering a detailed query
-- Be warm, personable, supportive - like a knowledgeable friend
-- When citing data, be specific: "Your 12 logged flares show..." not "Based on data..."
-- For weekly summaries, use markdown formatting with bullet points
+1. NEVER say "still gathering data", "None identified yet", or similar vague phrases
+2. If weather data is provided, YOU MUST use specific numbers (e.g., "72°F, 65% humidity")
+3. Be PROACTIVE - if you see concerning patterns, mention them
+4. Keep responses SHORT (2-4 sentences) unless it's a detailed query
+5. For travel/weather queries with weather data, give specific forecasts and compare to their triggers
+6. Be warm and supportive, like a knowledgeable friend
 
 USER'S HEALTH PROFILE:
-- Conditions: ${userContext.conditions?.length ? userContext.conditions.join(', ') : 'None specified'}
-- Known symptoms: ${userContext.knownSymptoms?.join(', ') || 'None specified'}
-- Known triggers: ${userContext.knownTriggers?.join(', ') || 'None specified'}
+- Conditions: ${userContext.conditions?.length ? userContext.conditions.join(', ') : 'Not specified'}
+- Known symptoms: ${userContext.knownSymptoms?.join(', ') || 'Not specified'}
+- Known triggers: ${userContext.knownTriggers?.join(', ') || 'Not specified'}
 ${medicationInfo}
 
-USER'S FLARE HISTORY ANALYSIS (${userAnalysis?.totalFlares || 0} entries):
+USER'S FLARE HISTORY ANALYSIS (${userAnalysis?.totalFlares || 0} entries analyzed):
 ${userAnalysis ? `
-- Total entries (30 days): ${userAnalysis.totalFlares}
-- Severe flares: ${userAnalysis.severePercentage}%
+- Total entries: ${userAnalysis.totalFlares}
+- Severe flares: ${userAnalysis.severePercentage}% of total
 - Peak flare time: ${userAnalysis.peakTime}
-- Top triggers: ${userAnalysis.topTriggers.length > 0 ? userAnalysis.topTriggers.map(t => `${t.name} (${t.count}x)`).join(', ') : 'None identified yet'}
-- Top symptoms: ${userAnalysis.topSymptoms.length > 0 ? userAnalysis.topSymptoms.map(s => `${s.name} (${s.count}x)`).join(', ') : 'None logged yet'}
-- Weather correlations: ${userAnalysis.weatherTriggers.length > 0 ? userAnalysis.weatherTriggers.map(w => `${w.condition} (${w.count}x)`).join(', ') : 'None found yet'}
+- Top triggers from data: ${triggerSummary}
+- Top symptoms: ${symptomSummary}
+- Weather correlations: ${weatherSummary}
 
 THIS WEEK (last 7 days):
 - Flares: ${userAnalysis.weekSummary.totalFlares}
 - Severe: ${userAnalysis.weekSummary.severeCount}
 - Medication logs: ${userAnalysis.weekSummary.medicationLogs}
 - Wellness logs: ${userAnalysis.weekSummary.wellnessLogs}
-` : 'No entries yet - encourage them to start logging!'}
+${userAnalysis.weekSummary.totalFlares > 10 ? '\n⚠️ HIGH FLARE ACTIVITY this week - consider mentioning this concern' : ''}
+` : 'First-time user - welcome them warmly!'}
 
 ${weatherInfo}
 
 DETECTED USER INTENT: ${intent.type} (confidence: ${intent.confidence})
-${intent.type !== 'unknown' ? `Extracted data: ${JSON.stringify(intent.extractedData)}` : ''}
 
-TRAVEL/WEATHER QUERY INSTRUCTIONS:
-If user asks about traveling somewhere or weather at a location, you MUST:
-1. Check if weather data is provided above
-2. If yes, give SPECIFIC advice using actual temperature, humidity, pollen data
-3. Compare destination weather to their known triggers (e.g., if they're triggered by humidity and destination has 80% humidity, warn them)
-4. Give actionable tips based on the actual forecast
+TRAVEL/WEATHER RESPONSE RULES:
+If user asks about traveling somewhere:
+1. ALWAYS use the specific weather data provided above with numbers
+2. Compare destination conditions to their known triggers (humidity, conditions, etc.)
+3. Give specific, actionable tips based on the forecast
+4. If high altitude mentioned, warn about altitude effects on their condition
 
 RESPONSE FORMAT (MUST be valid JSON):
 {
-  "response": "Your data-backed, warm response here. Use markdown for lists.",
+  "response": "Your personalized, data-backed response here",
   "isAIGenerated": true,
-  "dataUsed": ["list", "data_sources", "used"],
+  "dataUsed": ["weather_api", "flare_history", "user_profile"],
   "weatherUsed": ${weatherData ? 'true' : 'false'},
   "shouldLog": true/false,
-  "entryData": { "type": "flare|medication|wellness|energy", "severity": "mild|moderate|severe", "symptoms": [], "energyLevel": "low|moderate|high|good" } or null,
-  "suggestedFollowUp": "optional follow-up question" or null
+  "entryData": { "type": "flare|medication|wellness|energy", "severity": "mild|moderate|severe", "energyLevel": "low|moderate|high|good" } or null
 }
 
+DO NOT include suggestedFollowUp in your response. The user controls the conversation.
+
 LOGGING RULES:
-- "feeling good/great/better/amazing" → shouldLog: true, entryData: { type: "wellness", energyLevel: "good" }
-- "took medication/meds/pills" → shouldLog: true, entryData: { type: "medication" }
-- "low energy/tired/exhausted" → shouldLog: true, entryData: { type: "energy", energyLevel: "low" }
-- Any symptom mention → shouldLog: true, entryData: { type: "flare", severity: based on words, symptoms: extracted }
-- Questions/queries about patterns → shouldLog: false
-
-WEEKLY SUMMARY FORMAT (when user asks "my week" or similar):
-**Your Week at a Glance** 📊
-
-• **Flares:** ${userAnalysis?.weekSummary.totalFlares || 0} logged (${userAnalysis?.weekSummary.severeCount || 0} severe)
-• **Medications:** ${userAnalysis?.weekSummary.medicationLogs || 0} times logged
-• **Wellness:** ${userAnalysis?.weekSummary.wellnessLogs || 0} positive entries
-• **Top symptom:** ${userAnalysis?.topSymptoms[0]?.name || 'None logged'}
-• **Main trigger:** ${userAnalysis?.topTriggers[0]?.name || 'None identified'}
-
-[Add one personalized insight based on their actual data]`;
+- "feeling good/great/better" → shouldLog: true, entryData: { type: "wellness", energyLevel: "good" }
+- "took medication/meds" → shouldLog: true, entryData: { type: "medication" }
+- "low energy/tired" → shouldLog: true, entryData: { type: "energy", energyLevel: "low" }
+- Symptom mentions → shouldLog: true, entryData: { type: "flare", severity: based on words }
+- Questions/queries → shouldLog: false`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -588,10 +726,10 @@ WEEKLY SUMMARY FORMAT (when user asks "my week" or similar):
             response: parsed.response || "I need more context to help with that.",
             isAIGenerated: true,
             dataUsed: parsed.dataUsed || [],
-            weatherUsed: weatherData ? true : (parsed.weatherUsed || false),
+            weatherUsed: weatherData ? true : false,
+            weatherCard: weatherCard,
             shouldLog: parsed.shouldLog || false,
             entryData: parsed.entryData || null,
-            suggestedFollowUp: parsed.suggestedFollowUp || null
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
@@ -605,6 +743,7 @@ WEEKLY SUMMARY FORMAT (when user asks "my week" or similar):
         isAIGenerated: true,
         dataUsed: [],
         weatherUsed: weatherData ? true : false,
+        weatherCard: weatherCard,
         shouldLog: false,
         entryData: null
       }), {
