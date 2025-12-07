@@ -124,15 +124,13 @@ export const FluidLogSelector = ({
           variant={activePanel === 'mood' ? 'default' : 'outline'}
           size="sm"
           className={cn(
-            "h-8 px-3 text-xs gap-1.5 shrink-0 transition-all",
+            "h-8 px-2 text-xs shrink-0 transition-all",
             activePanel === 'mood' && "bg-primary text-primary-foreground"
           )}
           onClick={() => togglePanel('mood')}
           disabled={disabled}
         >
           <Smile className="w-3.5 h-3.5" />
-          Mood
-          <ChevronDown className={cn("w-3 h-3 transition-transform", activePanel === 'mood' && "rotate-180")} />
         </Button>
 
         {/* Meds button */}
