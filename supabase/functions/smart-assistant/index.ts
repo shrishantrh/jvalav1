@@ -219,7 +219,7 @@ function extractLocationFromMessage(message: string): { location: string; date?:
     { pattern: /\bmiami\b/i, city: 'Miami, Florida' },
     { pattern: /\bnyc\b|\bnew\s*york\b/i, city: 'New York City' },
     { pattern: /\bla\b|\blos\s*angeles\b/i, city: 'Los Angeles, California' },
-    { pattern: /\bsf\b|\bsan\s*francisco\b/i, city: 'San Francisco, California' },
+    { pattern: /\bsfo\b|\bsf\b|\bsan\s*francisco\b/i, city: 'San Francisco, California' },
     { pattern: /\bchicago\b/i, city: 'Chicago, Illinois' },
     { pattern: /\bboston\b/i, city: 'Boston, Massachusetts' },
     { pattern: /\baustin\b/i, city: 'Austin, Texas' },
@@ -232,6 +232,12 @@ function extractLocationFromMessage(message: string): { location: string; date?:
     { pattern: /\bsalt\s*lake\b/i, city: 'Salt Lake City, Utah' },
     { pattern: /\bportland\b/i, city: 'Portland, Oregon' },
     { pattern: /\bsan\s*diego\b/i, city: 'San Diego, California' },
+    { pattern: /\bdelhi\b|\bnew\s*delhi\b/i, city: 'New Delhi, India' },
+    { pattern: /\bmumbai\b|\bbombay\b/i, city: 'Mumbai, India' },
+    { pattern: /\bbangalore\b|\bbengaluru\b/i, city: 'Bangalore, India' },
+    { pattern: /\bsingapore\b/i, city: 'Singapore' },
+    { pattern: /\bhong\s*kong\b/i, city: 'Hong Kong' },
+    { pattern: /\bdubai\b/i, city: 'Dubai, UAE' },
   ];
   
   for (const { pattern, city } of cityPatterns) {
@@ -505,7 +511,13 @@ function classifyIntent(message: string, userContext?: UserContext): { type: str
     }
   }
   
-  // Anything to watch out for (after activity mention) - use current location
+  // Travel/weather queries with explicit location - CHECK THIS FIRST before fallback
+  const locationInfo = extractLocationFromMessage(message);
+  if (locationInfo) {
+    return { type: 'travel_query', confidence: 0.95, extractedData: locationInfo };
+  }
+  
+  // Anything to watch out for (after activity mention) - use current location ONLY if no destination found
   if (/\b(?:anything|something)\s+(?:to\s+)?(?:watch|look)\s+(?:out\s+)?for\b/i.test(lower) ||
       /\bshould\s+I\s+(?:worry|be\s+careful)\b/i.test(lower)) {
     if (userContext?.currentLocation?.city) {
@@ -515,12 +527,6 @@ function classifyIntent(message: string, userContext?: UserContext): { type: str
         isActivityCheck: true 
       }};
     }
-  }
-  
-  // Travel/weather queries with explicit location
-  const locationInfo = extractLocationFromMessage(message);
-  if (locationInfo) {
-    return { type: 'travel_query', confidence: 0.95, extractedData: locationInfo };
   }
   
   // Food mentions
