@@ -21,7 +21,6 @@ import {
   Clock,
   Target,
   ThermometerSun,
-  Sparkles
 } from 'lucide-react';
 import { format, subDays, isWithinInterval, differenceInDays } from 'date-fns';
 
@@ -30,10 +29,20 @@ interface CleanInsightsProps {
   userConditions?: string[];
 }
 
+// Stop words for trigger extraction
+const STOP_WORDS = new Set([
+  'the', 'and', 'some', 'lot', 'bit', 'too', 'much', 'very', 'really', 
+  'today', 'yesterday', 'just', 'like', 'been', 'have', 'had', 'was', 'were', 
+  'that', 'this', 'with', 'good', 'great', 'bad', 'well', 'feeling', 'feel',
+  'before', 'after', 'during', 'while', 'when', 'then', 'now', 'later',
+  'morning', 'afternoon', 'evening', 'night', 'day', 'week', 'month',
+  'went', 'going', 'doing', 'done', 'did', 'does', 'made', 'making',
+  'got', 'get', 'getting', 'started', 'start', 'starting',
+]);
+
 export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsProps) => {
   const chartRef = React.useRef<HTMLDivElement>(null);
 
-  // Comprehensive analytics with trigger extraction from notes
   const analytics = useMemo(() => {
     const now = new Date();
     const last7Days = entries.filter(e => 
@@ -50,7 +59,6 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
     const flares30d = last30Days.filter(e => e.type === 'flare');
     const flaresPrev30d = prev30Days.filter(e => e.type === 'flare');
 
-    // Calculate severity scores
     const getSeverityScore = (s: string) => s === 'severe' ? 3 : s === 'moderate' ? 2 : 1;
     const calcAvg = (flares: FlareEntry[]) => {
       if (flares.length === 0) return 0;
@@ -60,7 +68,6 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
     const avgSeverity7d = calcAvg(flares7d);
     const avgSeverityPrev = calcAvg(flaresPrev30d);
 
-    // Trend calculation - compare this week to average
     const weeklyAvgFlares = flares30d.length / 4;
     const frequencyChange = flares7d.length - weeklyAvgFlares;
     
@@ -68,7 +75,6 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
     if (frequencyChange > 1.5) trend = 'worsening';
     else if (frequencyChange < -1.5) trend = 'improving';
 
-    // Time of day analysis
     const timeSlots: Record<string, number> = { morning: 0, afternoon: 0, evening: 0, night: 0 };
     flares30d.forEach(f => {
       const hour = f.timestamp.getHours();
@@ -80,24 +86,20 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
     const peakTime = Object.entries(timeSlots).sort((a, b) => b[1] - a[1])[0];
     const peakTimePercent = flares30d.length > 0 ? Math.round((peakTime[1] / flares30d.length) * 100) : 0;
 
-    // Extract potential triggers from notes
+    // Extract triggers from notes - filter out stop words
     const extractTriggersFromNotes = (note: string): string[] => {
       const triggers: string[] = [];
       const patterns = [
-        /ate\s+(\w+(?:\s+\w+)?)/gi,
-        /had\s+(\w+(?:\s+\w+)?)/gi,
-        /eating\s+(\w+(?:\s+\w+)?)/gi,
-        /after\s+(\w+(?:\s+\w+)?)/gi,
-        /from\s+(\w+(?:\s+\w+)?)/gi,
-        /drank\s+(\w+(?:\s+\w+)?)/gi,
+        /(?:ate|eaten|eat|eating|had|consumed)\s+(?:some\s+)?(?:a\s+)?(\w+(?:\s+\w+)?)/gi,
+        /(?:drank|drunk|drink|drinking)\s+(?:some\s+)?(?:a\s+)?(\w+(?:\s+\w+)?)/gi,
+        /(\w+)\s+(?:for\s+)?(?:breakfast|lunch|dinner|snack)/gi,
       ];
-      const stopWords = ['the', 'and', 'some', 'lot', 'bit', 'too', 'much', 'very', 'really', 'today', 'yesterday'];
       
       patterns.forEach(pattern => {
         const matches = note.toLowerCase().matchAll(pattern);
         for (const match of matches) {
           const trigger = match[1].trim();
-          if (trigger.length > 2 && !stopWords.includes(trigger)) {
+          if (trigger.length > 2 && !STOP_WORDS.has(trigger)) {
             triggers.push(trigger);
           }
         }
@@ -105,7 +107,7 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
       return triggers;
     };
 
-    // Symptom analysis with severity context
+    // Symptom analysis
     const symptomData: Record<string, { count: number; severities: number[] }> = {};
     flares30d.forEach(f => {
       f.symptoms?.forEach(s => {
@@ -128,14 +130,14 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
     // Trigger analysis - combine explicit triggers with note-extracted ones
     const triggerData: Record<string, { count: number; severities: number[] }> = {};
     flares30d.forEach(f => {
-      // Explicit triggers
       f.triggers?.forEach(t => {
         const key = t.toLowerCase();
-        if (!triggerData[key]) triggerData[key] = { count: 0, severities: [] };
-        triggerData[key].count++;
-        triggerData[key].severities.push(getSeverityScore(f.severity || 'mild'));
+        if (!STOP_WORDS.has(key) && key.length > 2) {
+          if (!triggerData[key]) triggerData[key] = { count: 0, severities: [] };
+          triggerData[key].count++;
+          triggerData[key].severities.push(getSeverityScore(f.severity || 'mild'));
+        }
       });
-      // Extracted from notes
       if (f.note) {
         const noteTriggers = extractTriggersFromNotes(f.note);
         noteTriggers.forEach(t => {
@@ -147,14 +149,14 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
     });
 
     const topTriggers = Object.entries(triggerData)
-      .filter(([_, data]) => data.count >= 2) // Only show if mentioned 2+ times
+      .filter(([_, data]) => data.count >= 2)
       .map(([name, data]) => ({
         name: name.charAt(0).toUpperCase() + name.slice(1),
         count: data.count,
         percentage: Math.round((data.count / flares30d.length) * 100),
         avgSeverity: data.severities.reduce((a, b) => a + b, 0) / data.severities.length
       }))
-      .sort((a, b) => b.avgSeverity - a.avgSeverity) // Sort by severity impact
+      .sort((a, b) => b.avgSeverity - a.avgSeverity)
       .slice(0, 5);
 
     // Weather correlation
@@ -171,7 +173,6 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
       .sort((a, b) => b.count - a.count)
       .slice(0, 3);
 
-    // Flare-free streak
     const sortedFlares = [...flares30d].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
     const daysSinceLastFlare = sortedFlares.length > 0 
       ? differenceInDays(now, sortedFlares[0].timestamp)
@@ -247,10 +248,7 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
         </Card>
       )}
 
-      {/* AI Predictions */}
-      <SmartPredictions entries={entries} userConditions={userConditions} />
-
-      {/* What's Affecting You - Actionable Insights */}
+      {/* What's Affecting You - Main actionable section */}
       {(analytics.topTriggers.length > 0 || analytics.topSymptoms.length > 0) && (
         <Card className="p-4 bg-gradient-card border-0 shadow-soft">
           <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
@@ -323,6 +321,9 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
           )}
         </Card>
       )}
+
+      {/* AI Predictions - compact, below main insights */}
+      <SmartPredictions entries={entries} userConditions={userConditions} />
 
       {/* Detailed Views */}
       <Tabs defaultValue="charts" className="w-full">

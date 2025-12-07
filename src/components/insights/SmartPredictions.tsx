@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, AlertTriangle, TrendingUp, Utensils, Clock, Cloud, Activity } from 'lucide-react';
+import { Loader2, Sparkles, AlertTriangle, TrendingUp, Utensils, Clock, Cloud, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { FlareEntry } from "@/types/flare";
 
@@ -19,49 +19,61 @@ interface Prediction {
   icon?: string;
 }
 
-// Extract potential triggers from notes using NLP-like patterns
+// Stop words to filter out - expanded to prevent silly detections
+const STOP_WORDS = new Set([
+  'the', 'and', 'some', 'lot', 'bit', 'too', 'much', 'very', 'really', 
+  'today', 'yesterday', 'just', 'like', 'been', 'have', 'had', 'was', 'were', 
+  'that', 'this', 'with', 'good', 'great', 'bad', 'well', 'feeling', 'feel',
+  'before', 'after', 'during', 'while', 'when', 'then', 'now', 'later',
+  'morning', 'afternoon', 'evening', 'night', 'day', 'week', 'month',
+  'went', 'going', 'doing', 'done', 'did', 'does', 'made', 'making',
+  'got', 'get', 'getting', 'started', 'start', 'starting', 'stopped', 'stop',
+  'came', 'come', 'coming', 'left', 'leave', 'leaving', 'took', 'take', 'taking',
+  'said', 'say', 'saying', 'told', 'tell', 'telling', 'asked', 'ask', 'asking',
+  'think', 'thinking', 'thought', 'know', 'knowing', 'knew', 'want', 'wanted',
+  'need', 'needed', 'needing', 'tried', 'try', 'trying', 'used', 'use', 'using',
+  'work', 'working', 'worked', 'home', 'office', 'place', 'thing', 'things',
+  'time', 'times', 'first', 'last', 'next', 'other', 'another', 'same', 'different',
+  'also', 'still', 'already', 'even', 'ever', 'never', 'always', 'usually', 'sometimes',
+  'maybe', 'probably', 'definitely', 'actually', 'basically', 'especially',
+  'around', 'about', 'into', 'onto', 'from', 'until', 'since', 'through',
+  'over', 'under', 'above', 'below', 'between', 'among', 'within', 'without',
+  'because', 'although', 'though', 'however', 'therefore', 'otherwise',
+  'okay', 'fine', 'sure', 'right', 'wrong', 'better', 'worse', 'best', 'worst',
+  'more', 'less', 'most', 'least', 'many', 'few', 'several', 'all', 'every', 'each',
+  'both', 'either', 'neither', 'any', 'none', 'nothing', 'something', 'everything',
+  'someone', 'anyone', 'everyone', 'nobody', 'anybody', 'everybody'
+]);
+
+// Extract REAL triggers from notes (food, activities, substances)
 function extractTriggersFromNotes(entries: FlareEntry[]): Record<string, { count: number; severities: string[]; timestamps: string[] }> {
   const triggers: Record<string, { count: number; severities: string[]; timestamps: string[] }> = {};
   
-  const foodPatterns = [
-    /(?:ate|eat|eating|had|consumed|tried)\s+(?:some\s+)?(\w+(?:\s+\w+)?)/gi,
-    /after\s+(?:eating|having|drinking)\s+(\w+(?:\s+\w+)?)/gi,
-    /(\w+)\s+(?:for\s+)?(?:breakfast|lunch|dinner|snack)/gi,
-  ];
-  
-  const activityPatterns = [
-    /(?:after|during|while)\s+(\w+ing)/gi,
-    /(?:went|gone)\s+(\w+ing)/gi,
-    /(?:did|done)\s+(?:some\s+)?(\w+)/gi,
-  ];
-  
-  const exposurePatterns = [
+  // More specific patterns for actual triggers
+  const patterns = [
+    /(?:ate|eaten|eat|eating|had|consumed|tried|tasted)\s+(?:some\s+)?(?:a\s+)?(\w+(?:\s+\w+)?)/gi,
+    /(?:drank|drunk|drink|drinking)\s+(?:some\s+)?(?:a\s+)?(\w+(?:\s+\w+)?)/gi,
+    /(\w+)\s+(?:for\s+)?(?:breakfast|lunch|dinner|snack|meal)/gi,
     /(?:exposure|exposed)\s+to\s+(\w+(?:\s+\w+)?)/gi,
-    /(?:around|near)\s+(\w+)/gi,
-    /(?:contact\s+with)\s+(\w+)/gi,
+    /(?:allergic|allergy|reaction)\s+(?:to\s+)?(\w+)/gi,
   ];
-  
-  const stopWords = ['the', 'and', 'some', 'lot', 'bit', 'too', 'much', 'very', 'really', 
-    'today', 'yesterday', 'just', 'like', 'been', 'have', 'had', 'was', 'were', 
-    'that', 'this', 'with', 'good', 'great', 'bad', 'well', 'feeling', 'feel'];
   
   entries.forEach(entry => {
     if (!entry.note) return;
     const note = entry.note.toLowerCase();
     
-    const allPatterns = [...foodPatterns, ...activityPatterns, ...exposurePatterns];
-    
-    allPatterns.forEach(pattern => {
+    patterns.forEach(pattern => {
       const matches = note.matchAll(pattern);
       for (const match of matches) {
         let trigger = match[1]?.trim();
         if (!trigger || trigger.length < 3) continue;
         
-        // Clean up the trigger
-        const words = trigger.split(' ').filter(w => !stopWords.includes(w) && w.length > 2);
+        // Filter out stop words
+        const words = trigger.split(' ').filter(w => !STOP_WORDS.has(w) && w.length > 2);
         trigger = words.join(' ');
         
-        if (trigger.length > 2 && trigger.length < 30) {
+        // Must be a reasonable trigger word (not generic)
+        if (trigger.length > 2 && trigger.length < 25 && !STOP_WORDS.has(trigger)) {
           if (!triggers[trigger]) {
             triggers[trigger] = { count: 0, severities: [], timestamps: [] };
           }
@@ -72,47 +84,47 @@ function extractTriggersFromNotes(entries: FlareEntry[]): Record<string, { count
       }
     });
     
-    // Also count explicit triggers
+    // Also count explicit triggers from the triggers field
     entry.triggers?.forEach(t => {
-      const trigger = t.toLowerCase();
-      if (!triggers[trigger]) {
-        triggers[trigger] = { count: 0, severities: [], timestamps: [] };
+      const trigger = t.toLowerCase().trim();
+      if (trigger.length > 2 && !STOP_WORDS.has(trigger)) {
+        if (!triggers[trigger]) {
+          triggers[trigger] = { count: 0, severities: [], timestamps: [] };
+        }
+        triggers[trigger].count++;
+        if (entry.severity) triggers[trigger].severities.push(entry.severity);
+        triggers[trigger].timestamps.push(String(entry.timestamp));
       }
-      triggers[trigger].count++;
-      if (entry.severity) triggers[trigger].severities.push(entry.severity);
-      triggers[trigger].timestamps.push(String(entry.timestamp));
     });
   });
   
   return triggers;
 }
 
-// Analyze temporal patterns between entries (e.g., food → symptom within 4 hours)
+// Analyze temporal patterns between entries
 function findTemporalCorrelations(entries: FlareEntry[]): Array<{ trigger: string; symptom: string; avgDelayHours: number; count: number }> {
   const correlations: Record<string, { symptom: string; delays: number[]; count: number }> = {};
   
-  // Sort by timestamp
   const sorted = [...entries].sort((a, b) => 
     new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   );
   
-  // Look for patterns: note with food/activity followed by symptom within 6 hours
   for (let i = 0; i < sorted.length; i++) {
     const entry = sorted[i];
     if (!entry.note) continue;
     
-    // Extract potential cause from note
-    const foodMatch = entry.note.match(/(?:ate|eat|eating|had)\s+(\w+)/i);
+    // More specific food pattern
+    const foodMatch = entry.note.match(/(?:ate|eaten|eat|had|consumed)\s+(?:some\s+)?(?:a\s+)?(\w+)/i);
     if (!foodMatch) continue;
     
     const potentialTrigger = foodMatch[1].toLowerCase();
+    if (STOP_WORDS.has(potentialTrigger) || potentialTrigger.length < 3) continue;
     
-    // Look for symptoms in the next 6 hours
     for (let j = i + 1; j < sorted.length; j++) {
       const nextEntry = sorted[j];
       const timeDiff = (new Date(nextEntry.timestamp).getTime() - new Date(entry.timestamp).getTime()) / (1000 * 60 * 60);
       
-      if (timeDiff > 6) break; // Only look 6 hours ahead
+      if (timeDiff > 6) break;
       
       if (nextEntry.type === 'flare' && nextEntry.symptoms?.length) {
         nextEntry.symptoms.forEach(symptom => {
@@ -127,9 +139,8 @@ function findTemporalCorrelations(entries: FlareEntry[]): Array<{ trigger: strin
     }
   }
   
-  // Convert to array and calculate averages
   return Object.entries(correlations)
-    .filter(([_, data]) => data.count >= 2) // Only patterns that occurred 2+ times
+    .filter(([_, data]) => data.count >= 2)
     .map(([key, data]) => ({
       trigger: key.split('→')[0],
       symptom: data.symptom,
@@ -143,8 +154,8 @@ export const SmartPredictions = ({ entries, userConditions = [] }: SmartPredicti
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  // Extract triggers from notes
   const noteTriggers = useMemo(() => extractTriggersFromNotes(entries), [entries]);
   const temporalCorrelations = useMemo(() => findTemporalCorrelations(entries), [entries]);
 
@@ -162,54 +173,8 @@ export const SmartPredictions = ({ entries, userConditions = [] }: SmartPredicti
 
     setLoading(true);
     try {
-      // Build correlations for AI
-      const correlations = [
-        ...Object.entries(noteTriggers)
-          .filter(([_, data]) => data.count >= 2)
-          .slice(0, 5)
-          .map(([trigger, data]) => ({
-            factor: trigger,
-            description: `Mentioned ${data.count}x, associated with ${data.severities.filter(s => s === 'severe' || s === 'moderate').length} moderate/severe flares`
-          })),
-        ...temporalCorrelations.slice(0, 3).map(c => ({
-          factor: c.trigger,
-          description: `Followed by ${c.symptom} within ${c.avgDelayHours.toFixed(1)}h (${c.count}x)`
-        }))
-      ];
-
-      const { data, error } = await supabase.functions.invoke('generate-suggestions', {
-        body: {
-          type: 'predict',
-          entries: entries.slice(0, 30).map(e => ({
-            type: e.type,
-            severity: e.severity,
-            symptoms: e.symptoms,
-            triggers: e.triggers,
-            note: e.note,
-            timestamp: e.timestamp,
-            environmentalData: e.environmentalData,
-          })),
-          conditions: userConditions,
-          correlations,
-        }
-      });
-
-      if (error) throw error;
-
-      if (data?.predictions) {
-        // Enhance with local trigger analysis
-        const localPredictions = generateLocalPredictions(entries, noteTriggers, temporalCorrelations);
-        const combined = [...data.predictions, ...localPredictions]
-          .slice(0, 5)
-          .map((p: any) => ({
-            ...p,
-            confidence: p.confidence > 0.7 ? 'high' : p.confidence > 0.4 ? 'medium' : 'low'
-          }));
-        setPredictions(combined);
-      } else {
-        const localPredictions = generateLocalPredictions(entries, noteTriggers, temporalCorrelations);
-        setPredictions(localPredictions);
-      }
+      const localPredictions = generateLocalPredictions(entries, noteTriggers, temporalCorrelations);
+      setPredictions(localPredictions);
     } catch (error) {
       console.error('Prediction error:', error);
       const localPredictions = generateLocalPredictions(entries, noteTriggers, temporalCorrelations);
@@ -220,7 +185,6 @@ export const SmartPredictions = ({ entries, userConditions = [] }: SmartPredicti
     }
   };
 
-  // Enhanced local fallback predictions
   const generateLocalPredictions = (
     entries: FlareEntry[], 
     triggers: Record<string, { count: number; severities: string[] }>,
@@ -229,8 +193,9 @@ export const SmartPredictions = ({ entries, userConditions = [] }: SmartPredicti
     const predictions: Prediction[] = [];
     const flares = entries.filter(e => e.type === 'flare');
     
-    // Trigger detection from notes - MOST IMPORTANT
+    // Real trigger detection from notes
     const topTriggers = Object.entries(triggers)
+      .filter(([name, _]) => !STOP_WORDS.has(name.toLowerCase()))
       .sort((a, b) => b[1].count - a[1].count)
       .slice(0, 3);
     
@@ -242,18 +207,18 @@ export const SmartPredictions = ({ entries, userConditions = [] }: SmartPredicti
         predictions.push({
           type: 'trigger',
           title: `Possible trigger: ${trigger}`,
-          description: `"${trigger}" appears in ${data.count} entries${severeCount > 0 ? `, ${severeCount} severe` : ''}${moderateCount > 0 ? `, ${moderateCount} moderate` : ''}. Consider tracking this more closely.`,
+          description: `"${trigger}" appears in ${data.count} entries${severeCount > 0 ? `, ${severeCount} severe` : ''}${moderateCount > 0 ? `, ${moderateCount} moderate` : ''}. Track this more closely.`,
           confidence: data.count >= 4 ? 'high' : data.count >= 2 ? 'medium' : 'low',
         });
       }
     });
 
-    // Temporal correlations (e.g., eggs → symptoms)
+    // Temporal correlations
     correlations.slice(0, 2).forEach(c => {
       predictions.push({
         type: 'insight',
         title: `${c.trigger} → ${c.symptom}`,
-        description: `On ${c.count} occasions, "${c.trigger}" was followed by ${c.symptom} within ~${c.avgDelayHours.toFixed(1)} hours. This may be a trigger.`,
+        description: `On ${c.count} occasions, "${c.trigger}" was followed by ${c.symptom} within ~${c.avgDelayHours.toFixed(1)} hours.`,
         confidence: c.count >= 3 ? 'high' : 'medium',
       });
     });
@@ -274,8 +239,8 @@ export const SmartPredictions = ({ entries, userConditions = [] }: SmartPredicti
         const timeLabel = hourNum < 12 ? 'morning' : hourNum < 18 ? 'afternoon' : 'evening';
         predictions.push({
           type: 'insight',
-          title: `${percentage}% of flares occur in the ${timeLabel}`,
-          description: `Most of your symptoms appear around ${hourNum > 12 ? hourNum - 12 : hourNum}${hourNum >= 12 ? 'PM' : 'AM'}. Consider adjusting activities or medication timing.`,
+          title: `${percentage}% of flares in the ${timeLabel}`,
+          description: `Most symptoms appear around ${hourNum > 12 ? hourNum - 12 : hourNum}${hourNum >= 12 ? 'PM' : 'AM'}. Consider adjusting activities or medication timing.`,
           confidence: 'high',
         });
       }
@@ -294,8 +259,8 @@ export const SmartPredictions = ({ entries, userConditions = [] }: SmartPredicti
       const percentage = Math.round((topWeather[1] / flares.length) * 100);
       predictions.push({
         type: 'risk',
-        title: `${percentage}% of flares during ${topWeather[0].toLowerCase()} weather`,
-        description: `You've had ${topWeather[1]} flares during ${topWeather[0].toLowerCase()} conditions. Check the forecast and prepare accordingly.`,
+        title: `${percentage}% of flares during ${topWeather[0].toLowerCase()}`,
+        description: `You've had ${topWeather[1]} flares during ${topWeather[0].toLowerCase()} conditions. Check the forecast.`,
         confidence: percentage >= 40 ? 'high' : 'medium',
       });
     }
@@ -314,14 +279,14 @@ export const SmartPredictions = ({ entries, userConditions = [] }: SmartPredicti
       predictions.push({
         type: 'risk',
         title: 'Flares increasing this week',
-        description: `${last7.length} flares this week vs ${prev7.length} last week. Review recent triggers or consult your healthcare provider.`,
+        description: `${last7.length} flares this week vs ${prev7.length} last week. Review recent triggers.`,
         confidence: 'high',
       });
     } else if (last7.length < prev7.length * 0.5 && prev7.length > 2) {
       predictions.push({
         type: 'insight',
         title: 'Great progress!',
-        description: `${last7.length} flares this week vs ${prev7.length} last week. Keep doing what works!`,
+        description: `${last7.length} flares this week vs ${prev7.length} last week. Keep it up!`,
         confidence: 'high',
       });
     }
@@ -353,55 +318,58 @@ export const SmartPredictions = ({ entries, userConditions = [] }: SmartPredicti
     return null;
   }
 
+  // Only show predictions if we have meaningful ones
+  const meaningfulPredictions = predictions.filter(p => 
+    p.type !== 'tip' && p.confidence !== 'low'
+  );
+
+  if (meaningfulPredictions.length === 0 && !loading) {
+    return null;
+  }
+
+  const displayPredictions = isExpanded ? meaningfulPredictions : meaningfulPredictions.slice(0, 2);
+
   return (
-    <Card className="p-4 bg-gradient-to-br from-primary/5 to-purple-500/5 border-0 shadow-soft">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-primary" />
-          AI Predictions
+    <Card className="p-3 bg-muted/30 border-0">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground">
+          <Sparkles className="w-3.5 h-3.5" />
+          AI Insights
         </h3>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="h-6 text-xs"
-          onClick={generatePredictions}
-          disabled={loading}
-        >
-          {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Refresh'}
-        </Button>
+        {meaningfulPredictions.length > 2 && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-5 text-[10px] px-1.5"
+            onClick={() => setIsExpanded(!isExpanded)}
+          >
+            {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            {isExpanded ? 'Less' : `+${meaningfulPredictions.length - 2}`}
+          </Button>
+        )}
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-4">
-          <Loader2 className="w-5 h-5 animate-spin text-primary" />
+        <div className="flex items-center justify-center py-2">
+          <Loader2 className="w-4 h-4 animate-spin text-primary" />
         </div>
-      ) : predictions.length > 0 ? (
-        <div className="space-y-3">
-          {predictions.map((pred, idx) => (
+      ) : (
+        <div className="space-y-2">
+          {displayPredictions.map((pred, idx) => (
             <div 
               key={idx}
-              className="flex items-start gap-3 p-2 rounded-lg bg-background/50"
+              className="flex items-start gap-2 p-2 rounded-lg bg-background/50"
             >
-              <div className={`p-1.5 rounded-full ${getIconBg(pred)}`}>
+              <div className={`p-1 rounded-full ${getIconBg(pred)} flex-shrink-0`}>
                 {getIcon(pred)}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">{pred.title}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{pred.description}</p>
-                <Badge 
-                  variant="outline" 
-                  className="mt-1.5 text-[10px] h-4"
-                >
-                  {pred.confidence} confidence
-                </Badge>
+                <p className="text-xs font-medium">{pred.title}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{pred.description}</p>
               </div>
             </div>
           ))}
         </div>
-      ) : (
-        <p className="text-xs text-muted-foreground text-center py-2">
-          Keep logging to unlock personalized predictions
-        </p>
       )}
     </Card>
   );
