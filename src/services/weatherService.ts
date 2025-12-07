@@ -41,25 +41,30 @@ export const fetchWeatherData = async (latitude: number, longitude: number): Pro
   }
 };
 
-export const getCurrentLocation = async (): Promise<{ latitude: number; longitude: number } | null> => {
+export const getCurrentLocation = async (): Promise<{ latitude: number; longitude: number; isDefault?: boolean } | null> => {
   try {
+    // Check if geolocation is available
+    if (!navigator.geolocation) {
+      console.warn('Geolocation not available');
+      return null;
+    }
+
     const position = await new Promise<GeolocationPosition>((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: false,
-        timeout: 5000,
-        maximumAge: 300000
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000
       });
     });
 
     return {
       latitude: position.coords.latitude,
-      longitude: position.coords.longitude
+      longitude: position.coords.longitude,
+      isDefault: false
     };
-  } catch (error) {
-    console.log('Using default location for demo purposes');
-    return {
-      latitude: 40.7128,
-      longitude: -74.0060
-    };
+  } catch (error: any) {
+    console.warn('Geolocation error:', error?.message || error);
+    // Return null instead of defaulting to New York - let the caller handle missing location
+    return null;
   }
 };
