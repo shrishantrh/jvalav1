@@ -255,10 +255,33 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      community_hotspots: {
+        Row: {
+          avg_severity: number | null
+          city: string | null
+          monthly_count: number | null
+          recent_count: number | null
+          report_count: number | null
+          top_symptom: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      get_city_symptom_stats: {
+        Args: { city_name: string }
+        Returns: {
+          frequency: number
+          symptom: string
+        }[]
+      }
+      get_city_trigger_stats: {
+        Args: { city_name: string }
+        Returns: {
+          frequency: number
+          trigger: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
