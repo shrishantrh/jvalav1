@@ -34,6 +34,12 @@ const SEVERITIES = [
 
 type ActivePanel = null | 'symptom' | 'medication' | 'energy' | 'mood';
 
+const MOODS = [
+  { value: 'good', icon: Smile, label: 'Good', color: 'text-severity-none' },
+  { value: 'okay', icon: Meh, label: 'Okay', color: 'text-muted-foreground' },
+  { value: 'bad', icon: Frown, label: 'Not great', color: 'text-severity-moderate' },
+];
+
 export const FluidLogSelector = ({
   userSymptoms,
   userMedications,
@@ -73,6 +79,16 @@ export const FluidLogSelector = ({
     setActivePanel(null);
   };
 
+  const handleMoodClick = (mood: string) => {
+    if (mood === 'good') {
+      onLogWellness();
+    } else if (mood === 'bad' && onLogRecovery) {
+      onLogRecovery();
+    }
+    // 'okay' could be logged as neutral state if needed
+    setActivePanel(null);
+  };
+
   const togglePanel = (panel: ActivePanel) => {
     setActivePanel(activePanel === panel ? null : panel);
     setSelectedSymptom(null);
@@ -103,37 +119,21 @@ export const FluidLogSelector = ({
           <ChevronDown className={cn("w-3 h-3 transition-transform", activePanel === 'symptom' && "rotate-180")} />
         </Button>
 
-        {/* Mood buttons - inline */}
+        {/* Mood button - consolidated */}
         <Button
-          variant="outline"
+          variant={activePanel === 'mood' ? 'default' : 'outline'}
           size="sm"
-          className="h-8 px-2.5 text-xs gap-1 shrink-0 hover:bg-severity-none/20 hover:border-severity-none"
-          onClick={onLogWellness}
+          className={cn(
+            "h-8 px-3 text-xs gap-1.5 shrink-0 transition-all",
+            activePanel === 'mood' && "bg-primary text-primary-foreground"
+          )}
+          onClick={() => togglePanel('mood')}
           disabled={disabled}
         >
-          <Smile className="w-3.5 h-3.5 text-severity-none" />
+          <Smile className="w-3.5 h-3.5" />
+          Mood
+          <ChevronDown className={cn("w-3 h-3 transition-transform", activePanel === 'mood' && "rotate-180")} />
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 px-2.5 text-xs gap-1 shrink-0"
-          onClick={() => {}}
-          disabled={disabled}
-        >
-          <Meh className="w-3.5 h-3.5 text-muted-foreground" />
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 px-2.5 text-xs gap-1 shrink-0 hover:bg-severity-moderate/20 hover:border-severity-moderate"
-          onClick={onLogRecovery}
-          disabled={disabled}
-        >
-          <Frown className="w-3.5 h-3.5 text-severity-moderate" />
-        </Button>
-
-        {/* Divider */}
-        <div className="w-px h-5 bg-border shrink-0" />
 
         {/* Meds button */}
         <Button
@@ -174,6 +174,7 @@ export const FluidLogSelector = ({
               {activePanel === 'symptom' && 'Select symptom'}
               {activePanel === 'medication' && 'Log medication'}
               {activePanel === 'energy' && 'Energy level'}
+              {activePanel === 'mood' && 'How are you feeling?'}
             </span>
             <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={closeAll}>
               <X className="w-3 h-3" />
@@ -278,6 +279,28 @@ export const FluidLogSelector = ({
               >
                 😊 High
               </Button>
+            </div>
+          )}
+
+          {/* Mood panel */}
+          {activePanel === 'mood' && (
+            <div className="flex gap-1.5">
+              {MOODS.map((mood) => {
+                const Icon = mood.icon;
+                return (
+                  <Button
+                    key={mood.value}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleMoodClick(mood.value)}
+                    disabled={disabled}
+                    className="flex-1 h-8 text-xs gap-1.5"
+                  >
+                    <Icon className={cn("w-4 h-4", mood.color)} />
+                    {mood.label}
+                  </Button>
+                );
+              })}
             </div>
           )}
         </div>
