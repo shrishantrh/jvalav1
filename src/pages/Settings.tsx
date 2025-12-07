@@ -13,6 +13,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ReminderSettings } from "@/components/profile/ReminderSettings";
+import { SmartMedicationReminders } from "@/components/profile/SmartMedicationReminders";
+
+interface MedicationDetails {
+  name: string;
+  dosage?: string;
+  frequency?: string;
+  notes?: string;
+}
 
 export default function Settings() {
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -20,18 +28,16 @@ export default function Settings() {
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userMedications, setUserMedications] = useState<MedicationDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { toast } = useToast();
 
-  // Initialize dark mode state from localStorage WITHOUT modifying it
+  // Initialize dark mode state by reading actual DOM state - never change theme on mount
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    const savedTheme = localStorage.getItem('jvala-theme');
-    if (savedTheme === 'dark') return true;
-    if (savedTheme === 'light') return false;
-    // Check system preference only if no saved theme
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    // Read from DOM to get current state - this is read-only on init
+    return document.documentElement.classList.contains('dark');
   });
 
   // Load user settings
@@ -56,6 +62,7 @@ export default function Settings() {
         const metadata = data.metadata as any;
         setTermsAccepted(metadata?.terms_accepted || false);
         setPrivacyAccepted(metadata?.privacy_accepted || false);
+        setUserMedications(metadata?.medications || []);
       }
     } catch (error) {
       console.error('Failed to load settings:', error);
@@ -208,7 +215,8 @@ export default function Settings() {
               Configure logging reminders and medication alerts
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <SmartMedicationReminders medications={userMedications} />
             <ReminderSettings userEmail={userEmail} />
           </CardContent>
         </Card>

@@ -7,6 +7,7 @@ import { InsightsCharts } from "@/components/insights/InsightsCharts";
 import { EnhancedMedicalExport } from "@/components/insights/EnhancedMedicalExport";
 import { FlareLocationMap } from "@/components/history/FlareLocationMap";
 import { CommunityHotspots } from "@/components/insights/CommunityHotspots";
+import { SmartPredictions } from "@/components/insights/SmartPredictions";
 import { 
   Brain, 
   TrendingUp, 
@@ -19,7 +20,8 @@ import {
   Minus,
   Clock,
   Target,
-  ThermometerSun
+  ThermometerSun,
+  Sparkles
 } from 'lucide-react';
 import { format, subDays, isWithinInterval, differenceInDays } from 'date-fns';
 
@@ -244,6 +246,9 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
           </div>
         </Card>
       )}
+
+      {/* AI Predictions */}
+      <SmartPredictions entries={entries} userConditions={userConditions} />
 
       {/* What's Affecting You - Actionable Insights */}
       {(analytics.topTriggers.length > 0 || analytics.topSymptoms.length > 0) && (
