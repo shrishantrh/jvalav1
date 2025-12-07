@@ -461,7 +461,7 @@ function isUpdateIntent(message: string, history: Array<{ role: string; content:
   return { isUpdate: false, additionalInfo: '' };
 }
 
-function classifyIntent(message: string): { type: string; confidence: number; extractedData: any } {
+function classifyIntent(message: string, userContext?: UserContext): { type: string; confidence: number; extractedData: any } {
   const lower = message.toLowerCase();
   
   // Flare analysis queries - expanded patterns
@@ -474,7 +474,33 @@ function classifyIntent(message: string): { type: string; confidence: number; ex
     return { type: 'flare_analysis', confidence: 0.95, extractedData: { period, wantsChart: true } };
   }
   
-  // Travel/weather queries
+  // Just "weather" or "weather?" - use current location
+  if (/^weather\??$/i.test(lower.trim()) || /\b(?:what'?s?|how'?s?)\s+(?:the\s+)?weather\b/i.test(lower)) {
+    // Use user's current location
+    if (userContext?.currentLocation?.city) {
+      return { type: 'travel_query', confidence: 0.9, extractedData: { location: userContext.currentLocation.city, useCurrentLocation: true } };
+    }
+    if (userContext?.currentLocation?.latitude) {
+      return { type: 'travel_query', confidence: 0.9, extractedData: { 
+        location: `${userContext.currentLocation.latitude},${userContext.currentLocation.longitude}`,
+        useCurrentLocation: true 
+      }};
+    }
+  }
+  
+  // Anything to watch out for (after activity mention) - use current location
+  if (/\b(?:anything|something)\s+(?:to\s+)?(?:watch|look)\s+(?:out\s+)?for\b/i.test(lower) ||
+      /\bshould\s+I\s+(?:worry|be\s+careful)\b/i.test(lower)) {
+    if (userContext?.currentLocation?.city) {
+      return { type: 'travel_query', confidence: 0.85, extractedData: { 
+        location: userContext.currentLocation.city, 
+        useCurrentLocation: true,
+        isActivityCheck: true 
+      }};
+    }
+  }
+  
+  // Travel/weather queries with explicit location
   const locationInfo = extractLocationFromMessage(message);
   if (locationInfo) {
     return { type: 'travel_query', confidence: 0.95, extractedData: locationInfo };
@@ -495,7 +521,21 @@ function classifyIntent(message: string): { type: string; confidence: number; ex
   // Medication - match specific medication names from context
   if (/took\s+(my\s+)?(.+)/i.test(lower) || /taking\s+(.+)/i.test(lower)) {
     const medMatch = lower.match(/took\s+(?:my\s+)?(\w+)/i) || lower.match(/taking\s+(\w+)/i);
-    return { type: 'medication', confidence: 0.9, extractedData: { medicationName: medMatch?.[1], note: message } };
+    const medName = medMatch?.[1]?.toLowerCase();
+    
+    // Check if it matches a user's medication
+    const userMeds = userContext?.medications || [];
+    const matchedMed = userMeds.find(m => m.name.toLowerCase().includes(medName || '') || medName?.includes(m.name.toLowerCase()));
+    
+    return { 
+      type: 'medication', 
+      confidence: matchedMed ? 0.95 : 0.8, 
+      extractedData: { 
+        medicationName: matchedMed?.name || medMatch?.[1], 
+        note: message,
+        matched: !!matchedMed
+      } 
+    };
   }
   
   // Symptoms
@@ -539,7 +579,7 @@ serve(async (req) => {
     console.log('💬 Message:', message);
     console.log('📍 Conditions:', userContext.conditions);
     
-    const intent = classifyIntent(message);
+    const intent = classifyIntent(message, userContext);
     console.log('🎯 Intent:', intent.type, intent.confidence);
     
     const conversationContext = extractConversationContext(history || []);
@@ -757,12 +797,26 @@ EXAMPLES:
             }
           }
           
+          // Build chart data for flare analysis queries
+          let chartData = null;
+          if (intent.type === 'flare_analysis' && flareAnalysis) {
+            chartData = {
+              type: 'severity',
+              data: {
+                severe: flareAnalysis.severeCount,
+                moderate: flareAnalysis.moderateCount,
+                mild: flareAnalysis.mildCount,
+              }
+            };
+          }
+          
           return new Response(JSON.stringify({
             response: parsed.response,
             isAIGenerated: true,
             dataUsed: parsed.dataUsed || [],
             weatherUsed: !!weatherData,
             weatherCard,
+            chartData,
             shouldLog: parsed.shouldLog || false,
             entryData,
           }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
