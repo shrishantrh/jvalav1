@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { FlareEntry } from "@/types/flare";
-import { Send, Mic, MicOff, Check, Sparkles, Thermometer, Droplets, Calendar, AlertTriangle, BarChart3 } from "lucide-react";
+import { Send, Mic, MicOff, Check, Sparkles, Thermometer, Droplets, Calendar, AlertTriangle, BarChart3, MapPin } from "lucide-react";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -662,6 +662,14 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
 
   return (
     <div className="flex flex-col h-[520px] bg-gradient-card rounded-xl overflow-hidden">
+      {/* Location indicator */}
+      {currentLocation?.city && (
+        <div className="flex items-center justify-end gap-1.5 px-3 py-1.5 bg-muted/30 text-[10px] text-muted-foreground border-b border-border/30">
+          <MapPin className="w-3 h-3" />
+          <span>{currentLocation.city}</span>
+        </div>
+      )}
+      
       {/* Messages - scrollable container */}
       <div 
         ref={messagesContainerRef}
