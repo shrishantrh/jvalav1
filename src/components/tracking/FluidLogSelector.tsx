@@ -289,64 +289,64 @@ export const FluidLogSelector = ({
 
   // Main selector - organized layout
   return (
-    <div className="space-y-4">
-      {/* Quick actions - 2x2 grid */}
-      <div className="grid grid-cols-2 gap-2">
+    <div className="space-y-3">
+      {/* Primary actions row */}
+      <div className="grid grid-cols-4 gap-2">
         <Button
           variant="outline"
           size="sm"
-          className="h-11 gap-2 justify-start px-3 hover:bg-primary/10 hover:border-primary transition-all"
+          className="h-12 flex-col gap-1 text-xs hover:bg-primary/10 hover:border-primary transition-all"
           onClick={() => setActivePanel('mood')}
           disabled={disabled}
         >
           <Heart className="w-4 h-4 text-primary" />
-          <span className="text-sm">How I feel</span>
+          <span>Mood</span>
         </Button>
         <Button
           variant="outline"
           size="sm"
-          className="h-11 gap-2 justify-start px-3 hover:bg-primary/10 hover:border-primary transition-all"
+          className="h-12 flex-col gap-1 text-xs hover:bg-primary/10 hover:border-primary transition-all"
           onClick={() => setActivePanel('medication')}
           disabled={disabled}
         >
           <Pill className="w-4 h-4" />
-          <span className="text-sm">Took meds</span>
+          <span>Meds</span>
         </Button>
         <Button
           variant="outline"
           size="sm"
-          className="h-11 gap-2 justify-start px-3 hover:bg-primary/10 hover:border-primary transition-all"
+          className="h-12 flex-col gap-1 text-xs hover:bg-primary/10 hover:border-primary transition-all"
           onClick={() => setActivePanel('energy')}
           disabled={disabled}
         >
           <Zap className="w-4 h-4" />
-          <span className="text-sm">Energy</span>
+          <span>Energy</span>
         </Button>
         {onLogRecovery && (
           <Button
             variant="outline"
             size="sm"
-            className="h-11 gap-2 justify-start px-3 hover:bg-severity-none/20 hover:border-severity-none transition-all"
+            className="h-12 flex-col gap-1 text-xs hover:bg-severity-none/20 hover:border-severity-none transition-all"
             onClick={onLogRecovery}
             disabled={disabled}
           >
             <Smile className="w-4 h-4 text-severity-none" />
-            <span className="text-sm">Feeling better</span>
+            <span>Better</span>
           </Button>
         )}
       </div>
       
-      {/* Symptom chips */}
-      <div className="pt-2 border-t border-border/50">
-        <p className="text-xs text-muted-foreground mb-2 font-medium">Symptoms</p>
+      {/* Symptom chips - tap to select, then choose severity */}
+      <div>
+        <p className="text-xs text-muted-foreground mb-2">Quick symptom log</p>
         <div className="flex flex-wrap gap-1.5">
-          {allSymptoms.map((symptom) => (
+          {allSymptoms.map((symptom, idx) => (
             <Badge
               key={symptom}
               variant="outline"
               className={cn(
-                "cursor-pointer text-xs py-1 px-2.5 transition-all duration-150",
-                "hover:bg-primary/10 hover:border-primary",
+                "cursor-pointer text-xs py-1.5 px-3 transition-all duration-150",
+                "hover:bg-primary/10 hover:border-primary hover:scale-105",
                 "active:scale-95"
               )}
               onClick={() => handleSymptomClick(symptom)}
