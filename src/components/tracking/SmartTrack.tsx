@@ -101,7 +101,7 @@ const getPersonalizedGreeting = (conditions: string[], recentEntries: any[]): st
     Math.floor((Date.now() - new Date(lastFlare.timestamp).getTime()) / (1000 * 60 * 60 * 24)) : 0;
   
   if (daysSinceFlare >= 3 && recentFlares.length > 0) {
-    return `${timeGreeting}! ${daysSinceFlare} days flare-free - great streak! 🎉`;
+    return `${timeGreeting}! ${daysSinceFlare} days flare-free - great streak!`;
   }
   
   if (recentFlares.length === 0) {
@@ -195,6 +195,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number; city?: string } | null>(null);
   const { isRecording, transcript, startRecording, stopRecording, clearRecording } = useVoiceRecording();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const hasLoadedMessages = useRef(false);
 
   useEffect(() => {
@@ -278,7 +279,10 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   }, [messages, userId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Scroll within the messages container only
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   }, [messages]);
 
   useEffect(() => {
@@ -315,7 +319,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     onSave(entry);
 
     const responses = [
-      `Logged ${severity} ${symptom}. Take care 💜`,
+      `Logged ${severity} ${symptom}. Take care.`,
       `Got it. ${symptom} noted as ${severity}.`,
       `Tracked. Rest up if you need to.`,
     ];
@@ -351,7 +355,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     const confirmMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
       role: 'assistant',
-      content: `${medicationName} logged! Keep up with your routine 💊`,
+      content: `${medicationName} logged!`,
       timestamp: new Date(),
       entryData: entry,
     };
@@ -362,7 +366,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
-      content: 'Feeling good! 😊',
+      content: 'Feeling good!',
       timestamp: new Date(),
     };
     setMessages(prev => [...prev, userMessage]);
@@ -378,7 +382,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     const confirmMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
       role: 'assistant',
-      content: "Great to hear! Logged your positive update 💜",
+      content: "Great to hear! Logged.",
       timestamp: new Date(),
       entryData: entry,
     };
@@ -404,9 +408,9 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     onSave(entry);
 
     const responses: Record<string, string> = {
-      low: "Logged low energy. Take it easy today 💜",
+      low: "Logged low energy. Take it easy.",
       moderate: "Noted. Pace yourself!",
-      high: "Great energy! Make the most of it 🎉",
+      high: "Great energy! Make the most of it.",
     };
 
     const confirmMessage: ChatMessage = {
@@ -423,7 +427,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
-      content: 'Feeling better / Recovery',
+      content: 'Feeling better',
       timestamp: new Date(),
     };
     setMessages(prev => [...prev, userMessage]);
@@ -438,7 +442,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     const confirmMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
       role: 'assistant',
-      content: "So glad you're recovering! Logged 💜",
+      content: "So glad you're recovering! Logged.",
       timestamp: new Date(),
       entryData: entry,
     };
@@ -553,9 +557,12 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   };
 
   return (
-    <Card className="flex flex-col h-full bg-gradient-card border-0 shadow-soft overflow-hidden">
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
+    <div className="flex flex-col h-[450px] bg-gradient-card rounded-xl overflow-hidden">
+      {/* Messages - scrollable container */}
+      <div 
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0"
+      >
         {messages.map((msg) => (
           <div key={msg.id} className={cn(
             "flex flex-col",
@@ -576,12 +583,6 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
               <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
                 <Check className="w-3 h-3 text-green-500" />
                 <span>{msg.entryData.type} logged</span>
-                {msg.entryData.symptoms?.length ? (
-                  <span>• {msg.entryData.symptoms.length} symptoms</span>
-                ) : null}
-                {msg.entryData.triggers?.length ? (
-                  <span>• triggers: {msg.entryData.triggers.join(', ')}</span>
-                ) : null}
               </div>
             )}
             
@@ -609,8 +610,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick actions */}
-      <div className="px-4 pb-2">
+      {/* Quick actions - fixed at bottom */}
+      <div className="px-4 py-2 border-t bg-background/50">
         <FluidLogSelector
           userSymptoms={userSymptoms}
           userMedications={userMedications}
@@ -622,13 +623,13 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         />
       </div>
 
-      {/* Input */}
-      <div className="p-4 pt-2 border-t bg-background/50">
+      {/* Input - fixed at bottom */}
+      <div className="p-3 pt-2 border-t bg-background/80">
         <div className="flex items-center gap-2">
           <Button
             variant={isRecording ? "destructive" : "outline"}
             size="icon"
-            className="shrink-0"
+            className="shrink-0 h-9 w-9"
             onClick={toggleRecording}
           >
             {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
@@ -638,8 +639,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder={isRecording ? "Listening..." : "How are you feeling?"}
-            className="flex-1"
+            placeholder={isRecording ? "Listening..." : "Ask me anything..."}
+            className="flex-1 h-9"
             disabled={isProcessing}
           />
           
@@ -647,12 +648,12 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             onClick={() => handleSend()}
             disabled={!input.trim() || isProcessing}
             size="icon"
-            className="shrink-0"
+            className="shrink-0 h-9 w-9"
           >
             <Send className="w-4 h-4" />
           </Button>
         </div>
       </div>
-    </Card>
+    </div>
   );
 });
