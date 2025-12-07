@@ -28,6 +28,8 @@ interface RiskAlert {
   dismissed?: boolean;
 }
 
+const DISMISSED_KEY = 'jvala_dismissed_alerts';
+
 export const ProactiveRiskAlerts = ({ 
   recentEntries, 
   userTriggers, 
@@ -35,7 +37,22 @@ export const ProactiveRiskAlerts = ({
   currentWeather 
 }: ProactiveRiskAlertsProps) => {
   const [alerts, setAlerts] = useState<RiskAlert[]>([]);
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => {
+    // Load from localStorage on mount
+    try {
+      const saved = localStorage.getItem(DISMISSED_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Only keep dismissals from last 24 hours
+        const now = Date.now();
+        const validDismissals = Object.entries(parsed)
+          .filter(([_, timestamp]) => now - (timestamp as number) < 24 * 60 * 60 * 1000)
+          .map(([id]) => id);
+        return new Set(validDismissals);
+      }
+    } catch {}
+    return new Set();
+  });
 
   useEffect(() => {
     const newAlerts: RiskAlert[] = [];
@@ -148,7 +165,15 @@ export const ProactiveRiskAlerts = ({
   }, [recentEntries, userTriggers, currentWeather, dismissedIds]);
 
   const dismissAlert = (id: string) => {
-    setDismissedIds(prev => new Set([...prev, id]));
+    const newDismissed = new Set([...dismissedIds, id]);
+    setDismissedIds(newDismissed);
+    
+    // Persist to localStorage with timestamp
+    try {
+      const existing = JSON.parse(localStorage.getItem(DISMISSED_KEY) || '{}');
+      existing[id] = Date.now();
+      localStorage.setItem(DISMISSED_KEY, JSON.stringify(existing));
+    } catch {}
   };
 
   if (alerts.length === 0) return null;
