@@ -11,11 +11,19 @@ interface FlareEntry {
   triggers: string[];
   note: string;
   timestamp: string;
+  type?: string;
   environmental_data?: {
     weather?: { condition: string; temperature: number; humidity: number };
     airQuality?: { pollen: number; aqi: number };
     location?: { city: string };
   };
+}
+
+interface MedicationDetails {
+  name: string;
+  dosage?: string;
+  frequency?: string;
+  notes?: string;
 }
 
 interface UserContext {
@@ -24,6 +32,7 @@ interface UserContext {
   knownTriggers: string[];
   recentEntries: FlareEntry[];
   currentLocation?: { latitude: number; longitude: number; city?: string };
+  medications?: MedicationDetails[];
 }
 
 // Helper to get weather for a destination or current location
@@ -49,18 +58,26 @@ async function getWeather(query: string): Promise<any> {
   }
 }
 
-// Extract potential triggers from notes
+// Advanced NLP-based trigger extraction
 function extractTriggersFromNotes(entries: FlareEntry[]): Record<string, { count: number; severities: string[] }> {
   const potentialTriggers: Record<string, { count: number; severities: string[] }> = {};
   
-  const foodKeywords = ['ate', 'eat', 'eating', 'had', 'drank', 'drinking', 'after'];
+  // More comprehensive patterns for trigger detection
   const triggerPatterns = [
-    /ate\s+(\w+(?:\s+\w+)?)/gi,
-    /had\s+(\w+(?:\s+\w+)?)/gi,
-    /eating\s+(\w+(?:\s+\w+)?)/gi,
-    /after\s+(\w+(?:\s+\w+)?)/gi,
-    /from\s+(\w+(?:\s+\w+)?)/gi,
+    // Food patterns
+    /(?:ate|eat|eating|had|drank|drinking)\s+(?:some\s+)?(\w+(?:\s+\w+)?(?:\s+\w+)?)/gi,
+    /after\s+(?:eating|having|drinking)\s+(\w+(?:\s+\w+)?)/gi,
+    // Activity patterns
+    /(?:after|during|while)\s+(\w+ing)/gi,
+    // Environmental patterns
+    /(?:exposure\s+to|exposed\s+to|around)\s+(\w+(?:\s+\w+)?)/gi,
+    // Explicit trigger mentions
+    /(?:triggered\s+by|caused\s+by|because\s+of|due\s+to)\s+(\w+(?:\s+\w+)?)/gi,
+    // Time-based patterns
+    /(?:woke\s+up\s+with|started\s+after|began\s+when)\s+(\w+(?:\s+\w+)?)/gi,
   ];
+  
+  const stopWords = ['the', 'and', 'some', 'lot', 'bit', 'too', 'much', 'very', 'really', 'today', 'yesterday', 'just', 'like', 'been', 'have', 'had', 'was', 'were', 'that', 'this', 'with'];
   
   entries.forEach(entry => {
     if (!entry.note) return;
@@ -69,8 +86,14 @@ function extractTriggersFromNotes(entries: FlareEntry[]): Record<string, { count
     triggerPatterns.forEach(pattern => {
       const matches = note.matchAll(pattern);
       for (const match of matches) {
-        const trigger = match[1].trim();
-        if (trigger.length > 2 && !['the', 'and', 'some', 'lot', 'bit'].includes(trigger)) {
+        let trigger = match[1]?.trim();
+        if (!trigger || trigger.length < 3) continue;
+        
+        // Filter out stop words
+        const words = trigger.split(' ').filter(w => !stopWords.includes(w) && w.length > 2);
+        trigger = words.join(' ');
+        
+        if (trigger.length > 2) {
           if (!potentialTriggers[trigger]) {
             potentialTriggers[trigger] = { count: 0, severities: [] };
           }
@@ -158,6 +181,19 @@ function analyzeUserHistory(entries: FlareEntry[], conditions: string[]) {
   
   const peakTime = Object.entries(hourCounts).sort((a, b) => b[1] - a[1])[0];
   
+  // Weekly summary
+  const last7Days = entries.filter(e => {
+    const daysDiff = (Date.now() - new Date(e.timestamp).getTime()) / (1000 * 60 * 60 * 24);
+    return daysDiff <= 7;
+  });
+  
+  const weekSummary = {
+    totalFlares: last7Days.filter(e => e.type === 'flare' || e.severity).length,
+    severeCount: last7Days.filter(e => e.severity === 'severe').length,
+    medicationLogs: last7Days.filter(e => e.type === 'medication').length,
+    wellnessLogs: last7Days.filter(e => e.type === 'wellness').length,
+  };
+  
   return {
     totalFlares: last30Days.length,
     severePercentage: Math.round((severeSeverityCount / last30Days.length) * 100),
@@ -165,37 +201,152 @@ function analyzeUserHistory(entries: FlareEntry[], conditions: string[]) {
     topSymptoms,
     weatherTriggers,
     peakTime: peakTime[0],
-    conditions
+    conditions,
+    weekSummary
   };
 }
 
 // Detect if user is asking about weather/outdoor activities
-function detectWeatherQuery(message: string): { needsWeather: boolean; destination?: string; isCurrentLocation: boolean } {
+function detectWeatherQuery(message: string, currentLocation?: any): { needsWeather: boolean; destination?: string; isCurrentLocation: boolean } {
   const lowerMsg = message.toLowerCase();
   
-  // Travel detection
-  const travelMatch = lowerMsg.match(/travel(?:ing|s)?\s+to\s+([a-zA-Z\s]+)/i) ||
-                      lowerMsg.match(/going\s+to\s+([a-zA-Z\s]+)/i) ||
-                      lowerMsg.match(/trip\s+to\s+([a-zA-Z\s]+)/i) ||
-                      lowerMsg.match(/flying\s+to\s+([a-zA-Z\s]+)/i) ||
-                      lowerMsg.match(/visiting\s+([a-zA-Z\s]+)/i);
+  // Travel detection - more patterns
+  const travelPatterns = [
+    /travel(?:ing|s|led)?\s+to\s+([a-zA-Z\s,]+)/i,
+    /going\s+to\s+([a-zA-Z\s,]+)/i,
+    /trip\s+to\s+([a-zA-Z\s,]+)/i,
+    /flying\s+to\s+([a-zA-Z\s,]+)/i,
+    /visiting\s+([a-zA-Z\s,]+)/i,
+    /heading\s+to\s+([a-zA-Z\s,]+)/i,
+    /vacation\s+(?:in|to)\s+([a-zA-Z\s,]+)/i,
+    /moving\s+to\s+([a-zA-Z\s,]+)/i,
+  ];
   
-  if (travelMatch) {
-    return { needsWeather: true, destination: travelMatch[1].trim(), isCurrentLocation: false };
+  for (const pattern of travelPatterns) {
+    const match = lowerMsg.match(pattern);
+    if (match) {
+      const destination = match[1].trim().replace(/[,.]$/, '');
+      // Filter out non-location words
+      if (!['work', 'home', 'bed', 'sleep', 'dinner', 'lunch', 'breakfast'].includes(destination)) {
+        return { needsWeather: true, destination, isCurrentLocation: false };
+      }
+    }
   }
   
   // Current location weather queries
   const currentWeatherKeywords = [
-    'run', 'running', 'jog', 'jogging', 'walk', 'walking', 'outside', 'outdoor',
-    'weather', 'pollen', 'allergy', 'allergies', 'air quality', 'aqi',
-    'exercise', 'workout', 'hiking', 'bike', 'cycling', 'today', 'now'
+    'weather', 'temperature', 'humidity', 'pollen', 'air quality', 'aqi',
+    'outside', 'outdoor', 'go out', 'walk', 'run', 'jog', 'exercise', 'workout',
+    'hiking', 'bike', 'cycling', 'today', 'right now', 'currently'
   ];
   
-  if (currentWeatherKeywords.some(kw => lowerMsg.includes(kw))) {
+  const needsCurrentWeather = currentWeatherKeywords.some(kw => lowerMsg.includes(kw));
+  
+  if (needsCurrentWeather && currentLocation) {
     return { needsWeather: true, isCurrentLocation: true };
   }
   
   return { needsWeather: false, isCurrentLocation: false };
+}
+
+// Classify user message intent
+function classifyIntent(message: string): { type: string; confidence: number; extractedData: any } {
+  const lower = message.toLowerCase();
+  
+  // Positive/wellness patterns
+  const positivePatterns = [
+    /feeling\s+(good|great|better|amazing|wonderful|fantastic|well|fine|okay)/i,
+    /feel\s+(good|great|better|amazing|wonderful|fantastic|well|fine|okay)/i,
+    /doing\s+(good|great|better|well|okay|fine)/i,
+    /(good|great|better)\s+day/i,
+    /no\s+(pain|symptoms|issues|problems|flares?)/i,
+    /pain\s*free/i,
+    /symptom\s*free/i,
+  ];
+  
+  for (const pattern of positivePatterns) {
+    if (pattern.test(lower)) {
+      return { type: 'wellness', confidence: 0.9, extractedData: { energyLevel: 'good' } };
+    }
+  }
+  
+  // Medication patterns
+  const medicationPatterns = [
+    /took\s+(my\s+)?(medication|medicine|meds?|pills?|insulin|dose)/i,
+    /taking\s+(my\s+)?(medication|medicine|meds?|pills?)/i,
+    /had\s+(my\s+)?(medication|medicine|meds?|pills?)/i,
+    /(medication|medicine|meds?|pills?)\s+taken/i,
+    /(\d+)\s*(?:units?|mg|ml)\s+(?:of\s+)?(\w+)/i,
+  ];
+  
+  for (const pattern of medicationPatterns) {
+    const match = lower.match(pattern);
+    if (match) {
+      return { type: 'medication', confidence: 0.9, extractedData: { note: message } };
+    }
+  }
+  
+  // Energy patterns
+  const energyPatterns = [
+    /(low|no|zero)\s+energy/i,
+    /feeling\s+(tired|exhausted|drained|fatigued)/i,
+    /(high|lots?\s+of|full\s+of)\s+energy/i,
+    /very\s+(tired|exhausted)/i,
+    /so\s+tired/i,
+  ];
+  
+  for (const pattern of energyPatterns) {
+    const match = lower.match(pattern);
+    if (match) {
+      const isLow = /(low|no|zero|tired|exhausted|drained|fatigued)/.test(match[0]);
+      return { type: 'energy', confidence: 0.85, extractedData: { energyLevel: isLow ? 'low' : 'high' } };
+    }
+  }
+  
+  // Flare/symptom patterns
+  const flarePatterns = [
+    /feeling\s+(terrible|awful|bad|horrible|sick|unwell|rough|worse)/i,
+    /(severe|bad|terrible|horrible)\s+(pain|headache|migraine)/i,
+    /having\s+a\s+(flare|attack|episode)/i,
+    /(headache|migraine|nausea|dizzy|dizziness|pain|cramp)/i,
+  ];
+  
+  for (const pattern of flarePatterns) {
+    if (pattern.test(lower)) {
+      // Try to extract severity
+      let severity = 'moderate';
+      if (/(severe|terrible|horrible|awful|worst)/i.test(lower)) severity = 'severe';
+      else if (/(mild|slight|little|bit)/i.test(lower)) severity = 'mild';
+      
+      // Try to extract symptoms
+      const symptoms: string[] = [];
+      const symptomList = ['headache', 'migraine', 'nausea', 'dizziness', 'fatigue', 'pain', 'cramping', 'brain fog'];
+      symptomList.forEach(s => {
+        if (lower.includes(s)) symptoms.push(s);
+      });
+      
+      return { 
+        type: 'flare', 
+        confidence: 0.8, 
+        extractedData: { severity, symptoms: symptoms.length > 0 ? symptoms : undefined } 
+      };
+    }
+  }
+  
+  // Query patterns
+  const queryPatterns = [
+    /(how|what).*(week|today|patterns?|triggers?|symptoms?)/i,
+    /(show|tell|give).*(summary|report|analysis|insights?)/i,
+    /(any|are\s+there).*(patterns?|correlations?|trends?)/i,
+  ];
+  
+  for (const pattern of queryPatterns) {
+    if (pattern.test(lower)) {
+      return { type: 'query', confidence: 0.8, extractedData: {} };
+    }
+  }
+  
+  return { type: 'unknown', confidence: 0, extractedData: {} };
 }
 
 serve(async (req) => {
@@ -216,12 +367,17 @@ serve(async (req) => {
     console.log('💬 Smart assistant message:', message);
     console.log('📍 User conditions:', userContext.conditions);
     console.log('📍 User location:', userContext.currentLocation);
+    console.log('💊 User medications:', userContext.medications);
+    
+    // Classify the intent first
+    const intent = classifyIntent(message);
+    console.log('🎯 Detected intent:', intent.type, 'confidence:', intent.confidence);
     
     // Analyze the user's history
     const userAnalysis = analyzeUserHistory(userContext.recentEntries || [], userContext.conditions || []);
     
     // Check if we need to fetch weather
-    const weatherQuery = detectWeatherQuery(message);
+    const weatherQuery = detectWeatherQuery(message, userContext.currentLocation);
     let weatherData = null;
     let weatherLocation = '';
     
@@ -256,7 +412,7 @@ Current:
 - UV Index: ${current?.uv || 'Unknown'}
 - Air Quality (US EPA): ${aqi?.['us-epa-index'] || 'Unknown'} (1=Good, 6=Hazardous)
 - PM2.5: ${aqi?.pm2_5?.toFixed(1) || 'Unknown'}
-- Pollen (approximate based on season): ${current?.humidity > 50 && current?.temp_f > 50 ? 'Moderate-High' : 'Low-Moderate'}
+- Pollen (approximate): ${current?.humidity > 50 && current?.temp_f > 50 ? 'Moderate-High' : 'Low-Moderate'}
 
 Today's Forecast:
 - High: ${forecast?.maxtemp_f || 'Unknown'}°F, Low: ${forecast?.mintemp_f || 'Unknown'}°F
@@ -266,10 +422,16 @@ Today's Forecast:
 Tomorrow's Forecast:
 - Condition: ${tomorrow?.condition?.text || 'Unknown'}
 - High: ${tomorrow?.maxtemp_f || 'Unknown'}°F
-- Humidity: ${tomorrow?.avghumidity || 'Unknown'}%
-- UV Index: ${tomorrow?.uv || 'Unknown'}
 
-USE THIS DATA to give SPECIFIC advice. Compare to user's historical weather triggers.`;
+YOU MUST USE THIS DATA to give SPECIFIC advice. Include the actual numbers in your response.`;
+    }
+    
+    // Build medication info
+    let medicationInfo = '';
+    if (userContext.medications && userContext.medications.length > 0) {
+      medicationInfo = `
+USER'S MEDICATIONS:
+${userContext.medications.map(m => `- ${m.name}${m.dosage ? ` (${m.dosage})` : ''}${m.frequency ? ` - ${m.frequency}` : ''}${m.notes ? ` - Notes: ${m.notes}` : ''}`).join('\n')}`;
     }
     
     // Build context-aware system prompt
@@ -277,47 +439,70 @@ USE THIS DATA to give SPECIFIC advice. Compare to user's historical weather trig
 
 CRITICAL RULES:
 - NEVER give generic advice like "listen to your body" or "stay hydrated" without backing it with data
-- NEVER say "I don't have access to real-time data" - if weather data is provided, USE IT
+- NEVER say "I don't have access to real-time data" - if weather data is provided, USE IT with specific numbers
+- When weather data is provided, YOU MUST include specific numbers like "72°F" and "humidity at 65%"
 - ONLY give advice that is BACKED BY USER'S DATA or REAL WEATHER DATA when provided
-- If you genuinely lack data, be honest but offer to help in other ways
-- Keep responses SHORT (2-3 sentences max)
+- Keep responses SHORT (2-3 sentences max) unless answering a detailed query
 - Be warm, personable, supportive - like a knowledgeable friend
 - When citing data, be specific: "Your 12 logged flares show..." not "Based on data..."
-- If user mentions travel to a destination, proactively offer to check tomorrow's conditions there
+- For weekly summaries, use markdown formatting with bullet points
 
 USER'S HEALTH PROFILE:
 - Conditions being tracked: ${userContext.conditions?.length ? userContext.conditions.join(', ') : 'None specified'}
 - Known symptoms: ${userContext.knownSymptoms?.join(', ') || 'None specified'}
 - Known triggers: ${userContext.knownTriggers?.join(', ') || 'None specified'}
+${medicationInfo}
 
 USER'S FLARE HISTORY ANALYSIS:
 ${userAnalysis ? `
-- Total flares logged: ${userAnalysis.totalFlares}
+- Total entries (30 days): ${userAnalysis.totalFlares}
 - Severe flares: ${userAnalysis.severePercentage}%
 - Peak flare time: ${userAnalysis.peakTime}
-- Top triggers (from data + notes): ${userAnalysis.topTriggers.map(t => `${t.name} (${t.count}x)`).join(', ') || 'Still building data'}
+- Top triggers: ${userAnalysis.topTriggers.map(t => `${t.name} (${t.count}x)`).join(', ') || 'Still building data'}
 - Top symptoms: ${userAnalysis.topSymptoms.map(s => `${s.name} (${s.count}x)`).join(', ') || 'Still building data'}
-- Weather patterns during flares: ${userAnalysis.weatherTriggers.map(w => `${w.condition} (${w.count}x)`).join(', ') || 'Not enough weather data yet'}
+- Weather correlations: ${userAnalysis.weatherTriggers.map(w => `${w.condition} (${w.count}x)`).join(', ') || 'Not enough data yet'}
+
+THIS WEEK (last 7 days):
+- Flares: ${userAnalysis.weekSummary.totalFlares}
+- Severe: ${userAnalysis.weekSummary.severeCount}
+- Medication logs: ${userAnalysis.weekSummary.medicationLogs}
+- Wellness logs: ${userAnalysis.weekSummary.wellnessLogs}
 ` : 'No flare history yet - need more data to identify patterns.'}
 
 ${weatherInfo}
 
+DETECTED USER INTENT: ${intent.type} (confidence: ${intent.confidence})
+${intent.type !== 'unknown' ? `Extracted data: ${JSON.stringify(intent.extractedData)}` : ''}
+
 RESPONSE FORMAT (MUST be valid JSON):
 {
-  "response": "Your data-backed, warm response here",
+  "response": "Your data-backed, warm response here. Use markdown for lists.",
   "isAIGenerated": true,
-  "dataUsed": ["list", "of", "data_sources"],
-  "shouldLog": true/false,
-  "entryData": { ... } or null,
-  "suggestedFollowUp": "optional follow-up question to show as button" or null
+  "dataUsed": ["list", "data_sources", "used"],
+  "weatherUsed": ${weatherData ? 'true' : 'false'},
+  "shouldLog": true/false (set true if user is reporting symptoms/feelings/medications),
+  "entryData": { "type": "flare|medication|wellness|energy", "severity": "mild|moderate|severe", "symptoms": [], "energyLevel": "low|moderate|high|good" } or null,
+  "suggestedFollowUp": "optional follow-up question" or null
 }
 
-EXAMPLES:
-User: "going for a run, anything to watch out for?"
-Response (with weather data): {"response": "Right now in ${weatherLocation || 'your area'}, it's 72°F with moderate UV. Based on your history, you've had 3 flares during high humidity days. Current humidity is 65% - I'd suggest a shorter route and having water handy. Air quality looks good at EPA index 2! 💪", "isAIGenerated": true, "dataUsed": ["current_weather", "flare_history", "air_quality"], "shouldLog": false}
+LOGGING RULES:
+- "feeling good/great/better/amazing" → shouldLog: true, entryData: { type: "wellness", energyLevel: "good" }
+- "took medication/meds/pills" → shouldLog: true, entryData: { type: "medication" }
+- "low energy/tired/exhausted" → shouldLog: true, entryData: { type: "energy", energyLevel: "low" }
+- Any symptom mention → shouldLog: true, entryData: { type: "flare", severity: based on words, symptoms: extracted }
+- Questions/queries about patterns → shouldLog: false
 
-User: "feeling dizzy and tired"
-Response: {"response": "I've logged dizziness and fatigue - a moderate flare. Looking at your pattern, these often appear together (6 of your 12 flares). Last time this happened, you mentioned stress was a factor. How's your stress been? 💜", "isAIGenerated": true, "dataUsed": ["symptom_history", "pattern_analysis"], "shouldLog": true, "entryData": {"type": "flare", "severity": "moderate", "symptoms": ["dizziness", "fatigue"]}, "suggestedFollowUp": "How's my week looking?"}`;
+WEEKLY SUMMARY FORMAT (when user asks "my week" or similar):
+Use this markdown format:
+**Your Week at a Glance** 📊
+
+• **Flares:** X logged (Y severe)
+• **Medications:** X times logged
+• **Wellness:** X positive entries
+• **Top symptom:** [symptom]
+• **Main trigger:** [trigger]
+
+[One personalized insight based on data]`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -383,6 +568,7 @@ Response: {"response": "I've logged dizziness and fatigue - a moderate flare. Lo
             response: parsed.response || "I need more context to help with that.",
             isAIGenerated: true,
             dataUsed: parsed.dataUsed || [],
+            weatherUsed: parsed.weatherUsed || false,
             shouldLog: parsed.shouldLog || false,
             entryData: parsed.entryData || null,
             suggestedFollowUp: parsed.suggestedFollowUp || null
