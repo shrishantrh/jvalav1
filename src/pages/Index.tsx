@@ -21,10 +21,18 @@ import { format, isSameDay } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
+interface MedicationDetails {
+  name: string;
+  dosage?: string;
+  frequency?: string;
+  notes?: string;
+}
+
 interface UserProfile {
   conditions: string[];
   known_symptoms: string[];
   known_triggers: string[];
+  medications: MedicationDetails[];
   physician_name: string | null;
   physician_email: string | null;
   physician_phone: string | null;
@@ -66,7 +74,6 @@ const Index = () => {
     const engagement = await getEngagement(user.id);
     if (engagement) {
       setCurrentStreak(engagement.current_streak || 0);
-      // Sync totals on load to fix any mismatches
       await syncEngagementTotals(user.id);
     }
   };
@@ -78,17 +85,21 @@ const Index = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('conditions, known_symptoms, known_triggers, physician_name, physician_email, physician_phone, physician_practice, onboarding_completed')
+        .select('conditions, known_symptoms, known_triggers, physician_name, physician_email, physician_phone, physician_practice, onboarding_completed, metadata')
         .eq('id', user.id)
         .maybeSingle();
 
       if (error) throw error;
 
       if (data) {
+        const profileData = data as any;
+        const medications = profileData.metadata?.medications || [];
+        
         setUserProfile({
           conditions: data.conditions || [],
           known_symptoms: data.known_symptoms || [],
           known_triggers: data.known_triggers || [],
+          medications: medications,
           physician_name: data.physician_name,
           physician_email: data.physician_email,
           physician_phone: data.physician_phone,
@@ -139,6 +150,7 @@ const Index = () => {
         conditions: data.conditions,
         known_symptoms: data.symptoms,
         known_triggers: data.triggers,
+        medications: [],
         physician_name: data.physicianName || null,
         physician_email: data.physicianEmail || null,
         physician_phone: data.physicianPhone || null,
@@ -461,9 +473,11 @@ const Index = () => {
             <SmartTrack
               ref={smartTrackRef}
               onSave={handleSaveEntry}
+              onUpdateEntry={handleUpdateEntry}
               userSymptoms={userProfile?.known_symptoms || []}
               userConditions={userProfile?.conditions || []}
               userTriggers={userProfile?.known_triggers || []}
+              userMedications={userProfile?.medications || []}
               recentEntries={entries}
               userId={user.id}
             />

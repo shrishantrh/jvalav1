@@ -431,16 +431,47 @@ function extractConversationContext(history: Array<{ role: string; content: stri
   return { recentMentions: [...new Set(recentMentions)], pendingTrigger };
 }
 
+// Check if user is providing additional context for the last entry (update intent)
+function isUpdateIntent(message: string, history: Array<{ role: string; content: string }>): { isUpdate: boolean; additionalInfo: string } {
+  const lower = message.toLowerCase();
+  
+  // Patterns that indicate user is adding context to previous log
+  const updatePatterns = [
+    /^(?:it was|was)\s+(?:also\s+)?(.+)/i,
+    /^(?:also|and|btw|by the way)\s*[,:]?\s*(.+)/i,
+    /^(?:there was|it's|its)\s+(.+)/i,
+    /(?:raining|rain|cold|hot|humid|windy|sunny)/i,
+    /(?:stressed|stress|anxious|tired)/i,
+  ];
+  
+  // Check if recent history has a flare log
+  const recentAssistant = history.slice(-3).find(m => 
+    m.role === 'assistant' && 
+    (m.content.toLowerCase().includes('logged') || m.content.toLowerCase().includes('flare'))
+  );
+  
+  if (recentAssistant) {
+    for (const pattern of updatePatterns) {
+      if (pattern.test(lower)) {
+        return { isUpdate: true, additionalInfo: message };
+      }
+    }
+  }
+  
+  return { isUpdate: false, additionalInfo: '' };
+}
+
 function classifyIntent(message: string): { type: string; confidence: number; extractedData: any } {
   const lower = message.toLowerCase();
   
-  // Flare analysis queries
-  if (/\b(?:how(?:'s| is| are)?|what(?:'s| is)?|show|tell|give)\b.*\b(?:flares?|symptoms?|my (?:week|month|data|history|patterns?|triggers?))\b/i.test(lower) ||
+  // Flare analysis queries - expanded patterns
+  if (/\b(?:how(?:'s| is| are)?|what(?:'s| is)?|show|tell|give|my)\b.*\b(?:flares?|symptoms?|week|month|data|history|patterns?|triggers?|progress)\b/i.test(lower) ||
       /\bpast (?:week|month|day|year)\b/i.test(lower) ||
       /\bflares? (?:this|the|past|last)\b/i.test(lower) ||
-      /\banalysis|analytics|insights?\b/i.test(lower)) {
+      /\banalysis|analytics|insights?|summary\b/i.test(lower) ||
+      /\bhow(?:'s| is| am| are)?\s+(?:i|my)\b/i.test(lower)) {
     const period = /\bweek\b/i.test(lower) ? 'week' : /\bmonth\b/i.test(lower) ? 'month' : 'month';
-    return { type: 'flare_analysis', confidence: 0.95, extractedData: { period } };
+    return { type: 'flare_analysis', confidence: 0.95, extractedData: { period, wantsChart: true } };
   }
   
   // Travel/weather queries
@@ -461,9 +492,10 @@ function classifyIntent(message: string): { type: string; confidence: number; ex
     return { type: 'wellness', confidence: 0.9, extractedData: { energyLevel: 'good' } };
   }
   
-  // Medication
-  if (/took\s+(my\s+)?(medication|medicine|meds?|pills?|insulin|dose)/i.test(lower)) {
-    return { type: 'medication', confidence: 0.9, extractedData: { note: message } };
+  // Medication - match specific medication names from context
+  if (/took\s+(my\s+)?(.+)/i.test(lower) || /taking\s+(.+)/i.test(lower)) {
+    const medMatch = lower.match(/took\s+(?:my\s+)?(\w+)/i) || lower.match(/taking\s+(\w+)/i);
+    return { type: 'medication', confidence: 0.9, extractedData: { medicationName: medMatch?.[1], note: message } };
   }
   
   // Symptoms
