@@ -612,7 +612,42 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       };
       setMessages(prev => [...prev, assistantMessage]);
 
-      if (data.entryData && data.shouldLog) {
+      // Handle multiple entries from a single message (e.g., "felt pain and took meds")
+      if (data.multipleEntries && data.multipleEntries.length > 0) {
+        console.log('📝 Logging multiple entries:', data.multipleEntries.length);
+        
+        try {
+          const { getCurrentLocation, fetchWeatherData } = await import("@/services/weatherService");
+          const location = await getCurrentLocation();
+          let envData = undefined;
+          if (location) {
+            const weatherData = await fetchWeatherData(location.latitude, location.longitude);
+            if (weatherData) envData = weatherData;
+          }
+          
+          // Save each entry
+          for (const entryData of data.multipleEntries) {
+            const entry: Partial<FlareEntry> = {
+              ...entryData,
+              note: text,
+              timestamp: new Date(),
+              environmentalData: envData,
+            };
+            onSave(entry);
+          }
+        } catch (e) {
+          // Still save without env data
+          for (const entryData of data.multipleEntries) {
+            const entry: Partial<FlareEntry> = {
+              ...entryData,
+              note: text,
+              timestamp: new Date(),
+            };
+            onSave(entry);
+          }
+        }
+      } else if (data.entryData && data.shouldLog) {
+        // Single entry (backward compatibility)
         const entry: Partial<FlareEntry> = {
           ...data.entryData,
           note: text,

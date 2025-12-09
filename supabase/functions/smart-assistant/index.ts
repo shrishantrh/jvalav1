@@ -467,10 +467,18 @@ function isUpdateIntent(message: string, history: Array<{ role: string; content:
   return { isUpdate: false, additionalInfo: '' };
 }
 
-function classifyIntent(message: string, userContext?: UserContext): { type: string; confidence: number; extractedData: any } {
+interface IntentResult {
+  type: string;
+  confidence: number;
+  extractedData: any;
+}
+
+// Extract ALL intents from a message (e.g., "felt pain and took meds" = 2 intents)
+function classifyMultipleIntents(message: string, userContext?: UserContext): IntentResult[] {
   const lower = message.toLowerCase();
+  const intents: IntentResult[] = [];
   
-  // OFF-TOPIC DETECTION - reject non-health queries
+  // OFF-TOPIC DETECTION - reject non-health queries first
   const offTopicPatterns = [
     /\b(?:write|code|program|script|python|javascript|java|c\+\+|html|css)\b/i,
     /\b(?:calculate|compute|math|equation|algebra|calculus)\b/i,
@@ -483,105 +491,169 @@ function classifyIntent(message: string, userContext?: UserContext): { type: str
   
   for (const pattern of offTopicPatterns) {
     if (pattern.test(lower)) {
-      return { type: 'off_topic', confidence: 0.99, extractedData: { reason: 'non-health-query' } };
+      return [{ type: 'off_topic', confidence: 0.99, extractedData: { reason: 'non-health-query' } }];
     }
   }
   
-  // Flare analysis queries - expanded patterns
+  // Flare analysis queries - highest priority, single intent
   if (/\b(?:how(?:'s| is| are)?|what(?:'s| is)?|show|tell|give|my)\b.*\b(?:flares?|symptoms?|week|month|data|history|patterns?|triggers?|progress)\b/i.test(lower) ||
       /\bpast (?:week|month|day|year)\b/i.test(lower) ||
       /\bflares? (?:this|the|past|last)\b/i.test(lower) ||
       /\banalysis|analytics|insights?|summary\b/i.test(lower) ||
       /\bhow(?:'s| is| am| are)?\s+(?:i|my)\b/i.test(lower)) {
     const period = /\bweek\b/i.test(lower) ? 'week' : /\bmonth\b/i.test(lower) ? 'month' : 'month';
-    return { type: 'flare_analysis', confidence: 0.95, extractedData: { period, wantsChart: true } };
+    return [{ type: 'flare_analysis', confidence: 0.95, extractedData: { period, wantsChart: true } }];
   }
   
-  // Just "weather" or "weather?" - use current location
+  // Travel/weather queries - single intent
   if (/^weather\??$/i.test(lower.trim()) || /\b(?:what'?s?|how'?s?)\s+(?:the\s+)?weather\b/i.test(lower)) {
-    // Use user's current location
     if (userContext?.currentLocation?.city) {
-      return { type: 'travel_query', confidence: 0.9, extractedData: { location: userContext.currentLocation.city, useCurrentLocation: true } };
+      return [{ type: 'travel_query', confidence: 0.9, extractedData: { location: userContext.currentLocation.city, useCurrentLocation: true } }];
     }
     if (userContext?.currentLocation?.latitude) {
-      return { type: 'travel_query', confidence: 0.9, extractedData: { 
+      return [{ type: 'travel_query', confidence: 0.9, extractedData: { 
         location: `${userContext.currentLocation.latitude},${userContext.currentLocation.longitude}`,
         useCurrentLocation: true 
-      }};
+      }}];
     }
   }
   
-  // Travel/weather queries with explicit location - CHECK THIS FIRST before fallback
   const locationInfo = extractLocationFromMessage(message);
   if (locationInfo) {
-    return { type: 'travel_query', confidence: 0.95, extractedData: locationInfo };
+    return [{ type: 'travel_query', confidence: 0.95, extractedData: locationInfo }];
   }
   
-  // Anything to watch out for (after activity mention) - use current location ONLY if no destination found
   if (/\b(?:anything|something)\s+(?:to\s+)?(?:watch|look)\s+(?:out\s+)?for\b/i.test(lower) ||
       /\bshould\s+I\s+(?:worry|be\s+careful)\b/i.test(lower)) {
     if (userContext?.currentLocation?.city) {
-      return { type: 'travel_query', confidence: 0.85, extractedData: { 
+      return [{ type: 'travel_query', confidence: 0.85, extractedData: { 
         location: userContext.currentLocation.city, 
         useCurrentLocation: true,
         isActivityCheck: true 
-      }};
+      }}];
     }
   }
   
-  // Food mentions
-  const foodMatch = lower.match(/(?:ate|eat|eating|had|consumed)\s+(\w+)/i);
+  // ===== MULTI-INTENT EXTRACTION =====
+  // Now check for multiple loggable items in the same message
+  
+  // 1. Check for medication mentions
+  const medPatterns = [
+    /(?:took|take|taking|had)\s+(?:my\s+)?(\d+\s*(?:mg|ml|units?)?\s+)?(\w+)/gi,
+    /(\w+)\s+(?:taken|medication|meds?)/gi,
+  ];
+  
+  for (const pattern of medPatterns) {
+    let match;
+    while ((match = pattern.exec(lower)) !== null) {
+      const dosage = match[1]?.trim();
+      const medName = (match[2] || match[1])?.toLowerCase();
+      
+      // Skip common non-medication words
+      const skipWords = ['my', 'the', 'a', 'it', 'that', 'this', 'some', 'pain', 'nap', 'walk', 'break', 'rest'];
+      if (skipWords.includes(medName)) continue;
+      
+      // Check if it matches a user's medication
+      const userMeds = userContext?.medications || [];
+      const matchedMed = userMeds.find(m => 
+        m.name.toLowerCase().includes(medName) || 
+        medName.includes(m.name.toLowerCase().split(' ')[0])
+      );
+      
+      if (matchedMed || /\b(insulin|advil|tylenol|ibuprofen|metformin|aspirin|prednisone|humira|enbrel|xanax|zoloft|lexapro|synthroid|lisinopril)\b/i.test(medName)) {
+        intents.push({ 
+          type: 'medication', 
+          confidence: matchedMed ? 0.95 : 0.8, 
+          extractedData: { 
+            medicationName: matchedMed?.name || medName, 
+            dosage,
+            note: message,
+            matched: !!matchedMed
+          } 
+        });
+      }
+    }
+  }
+  
+  // 2. Check for symptoms/flare mentions
+  const symptomPatterns = [
+    { pattern: /(severe|bad|terrible|horrible|awful|worst)\s+(pain|headache|migraine|ache)/i, severity: 'severe' },
+    { pattern: /(mild|slight|little|bit of)\s+(pain|headache|discomfort)/i, severity: 'mild' },
+    { pattern: /having\s+a\s+(flare|attack|episode)/i, severity: 'moderate' },
+    { pattern: /\b(headache|migraine|nausea|dizzy|dizziness|vertigo|fatigue|exhausted|pain|cramp|cramping|brain fog|fog|loss of appetite|joint pain|stiffness|swelling|inflammation)\b/i, severity: 'moderate' },
+    { pattern: /\bfelt\s+(pain|bad|terrible|sick|awful|nauseous|dizzy)\b/i, severity: 'moderate' },
+    { pattern: /\bhurting|aching|throbbing|burning\b/i, severity: 'moderate' },
+  ];
+  
+  let detectedSymptoms: string[] = [];
+  let detectedSeverity = 'moderate';
+  let hasFlareIntent = false;
+  
+  for (const { pattern, severity } of symptomPatterns) {
+    if (pattern.test(lower)) {
+      hasFlareIntent = true;
+      if (severity === 'severe') detectedSeverity = 'severe';
+      else if (severity === 'mild' && detectedSeverity !== 'severe') detectedSeverity = 'mild';
+      
+      // Extract specific symptoms
+      const symptomList = ['headache', 'migraine', 'nausea', 'dizziness', 'fatigue', 'pain', 'cramping', 'brain fog', 'loss of appetite', 'joint pain', 'stiffness', 'swelling', 'inflammation', 'vertigo'];
+      symptomList.forEach(s => { 
+        if (lower.includes(s) && !detectedSymptoms.includes(s)) {
+          detectedSymptoms.push(s); 
+        }
+      });
+    }
+  }
+  
+  if (hasFlareIntent) {
+    intents.push({ 
+      type: 'flare', 
+      confidence: 0.85, 
+      extractedData: { severity: detectedSeverity, symptoms: detectedSymptoms } 
+    });
+  }
+  
+  // 3. Check for food/trigger mentions
+  const foodMatch = lower.match(/(?:ate|eat|eating|had|consumed)\s+(?:some\s+)?(\w+(?:\s+\w+)?)/i);
   if (foodMatch) {
-    return { type: 'food_log', confidence: 0.9, extractedData: { food: foodMatch[1] } };
+    const food = foodMatch[1]?.trim();
+    const skipFoods = ['it', 'that', 'this', 'some', 'a', 'the', 'breakfast', 'lunch', 'dinner', 'meal'];
+    if (food && !skipFoods.includes(food.toLowerCase())) {
+      intents.push({ type: 'food_log', confidence: 0.9, extractedData: { food } });
+    }
   }
   
-  // Wellness
+  // 4. Check for wellness mentions
   if (/feeling\s+(good|great|better|amazing|wonderful|fantastic|well|fine|okay)/i.test(lower) ||
-      /no\s+(pain|symptoms|issues|problems|flares?)/i.test(lower)) {
-    return { type: 'wellness', confidence: 0.9, extractedData: { energyLevel: 'good' } };
+      /no\s+(pain|symptoms|issues|problems|flares?)/i.test(lower) ||
+      /\b(feeling great|doing well|good day|better today)\b/i.test(lower)) {
+    intents.push({ type: 'wellness', confidence: 0.9, extractedData: { energyLevel: 'good' } });
   }
   
-  // Medication - match specific medication names from context
-  if (/took\s+(my\s+)?(.+)/i.test(lower) || /taking\s+(.+)/i.test(lower)) {
-    const medMatch = lower.match(/took\s+(?:my\s+)?(\w+)/i) || lower.match(/taking\s+(\w+)/i);
-    const medName = medMatch?.[1]?.toLowerCase();
-    
-    // Check if it matches a user's medication
-    const userMeds = userContext?.medications || [];
-    const matchedMed = userMeds.find(m => m.name.toLowerCase().includes(medName || '') || medName?.includes(m.name.toLowerCase()));
-    
-    return { 
-      type: 'medication', 
-      confidence: matchedMed ? 0.95 : 0.8, 
-      extractedData: { 
-        medicationName: matchedMed?.name || medMatch?.[1], 
-        note: message,
-        matched: !!matchedMed
-      } 
-    };
+  // 5. Check for energy mentions
+  if (/(low|no|zero)\s+energy/i.test(lower) || /feeling\s+(tired|exhausted|drained|wiped)/i.test(lower)) {
+    // Only add if not already captured as flare
+    if (!hasFlareIntent) {
+      intents.push({ type: 'energy', confidence: 0.85, extractedData: { energyLevel: 'low' } });
+    }
   }
   
-  // Symptoms
-  if (/(severe|bad|terrible|horrible)\s+(pain|headache|migraine)/i.test(lower) ||
-      /having\s+a\s+(flare|attack|episode)/i.test(lower) ||
-      /(headache|migraine|nausea|dizzy|dizziness|pain|cramp|fatigue)/i.test(lower)) {
-    let severity = 'moderate';
-    if (/(severe|terrible|horrible|awful|worst)/i.test(lower)) severity = 'severe';
-    else if (/(mild|slight|little|bit)/i.test(lower)) severity = 'mild';
-    
-    const symptoms: string[] = [];
-    const symptomList = ['headache', 'migraine', 'nausea', 'dizziness', 'fatigue', 'pain', 'cramping', 'brain fog', 'loss of appetite', 'joint pain'];
-    symptomList.forEach(s => { if (lower.includes(s)) symptoms.push(s); });
-    
-    return { type: 'flare', confidence: 0.8, extractedData: { severity, symptoms } };
+  // If we found multiple intents, return them all
+  if (intents.length > 0) {
+    // Remove duplicates by type
+    const uniqueIntents = intents.filter((intent, index, self) => 
+      index === self.findIndex(i => i.type === intent.type)
+    );
+    return uniqueIntents;
   }
   
-  // Energy
-  if (/(low|no|zero)\s+energy/i.test(lower) || /feeling\s+(tired|exhausted)/i.test(lower)) {
-    return { type: 'energy', confidence: 0.85, extractedData: { energyLevel: 'low' } };
-  }
-  
-  return { type: 'unknown', confidence: 0, extractedData: {} };
+  return [{ type: 'unknown', confidence: 0, extractedData: {} }];
+}
+
+// Backward compatibility wrapper
+function classifyIntent(message: string, userContext?: UserContext): IntentResult {
+  const intents = classifyMultipleIntents(message, userContext);
+  return intents[0] || { type: 'unknown', confidence: 0, extractedData: {} };
 }
 
 serve(async (req) => {
@@ -602,8 +674,10 @@ serve(async (req) => {
     console.log('💬 Message:', message);
     console.log('📍 Conditions:', userContext.conditions);
     
-    const intent = classifyIntent(message, userContext);
-    console.log('🎯 Intent:', intent.type, intent.confidence);
+    // Get ALL intents from message (supports multi-intent like "felt pain and took meds")
+    const allIntents = classifyMultipleIntents(message, userContext);
+    const intent = allIntents[0]; // Primary intent for backward compatibility
+    console.log('🎯 Intents detected:', allIntents.map(i => `${i.type}(${i.confidence})`).join(', '));
     
     // Handle off-topic requests immediately
     if (intent.type === 'off_topic') {
@@ -613,6 +687,7 @@ serve(async (req) => {
         dataUsed: [],
         shouldLog: false,
         entryData: null,
+        multipleEntries: null,
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     
@@ -624,6 +699,50 @@ serve(async (req) => {
       linkedTrigger = conversationContext.pendingTrigger;
       console.log('🔗 Linked trigger:', linkedTrigger);
     }
+    
+    // Build multiple entry data from all intents
+    const multipleEntries: any[] = [];
+    for (const intentItem of allIntents) {
+      if (intentItem.type === 'flare') {
+        multipleEntries.push({
+          type: 'flare',
+          severity: intentItem.extractedData.severity || 'moderate',
+          symptoms: intentItem.extractedData.symptoms || [],
+          triggers: linkedTrigger ? [linkedTrigger] : [],
+        });
+      } else if (intentItem.type === 'medication') {
+        multipleEntries.push({
+          type: 'medication',
+          medicationName: intentItem.extractedData.medicationName,
+          dosage: intentItem.extractedData.dosage,
+          note: intentItem.extractedData.note,
+        });
+      } else if (intentItem.type === 'wellness') {
+        multipleEntries.push({
+          type: 'wellness',
+          energyLevel: 'good',
+        });
+      } else if (intentItem.type === 'energy') {
+        multipleEntries.push({
+          type: 'energy',
+          energyLevel: intentItem.extractedData.energyLevel || 'low',
+        });
+      } else if (intentItem.type === 'food_log') {
+        // Food logs become triggers for any flare entry
+        const food = intentItem.extractedData.food;
+        if (food) {
+          const flareEntry = multipleEntries.find(e => e.type === 'flare');
+          if (flareEntry) {
+            flareEntry.triggers = flareEntry.triggers || [];
+            if (!flareEntry.triggers.includes(food)) {
+              flareEntry.triggers.push(food);
+            }
+          }
+        }
+      }
+    }
+    
+    console.log('📝 Multiple entries to log:', multipleEntries.length, multipleEntries.map(e => e.type).join(', '));
     
     // Analyze flare history
     const flareAnalysis = analyzeFlareHistory(
@@ -766,12 +885,13 @@ ${flareAnalysisInfo}
 ${weatherInfo}
 
 INTENT: ${intent.type} (${intent.confidence})
+${allIntents.length > 1 ? `MULTIPLE INTENTS DETECTED: ${allIntents.map(i => i.type).join(', ')} - acknowledge ALL items user mentioned!` : ''}
 ${linkedTrigger ? `IMPORTANT: User mentioned "${linkedTrigger}" recently and now has symptoms - log as trigger!` : ''}
 ${conversationContext.recentMentions.length ? `Recent conversation mentions: ${conversationContext.recentMentions.join(', ')}` : ''}
 
 RESPONSE FORMAT (valid JSON):
 {
-  "response": "Your response with SPECIFIC DATA",
+  "response": "Your response with SPECIFIC DATA - if multiple items logged, confirm each one briefly",
   "isAIGenerated": true,
   "dataUsed": ["flare_history", "weather_api"],
   "weatherUsed": ${weatherData ? 'true' : 'false'},
@@ -844,6 +964,9 @@ EXAMPLES:
             };
           }
           
+          // Use multipleEntries if we detected more than 1 loggable item
+          const shouldUseMultiple = multipleEntries.length > 1;
+          
           return new Response(JSON.stringify({
             response: parsed.response,
             isAIGenerated: true,
@@ -851,13 +974,17 @@ EXAMPLES:
             weatherUsed: !!weatherData,
             weatherCard,
             chartData,
-            shouldLog: parsed.shouldLog || false,
-            entryData,
+            shouldLog: shouldUseMultiple ? true : (parsed.shouldLog || false),
+            entryData: shouldUseMultiple ? null : entryData,
+            multipleEntries: shouldUseMultiple ? multipleEntries : null,
           }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
       } catch (e) {
         console.log('Parse error, returning raw');
       }
+      
+      // Even if AI response parsing fails, still use our detected multiple entries
+      const shouldUseMultiple = multipleEntries.length > 1;
       
       return new Response(JSON.stringify({
         response: content.replace(/```json\n?|\n?```/g, '').trim(),
@@ -865,14 +992,15 @@ EXAMPLES:
         dataUsed: [],
         weatherUsed: !!weatherData,
         weatherCard,
-        shouldLog: false,
-        entryData: null
+        shouldLog: shouldUseMultiple ? true : false,
+        entryData: shouldUseMultiple ? null : (multipleEntries[0] || null),
+        multipleEntries: shouldUseMultiple ? multipleEntries : null,
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     return new Response(JSON.stringify({ 
       response: "Could you rephrase that?",
-      isAIGenerated: false, dataUsed: [], shouldLog: false, entryData: null
+      isAIGenerated: false, dataUsed: [], shouldLog: false, entryData: null, multipleEntries: null
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
