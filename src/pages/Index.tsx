@@ -16,6 +16,8 @@ import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
 import { StreakBadge } from "@/components/engagement/StreakBadge";
 import { CONDITIONS } from "@/data/conditions";
 import { useEngagement } from "@/hooks/useEngagement";
+import { useCorrelations } from "@/hooks/useCorrelations";
+import { CorrelationInsights } from "@/components/insights/CorrelationInsights";
 import { Activity, Calendar, BarChart3, User as UserIcon, ChevronDown, Flame, Settings, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format, isSameDay } from "date-fns";
@@ -56,6 +58,9 @@ const Index = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { updateEngagementOnLog, getEngagement, syncEngagementTotals } = useEngagement();
+  
+  // Use correlations hook
+  const { topCorrelations, recentActivities } = useCorrelations(user?.id || null);
 
   // Check auth and load data
   useEffect(() => {
@@ -479,6 +484,14 @@ const Index = () => {
             recentEntries={entries}
             userTriggers={userProfile?.known_triggers || []}
             userConditions={userProfile?.conditions || []}
+          />
+        )}
+        
+        {/* Correlation Insights - show discovered patterns */}
+        {currentView === 'track' && topCorrelations.length > 0 && (
+          <CorrelationInsights 
+            correlations={topCorrelations}
+            onViewDetails={() => setCurrentView('insights')}
           />
         )}
         

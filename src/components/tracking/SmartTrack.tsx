@@ -3,12 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { FlareEntry } from "@/types/flare";
-import { Send, Mic, MicOff, Check, Sparkles, Thermometer, Droplets, Calendar, AlertTriangle, BarChart3, MapPin } from "lucide-react";
+import { Send, Mic, MicOff, Check, Sparkles, Thermometer, Droplets, Calendar, AlertTriangle, BarChart3, MapPin, Activity, TrendingUp } from "lucide-react";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { FluidLogSelector } from "./FluidLogSelector";
 import { Badge } from "@/components/ui/badge";
+import { useCorrelations, Correlation } from "@/hooks/useCorrelations";
 
 interface ChatMessage {
   id: string;
@@ -50,6 +51,19 @@ interface ChatMessage {
   updateInfo?: {
     entryId: string;
     updates: Partial<FlareEntry>;
+  };
+  activityDetected?: {
+    type: string;
+    intensity: string;
+  };
+  correlationWarning?: {
+    triggerType: string;
+    triggerValue: string;
+    outcomeType: string;
+    outcomeValue: string;
+    occurrenceCount: number;
+    confidence: number;
+    avgDelayMinutes: number;
   };
 }
 
@@ -288,10 +302,14 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number; city?: string } | null>(null);
   const [lastLoggedEntryId, setLastLoggedEntryId] = useState<string | null>(null);
+  const [pendingFollowUp, setPendingFollowUp] = useState<{ activityType: string; activityId: string; followUpTime: Date } | null>(null);
   const { isRecording, transcript, startRecording, stopRecording, clearRecording } = useVoiceRecording();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const hasLoadedMessages = useRef(false);
+  
+  // Use correlations hook
+  const { topCorrelations, pendingFollowUps, getCorrelationsForTrigger } = useCorrelations(userId);
 
   useEffect(() => {
     if (hasLoadedMessages.current) return;
@@ -583,6 +601,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         body: { 
           message: text,
           userContext,
+          userId, // Pass userId for correlation engine
           history: messages.slice(-8).map(m => ({ 
             role: m.role === 'system' ? 'assistant' : m.role, 
             content: m.content 
@@ -597,10 +616,32 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         onUpdateEntry(data.updateEntry.entryId, data.updateEntry.updates);
       }
 
+      // Build response content with correlation warning if applicable
+      let responseContent = data.response || "I need more data to answer that.";
+      
+      // If activity was detected and has correlation warning, enhance the response
+      if (data.activityLog && data.correlationWarning) {
+        const warning = data.correlationWarning;
+        const delayText = warning.avgDelayMinutes < 60 
+          ? `${warning.avgDelayMinutes} min` 
+          : `${Math.round(warning.avgDelayMinutes / 60)} hr`;
+        
+        responseContent += `\n\n⚠️ Pattern detected: ${warning.triggerValue} has preceded ${warning.outcomeValue} ${warning.occurrenceCount} times (~${delayText} later). I'll check in with you later.`;
+      } else if (data.activityLog && data.shouldFollowUp) {
+        responseContent += `\n\n📋 Logged your ${data.activityLog.activity_type}. I'll check in ${data.followUpDelay} min to see how you feel.`;
+        
+        // Set pending follow-up
+        setPendingFollowUp({
+          activityType: data.activityLog.activity_type,
+          activityId: data.activityLog.id,
+          followUpTime: new Date(Date.now() + data.followUpDelay * 60 * 1000)
+        });
+      }
+
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: data.response || "I need more data to answer that.",
+        content: responseContent,
         timestamp: new Date(),
         entryData: data.entryData,
         isAIGenerated: data.isAIGenerated,
@@ -609,6 +650,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         weatherCard: data.weatherCard,
         chartData: data.chartData,
         updateInfo: data.updateEntry,
+        activityDetected: data.activityLog ? { type: data.activityLog.activity_type, intensity: data.activityLog.intensity } : undefined,
+        correlationWarning: data.correlationWarning,
       };
       setMessages(prev => [...prev, assistantMessage]);
 
@@ -741,8 +784,43 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                 <span className="opacity-75">{msg.dataUsed.join(', ')}</span>
               </div>
             )}
+            
+            {msg.activityDetected && (
+              <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-blue-600">
+                <Activity className="w-3 h-3" />
+                <span>Activity tracked: {msg.activityDetected.type}</span>
+              </div>
+            )}
+            
+            {msg.correlationWarning && (
+              <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-amber-600">
+                <TrendingUp className="w-3 h-3" />
+                <span>Pattern: {msg.correlationWarning.triggerValue} → {msg.correlationWarning.outcomeValue} ({msg.correlationWarning.occurrenceCount}x)</span>
+              </div>
+            )}
           </div>
         ))}
+        
+        {/* Show top correlations hint if user has discovered patterns */}
+        {topCorrelations.length > 0 && messages.length === 1 && (
+          <div className="flex items-start">
+            <div className="max-w-[85%] rounded-2xl rounded-bl-md px-4 py-2.5 bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/10">
+              <div className="flex items-center gap-1.5 text-xs text-primary mb-1">
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span className="font-medium">Patterns Discovered</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {topCorrelations.slice(0, 2).map((c, i) => (
+                  <span key={c.id}>
+                    {i > 0 && ' • '}
+                    {c.trigger_value} → {c.outcome_value} ({c.occurrence_count}x)
+                  </span>
+                ))}
+                {topCorrelations.length > 2 && ` +${topCorrelations.length - 2} more`}
+              </p>
+            </div>
+          </div>
+        )}
         
         {isProcessing && (
           <div className="flex items-start">
