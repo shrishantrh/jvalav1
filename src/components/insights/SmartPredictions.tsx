@@ -160,6 +160,17 @@ export const SmartPredictions = ({ entries, userConditions = [] }: SmartPredicti
   const noteTriggers = useMemo(() => extractTriggersFromNotes(entries), [entries]);
   const temporalCorrelations = useMemo(() => findTemporalCorrelations(entries), [entries]);
 
+  // Calculate risk score - must be before any early returns
+  const riskScore = useMemo(() => {
+    const last7Days = entries.filter(e => {
+      const days = (Date.now() - new Date(e.timestamp).getTime()) / (1000 * 60 * 60 * 24);
+      return days <= 7 && e.type === 'flare';
+    });
+    const severeCount = last7Days.filter(e => e.severity === 'severe').length;
+    const moderateCount = last7Days.filter(e => e.severity === 'moderate').length;
+    return Math.min(100, (severeCount * 25 + moderateCount * 15 + last7Days.length * 5));
+  }, [entries]);
+
   const generatePredictions = async () => {
     if (entries.length < 3) {
       setPredictions([{
@@ -329,17 +340,6 @@ export const SmartPredictions = ({ entries, userConditions = [] }: SmartPredicti
   }
 
   const displayPredictions = isExpanded ? meaningfulPredictions : meaningfulPredictions.slice(0, 2);
-
-  // Calculate risk score based on patterns
-  const riskScore = useMemo(() => {
-    const last7Days = entries.filter(e => {
-      const days = (Date.now() - new Date(e.timestamp).getTime()) / (1000 * 60 * 60 * 24);
-      return days <= 7 && e.type === 'flare';
-    });
-    const severeCount = last7Days.filter(e => e.severity === 'severe').length;
-    const moderateCount = last7Days.filter(e => e.severity === 'moderate').length;
-    return Math.min(100, (severeCount * 25 + moderateCount * 15 + last7Days.length * 5));
-  }, [entries]);
 
   const getRiskLevel = () => {
     if (riskScore >= 70) return { label: 'High Risk', color: 'text-severity-severe', bg: 'bg-severity-severe/10' };
