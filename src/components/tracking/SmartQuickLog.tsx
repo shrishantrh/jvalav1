@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
+import { useEntryContext } from "@/hooks/useEntryContext";
 import { cn } from "@/lib/utils";
 
 interface SmartQuickLogProps {
@@ -35,6 +36,7 @@ export const SmartQuickLog = ({ onSave, userSymptoms = [], recentSymptoms = [] }
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
   const { isRecording, transcript, startRecording, stopRecording, clearRecording } = useVoiceRecording();
+  const { getEntryContext, hasWearableConnected } = useEntryContext();
 
   // Combine user's known symptoms with recent ones, prioritizing recent
   const prioritizedSymptoms = [...new Set([...recentSymptoms, ...userSymptoms])].slice(0, 12);
@@ -66,27 +68,19 @@ export const SmartQuickLog = ({ onSave, userSymptoms = [], recentSymptoms = [] }
       timestamp: new Date(),
     };
 
-    // Collect environmental data
+    // Collect unified context data (environmental + wearable)
     try {
-      const { getCurrentLocation, fetchWeatherData } = await import("@/services/weatherService");
-      const location = await getCurrentLocation();
-      if (location) {
-        const weatherData = await fetchWeatherData(location.latitude, location.longitude);
-        if (weatherData) {
-          entry.environmentalData = weatherData;
-        }
+      const contextData = await getEntryContext();
+      
+      if (contextData.environmentalData) {
+        entry.environmentalData = contextData.environmentalData;
       }
-
-      // Simulate physiological data based on severity
-      const severityMultiplier = selectedSeverity === 'severe' ? 1.5 : selectedSeverity === 'moderate' ? 1.2 : 1.0;
-      entry.physiologicalData = {
-        heartRate: Math.round(65 + severityMultiplier * 15 + (Math.random() - 0.5) * 10),
-        sleepHours: Math.max(4, Math.round((7.5 - severityMultiplier * 1.5 + (Math.random() - 0.5) * 2) * 10) / 10),
-        stressLevel: Math.min(10, Math.max(1, Math.round(3 + severityMultiplier * 3))),
-        steps: Math.max(1000, Math.round(8000 - severityMultiplier * 2000)),
-      };
+      
+      if (contextData.physiologicalData) {
+        entry.physiologicalData = contextData.physiologicalData;
+      }
     } catch (error) {
-      console.log('Error collecting data:', error);
+      console.log('Error collecting context data:', error);
     }
 
     onSave(entry);
