@@ -176,6 +176,33 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
       .sort((a, b) => b.count - a.count)
       .slice(0, 3);
 
+    // Physiological data correlation analysis
+    const physioCorrelations: { metric: string; avgDuringFlare: number; unit: string; trend?: string }[] = [];
+    
+    const hrvValues = flares30d.filter(f => f.physiologicalData?.hrv_rmssd).map(f => f.physiologicalData?.hrv_rmssd as number);
+    if (hrvValues.length > 0) {
+      const avgHRV = hrvValues.reduce((a, b) => a + b, 0) / hrvValues.length;
+      physioCorrelations.push({ metric: 'HRV', avgDuringFlare: Math.round(avgHRV), unit: 'ms', trend: avgHRV < 30 ? 'low' : avgHRV > 50 ? 'high' : 'normal' });
+    }
+    
+    const hrValues = flares30d.filter(f => f.physiologicalData?.heart_rate).map(f => f.physiologicalData?.heart_rate as number);
+    if (hrValues.length > 0) {
+      const avgHR = hrValues.reduce((a, b) => a + b, 0) / hrValues.length;
+      physioCorrelations.push({ metric: 'Resting HR', avgDuringFlare: Math.round(avgHR), unit: 'bpm', trend: avgHR > 80 ? 'elevated' : 'normal' });
+    }
+    
+    const spo2Values = flares30d.filter(f => f.physiologicalData?.spo2).map(f => f.physiologicalData?.spo2 as number);
+    if (spo2Values.length > 0) {
+      const avgSpO2 = spo2Values.reduce((a, b) => a + b, 0) / spo2Values.length;
+      physioCorrelations.push({ metric: 'SpO2', avgDuringFlare: Math.round(avgSpO2 * 10) / 10, unit: '%', trend: avgSpO2 < 95 ? 'low' : 'normal' });
+    }
+    
+    const sleepValues = flares30d.filter(f => f.physiologicalData?.sleep_hours).map(f => f.physiologicalData?.sleep_hours as number);
+    if (sleepValues.length > 0) {
+      const avgSleep = sleepValues.reduce((a, b) => a + b, 0) / sleepValues.length;
+      physioCorrelations.push({ metric: 'Sleep', avgDuringFlare: Math.round(avgSleep * 10) / 10, unit: 'hrs', trend: avgSleep < 6 ? 'low' : avgSleep > 8 ? 'good' : 'moderate' });
+    }
+
     const sortedFlares = [...flares30d].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
     const daysSinceLastFlare = sortedFlares.length > 0 
       ? differenceInDays(now, sortedFlares[0].timestamp)
@@ -192,6 +219,7 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
       topSymptoms,
       topTriggers,
       topWeather,
+      physioCorrelations,
       daysSinceLastFlare,
       totalEntries: entries.length
     };
@@ -329,6 +357,33 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
                   <Badge key={w.name} variant="outline" className="text-xs">
                     {w.name} ({w.count})
                   </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Physiological correlations */}
+          {analytics.physioCorrelations.length > 0 && (
+            <div className="mt-4 pt-3 border-t border-border/50">
+              <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                <Activity className="w-3 h-3" />
+                Body metrics during flares
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {analytics.physioCorrelations.map(p => (
+                  <div key={p.metric} className="p-2 rounded-lg bg-background/50 border border-border/30">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium">{p.metric}</span>
+                      {p.trend && p.trend !== 'normal' && (
+                        <Badge variant="outline" className={cn("text-[10px] h-4", 
+                          p.trend === 'low' || p.trend === 'elevated' ? 'border-amber-500/50 text-amber-600' : 'border-green-500/50 text-green-600'
+                        )}>
+                          {p.trend}
+                        </Badge>
+                      )}
+                    </div>
+                    <span className="text-sm font-bold">{p.avgDuringFlare} <span className="text-[10px] font-normal text-muted-foreground">{p.unit}</span></span>
+                  </div>
                 ))}
               </div>
             </div>
