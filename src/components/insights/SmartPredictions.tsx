@@ -2,9 +2,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, AlertTriangle, TrendingUp, Utensils, Clock, Cloud, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, Sparkles, AlertTriangle, TrendingUp, Utensils, Clock, Cloud, ChevronDown, ChevronUp, Brain, Zap, ThermometerSun } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { FlareEntry } from "@/types/flare";
+import { format, subDays, isWithinInterval } from 'date-fns';
 
 interface SmartPredictionsProps {
   entries: FlareEntry[];
@@ -329,48 +330,120 @@ export const SmartPredictions = ({ entries, userConditions = [] }: SmartPredicti
 
   const displayPredictions = isExpanded ? meaningfulPredictions : meaningfulPredictions.slice(0, 2);
 
+  // Calculate risk score based on patterns
+  const riskScore = useMemo(() => {
+    const last7Days = entries.filter(e => {
+      const days = (Date.now() - new Date(e.timestamp).getTime()) / (1000 * 60 * 60 * 24);
+      return days <= 7 && e.type === 'flare';
+    });
+    const severeCount = last7Days.filter(e => e.severity === 'severe').length;
+    const moderateCount = last7Days.filter(e => e.severity === 'moderate').length;
+    return Math.min(100, (severeCount * 25 + moderateCount * 15 + last7Days.length * 5));
+  }, [entries]);
+
+  const getRiskLevel = () => {
+    if (riskScore >= 70) return { label: 'High Risk', color: 'text-severity-severe', bg: 'bg-severity-severe/10' };
+    if (riskScore >= 40) return { label: 'Moderate', color: 'text-severity-moderate', bg: 'bg-severity-moderate/10' };
+    return { label: 'Low Risk', color: 'text-severity-none', bg: 'bg-severity-none/10' };
+  };
+
+  const risk = getRiskLevel();
+
   return (
-    <Card className="p-3 bg-muted/30 border-0">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-xs font-medium flex items-center gap-1.5 text-muted-foreground">
-          <Sparkles className="w-3.5 h-3.5" />
-          AI Insights
-        </h3>
+    <Card className="p-4 bg-gradient-card border shadow-soft overflow-hidden relative">
+      {/* Animated background glow */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 animate-pulse-soft" />
+      
+      <div className="relative">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold flex items-center gap-2 text-foreground">
+            <div className="p-1.5 rounded-lg bg-gradient-primary">
+              <Brain className="w-3.5 h-3.5 text-primary-foreground" />
+            </div>
+            AI Predictions
+          </h3>
+          
+          {/* Risk Score Badge */}
+          <div className={`px-2.5 py-1 rounded-full ${risk.bg} flex items-center gap-1.5 animate-fade-in`}>
+            <Zap className={`w-3 h-3 ${risk.color}`} />
+            <span className={`text-[10px] font-medium ${risk.color}`}>{risk.label}</span>
+          </div>
+        </div>
+
+        {/* Risk Score Bar */}
+        <div className="mb-4">
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-severity-none via-severity-moderate to-severity-severe transition-all duration-1000 ease-out"
+              style={{ width: `${riskScore}%` }}
+            />
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            Weekly risk score: {riskScore}/100
+          </p>
+        </div>
+
         {meaningfulPredictions.length > 2 && (
           <Button 
             variant="ghost" 
             size="sm" 
-            className="h-5 text-[10px] px-1.5"
+            className="absolute top-3 right-12 h-6 text-[10px] px-2"
             onClick={() => setIsExpanded(!isExpanded)}
           >
-            {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            {isExpanded ? <ChevronUp className="w-3 h-3 mr-1" /> : <ChevronDown className="w-3 h-3 mr-1" />}
             {isExpanded ? 'Less' : `+${meaningfulPredictions.length - 2}`}
           </Button>
         )}
-      </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-2">
-          <Loader2 className="w-4 h-4 animate-spin text-primary" />
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {displayPredictions.map((pred, idx) => (
-            <div 
-              key={idx}
-              className="flex items-start gap-2 p-2 rounded-lg bg-background/50"
-            >
-              <div className={`p-1 rounded-full ${getIconBg(pred)} flex-shrink-0`}>
-                {getIcon(pred)}
+        {loading ? (
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {displayPredictions.map((pred, idx) => (
+              <div 
+                key={idx}
+                className="flex items-start gap-3 p-2.5 rounded-xl bg-background/60 backdrop-blur-sm border border-border/50 hover-lift cursor-default animate-fade-in"
+                style={{ animationDelay: `${idx * 100}ms` }}
+              >
+                <div className={`p-1.5 rounded-lg ${getIconBg(pred)} flex-shrink-0 transition-transform hover:scale-110`}>
+                  {getIcon(pred)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-medium">{pred.title}</p>
+                    <Badge 
+                      variant="secondary" 
+                      className={`text-[8px] px-1.5 py-0 ${
+                        pred.confidence === 'high' ? 'bg-severity-none/20 text-severity-none' :
+                        pred.confidence === 'medium' ? 'bg-severity-mild/20 text-severity-mild' :
+                        'bg-muted text-muted-foreground'
+                      }`}
+                    >
+                      {pred.confidence}
+                    </Badge>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{pred.description}</p>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium">{pred.title}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{pred.description}</p>
-              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Next Flare Prediction */}
+        {entries.length >= 5 && (
+          <div className="mt-3 p-3 rounded-xl bg-gradient-to-r from-primary/5 to-accent/5 border border-primary/10">
+            <div className="flex items-center gap-2 mb-1">
+              <ThermometerSun className="w-3.5 h-3.5 text-primary" />
+              <span className="text-xs font-medium">Next Flare Likelihood</span>
             </div>
-          ))}
-        </div>
-      )}
+            <p className="text-[10px] text-muted-foreground">
+              Based on your patterns, {riskScore >= 50 ? 'conditions suggest elevated risk today. Stay hydrated and watch for triggers.' : 'risk is low. Keep maintaining your healthy habits!'}
+            </p>
+          </div>
+        )}
+      </div>
     </Card>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { CommunityHotspots } from "@/components/insights/CommunityHotspots";
 import { SmartPredictions } from "@/components/insights/SmartPredictions";
 import { HealthScoreDashboard } from "@/components/insights/HealthScoreDashboard";
 import { TriggerFrequencyChart } from "@/components/insights/TriggerFrequencyChart";
+import { AdvancedAnalyticsDashboard } from "@/components/insights/AdvancedAnalyticsDashboard";
 import { 
   Brain, 
   TrendingUp, 
@@ -215,19 +216,19 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 stagger-fade-in">
       {/* Primary Stats */}
       <div className="grid grid-cols-2 gap-3">
-        <Card className="p-4 bg-gradient-card border-0 shadow-soft">
+        <Card className="p-4 bg-gradient-card border shadow-soft hover-lift">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs text-muted-foreground">This Week</span>
             {getTrendIcon()}
           </div>
-          <p className="text-3xl font-bold">{analytics.flares7d}</p>
+          <p className="text-3xl font-bold gradient-text-animated">{analytics.flares7d}</p>
           <p className="text-xs text-muted-foreground">{getTrendLabel()}</p>
         </Card>
         
-        <Card className="p-4 bg-gradient-card border-0 shadow-soft">
+        <Card className="p-4 bg-gradient-card border shadow-soft hover-lift">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs text-muted-foreground">Peak Time</span>
             <Clock className="w-4 h-4 text-muted-foreground" />
@@ -239,22 +240,28 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
 
       {/* Flare-free streak if applicable */}
       {analytics.daysSinceLastFlare !== null && analytics.daysSinceLastFlare >= 2 && (
-        <Card className="p-3 bg-severity-none/10 border-severity-none/20 border">
+        <Card className="p-3 bg-severity-none/10 border-severity-none/20 border animate-fade-in card-enter">
           <div className="flex items-center gap-2">
-            <Target className="w-4 h-4 text-severity-none" />
-            <span className="text-sm font-medium">
-              {analytics.daysSinceLastFlare} days flare-free
-            </span>
-            <span className="text-xs text-muted-foreground ml-auto">Keep it up!</span>
+            <div className="w-8 h-8 rounded-full bg-severity-none/20 flex items-center justify-center animate-float">
+              <Target className="w-4 h-4 text-severity-none" />
+            </div>
+            <div>
+              <span className="text-sm font-medium">
+                {analytics.daysSinceLastFlare} days flare-free
+              </span>
+              <p className="text-[10px] text-muted-foreground">Keep it up!</p>
+            </div>
           </div>
         </Card>
       )}
 
       {/* What's Affecting You - Main actionable section */}
       {(analytics.topTriggers.length > 0 || analytics.topSymptoms.length > 0) && (
-        <Card className="p-4 bg-gradient-card border-0 shadow-soft">
+        <Card className="p-4 bg-gradient-card border shadow-soft">
           <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
-            <Brain className="w-4 h-4 text-primary" />
+            <div className="p-1.5 rounded-lg bg-gradient-primary">
+              <Brain className="w-4 h-4 text-primary-foreground" />
+            </div>
             What's Affecting You
           </h3>
           
@@ -266,17 +273,21 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
                 Triggers (by severity impact)
               </p>
               <div className="space-y-2">
-                {analytics.topTriggers.slice(0, 3).map(t => (
-                  <div key={t.name} className="flex items-center justify-between">
+                {analytics.topTriggers.slice(0, 3).map((t, idx) => (
+                  <div 
+                    key={t.name} 
+                    className="flex items-center justify-between p-2 rounded-lg bg-background/50 hover:bg-background/80 transition-colors animate-fade-in"
+                    style={{ animationDelay: `${idx * 75}ms` }}
+                  >
                     <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${
+                      <span className={`w-2 h-2 rounded-full animate-pulse-soft ${
                         t.avgSeverity >= 2.5 ? 'bg-severity-severe' : 
                         t.avgSeverity >= 1.5 ? 'bg-severity-moderate' : 'bg-severity-mild'
                       }`} />
                       <span className="text-sm">{t.name}</span>
                     </div>
                     <span className="text-xs text-muted-foreground">
-                      {t.count}x • {t.avgSeverity >= 2.5 ? 'often severe' : t.avgSeverity >= 1.5 ? 'moderate' : 'usually mild'}
+                      {t.count}× • {t.avgSeverity >= 2.5 ? 'often severe' : t.avgSeverity >= 1.5 ? 'moderate' : 'usually mild'}
                     </span>
                   </div>
                 ))}
@@ -292,11 +303,12 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
                 Most common symptoms
               </p>
               <div className="flex flex-wrap gap-1.5">
-                {analytics.topSymptoms.map(s => (
+                {analytics.topSymptoms.map((s, idx) => (
                   <Badge 
                     key={s.name} 
                     variant="secondary"
-                    className="text-xs"
+                    className="text-xs animate-scale-in press-effect"
+                    style={{ animationDelay: `${idx * 50}ms` }}
                   >
                     {s.name} <span className="ml-1 opacity-60">{s.percentage}%</span>
                   </Badge>
@@ -328,47 +340,50 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
       <SmartPredictions entries={entries} userConditions={userConditions} />
 
       {/* Detailed Views */}
-      <Tabs defaultValue="health" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 h-9">
-          <TabsTrigger value="health" className="text-xs px-1">
-            ❤️ Score
+      <Tabs defaultValue="analytics" className="w-full">
+        <TabsList className="grid w-full grid-cols-5 h-10 p-1 bg-muted/50">
+          <TabsTrigger value="analytics" className="text-xs px-1 data-[state=active]:shadow-primary data-[state=active]:animate-scale-in">
+            📊 Analytics
           </TabsTrigger>
-          <TabsTrigger value="charts" className="text-xs px-1">
+          <TabsTrigger value="charts" className="text-xs px-1 data-[state=active]:shadow-primary">
             <BarChart3 className="w-3 h-3 mr-1" />
             Charts
           </TabsTrigger>
-          <TabsTrigger value="map" className="text-xs px-1">
+          <TabsTrigger value="map" className="text-xs px-1 data-[state=active]:shadow-primary">
             <MapPin className="w-3 h-3 mr-1" />
             Map
           </TabsTrigger>
-          <TabsTrigger value="community" className="text-xs px-1">
+          <TabsTrigger value="community" className="text-xs px-1 data-[state=active]:shadow-primary">
             🌍
           </TabsTrigger>
-          <TabsTrigger value="export" className="text-xs px-1">
+          <TabsTrigger value="export" className="text-xs px-1 data-[state=active]:shadow-primary">
             <Download className="w-3 h-3 mr-1" />
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="health" className="mt-4 space-y-4">
-          <HealthScoreDashboard entries={entries} />
-          <TriggerFrequencyChart entries={entries} />
+        <TabsContent value="analytics" className="mt-4 animate-fade-in">
+          <AdvancedAnalyticsDashboard entries={entries} />
         </TabsContent>
 
-        <TabsContent value="charts" className="mt-4">
-          <div ref={chartRef}>
-            <InsightsCharts entries={entries} />
+        <TabsContent value="charts" className="mt-4 animate-fade-in">
+          <div className="space-y-4">
+            <HealthScoreDashboard entries={entries} />
+            <TriggerFrequencyChart entries={entries} />
+            <div ref={chartRef}>
+              <InsightsCharts entries={entries} />
+            </div>
           </div>
         </TabsContent>
 
-        <TabsContent value="map" className="mt-4">
+        <TabsContent value="map" className="mt-4 animate-fade-in">
           <FlareLocationMap entries={entries} />
         </TabsContent>
 
-        <TabsContent value="community" className="mt-4">
+        <TabsContent value="community" className="mt-4 animate-fade-in">
           <CommunityHotspots entries={entries} userConditions={userConditions} />
         </TabsContent>
 
-        <TabsContent value="export" className="mt-4 space-y-4">
+        <TabsContent value="export" className="mt-4 animate-fade-in">
           <EnhancedMedicalExport entries={entries} conditions={userConditions} />
         </TabsContent>
       </Tabs>
