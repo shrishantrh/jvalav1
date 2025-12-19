@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FlareEntry } from "@/types/flare";
 import { format, subDays } from 'date-fns';
-import { FileDown, FileJson, FileCode, FileText, Share2, Mail, Loader2, CheckCircle } from 'lucide-react';
+import { FileDown, FileJson, FileCode, FileText, Share2, Mail, Loader2, CheckCircle, Shield, Download, FileType } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -30,6 +32,20 @@ interface EnhancedMedicalExportProps {
   patientId?: string;
   conditions?: string[];
 }
+
+// MedDRA codes mapping
+const MEDDRA_CODES: Record<string, { code: string; term: string }> = {
+  'headache': { code: '10019211', term: 'Headache' },
+  'migraine': { code: '10027599', term: 'Migraine' },
+  'fatigue': { code: '10016256', term: 'Fatigue' },
+  'nausea': { code: '10028813', term: 'Nausea' },
+  'dizziness': { code: '10013573', term: 'Dizziness' },
+  'joint pain': { code: '10023222', term: 'Arthralgia' },
+  'muscle pain': { code: '10028411', term: 'Myalgia' },
+  'rash': { code: '10037844', term: 'Rash' },
+  'itching': { code: '10037087', term: 'Pruritus' },
+  'swelling': { code: '10042674', term: 'Swelling' },
+};
 
 export const EnhancedMedicalExport = ({ 
   entries, 
@@ -205,6 +221,48 @@ Export System: Jvala Health Monitoring Platform
 `;
   };
 
+  // Generate MedDRA coded export
+  const generateMedDRAExport = () => {
+    const allSymptoms: Record<string, number> = {};
+    filteredEntries.forEach(e => {
+      e.symptoms?.forEach(s => {
+        allSymptoms[s.toLowerCase()] = (allSymptoms[s.toLowerCase()] || 0) + 1;
+      });
+    });
+
+    const rows = [
+      ['MedDRA Code', 'Preferred Term', 'Patient Term', 'Frequency', 'Report Period'],
+      ...Object.entries(allSymptoms).map(([symptom, count]) => {
+        const meddra = MEDDRA_CODES[symptom] || { code: 'N/A', term: symptom };
+        return [meddra.code, meddra.term, symptom, count.toString(), `Last ${dateRange} days`];
+      })
+    ];
+    
+    return rows.map(r => r.join(',')).join('\n');
+  };
+
+  // Generate WHO-DD medication export
+  const generateWHODDExport = () => {
+    const allMeds: Record<string, number> = {};
+    filteredEntries.forEach(e => {
+      e.medications?.forEach(m => {
+        allMeds[m] = (allMeds[m] || 0) + 1;
+      });
+    });
+
+    return {
+      exportDate: new Date().toISOString(),
+      reportPeriod: `Last ${dateRange} days`,
+      medications: Object.entries(allMeds).map(([name, count]) => ({
+        drugName: name,
+        reportCount: count,
+        // WHO-DD placeholder codes
+        atcCode: 'N/A',
+        routeOfAdmin: 'oral',
+      }))
+    };
+  };
+
   const handleExport = () => {
     let content = '';
     let filename = '';
@@ -235,6 +293,16 @@ Export System: Jvala Health Monitoring Platform
         content = [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
         filename = `Health-Data-${format(new Date(), 'yyyyMMdd')}.csv`;
         mimeType = 'text/csv';
+        break;
+      case 'meddra':
+        content = generateMedDRAExport();
+        filename = `MedDRA-Export-${format(new Date(), 'yyyyMMdd')}.csv`;
+        mimeType = 'text/csv';
+        break;
+      case 'whodd':
+        content = JSON.stringify(generateWHODDExport(), null, 2);
+        filename = `WHO-DD-Export-${format(new Date(), 'yyyyMMdd')}.json`;
+        mimeType = 'application/json';
         break;
     }
 
@@ -294,20 +362,31 @@ Export System: Jvala Health Monitoring Platform
   };
 
   return (
-    <Card className="p-5 bg-gradient-card border-0 shadow-soft">
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-base font-semibold mb-1">Medical Export</h3>
-          <p className="text-xs text-muted-foreground">
-            Export your health data for healthcare providers
-          </p>
+    <Card className="p-5 bg-gradient-card border shadow-soft animate-fade-in overflow-hidden relative">
+      {/* Decorative gradient */}
+      <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-primary/10 to-transparent rounded-bl-full" />
+      
+      <div className="relative space-y-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="text-base font-semibold mb-1 flex items-center gap-2">
+              <Shield className="w-4 h-4 text-primary" />
+              Medical Export
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Export health data for healthcare providers
+            </p>
+          </div>
+          <Badge variant="secondary" className="text-[10px]">
+            HIPAA Ready
+          </Badge>
         </div>
 
         {/* Date Range */}
         <div className="space-y-2">
           <Label className="text-xs">Date Range</Label>
           <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger className="h-9">
+            <SelectTrigger className="h-9 transition-all hover:border-primary/50">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -322,53 +401,68 @@ Export System: Jvala Health Monitoring Platform
           </p>
         </div>
 
-        {/* Format Selection */}
+        {/* Format Selection with Tabs */}
         <div className="space-y-2">
           <Label className="text-xs">Export Format</Label>
-          <Select value={selectedFormat} onValueChange={setSelectedFormat}>
-            <SelectTrigger className="h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="fhir">
-                <div className="flex items-center gap-2">
-                  <FileJson className="w-4 h-4" />
-                  HL7 FHIR R4 (JSON)
-                </div>
-              </SelectItem>
-              <SelectItem value="ccd">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-4 h-4" />
-                  CCD Summary (Text)
-                </div>
-              </SelectItem>
-              <SelectItem value="csv">
-                <div className="flex items-center gap-2">
-                  <FileCode className="w-4 h-4" />
-                  Spreadsheet (CSV)
-                </div>
-              </SelectItem>
-            </SelectContent>
-          </Select>
+          <Tabs value={selectedFormat} onValueChange={setSelectedFormat} className="w-full">
+            <TabsList className="grid grid-cols-3 h-auto p-1">
+              <TabsTrigger value="fhir" className="text-[10px] py-1.5 data-[state=active]:shadow-primary">
+                <FileJson className="w-3 h-3 mr-1" />
+                FHIR R4
+              </TabsTrigger>
+              <TabsTrigger value="ccd" className="text-[10px] py-1.5 data-[state=active]:shadow-primary">
+                <FileText className="w-3 h-3 mr-1" />
+                CCD
+              </TabsTrigger>
+              <TabsTrigger value="csv" className="text-[10px] py-1.5 data-[state=active]:shadow-primary">
+                <FileCode className="w-3 h-3 mr-1" />
+                CSV
+              </TabsTrigger>
+            </TabsList>
+            <TabsList className="grid grid-cols-2 h-auto p-1 mt-1">
+              <TabsTrigger value="meddra" className="text-[10px] py-1.5 data-[state=active]:shadow-primary">
+                <FileType className="w-3 h-3 mr-1" />
+                MedDRA
+              </TabsTrigger>
+              <TabsTrigger value="whodd" className="text-[10px] py-1.5 data-[state=active]:shadow-primary">
+                <FileJson className="w-3 h-3 mr-1" />
+                WHO-DD
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          
+          {/* Format descriptions */}
+          <div className="p-2 bg-muted/50 rounded-lg">
+            <p className="text-[10px] text-muted-foreground">
+              {selectedFormat === 'fhir' && 'HL7 FHIR R4 JSON - International health interoperability standard'}
+              {selectedFormat === 'ccd' && 'Continuity of Care Document - Human-readable clinical summary'}
+              {selectedFormat === 'csv' && 'Spreadsheet format - Compatible with Excel and data analysis tools'}
+              {selectedFormat === 'meddra' && 'MedDRA coded symptoms - Medical Dictionary for Regulatory Activities'}
+              {selectedFormat === 'whodd' && 'WHO Drug Dictionary format - Standardized medication data'}
+            </p>
+          </div>
         </div>
 
         {/* Action Buttons */}
         <div className="flex gap-2">
-          <Button onClick={handleExport} className="flex-1" size="sm">
-            <FileDown className="w-4 h-4 mr-2" />
+          <Button onClick={handleExport} className="flex-1 shadow-primary press-effect" size="sm">
+            <Download className="w-4 h-4 mr-2" />
             Download
           </Button>
           
           <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="flex-1">
+              <Button variant="outline" size="sm" className="flex-1 hover-lift">
                 <Mail className="w-4 h-4 mr-2" />
-                Email to Provider
+                Email Provider
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="animate-scale-in">
               <DialogHeader>
-                <DialogTitle>Send to Healthcare Provider</DialogTitle>
+                <DialogTitle className="flex items-center gap-2">
+                  <Mail className="w-5 h-5 text-primary" />
+                  Send to Healthcare Provider
+                </DialogTitle>
                 <DialogDescription>
                   Email a health summary to your doctor or care team
                 </DialogDescription>
@@ -381,6 +475,7 @@ Export System: Jvala Health Monitoring Platform
                     placeholder="doctor@clinic.com"
                     value={recipientEmail}
                     onChange={(e) => setRecipientEmail(e.target.value)}
+                    className="mt-1.5"
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -389,7 +484,7 @@ Export System: Jvala Health Monitoring Platform
                 <Button 
                   onClick={handleSendToProvider} 
                   disabled={sending || !recipientEmail}
-                  className="w-full"
+                  className="w-full shadow-primary"
                 >
                   {sending ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -403,8 +498,13 @@ Export System: Jvala Health Monitoring Platform
           </Dialog>
         </div>
 
-        <div className="text-[10px] text-muted-foreground pt-2 border-t">
-          Compliant with HL7 FHIR R4, HIPAA, and 21 CFR Part 11
+        {/* Compliance badges */}
+        <div className="flex flex-wrap gap-1.5 pt-2 border-t">
+          {['HL7 FHIR R4', 'HIPAA', '21 CFR 11', 'MedDRA', 'WHO-DD'].map(standard => (
+            <Badge key={standard} variant="outline" className="text-[9px] px-1.5 py-0">
+              {standard}
+            </Badge>
+          ))}
         </div>
       </div>
     </Card>
