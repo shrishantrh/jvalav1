@@ -12,7 +12,12 @@ import {
   Loader2,
   Link,
   Unlink,
-  Activity
+  Activity,
+  Wind,
+  Thermometer,
+  Droplets,
+  Zap,
+  Timer
 } from "lucide-react";
 import { useWearableData, WearableData } from "@/hooks/useWearableData";
 import { cn } from "@/lib/utils";
@@ -38,9 +43,8 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
   const handleConnect = async (type: 'fitbit' | 'apple_health' | 'google_fit' | 'oura') => {
     setConnectingDevice(type);
     const success = await connectDevice(type);
-    if (success && type !== 'fitbit' && type !== 'oura' && onDataSync) {
+    if (success && type !== 'fitbit' && onDataSync) {
       // For Fitbit, data will sync after OAuth callback
-      // For Oura, data syncs during connect
       const newData = await syncData(type);
       if (newData) onDataSync(newData);
     }
@@ -125,7 +129,9 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
                 "p-4 rounded-xl border transition-all",
                 conn.connected 
                   ? "bg-primary/5 border-primary/30" 
-                  : "bg-muted/30 border-muted"
+                  : conn.comingSoon
+                    ? "bg-muted/20 border-muted/50 opacity-70"
+                    : "bg-muted/30 border-muted"
               )}
             >
               <div className="flex items-center justify-between">
@@ -137,15 +143,22 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
                     {getDeviceIcon(conn.type)}
                   </div>
                   <div>
-                    <span className="font-medium">{conn.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{conn.name}</span>
+                      {conn.comingSoon && (
+                        <Badge variant="secondary" className="text-[10px] h-4 bg-amber-100 text-amber-700 border-amber-200">
+                          Coming Soon
+                        </Badge>
+                      )}
+                    </div>
                     {conn.connected && conn.lastSync && (
                       <p className="text-xs text-muted-foreground">
                         Last sync: {format(new Date(conn.lastSync), 'h:mm a')}
                       </p>
                     )}
-                    {!conn.connected && conn.type !== 'fitbit' && conn.type !== 'oura' && (
+                    {conn.comingSoon && !conn.connected && (
                       <p className="text-xs text-muted-foreground">
-                        Coming soon (mobile app)
+                        Stay tuned for updates
                       </p>
                     )}
                   </div>
@@ -169,17 +182,17 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
                     </Button>
                   ) : (
                     <Button
-                      variant={(conn.type === 'fitbit' || conn.type === 'oura') ? 'default' : 'outline'}
+                      variant={!conn.comingSoon ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => handleConnect(conn.type)}
-                      disabled={isLoading || connectingDevice === conn.type || (conn.type !== 'fitbit' && conn.type !== 'oura')}
+                      disabled={isLoading || connectingDevice === conn.type || conn.comingSoon}
                     >
                       {connectingDevice === conn.type ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
                         <>
                           <Link className="w-4 h-4 mr-1" />
-                          Connect
+                          {conn.comingSoon ? 'Soon' : 'Connect'}
                         </>
                       )}
                     </Button>
@@ -191,13 +204,13 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
         </div>
       </Card>
 
-      {/* Data Display */}
-      {data && (data.source === 'fitbit' || data.source === 'oura') && (
+      {/* Comprehensive Data Display */}
+      {data && data.source === 'fitbit' && (
         <Card className="p-5 bg-gradient-card border-0 shadow-soft">
           <div className="flex items-center justify-between mb-4">
             <h4 className="font-semibold flex items-center gap-2">
               <Activity className="w-4 h-4 text-primary" />
-              Today's {data.source === 'oura' ? 'Oura' : 'Fitbit'} Data
+              Today's Fitbit Data
             </h4>
             {data.lastSyncedAt && (
               <span className="text-xs text-muted-foreground">
@@ -221,6 +234,78 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
               </div>
             )}
 
+            {/* HRV */}
+            {data.heartRateVariability && (
+              <div className="p-3 rounded-xl bg-pink-50 border border-pink-100">
+                <div className="flex items-center gap-2 mb-1">
+                  <Activity className="w-4 h-4 text-pink-500" />
+                  <span className="text-xs text-muted-foreground">HRV</span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-bold text-pink-600">{Math.round(data.heartRateVariability)}</span>
+                  <span className="text-xs text-muted-foreground">ms</span>
+                </div>
+              </div>
+            )}
+
+            {/* SpO2 */}
+            {data.spo2 && (
+              <div className="p-3 rounded-xl bg-cyan-50 border border-cyan-100">
+                <div className="flex items-center gap-2 mb-1">
+                  <Droplets className="w-4 h-4 text-cyan-500" />
+                  <span className="text-xs text-muted-foreground">SpO2</span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-bold text-cyan-600">{data.spo2}</span>
+                  <span className="text-xs text-muted-foreground">%</span>
+                </div>
+              </div>
+            )}
+
+            {/* Breathing Rate */}
+            {data.breathingRate && (
+              <div className="p-3 rounded-xl bg-teal-50 border border-teal-100">
+                <div className="flex items-center gap-2 mb-1">
+                  <Wind className="w-4 h-4 text-teal-500" />
+                  <span className="text-xs text-muted-foreground">Breathing</span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-bold text-teal-600">{data.breathingRate.toFixed(1)}</span>
+                  <span className="text-xs text-muted-foreground">bpm</span>
+                </div>
+              </div>
+            )}
+
+            {/* Skin Temperature */}
+            {data.skinTemperature && (
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-100">
+                <div className="flex items-center gap-2 mb-1">
+                  <Thermometer className="w-4 h-4 text-amber-500" />
+                  <span className="text-xs text-muted-foreground">Skin Temp</span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-bold text-amber-600">
+                    {data.skinTemperature > 0 ? '+' : ''}{data.skinTemperature.toFixed(1)}
+                  </span>
+                  <span className="text-xs text-muted-foreground">°C</span>
+                </div>
+              </div>
+            )}
+
+            {/* VO2 Max */}
+            {data.vo2Max && (
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+                <div className="flex items-center gap-2 mb-1">
+                  <Zap className="w-4 h-4 text-emerald-500" />
+                  <span className="text-xs text-muted-foreground">VO2 Max</span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-bold text-emerald-600">{data.vo2Max}</span>
+                  <span className="text-xs text-muted-foreground">ml/kg/min</span>
+                </div>
+              </div>
+            )}
+
             {/* Steps */}
             <div className="p-3 rounded-xl bg-blue-50 border border-blue-100">
               <div className="flex items-center gap-2 mb-1">
@@ -239,6 +324,23 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
               )}
             </div>
 
+            {/* Active Zone Minutes */}
+            {data.activeZoneMinutesTotal && (
+              <div className="p-3 rounded-xl bg-violet-50 border border-violet-100">
+                <div className="flex items-center gap-2 mb-1">
+                  <Timer className="w-4 h-4 text-violet-500" />
+                  <span className="text-xs text-muted-foreground">Zone Min</span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-bold text-violet-600">{data.activeZoneMinutesTotal}</span>
+                  <span className="text-xs text-muted-foreground">min</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {data.cardioMinutes || 0} cardio • {data.peakMinutes || 0} peak
+                </p>
+              </div>
+            )}
+
             {/* Sleep */}
             {data.sleepHours !== undefined && data.sleepHours !== null && (
               <div className="p-3 rounded-xl bg-purple-50 border border-purple-100">
@@ -254,6 +356,11 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
                   <Badge className={cn("text-[10px] mt-1", getSleepQualityColor(data.sleepQuality))}>
                     {data.sleepQuality}
                   </Badge>
+                )}
+                {data.sleepEfficiency && (
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {data.sleepEfficiency}% efficiency
+                  </p>
                 )}
               </div>
             )}
@@ -271,37 +378,39 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
                   </span>
                   <span className="text-xs text-muted-foreground">kcal</span>
                 </div>
-              </div>
-            )}
-
-            {/* Oura-specific: Readiness Score */}
-            {data.source === 'oura' && data.readinessScore && (
-              <div className="p-3 rounded-xl bg-green-50 border border-green-100">
-                <div className="flex items-center gap-2 mb-1">
-                  <Activity className="w-4 h-4 text-green-500" />
-                  <span className="text-xs text-muted-foreground">Readiness</span>
-                </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-green-600">{data.readinessScore}</span>
-                  <span className="text-xs text-muted-foreground">/100</span>
-                </div>
-              </div>
-            )}
-
-            {/* Oura-specific: Sleep Score */}
-            {data.source === 'oura' && data.sleepScore && (
-              <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-100">
-                <div className="flex items-center gap-2 mb-1">
-                  <Moon className="w-4 h-4 text-indigo-500" />
-                  <span className="text-xs text-muted-foreground">Sleep Score</span>
-                </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-indigo-600">{data.sleepScore}</span>
-                  <span className="text-xs text-muted-foreground">/100</span>
-                </div>
+                {data.activityCalories && (
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {data.activityCalories} from activity
+                  </p>
+                )}
               </div>
             )}
           </div>
+
+          {/* Sleep Stages */}
+          {data.sleepStages && (data.deepSleepMinutes || data.remSleepMinutes) && (
+            <div className="mt-4 pt-4 border-t border-border/50">
+              <h5 className="text-xs font-medium mb-2 text-muted-foreground">Sleep Stages</h5>
+              <div className="grid grid-cols-4 gap-2">
+                <div className="text-center p-2 rounded-lg bg-indigo-50/50">
+                  <span className="text-lg font-bold text-indigo-600">{data.deepSleepMinutes || 0}</span>
+                  <p className="text-[10px] text-muted-foreground">Deep</p>
+                </div>
+                <div className="text-center p-2 rounded-lg bg-blue-50/50">
+                  <span className="text-lg font-bold text-blue-600">{data.lightSleepMinutes || 0}</span>
+                  <p className="text-[10px] text-muted-foreground">Light</p>
+                </div>
+                <div className="text-center p-2 rounded-lg bg-purple-50/50">
+                  <span className="text-lg font-bold text-purple-600">{data.remSleepMinutes || 0}</span>
+                  <p className="text-[10px] text-muted-foreground">REM</p>
+                </div>
+                <div className="text-center p-2 rounded-lg bg-gray-50/50">
+                  <span className="text-lg font-bold text-gray-600">{data.wakeSleepMinutes || 0}</span>
+                  <p className="text-[10px] text-muted-foreground">Awake</p>
+                </div>
+              </div>
+            </div>
+          )}
         </Card>
       )}
     </div>
