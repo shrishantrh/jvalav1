@@ -64,18 +64,30 @@ export interface FlareEntry {
     season?: 'spring' | 'summer' | 'fall' | 'winter';
   };
 
-  // Physiological data
+  // Physiological data (from wearables)
   physiologicalData?: {
     heartRate?: number;
+    heart_rate?: number; // snake_case alias
     heartRateVariability?: number;
+    heart_rate_variability?: number;
     bloodPressure?: {
       systolic: number;
       diastolic: number;
     };
     sleepHours?: number;
+    sleep_hours?: number;
     sleepQuality?: 'poor' | 'fair' | 'good' | 'excellent';
+    sleep_quality?: string;
     stressLevel?: number; // 1-10 scale
     steps?: number;
+    activeMinutes?: number;
+    active_minutes?: number;
+    caloriesBurned?: number;
+    calories_burned?: number;
+    distance?: number;
+    syncedAt?: string;
+    synced_at?: string;
+    source?: 'fitbit' | 'apple_health' | 'google_fit' | 'simulated' | string;
   };
 }
 

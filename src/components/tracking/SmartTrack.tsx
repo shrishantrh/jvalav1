@@ -3,13 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { FlareEntry } from "@/types/flare";
-import { Send, Mic, MicOff, Check, Sparkles, Thermometer, Droplets, Calendar, AlertTriangle, BarChart3, MapPin, Activity, TrendingUp } from "lucide-react";
+import { Send, Mic, MicOff, Check, Sparkles, Thermometer, Droplets, Calendar, AlertTriangle, BarChart3, MapPin, Activity, TrendingUp, Heart } from "lucide-react";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { FluidLogSelector } from "./FluidLogSelector";
 import { Badge } from "@/components/ui/badge";
 import { useCorrelations, Correlation } from "@/hooks/useCorrelations";
+import { useEntryContext } from "@/hooks/useEntryContext";
 
 interface ChatMessage {
   id: string;
@@ -310,6 +311,9 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   
   // Use correlations hook
   const { topCorrelations, pendingFollowUps, getCorrelationsForTrigger } = useCorrelations(userId);
+  
+  // Use entry context hook for unified environmental + wearable data
+  const { getEntryContext, hasWearableConnected, currentWearableData } = useEntryContext();
 
   useEffect(() => {
     if (hasLoadedMessages.current) return;
@@ -417,15 +421,17 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       timestamp: new Date(),
     };
 
+    // Get unified context data (environmental + wearable)
     try {
-      const { getCurrentLocation, fetchWeatherData } = await import("@/services/weatherService");
-      const location = await getCurrentLocation();
-      if (location) {
-        const weatherData = await fetchWeatherData(location.latitude, location.longitude);
-        if (weatherData) entry.environmentalData = weatherData;
+      const contextData = await getEntryContext();
+      if (contextData.environmentalData) {
+        entry.environmentalData = contextData.environmentalData;
+      }
+      if (contextData.physiologicalData) {
+        entry.physiologicalData = contextData.physiologicalData;
       }
     } catch (e) {
-      console.log('Could not get location data');
+      console.log('Could not get context data:', e);
     }
 
     onSave(entry);
@@ -659,52 +665,31 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       if (data.multipleEntries && data.multipleEntries.length > 0) {
         console.log('📝 Logging multiple entries:', data.multipleEntries.length);
         
-        try {
-          const { getCurrentLocation, fetchWeatherData } = await import("@/services/weatherService");
-          const location = await getCurrentLocation();
-          let envData = undefined;
-          if (location) {
-            const weatherData = await fetchWeatherData(location.latitude, location.longitude);
-            if (weatherData) envData = weatherData;
-          }
-          
-          // Save each entry
-          for (const entryData of data.multipleEntries) {
-            const entry: Partial<FlareEntry> = {
-              ...entryData,
-              note: text,
-              timestamp: new Date(),
-              environmentalData: envData,
-            };
-            onSave(entry);
-          }
-        } catch (e) {
-          // Still save without env data
-          for (const entryData of data.multipleEntries) {
-            const entry: Partial<FlareEntry> = {
-              ...entryData,
-              note: text,
-              timestamp: new Date(),
-            };
-            onSave(entry);
-          }
+        // Get unified context data (environmental + wearable)
+        const contextData = await getEntryContext();
+        
+        // Save each entry with context
+        for (const entryData of data.multipleEntries) {
+          const entry: Partial<FlareEntry> = {
+            ...entryData,
+            note: text,
+            timestamp: new Date(),
+            environmentalData: contextData.environmentalData || undefined,
+            physiologicalData: contextData.physiologicalData || undefined,
+          };
+          onSave(entry);
         }
       } else if (data.entryData && data.shouldLog) {
-        // Single entry (backward compatibility)
+        // Single entry - get unified context data
+        const contextData = await getEntryContext();
+        
         const entry: Partial<FlareEntry> = {
           ...data.entryData,
           note: text,
           timestamp: new Date(),
+          environmentalData: contextData.environmentalData || undefined,
+          physiologicalData: contextData.physiologicalData || undefined,
         };
-
-        try {
-          const { getCurrentLocation, fetchWeatherData } = await import("@/services/weatherService");
-          const location = await getCurrentLocation();
-          if (location) {
-            const weatherData = await fetchWeatherData(location.latitude, location.longitude);
-            if (weatherData) entry.environmentalData = weatherData;
-          }
-        } catch (e) {}
 
         onSave(entry);
       }
