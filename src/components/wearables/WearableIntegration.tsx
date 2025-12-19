@@ -35,11 +35,12 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
   
   const [connectingDevice, setConnectingDevice] = useState<string | null>(null);
 
-  const handleConnect = async (type: 'fitbit' | 'apple_health' | 'google_fit') => {
+  const handleConnect = async (type: 'fitbit' | 'apple_health' | 'google_fit' | 'oura') => {
     setConnectingDevice(type);
     const success = await connectDevice(type);
-    if (success && type !== 'fitbit' && onDataSync) {
+    if (success && type !== 'fitbit' && type !== 'oura' && onDataSync) {
       // For Fitbit, data will sync after OAuth callback
+      // For Oura, data syncs during connect
       const newData = await syncData(type);
       if (newData) onDataSync(newData);
     }
@@ -70,6 +71,14 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
       return (
         <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
           <path d="M12.5 5.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5S10.17 4 11 4s1.5.67 1.5 1.5zm0 6.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5.67-1.5 1.5-1.5 1.5.67 1.5 1.5zm0 6.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5.67-1.5 1.5-1.5 1.5.67 1.5 1.5z"/>
+        </svg>
+      );
+    }
+    if (type === 'oura') {
+      return (
+        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
+          <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" strokeWidth="2"/>
+          <circle cx="12" cy="12" r="4" fill="currentColor"/>
         </svg>
       );
     }
@@ -134,7 +143,7 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
                         Last sync: {format(new Date(conn.lastSync), 'h:mm a')}
                       </p>
                     )}
-                    {!conn.connected && conn.type !== 'fitbit' && (
+                    {!conn.connected && conn.type !== 'fitbit' && conn.type !== 'oura' && (
                       <p className="text-xs text-muted-foreground">
                         Coming soon (mobile app)
                       </p>
@@ -160,10 +169,10 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
                     </Button>
                   ) : (
                     <Button
-                      variant={conn.type === 'fitbit' ? 'default' : 'outline'}
+                      variant={(conn.type === 'fitbit' || conn.type === 'oura') ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => handleConnect(conn.type)}
-                      disabled={isLoading || connectingDevice === conn.type || conn.type !== 'fitbit'}
+                      disabled={isLoading || connectingDevice === conn.type || (conn.type !== 'fitbit' && conn.type !== 'oura')}
                     >
                       {connectingDevice === conn.type ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -183,12 +192,12 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
       </Card>
 
       {/* Data Display */}
-      {data && data.source === 'fitbit' && (
+      {data && (data.source === 'fitbit' || data.source === 'oura') && (
         <Card className="p-5 bg-gradient-card border-0 shadow-soft">
           <div className="flex items-center justify-between mb-4">
             <h4 className="font-semibold flex items-center gap-2">
               <Activity className="w-4 h-4 text-primary" />
-              Today's Fitbit Data
+              Today's {data.source === 'oura' ? 'Oura' : 'Fitbit'} Data
             </h4>
             {data.lastSyncedAt && (
               <span className="text-xs text-muted-foreground">
@@ -250,18 +259,48 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
             )}
 
             {/* Calories */}
-            <div className="p-3 rounded-xl bg-orange-50 border border-orange-100">
-              <div className="flex items-center gap-2 mb-1">
-                <Flame className="w-4 h-4 text-orange-500" />
-                <span className="text-xs text-muted-foreground">Calories</span>
+            {data.caloriesBurned && (
+              <div className="p-3 rounded-xl bg-orange-50 border border-orange-100">
+                <div className="flex items-center gap-2 mb-1">
+                  <Flame className="w-4 h-4 text-orange-500" />
+                  <span className="text-xs text-muted-foreground">Calories</span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-bold text-orange-600">
+                    {data.caloriesBurned?.toLocaleString() || '0'}
+                  </span>
+                  <span className="text-xs text-muted-foreground">kcal</span>
+                </div>
               </div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold text-orange-600">
-                  {data.caloriesBurned?.toLocaleString() || '0'}
-                </span>
-                <span className="text-xs text-muted-foreground">kcal</span>
+            )}
+
+            {/* Oura-specific: Readiness Score */}
+            {data.source === 'oura' && data.readinessScore && (
+              <div className="p-3 rounded-xl bg-green-50 border border-green-100">
+                <div className="flex items-center gap-2 mb-1">
+                  <Activity className="w-4 h-4 text-green-500" />
+                  <span className="text-xs text-muted-foreground">Readiness</span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-bold text-green-600">{data.readinessScore}</span>
+                  <span className="text-xs text-muted-foreground">/100</span>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Oura-specific: Sleep Score */}
+            {data.source === 'oura' && data.sleepScore && (
+              <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-100">
+                <div className="flex items-center gap-2 mb-1">
+                  <Moon className="w-4 h-4 text-indigo-500" />
+                  <span className="text-xs text-muted-foreground">Sleep Score</span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-bold text-indigo-600">{data.sleepScore}</span>
+                  <span className="text-xs text-muted-foreground">/100</span>
+                </div>
+              </div>
+            )}
           </div>
         </Card>
       )}

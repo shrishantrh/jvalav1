@@ -11,14 +11,16 @@ export interface WearableData {
   activeMinutes?: number;
   caloriesBurned?: number;
   distance?: number;
+  readinessScore?: number;
+  sleepScore?: number;
   lastSyncedAt?: Date;
-  source?: 'fitbit' | 'apple_health' | 'google_fit' | 'simulated';
+  source?: 'fitbit' | 'apple_health' | 'google_fit' | 'oura' | 'simulated';
 }
 
 interface WearableConnection {
   id: string;
   name: string;
-  type: 'fitbit' | 'apple_health' | 'google_fit';
+  type: 'fitbit' | 'apple_health' | 'google_fit' | 'oura';
   connected: boolean;
   lastSync?: Date;
 }
@@ -27,6 +29,7 @@ export const useWearableData = () => {
   const [data, setData] = useState<WearableData | null>(null);
   const [connections, setConnections] = useState<WearableConnection[]>([
     { id: 'fitbit', name: 'Fitbit', type: 'fitbit', connected: false },
+    { id: 'oura', name: 'Oura Ring', type: 'oura', connected: false },
     { id: 'apple-health', name: 'Apple Health', type: 'apple_health', connected: false },
     { id: 'google-fit', name: 'Google Fit', type: 'google_fit', connected: false },
   ]);
@@ -62,10 +65,51 @@ export const useWearableData = () => {
     }
   }, []);
 
-  const syncData = useCallback(async (type?: 'fitbit' | 'apple_health' | 'google_fit'): Promise<WearableData | null> => {
+  const syncData = useCallback(async (type?: 'fitbit' | 'apple_health' | 'google_fit' | 'oura'): Promise<WearableData | null> => {
     setIsSyncing(true);
     
     try {
+      // Determine which service to sync based on type or connected devices
+      const fitbitConnected = connections.find(c => c.type === 'fitbit')?.connected;
+      const ouraConnected = connections.find(c => c.type === 'oura')?.connected;
+      
+      const syncType = type || (fitbitConnected ? 'fitbit' : ouraConnected ? 'oura' : null);
+      
+      if (syncType === 'oura' || (!type && ouraConnected)) {
+        const { data: ouraData, error } = await supabase.functions.invoke('oura-data');
+        
+        if (error) {
+          console.error('Error fetching Oura data:', error);
+          return null;
+        }
+
+        if (ouraData?.error) {
+          console.log('Oura data error:', ouraData.error);
+          return null;
+        }
+
+        const wearableData: WearableData = {
+          heartRate: ouraData.heartRate || ouraData.restingHeartRate,
+          steps: ouraData.steps,
+          activeMinutes: ouraData.activeMinutes,
+          caloriesBurned: ouraData.caloriesBurned,
+          sleepHours: ouraData.sleepHours,
+          sleepQuality: ouraData.sleepQuality,
+          sleepScore: ouraData.sleepScore,
+          readinessScore: ouraData.readinessScore,
+          lastSyncedAt: new Date(ouraData.lastSyncedAt),
+          source: 'oura',
+        };
+        
+        setData(wearableData);
+        setConnections(prev => prev.map(c => 
+          c.type === 'oura' ? { ...c, connected: true, lastSync: new Date() } : c
+        ));
+        
+        return wearableData;
+      }
+      
+      // Fitbit sync
       const { data: fitbitData, error } = await supabase.functions.invoke('fitbit-data');
       
       if (error) {
@@ -102,7 +146,7 @@ export const useWearableData = () => {
     } finally {
       setIsSyncing(false);
     }
-  }, []);
+  }, [connections]);
 
   // Listen for OAuth callback message
   useEffect(() => {
@@ -142,7 +186,7 @@ export const useWearableData = () => {
     };
   }, [checkFitbitConnection, syncData]);
 
-  const connectDevice = useCallback(async (type: 'fitbit' | 'apple_health' | 'google_fit'): Promise<boolean> => {
+  const connectDevice = useCallback(async (type: 'fitbit' | 'apple_health' | 'google_fit' | 'oura'): Promise<boolean> => {
     setIsLoading(true);
     
     try {
@@ -188,6 +232,25 @@ export const useWearableData = () => {
         return true;
       }
 
+      if (type === 'oura') {
+        // Oura uses personal access token - try to sync data directly
+        const ouraData = await syncData('oura');
+        if (ouraData) {
+          toast({
+            title: 'Oura Connected',
+            description: 'Your Oura Ring data has been synced.',
+          });
+          return true;
+        } else {
+          toast({
+            title: 'Connection Failed',
+            description: 'Could not connect to Oura. Please check your personal access token.',
+            variant: 'destructive',
+          });
+          return false;
+        }
+      }
+
       toast({
         title: 'Coming Soon',
         description: `${type === 'apple_health' ? 'Apple Health' : 'Google Fit'} integration requires the mobile app.`,
@@ -204,9 +267,9 @@ export const useWearableData = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, syncData]);
 
-  const disconnectDevice = useCallback(async (type: 'fitbit' | 'apple_health' | 'google_fit') => {
+  const disconnectDevice = useCallback(async (type: 'fitbit' | 'apple_health' | 'google_fit' | 'oura') => {
     if (type === 'fitbit') {
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -221,6 +284,20 @@ export const useWearableData = () => {
       }
     }
 
+    if (type === 'oura') {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase
+            .from('oura_tokens')
+            .delete()
+            .eq('user_id', user.id);
+        }
+      } catch (error) {
+        console.error('Error disconnecting Oura:', error);
+      }
+    }
+
     setConnections(prev => prev.map(c => 
       c.type === type 
         ? { ...c, connected: false, lastSync: undefined }
@@ -230,9 +307,16 @@ export const useWearableData = () => {
     setData(null);
     hasSyncedRef.current = false;
     
+    const deviceNames: Record<string, string> = {
+      fitbit: 'Fitbit',
+      oura: 'Oura Ring',
+      apple_health: 'Apple Health',
+      google_fit: 'Google Fit'
+    };
+    
     toast({
       title: 'Device Disconnected',
-      description: `Disconnected from ${type === 'fitbit' ? 'Fitbit' : type === 'apple_health' ? 'Apple Health' : 'Google Fit'}`,
+      description: `Disconnected from ${deviceNames[type]}`,
     });
   }, [toast]);
 
