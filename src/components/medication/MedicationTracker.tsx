@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Progress } from "@/components/ui/progress";
-import { Pill, Plus, Check, Clock, Calendar, TrendingUp, X, Search } from 'lucide-react';
+import { Pill, Plus, Check, Clock, Calendar, TrendingUp, X, Search, Bell } from 'lucide-react';
 import { searchDrugs, type WHODrug } from "@/data/whoDrugDictionary";
 import { format, subDays, eachDayOfInterval, isToday, isSameDay } from 'date-fns';
+import { SmartMedicationReminders } from "@/components/profile/SmartMedicationReminders";
 
 interface MedicationLog {
   id: string;
@@ -292,6 +293,14 @@ export const MedicationTracker = ({ logs, onLogMedication, userMedications = [] 
           Log New Medication
         </Button>
       )}
+
+      {/* Smart Reminders */}
+      <SmartMedicationReminders 
+        medications={userMedications.map(med => ({ 
+          name: med,
+          frequency: 'once-daily'
+        }))} 
+      />
 
       {/* Recent Logs */}
       {logs.length > 0 && (
