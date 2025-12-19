@@ -270,6 +270,67 @@ export const useEngagement = () => {
     }
   };
 
+  // Check for consistency badges (perfect_week, consistency_king)
+  const checkConsistencyBadges = async (userId: string, entries: { timestamp: Date }[]): Promise<string[]> => {
+    try {
+      const { data: engagement } = await supabase
+        .from('engagement')
+        .select('badges, current_streak')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      const existingBadges = engagement?.badges || [];
+      const newBadges: string[] = [];
+
+      // Check for perfect_week: 7 consecutive days logged
+      const last7Days = new Set<string>();
+      const today = new Date();
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        last7Days.add(format(d, 'yyyy-MM-dd'));
+      }
+
+      const daysWithEntries = new Set(
+        entries.map(e => format(new Date(e.timestamp), 'yyyy-MM-dd'))
+      );
+
+      let perfectWeek = true;
+      last7Days.forEach(day => {
+        if (!daysWithEntries.has(day)) perfectWeek = false;
+      });
+
+      if (perfectWeek && !existingBadges.includes('perfect_week')) {
+        newBadges.push('perfect_week');
+      }
+
+      // Check for consistency_king: 80%+ logging for current month
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const dayOfMonth = today.getDate();
+      const entriesThisMonth = entries.filter(e => new Date(e.timestamp) >= startOfMonth);
+      const daysLoggedThisMonth = new Set(
+        entriesThisMonth.map(e => format(new Date(e.timestamp), 'yyyy-MM-dd'))
+      ).size;
+
+      const consistencyRate = (daysLoggedThisMonth / dayOfMonth) * 100;
+      if (consistencyRate >= 80 && dayOfMonth >= 7 && !existingBadges.includes('consistency_king')) {
+        newBadges.push('consistency_king');
+      }
+
+      if (newBadges.length > 0) {
+        await supabase
+          .from('engagement')
+          .update({ badges: [...existingBadges, ...newBadges] })
+          .eq('user_id', userId);
+      }
+
+      return newBadges;
+    } catch (error) {
+      console.error('Failed to check consistency badges:', error);
+      return [];
+    }
+  };
+
   const syncEngagementTotals = async (userId: string) => {
     try {
       // Get actual count from entries
@@ -317,6 +378,7 @@ export const useEngagement = () => {
     awardBadge,
     checkCorrelationBadges,
     checkTrackingBadges,
+    checkConsistencyBadges,
     BADGE_DEFINITIONS
   };
 };

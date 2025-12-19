@@ -8,6 +8,8 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from "
 import { cn } from "@/lib/utils";
 import { BADGES } from "./EngagementPanel";
 import { FlareEntry } from "@/types/flare";
+import { useEngagement } from "@/hooks/useEngagement";
+import { useToast } from "@/hooks/use-toast";
 
 interface EngagementData {
   current_streak: number;
@@ -25,9 +27,12 @@ interface ProgressDashboardProps {
 
 export const ProgressDashboard = ({ userId, entries, onBack }: ProgressDashboardProps) => {
   const [engagement, setEngagement] = useState<EngagementData | null>(null);
+  const { checkConsistencyBadges } = useEngagement();
+  const { toast } = useToast();
 
   useEffect(() => {
     loadEngagement();
+    checkBadges();
   }, [userId]);
 
   const loadEngagement = async () => {
@@ -38,6 +43,21 @@ export const ProgressDashboard = ({ userId, entries, onBack }: ProgressDashboard
       .maybeSingle();
     
     if (data) setEngagement(data);
+  };
+
+  const checkBadges = async () => {
+    // Check for consistency badges when viewing progress
+    const newBadges = await checkConsistencyBadges(userId, entries);
+    if (newBadges.length > 0) {
+      toast({
+        title: "🏆 Badge Earned!",
+        description: `You earned: ${newBadges.map(b => 
+          b === 'perfect_week' ? 'Perfect Week' : 'Consistency King'
+        ).join(', ')}`,
+      });
+      // Reload engagement to show new badges
+      loadEngagement();
+    }
   };
 
   // Calculate days logged this month
