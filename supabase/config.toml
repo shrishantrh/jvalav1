@@ -1,5 +1,8 @@
 project_id = "rvhpwjhemwvvdtnzmobs"
 
+[functions.transcribe-voice]
+verify_jwt = false
+
 [functions.get-weather]
 verify_jwt = true
 

@@ -23,6 +23,11 @@ export interface FlareEntry {
   
   // General fields
   note?: string;
+  
+  // Photo and voice note fields
+  photos?: string[];
+  voiceTranscript?: string;
+  
   context?: {
     activity?: string;
     location?: string;

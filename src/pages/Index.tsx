@@ -296,12 +296,21 @@ const Index = () => {
         setEntries(prev => [newEntry, ...prev]);
 
         // Update engagement
-        const { newBadges, streakIncreased, currentStreak: newStreak } = await updateEngagementOnLog(user.id);
+        const isDetailed = !!(entryData.symptoms?.length || entryData.triggers?.length || entryData.note || entryData.medications?.length);
+        const { newBadges, streakIncreased, currentStreak: newStreak } = await updateEngagementOnLog(user.id, isDetailed);
         setCurrentStreak(newStreak);
         
         // Check for tracking variety badges
         const trackingBadges = await checkTrackingBadges(user.id);
         const allNewBadges = [...newBadges, ...trackingBadges];
+        
+        // Award photo/voice badges if applicable
+        if (entryData.photos?.length && await awardBadge(user.id, 'photo_first')) {
+          allNewBadges.push('photo_first');
+        }
+        if (entryData.voiceTranscript && await awardBadge(user.id, 'voice_first')) {
+          allNewBadges.push('voice_first');
+        }
         
         if (allNewBadges.length > 0) {
           toast({
