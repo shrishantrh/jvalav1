@@ -28,6 +28,7 @@ interface EngagementSettings {
   reminder_times: string[];
   custom_reminders?: CustomReminder[];
   reminder_email?: string;
+  weekly_digest_enabled?: boolean;
 }
 
 const TIME_OPTIONS = [
@@ -51,10 +52,12 @@ export const ReminderSettings = ({ userEmail }: ReminderSettingsProps) => {
     reminder_times: ['08:00', '20:00'],
     custom_reminders: [],
     reminder_email: userEmail || '',
+    weekly_digest_enabled: false,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testSending, setTestSending] = useState(false);
+  const [digestSending, setDigestSending] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newReminder, setNewReminder] = useState<Partial<CustomReminder>>({
     name: '',
@@ -101,6 +104,7 @@ export const ReminderSettings = ({ userEmail }: ReminderSettingsProps) => {
           reminder_times: data.reminder_times || ['08:00', '20:00'],
           custom_reminders: customReminders,
           reminder_email: userEmail || '',
+          weekly_digest_enabled: data.home_shortcuts?.some((s: any) => s.type === 'weekly_digest' && s.enabled) || false,
         });
       }
     } catch (error) {
@@ -478,6 +482,91 @@ export const ReminderSettings = ({ userEmail }: ReminderSettingsProps) => {
                 <Mail className="w-4 h-4 mr-2" />
               )}
               Send Test Reminder
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Weekly Digest */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <Mail className="w-4 h-4 text-primary" />
+            <CardTitle className="text-base">Weekly Health Digest</CardTitle>
+          </div>
+          <CardDescription className="text-xs">
+            Receive a weekly email summary with your health trends and insights
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+            <div>
+              <Label className="font-medium">Enable Weekly Digest</Label>
+              <p className="text-xs text-muted-foreground">
+                {settings.weekly_digest_enabled ? "You'll receive a digest every Sunday" : 'Weekly digest is off'}
+              </p>
+            </div>
+            <Switch
+              checked={settings.weekly_digest_enabled || false}
+              onCheckedChange={(checked) => {
+                const homeShortcuts = [...(settings.custom_reminders?.map(r => ({ ...r, type: 'reminder' })) || [])];
+                if (checked) {
+                  homeShortcuts.push({ id: 'weekly_digest', type: 'weekly_digest', enabled: true } as any);
+                }
+                saveSettings({ weekly_digest_enabled: checked });
+              }}
+              disabled={saving}
+            />
+          </div>
+
+          {settings.weekly_digest_enabled && activeEmail && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="w-full"
+              onClick={async () => {
+                setDigestSending(true);
+                try {
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (!user) throw new Error('Not authenticated');
+
+                  const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('full_name')
+                    .eq('id', user.id)
+                    .single();
+
+                  const { error } = await supabase.functions.invoke('send-weekly-digest', {
+                    body: { 
+                      userId: user.id,
+                      email: activeEmail,
+                      fullName: profile?.full_name
+                    }
+                  });
+
+                  if (error) throw error;
+                  toast({ 
+                    title: "Weekly digest sent! 📊", 
+                    description: `Check ${activeEmail}` 
+                  });
+                } catch (error: any) {
+                  toast({ 
+                    title: "Failed to send", 
+                    description: error.message || "Check that email is configured correctly", 
+                    variant: "destructive" 
+                  });
+                } finally {
+                  setDigestSending(false);
+                }
+              }}
+              disabled={digestSending}
+            >
+              {digestSending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Mail className="w-4 h-4 mr-2" />
+              )}
+              Send Test Digest Now
             </Button>
           )}
         </CardContent>
