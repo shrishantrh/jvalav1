@@ -24,7 +24,9 @@ import {
   Clock,
   Target,
   ThermometerSun,
+  Activity,
 } from 'lucide-react';
+import { cn } from "@/lib/utils";
 import { format, subDays, isWithinInterval, differenceInDays } from 'date-fns';
 
 interface CleanInsightsProps {
@@ -179,28 +181,40 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
     // Physiological data correlation analysis
     const physioCorrelations: { metric: string; avgDuringFlare: number; unit: string; trend?: string }[] = [];
     
-    const hrvValues = flares30d.filter(f => f.physiologicalData?.hrv_rmssd).map(f => f.physiologicalData?.hrv_rmssd as number);
+    // HRV analysis - use heart_rate_variability which exists in the type
+    const hrvValues = flares30d
+      .filter(f => f.physiologicalData?.heart_rate_variability || f.physiologicalData?.heartRateVariability)
+      .map(f => (f.physiologicalData?.heart_rate_variability || f.physiologicalData?.heartRateVariability) as number);
     if (hrvValues.length > 0) {
       const avgHRV = hrvValues.reduce((a, b) => a + b, 0) / hrvValues.length;
       physioCorrelations.push({ metric: 'HRV', avgDuringFlare: Math.round(avgHRV), unit: 'ms', trend: avgHRV < 30 ? 'low' : avgHRV > 50 ? 'high' : 'normal' });
     }
     
-    const hrValues = flares30d.filter(f => f.physiologicalData?.heart_rate).map(f => f.physiologicalData?.heart_rate as number);
+    // Heart rate analysis
+    const hrValues = flares30d
+      .filter(f => f.physiologicalData?.heart_rate || f.physiologicalData?.heartRate)
+      .map(f => (f.physiologicalData?.heart_rate || f.physiologicalData?.heartRate) as number);
     if (hrValues.length > 0) {
       const avgHR = hrValues.reduce((a, b) => a + b, 0) / hrValues.length;
       physioCorrelations.push({ metric: 'Resting HR', avgDuringFlare: Math.round(avgHR), unit: 'bpm', trend: avgHR > 80 ? 'elevated' : 'normal' });
     }
     
-    const spo2Values = flares30d.filter(f => f.physiologicalData?.spo2).map(f => f.physiologicalData?.spo2 as number);
-    if (spo2Values.length > 0) {
-      const avgSpO2 = spo2Values.reduce((a, b) => a + b, 0) / spo2Values.length;
-      physioCorrelations.push({ metric: 'SpO2', avgDuringFlare: Math.round(avgSpO2 * 10) / 10, unit: '%', trend: avgSpO2 < 95 ? 'low' : 'normal' });
-    }
-    
-    const sleepValues = flares30d.filter(f => f.physiologicalData?.sleep_hours).map(f => f.physiologicalData?.sleep_hours as number);
+    // Sleep analysis
+    const sleepValues = flares30d
+      .filter(f => f.physiologicalData?.sleep_hours || f.physiologicalData?.sleepHours)
+      .map(f => (f.physiologicalData?.sleep_hours || f.physiologicalData?.sleepHours) as number);
     if (sleepValues.length > 0) {
       const avgSleep = sleepValues.reduce((a, b) => a + b, 0) / sleepValues.length;
       physioCorrelations.push({ metric: 'Sleep', avgDuringFlare: Math.round(avgSleep * 10) / 10, unit: 'hrs', trend: avgSleep < 6 ? 'low' : avgSleep > 8 ? 'good' : 'moderate' });
+    }
+    
+    // Steps/activity analysis
+    const stepsValues = flares30d
+      .filter(f => f.physiologicalData?.steps)
+      .map(f => f.physiologicalData?.steps as number);
+    if (stepsValues.length > 0) {
+      const avgSteps = stepsValues.reduce((a, b) => a + b, 0) / stepsValues.length;
+      physioCorrelations.push({ metric: 'Steps', avgDuringFlare: Math.round(avgSteps), unit: '', trend: avgSteps < 3000 ? 'low' : avgSteps > 8000 ? 'high' : 'normal' });
     }
 
     const sortedFlares = [...flares30d].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
