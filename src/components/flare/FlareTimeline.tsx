@@ -24,7 +24,12 @@ import {
   Footprints,
   Edit2,
   Trash2,
-  MessageSquarePlus
+  MessageSquarePlus,
+  Wind as Breathing,
+  Thermometer,
+  TrendingDown,
+  Timer,
+  Flame
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -303,7 +308,7 @@ export const FlareTimeline = ({ entries, onUpdate, onDelete, onAddFollowUp }: Fl
                         </div>
                       )}
 
-                      {/* Compact Environmental/Physiological Preview */}
+                      {/* Compact Physiological Preview - show more metrics */}
                       {!isExpanded && hasDetailedData && (
                         <div className="flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
                           {entry.environmentalData?.weather && (
@@ -312,8 +317,20 @@ export const FlareTimeline = ({ entries, onUpdate, onDelete, onAddFollowUp }: Fl
                           {(entry.physiologicalData?.heartRate || entry.physiologicalData?.heart_rate) && (
                             <span>❤️ {entry.physiologicalData.heartRate || entry.physiologicalData.heart_rate} bpm</span>
                           )}
+                          {(entry.physiologicalData?.hrv_rmssd || entry.physiologicalData?.hrvRmssd || entry.physiologicalData?.heart_rate_variability) && (
+                            <span>💓 HRV {entry.physiologicalData.hrv_rmssd || entry.physiologicalData.hrvRmssd || entry.physiologicalData.heart_rate_variability} ms</span>
+                          )}
+                          {entry.physiologicalData?.spo2 && (
+                            <span>🫁 SpO2 {entry.physiologicalData.spo2}%</span>
+                          )}
+                          {(entry.physiologicalData?.breathing_rate || entry.physiologicalData?.breathingRate) && (
+                            <span>🌬️ {entry.physiologicalData.breathing_rate || entry.physiologicalData.breathingRate} br/min</span>
+                          )}
                           {entry.physiologicalData?.steps && (
                             <span>👟 {entry.physiologicalData.steps.toLocaleString()}</span>
+                          )}
+                          {(entry.physiologicalData?.sleep_hours || entry.physiologicalData?.sleepHours) && (
+                            <span>😴 {entry.physiologicalData.sleep_hours || entry.physiologicalData.sleepHours}h</span>
                           )}
                           {entry.physiologicalData?.source && (
                             <span className="text-primary/70">📱 {entry.physiologicalData.source}</span>
@@ -399,9 +416,9 @@ export const FlareTimeline = ({ entries, onUpdate, onDelete, onAddFollowUp }: Fl
                             </div>
                           )}
 
-                          {/* Physiological Data */}
+                          {/* Comprehensive Physiological Data */}
                           {entry.physiologicalData && (
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                               <h4 className="font-clinical text-xs flex items-center gap-1.5 text-primary">
                                 <Heart className="w-3.5 h-3.5" />
                                 Health Metrics
@@ -412,65 +429,162 @@ export const FlareTimeline = ({ entries, onUpdate, onDelete, onAddFollowUp }: Fl
                                 )}
                               </h4>
                               
-                              <div className="grid grid-cols-2 gap-1.5 text-xs pl-5">
-                                {(entry.physiologicalData.heartRate || entry.physiologicalData.heart_rate) && (
-                                  <div className="flex items-center gap-1.5">
-                                    <Heart className="w-3 h-3 text-red-500" />
-                                    <span>HR: {entry.physiologicalData.heartRate || entry.physiologicalData.heart_rate} bpm</span>
-                                  </div>
-                                )}
-                                {(entry.physiologicalData.heartRateVariability || entry.physiologicalData.heart_rate_variability) && (
-                                  <div className="flex items-center gap-1.5">
-                                    <Heart className="w-3 h-3 text-pink-500" />
-                                    <span>HRV: {entry.physiologicalData.heartRateVariability || entry.physiologicalData.heart_rate_variability} ms</span>
-                                  </div>
-                                )}
-                                {entry.physiologicalData.bloodPressure && (
-                                  <div className="flex items-center gap-1.5 col-span-2">
-                                    <Gauge className="w-3 h-3 text-red-600" />
-                                    <span>BP: {entry.physiologicalData.bloodPressure.systolic}/{entry.physiologicalData.bloodPressure.diastolic} mmHg</span>
-                                  </div>
-                                )}
-                                {(entry.physiologicalData.sleepHours || entry.physiologicalData.sleep_hours) && (
-                                  <div className="flex items-center gap-1.5 col-span-2">
-                                    <Moon className="w-3 h-3 text-indigo-500" />
-                                    <span>Sleep: {entry.physiologicalData.sleepHours || entry.physiologicalData.sleep_hours}h 
-                                      {(entry.physiologicalData.sleepQuality || entry.physiologicalData.sleep_quality) && 
-                                        ` (${entry.physiologicalData.sleepQuality || entry.physiologicalData.sleep_quality})`}
-                                    </span>
-                                  </div>
-                                )}
-                                {entry.physiologicalData.steps && (
-                                  <div className="flex items-center gap-1.5">
-                                    <Footprints className="w-3 h-3 text-green-500" />
-                                    <span>{entry.physiologicalData.steps.toLocaleString()} steps</span>
-                                  </div>
-                                )}
-                                {(entry.physiologicalData.activeMinutes || entry.physiologicalData.active_minutes) && (
-                                  <div className="flex items-center gap-1.5">
-                                    <Activity className="w-3 h-3 text-blue-500" />
-                                    <span>{entry.physiologicalData.activeMinutes || entry.physiologicalData.active_minutes} active min</span>
-                                  </div>
-                                )}
-                                {(entry.physiologicalData.caloriesBurned || entry.physiologicalData.calories_burned) && (
-                                  <div className="flex items-center gap-1.5">
-                                    <Zap className="w-3 h-3 text-orange-500" />
-                                    <span>{(entry.physiologicalData.caloriesBurned || entry.physiologicalData.calories_burned)?.toLocaleString()} cal</span>
-                                  </div>
-                                )}
-                                {entry.physiologicalData.distance && (
-                                  <div className="flex items-center gap-1.5">
-                                    <Footprints className="w-3 h-3 text-teal-500" />
-                                    <span>{entry.physiologicalData.distance.toFixed(1)} km</span>
-                                  </div>
-                                )}
-                                {entry.physiologicalData.stressLevel && (
-                                  <div className="flex items-center gap-1.5">
-                                    <Activity className="w-3 h-3 text-orange-500" />
-                                    <span>Stress: {entry.physiologicalData.stressLevel}/10</span>
-                                  </div>
-                                )}
+                              {/* Core Vitals */}
+                              <div className="space-y-1.5 pl-5">
+                                <p className="text-[10px] font-clinical text-muted-foreground uppercase tracking-wide">Vitals</p>
+                                <div className="grid grid-cols-2 gap-1.5 text-xs">
+                                  {(entry.physiologicalData.heartRate || entry.physiologicalData.heart_rate) && (
+                                    <div className="flex items-center gap-1.5">
+                                      <Heart className="w-3 h-3 text-red-500" />
+                                      <span>HR: {entry.physiologicalData.heartRate || entry.physiologicalData.heart_rate} bpm</span>
+                                    </div>
+                                  )}
+                                  {(entry.physiologicalData.resting_heart_rate || entry.physiologicalData.restingHeartRate) && (
+                                    <div className="flex items-center gap-1.5">
+                                      <Heart className="w-3 h-3 text-red-400" />
+                                      <span>Resting: {entry.physiologicalData.resting_heart_rate || entry.physiologicalData.restingHeartRate} bpm</span>
+                                    </div>
+                                  )}
+                                  {(entry.physiologicalData.hrv_rmssd || entry.physiologicalData.hrvRmssd || entry.physiologicalData.heart_rate_variability || entry.physiologicalData.heartRateVariability) && (
+                                    <div className="flex items-center gap-1.5">
+                                      <Heart className="w-3 h-3 text-pink-500" />
+                                      <span>HRV: {entry.physiologicalData.hrv_rmssd || entry.physiologicalData.hrvRmssd || entry.physiologicalData.heart_rate_variability || entry.physiologicalData.heartRateVariability} ms</span>
+                                    </div>
+                                  )}
+                                  {entry.physiologicalData.spo2 && (
+                                    <div className="flex items-center gap-1.5">
+                                      <TrendingDown className="w-3 h-3 text-blue-500" />
+                                      <span>SpO2: {entry.physiologicalData.spo2}%</span>
+                                    </div>
+                                  )}
+                                  {(entry.physiologicalData.breathing_rate || entry.physiologicalData.breathingRate) && (
+                                    <div className="flex items-center gap-1.5">
+                                      <Breathing className="w-3 h-3 text-cyan-500" />
+                                      <span>Breathing: {entry.physiologicalData.breathing_rate || entry.physiologicalData.breathingRate} br/min</span>
+                                    </div>
+                                  )}
+                                  {(entry.physiologicalData.skin_temperature || entry.physiologicalData.skinTemperature) && (
+                                    <div className="flex items-center gap-1.5">
+                                      <Thermometer className="w-3 h-3 text-orange-400" />
+                                      <span>Skin Temp: {(entry.physiologicalData.skin_temperature || entry.physiologicalData.skinTemperature)?.toFixed(1)}°</span>
+                                    </div>
+                                  )}
+                                  {(entry.physiologicalData.vo2_max || entry.physiologicalData.vo2Max) && (
+                                    <div className="flex items-center gap-1.5">
+                                      <Activity className="w-3 h-3 text-green-600" />
+                                      <span>VO2 Max: {entry.physiologicalData.vo2_max || entry.physiologicalData.vo2Max}</span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
+                              
+                              {/* Sleep Data */}
+                              {(entry.physiologicalData.sleep_hours || entry.physiologicalData.sleepHours || entry.physiologicalData.sleep_stages || entry.physiologicalData.sleepStages) && (
+                                <div className="space-y-1.5 pl-5">
+                                  <p className="text-[10px] font-clinical text-muted-foreground uppercase tracking-wide">Sleep</p>
+                                  <div className="grid grid-cols-2 gap-1.5 text-xs">
+                                    {(entry.physiologicalData.sleep_hours || entry.physiologicalData.sleepHours) && (
+                                      <div className="flex items-center gap-1.5">
+                                        <Moon className="w-3 h-3 text-indigo-500" />
+                                        <span>
+                                          {entry.physiologicalData.sleep_hours || entry.physiologicalData.sleepHours}h 
+                                          {(entry.physiologicalData.sleep_quality || entry.physiologicalData.sleepQuality) && 
+                                            ` (${entry.physiologicalData.sleep_quality || entry.physiologicalData.sleepQuality})`}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {(entry.physiologicalData.sleep_efficiency || entry.physiologicalData.sleepEfficiency) && (
+                                      <div className="flex items-center gap-1.5">
+                                        <Timer className="w-3 h-3 text-indigo-400" />
+                                        <span>Efficiency: {entry.physiologicalData.sleep_efficiency || entry.physiologicalData.sleepEfficiency}%</span>
+                                      </div>
+                                    )}
+                                    {(entry.physiologicalData.deep_sleep_minutes || entry.physiologicalData.deepSleepMinutes) && (
+                                      <div className="flex items-center gap-1.5">
+                                        <Moon className="w-3 h-3 text-indigo-700" />
+                                        <span>Deep: {entry.physiologicalData.deep_sleep_minutes || entry.physiologicalData.deepSleepMinutes} min</span>
+                                      </div>
+                                    )}
+                                    {(entry.physiologicalData.rem_sleep_minutes || entry.physiologicalData.remSleepMinutes) && (
+                                      <div className="flex items-center gap-1.5">
+                                        <Moon className="w-3 h-3 text-purple-500" />
+                                        <span>REM: {entry.physiologicalData.rem_sleep_minutes || entry.physiologicalData.remSleepMinutes} min</span>
+                                      </div>
+                                    )}
+                                    {(entry.physiologicalData.light_sleep_minutes || entry.physiologicalData.lightSleepMinutes) && (
+                                      <div className="flex items-center gap-1.5">
+                                        <Moon className="w-3 h-3 text-indigo-300" />
+                                        <span>Light: {entry.physiologicalData.light_sleep_minutes || entry.physiologicalData.lightSleepMinutes} min</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Activity Data */}
+                              <div className="space-y-1.5 pl-5">
+                                <p className="text-[10px] font-clinical text-muted-foreground uppercase tracking-wide">Activity</p>
+                                <div className="grid grid-cols-2 gap-1.5 text-xs">
+                                  {entry.physiologicalData.steps && (
+                                    <div className="flex items-center gap-1.5">
+                                      <Footprints className="w-3 h-3 text-green-500" />
+                                      <span>{entry.physiologicalData.steps.toLocaleString()} steps</span>
+                                    </div>
+                                  )}
+                                  {entry.physiologicalData.distance && (
+                                    <div className="flex items-center gap-1.5">
+                                      <Footprints className="w-3 h-3 text-teal-500" />
+                                      <span>{entry.physiologicalData.distance.toFixed(2)} km</span>
+                                    </div>
+                                  )}
+                                  {(entry.physiologicalData.active_minutes || entry.physiologicalData.activeMinutes) && (
+                                    <div className="flex items-center gap-1.5">
+                                      <Activity className="w-3 h-3 text-blue-500" />
+                                      <span>{entry.physiologicalData.active_minutes || entry.physiologicalData.activeMinutes} active min</span>
+                                    </div>
+                                  )}
+                                  {(entry.physiologicalData.calories_burned || entry.physiologicalData.caloriesBurned) && (
+                                    <div className="flex items-center gap-1.5">
+                                      <Flame className="w-3 h-3 text-orange-500" />
+                                      <span>{(entry.physiologicalData.calories_burned || entry.physiologicalData.caloriesBurned)?.toLocaleString()} cal</span>
+                                    </div>
+                                  )}
+                                  {entry.physiologicalData.floors && (
+                                    <div className="flex items-center gap-1.5">
+                                      <TrendingUp className="w-3 h-3 text-purple-500" />
+                                      <span>{entry.physiologicalData.floors} floors</span>
+                                    </div>
+                                  )}
+                                  {(entry.physiologicalData.active_zone_minutes_total || entry.physiologicalData.activeZoneMinutesTotal) && (
+                                    <div className="flex items-center gap-1.5 col-span-2">
+                                      <Activity className="w-3 h-3 text-red-400" />
+                                      <span>Active Zone: {entry.physiologicalData.active_zone_minutes_total || entry.physiologicalData.activeZoneMinutesTotal} min 
+                                        {(entry.physiologicalData.cardio_minutes || entry.physiologicalData.cardioMinutes) && 
+                                          ` (${entry.physiologicalData.cardio_minutes || entry.physiologicalData.cardioMinutes} cardio, ${entry.physiologicalData.peak_minutes || entry.physiologicalData.peakMinutes || 0} peak)`
+                                        }
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Legacy BP/Stress if present */}
+                              {(entry.physiologicalData.bloodPressure || entry.physiologicalData.stressLevel) && (
+                                <div className="grid grid-cols-2 gap-1.5 text-xs pl-5">
+                                  {entry.physiologicalData.bloodPressure && (
+                                    <div className="flex items-center gap-1.5 col-span-2">
+                                      <Gauge className="w-3 h-3 text-red-600" />
+                                      <span>BP: {entry.physiologicalData.bloodPressure.systolic}/{entry.physiologicalData.bloodPressure.diastolic} mmHg</span>
+                                    </div>
+                                  )}
+                                  {entry.physiologicalData.stressLevel && (
+                                    <div className="flex items-center gap-1.5">
+                                      <Activity className="w-3 h-3 text-orange-500" />
+                                      <span>Stress: {entry.physiologicalData.stressLevel}/10</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
