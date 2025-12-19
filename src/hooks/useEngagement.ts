@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, parseISO, differenceInDays } from "date-fns";
 
 const BADGE_DEFINITIONS = {
+  // Core badges
   first_log: { name: 'First Log', description: 'Logged your first entry' },
   streak_3: { name: '3-Day Streak', description: 'Logged 3 days in a row' },
   streak_7: { name: 'Week Warrior', description: 'Logged 7 days in a row' },
@@ -11,6 +12,15 @@ const BADGE_DEFINITIONS = {
   detailed_first: { name: 'Detail Oriented', description: 'First detailed entry' },
   photo_first: { name: 'Picture Perfect', description: 'First photo log' },
   voice_first: { name: 'Voice Logger', description: 'First voice note' },
+  // Enhanced badges
+  perfect_week: { name: 'Perfect Week', description: 'Logged every day for a week' },
+  pattern_detective: { name: 'Pattern Detective', description: 'Discovered first correlation' },
+  insight_seeker: { name: 'Insight Seeker', description: 'Viewed insights 5 times' },
+  export_pro: { name: 'Export Pro', description: 'First health export' },
+  self_aware: { name: 'Self Aware', description: 'Tracked 10 different triggers' },
+  symptom_tracker: { name: 'Symptom Tracker', description: 'Tracked 10 different symptoms' },
+  consistency_king: { name: 'Consistency King', description: '80%+ logging for a month' },
+  health_analyst: { name: 'Health Analyst', description: '5 correlations discovered' },
 };
 
 export const useEngagement = () => {
@@ -147,6 +157,119 @@ export const useEngagement = () => {
     return data;
   };
 
+  // Award special badges for specific actions
+  const awardBadge = async (userId: string, badgeId: string): Promise<boolean> => {
+    try {
+      const { data: engagement } = await supabase
+        .from('engagement')
+        .select('badges')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      const existingBadges = engagement?.badges || [];
+      
+      if (existingBadges.includes(badgeId)) {
+        return false; // Already has badge
+      }
+
+      await supabase
+        .from('engagement')
+        .update({ badges: [...existingBadges, badgeId] })
+        .eq('user_id', userId);
+
+      return true;
+    } catch (error) {
+      console.error('Failed to award badge:', error);
+      return false;
+    }
+  };
+
+  // Check for correlation-based badges
+  const checkCorrelationBadges = async (userId: string): Promise<string[]> => {
+    try {
+      const { count } = await supabase
+        .from('correlations')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+
+      const newBadges: string[] = [];
+      const { data: engagement } = await supabase
+        .from('engagement')
+        .select('badges')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      const existingBadges = engagement?.badges || [];
+
+      if (count && count >= 1 && !existingBadges.includes('pattern_detective')) {
+        newBadges.push('pattern_detective');
+      }
+      if (count && count >= 5 && !existingBadges.includes('health_analyst')) {
+        newBadges.push('health_analyst');
+      }
+
+      if (newBadges.length > 0) {
+        await supabase
+          .from('engagement')
+          .update({ badges: [...existingBadges, ...newBadges] })
+          .eq('user_id', userId);
+      }
+
+      return newBadges;
+    } catch (error) {
+      console.error('Failed to check correlation badges:', error);
+      return [];
+    }
+  };
+
+  // Check for tracking variety badges (symptoms/triggers)
+  const checkTrackingBadges = async (userId: string): Promise<string[]> => {
+    try {
+      const { data: entries } = await supabase
+        .from('flare_entries')
+        .select('symptoms, triggers')
+        .eq('user_id', userId);
+
+      if (!entries) return [];
+
+      const allSymptoms = new Set<string>();
+      const allTriggers = new Set<string>();
+
+      entries.forEach(entry => {
+        (entry.symptoms || []).forEach((s: string) => allSymptoms.add(s));
+        (entry.triggers || []).forEach((t: string) => allTriggers.add(t));
+      });
+
+      const newBadges: string[] = [];
+      const { data: engagement } = await supabase
+        .from('engagement')
+        .select('badges')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      const existingBadges = engagement?.badges || [];
+
+      if (allSymptoms.size >= 10 && !existingBadges.includes('symptom_tracker')) {
+        newBadges.push('symptom_tracker');
+      }
+      if (allTriggers.size >= 10 && !existingBadges.includes('self_aware')) {
+        newBadges.push('self_aware');
+      }
+
+      if (newBadges.length > 0) {
+        await supabase
+          .from('engagement')
+          .update({ badges: [...existingBadges, ...newBadges] })
+          .eq('user_id', userId);
+      }
+
+      return newBadges;
+    } catch (error) {
+      console.error('Failed to check tracking badges:', error);
+      return [];
+    }
+  };
+
   const syncEngagementTotals = async (userId: string) => {
     try {
       // Get actual count from entries
@@ -191,6 +314,9 @@ export const useEngagement = () => {
     getEngagement, 
     syncEngagementTotals,
     getBadgeInfo,
+    awardBadge,
+    checkCorrelationBadges,
+    checkTrackingBadges,
     BADGE_DEFINITIONS
   };
 };

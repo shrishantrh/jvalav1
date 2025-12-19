@@ -58,10 +58,26 @@ const Index = () => {
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { updateEngagementOnLog, getEngagement, syncEngagementTotals } = useEngagement();
+  const { updateEngagementOnLog, getEngagement, syncEngagementTotals, checkCorrelationBadges, checkTrackingBadges } = useEngagement();
   
   // Use correlations hook
   const { topCorrelations, recentActivities } = useCorrelations(user?.id || null);
+
+  // Check for special badges when correlations change
+  useEffect(() => {
+    const checkBadges = async () => {
+      if (!user || topCorrelations.length === 0) return;
+      
+      const newBadges = await checkCorrelationBadges(user.id);
+      if (newBadges.length > 0) {
+        toast({
+          title: "🏆 Badge Earned!",
+          description: `You earned: ${newBadges.map(b => b === 'pattern_detective' ? 'Pattern Detective' : 'Health Analyst').join(', ')}`,
+        });
+      }
+    };
+    checkBadges();
+  }, [topCorrelations.length, user?.id]);
 
   // Check auth and load data
   useEffect(() => {
@@ -282,10 +298,14 @@ const Index = () => {
         const { newBadges, streakIncreased, currentStreak: newStreak } = await updateEngagementOnLog(user.id);
         setCurrentStreak(newStreak);
         
-        if (newBadges.length > 0) {
+        // Check for tracking variety badges
+        const trackingBadges = await checkTrackingBadges(user.id);
+        const allNewBadges = [...newBadges, ...trackingBadges];
+        
+        if (allNewBadges.length > 0) {
           toast({
             title: "🏆 Badge Earned!",
-            description: `You earned: ${newBadges.join(', ')}`,
+            description: `You earned: ${allNewBadges.join(', ')}`,
           });
         }
       }

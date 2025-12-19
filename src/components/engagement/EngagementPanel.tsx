@@ -16,14 +16,25 @@ interface EngagementPanelProps {
 }
 
 const BADGES = [
-  { id: 'first_log', name: 'First Log', icon: '🌟', description: 'Logged your first entry' },
-  { id: 'streak_3', name: '3-Day Streak', icon: '🔥', description: '3 days in a row' },
-  { id: 'streak_7', name: 'Week Warrior', icon: '💪', description: '7 days in a row' },
-  { id: 'streak_30', name: 'Monthly Master', icon: '🏆', description: '30 days in a row' },
-  { id: 'logs_30', name: '30 Logs', icon: '📊', description: 'Logged 30 entries' },
-  { id: 'detailed', name: 'Detail Oriented', icon: '📝', description: 'First detailed entry' },
-  { id: 'photo', name: 'Picture Perfect', icon: '📸', description: 'First photo log' },
-  { id: 'voice', name: 'Voice Logger', icon: '🎤', description: 'First voice log' },
+  // Core badges
+  { id: 'first_log', name: 'First Log', icon: '🌟', description: 'Logged your first entry', category: 'milestone' },
+  { id: 'streak_3', name: '3-Day Streak', icon: '🔥', description: '3 days in a row', category: 'streak' },
+  { id: 'streak_7', name: 'Week Warrior', icon: '💪', description: '7 days in a row', category: 'streak' },
+  { id: 'streak_30', name: 'Monthly Master', icon: '🏆', description: '30 days in a row', category: 'streak' },
+  { id: 'logs_30', name: '30 Logs', icon: '📊', description: 'Logged 30 entries', category: 'milestone' },
+  { id: 'logs_100', name: 'Century Club', icon: '💯', description: 'Logged 100 entries', category: 'milestone' },
+  { id: 'detailed_first', name: 'Detail Oriented', icon: '📝', description: 'First detailed entry', category: 'feature' },
+  { id: 'photo_first', name: 'Picture Perfect', icon: '📸', description: 'First photo log', category: 'feature' },
+  { id: 'voice_first', name: 'Voice Logger', icon: '🎤', description: 'First voice log', category: 'feature' },
+  // New enhanced badges
+  { id: 'perfect_week', name: 'Perfect Week', icon: '⭐', description: 'Logged every day for a week', category: 'consistency' },
+  { id: 'pattern_detective', name: 'Pattern Detective', icon: '🔍', description: 'Discovered first correlation', category: 'insight' },
+  { id: 'insight_seeker', name: 'Insight Seeker', icon: '💡', description: 'Viewed insights 5 times', category: 'engagement' },
+  { id: 'export_pro', name: 'Export Pro', icon: '📤', description: 'First health export', category: 'feature' },
+  { id: 'self_aware', name: 'Self Aware', icon: '🧠', description: 'Tracked 10 different triggers', category: 'tracking' },
+  { id: 'symptom_tracker', name: 'Symptom Tracker', icon: '🩺', description: 'Tracked 10 different symptoms', category: 'tracking' },
+  { id: 'consistency_king', name: 'Consistency King', icon: '👑', description: '80%+ logging for a month', category: 'consistency' },
+  { id: 'health_analyst', name: 'Health Analyst', icon: '📈', description: '5 correlations discovered', category: 'insight' },
 ];
 
 export const EngagementPanel = ({ userId, onOpenProgress }: EngagementPanelProps) => {
