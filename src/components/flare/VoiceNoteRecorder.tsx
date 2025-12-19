@@ -110,12 +110,14 @@ export const VoiceNoteRecorder = ({ onTranscriptComplete, disabled }: VoiceNoteR
 
   if (showPreview && transcript) {
     return (
-      <Card className="p-4 space-y-3 border-primary/20 bg-primary/5">
+      <Card className="p-4 space-y-3 border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5 animate-scale-in">
         <div className="flex items-center gap-2 text-sm font-medium text-primary">
-          <Mic className="w-4 h-4" />
+          <div className="p-1.5 rounded-lg bg-primary/10 animate-float">
+            <Mic className="w-4 h-4" />
+          </div>
           Voice Note Preview
         </div>
-        <p className="text-sm text-muted-foreground leading-relaxed">
+        <p className="text-sm text-muted-foreground leading-relaxed bg-background/50 p-3 rounded-lg border">
           "{transcript}"
         </p>
         <div className="flex gap-2">
@@ -123,17 +125,17 @@ export const VoiceNoteRecorder = ({ onTranscriptComplete, disabled }: VoiceNoteR
             size="sm"
             onClick={handleConfirmTranscript}
             disabled={isProcessing}
-            className="flex-1"
+            className="flex-1 shadow-primary press-effect"
           >
             {isProcessing ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Analyzing...
+                Analyzing with AI...
               </>
             ) : (
               <>
                 <Check className="w-4 h-4 mr-2" />
-                Confirm & Process
+                Process with AI
               </>
             )}
           </Button>
@@ -146,6 +148,11 @@ export const VoiceNoteRecorder = ({ onTranscriptComplete, disabled }: VoiceNoteR
             <X className="w-4 h-4" />
           </Button>
         </div>
+        {isProcessing && (
+          <p className="text-[10px] text-muted-foreground text-center animate-pulse">
+            AI is extracting symptoms, triggers, and severity...
+          </p>
+        )}
       </Card>
     );
   }
@@ -158,8 +165,8 @@ export const VoiceNoteRecorder = ({ onTranscriptComplete, disabled }: VoiceNoteR
         onClick={isRecording ? handleStopRecording : handleStartRecording}
         disabled={disabled || isProcessing}
         className={cn(
-          "w-full transition-all",
-          isRecording && "animate-pulse"
+          "w-full transition-all hover-lift",
+          isRecording && "animate-glow-pulse"
         )}
       >
         {isRecording ? (
@@ -175,10 +182,18 @@ export const VoiceNoteRecorder = ({ onTranscriptComplete, disabled }: VoiceNoteR
         )}
       </Button>
       
-      {isRecording && transcript && (
-        <p className="text-xs text-muted-foreground italic animate-pulse">
-          "{transcript}"
-        </p>
+      {isRecording && (
+        <div className="p-3 bg-destructive/5 rounded-lg border border-destructive/20 animate-fade-in">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+            <span className="text-xs font-medium text-destructive">Recording...</span>
+          </div>
+          {transcript && (
+            <p className="text-xs text-muted-foreground italic">
+              "{transcript}"
+            </p>
+          )}
+        </div>
       )}
     </div>
   );
