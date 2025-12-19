@@ -19,7 +19,9 @@ import { useEngagement } from "@/hooks/useEngagement";
 import { useCorrelations } from "@/hooks/useCorrelations";
 import { CorrelationInsights } from "@/components/insights/CorrelationInsights";
 import { WeeklyReportCard } from "@/components/insights/WeeklyReportCard";
-import { Activity, Calendar, BarChart3, User as UserIcon, ChevronDown, Flame, Settings, MapPin } from "lucide-react";
+import { Activity, Calendar, BarChart3, User as UserIcon, ChevronDown, Flame, Settings, MapPin, Pill } from "lucide-react";
+import { MedicationTracker } from "@/components/medication/MedicationTracker";
+import { useMedicationLogs } from "@/hooks/useMedicationLogs";
 import { useToast } from "@/hooks/use-toast";
 import { format, isSameDay } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
@@ -45,7 +47,7 @@ interface UserProfile {
 }
 
 const Index = () => {
-  const [currentView, setCurrentView] = useState<'track' | 'history' | 'insights' | 'profile' | 'progress'>('track');
+  const [currentView, setCurrentView] = useState<'track' | 'history' | 'insights' | 'profile' | 'progress' | 'meds'>('track');
   const [entries, setEntries] = useState<FlareEntry[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -63,6 +65,9 @@ const Index = () => {
   
   // Use correlations hook
   const { topCorrelations, recentActivities } = useCorrelations(user?.id || null);
+  
+  // Medication logs hook
+  const { logs: medicationLogs, addLog: addMedicationLog } = useMedicationLogs(user?.id);
 
   // Check for special badges when correlations change
   useEffect(() => {
@@ -485,18 +490,27 @@ const Index = () => {
             variant={currentView === 'track' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setCurrentView('track')}
-            className={`flex-1 text-xs h-9 rounded-xl ${currentView === 'track' ? 'shadow-primary' : ''}`}
+            className={`flex-1 text-xs h-9 rounded-xl px-2 ${currentView === 'track' ? 'shadow-primary' : ''}`}
           >
-            <Activity className="w-3.5 h-3.5 mr-1.5" />
+            <Activity className="w-3.5 h-3.5 mr-1" />
             Track
+          </Button>
+          <Button
+            variant={currentView === 'meds' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setCurrentView('meds')}
+            className={`flex-1 text-xs h-9 rounded-xl px-2 ${currentView === 'meds' ? 'shadow-primary' : ''}`}
+          >
+            <Pill className="w-3.5 h-3.5 mr-1" />
+            Meds
           </Button>
           <Button
             variant={currentView === 'history' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setCurrentView('history')}
-            className={`flex-1 text-xs h-9 rounded-xl ${currentView === 'history' ? 'shadow-primary' : ''}`}
+            className={`flex-1 text-xs h-9 rounded-xl px-2 ${currentView === 'history' ? 'shadow-primary' : ''}`}
           >
-            <Calendar className="w-3.5 h-3.5 mr-1.5" />
+            <Calendar className="w-3.5 h-3.5 mr-1" />
             History
           </Button>
           <Button
@@ -514,9 +528,9 @@ const Index = () => {
                 }
               }
             }}
-            className={`flex-1 text-xs h-9 rounded-xl ${currentView === 'insights' ? 'shadow-primary' : ''}`}
+            className={`flex-1 text-xs h-9 rounded-xl px-2 ${currentView === 'insights' ? 'shadow-primary' : ''}`}
           >
-            <BarChart3 className="w-3.5 h-3.5 mr-1.5" />
+            <BarChart3 className="w-3.5 h-3.5 mr-1" />
             Insights
           </Button>
         </div>
@@ -645,6 +659,15 @@ const Index = () => {
               </Card>
             )}
           </div>
+        )}
+
+        {/* Meds View */}
+        {currentView === 'meds' && user && (
+          <MedicationTracker
+            logs={medicationLogs}
+            onLogMedication={addMedicationLog}
+            userMedications={userProfile?.medications?.map(m => m.name) || []}
+          />
         )}
 
         {/* Insights View */}
