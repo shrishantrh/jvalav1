@@ -158,12 +158,14 @@ export type Database = {
           longitude: number | null
           medications: string[] | null
           note: string | null
+          photos: string[] | null
           physiological_data: Json | null
           severity: string | null
           symptoms: string[] | null
           timestamp: string
           triggers: string[] | null
           user_id: string
+          voice_transcript: string | null
         }
         Insert: {
           city?: string | null
@@ -179,12 +181,14 @@ export type Database = {
           longitude?: number | null
           medications?: string[] | null
           note?: string | null
+          photos?: string[] | null
           physiological_data?: Json | null
           severity?: string | null
           symptoms?: string[] | null
           timestamp: string
           triggers?: string[] | null
           user_id: string
+          voice_transcript?: string | null
         }
         Update: {
           city?: string | null
@@ -200,12 +204,14 @@ export type Database = {
           longitude?: number | null
           medications?: string[] | null
           note?: string | null
+          photos?: string[] | null
           physiological_data?: Json | null
           severity?: string | null
           symptoms?: string[] | null
           timestamp?: string
           triggers?: string[] | null
           user_id?: string
+          voice_transcript?: string | null
         }
         Relationships: [
           {
