@@ -9,6 +9,8 @@ import { SymptomSelector } from "@/components/flare/SymptomSelector";
 import { EntryTypeSelector } from "@/components/flare/EntryTypeSelector";
 import { EnergySelector } from "@/components/flare/EnergySelector";
 import { MedicationInput } from "@/components/MedicationInput";
+import { VoiceNoteRecorder } from "@/components/flare/VoiceNoteRecorder";
+import { PhotoCapture } from "@/components/flare/PhotoCapture";
 import { Settings, X, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -26,6 +28,8 @@ export const DetailedEntry = ({ onSave, onDetailedSave }: DetailedEntryProps) =>
   const [selectedMeds, setSelectedMeds] = useState<string[]>([]);
   const [selectedTriggers, setSelectedTriggers] = useState<string[]>([]);
   const [note, setNote] = useState('');
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
   const { toast } = useToast();
 
   const resetForm = () => {
@@ -36,7 +40,45 @@ export const DetailedEntry = ({ onSave, onDetailedSave }: DetailedEntryProps) =>
     setSelectedMeds([]);
     setSelectedTriggers([]);
     setNote('');
+    setPhotos([]);
+    setVoiceTranscript('');
     setOpen(false);
+  };
+
+  const handleVoiceTranscriptComplete = (data: {
+    transcript: string;
+    severity?: string;
+    symptoms?: string[];
+    triggers?: string[];
+    medications?: string[];
+    notes?: string;
+    energyLevel?: string;
+  }) => {
+    setVoiceTranscript(data.transcript);
+    
+    // Auto-fill from AI extraction
+    if (data.severity && ['mild', 'moderate', 'severe'].includes(data.severity)) {
+      setSelectedSeverity(data.severity as FlareSeverity);
+    }
+    if (data.symptoms?.length) {
+      setSelectedSymptoms(prev => [...new Set([...prev, ...data.symptoms!])]);
+    }
+    if (data.triggers?.length) {
+      setSelectedTriggers(prev => [...new Set([...prev, ...data.triggers!])]);
+    }
+    if (data.medications?.length) {
+      setSelectedMeds(prev => [...new Set([...prev, ...data.medications!])]);
+    }
+    if (data.notes && !note) {
+      setNote(data.notes);
+    }
+    if (data.energyLevel && ['very-low', 'low', 'moderate', 'good', 'high'].includes(data.energyLevel)) {
+      setSelectedEnergy(data.energyLevel as EnergyLevel);
+    }
+  };
+
+  const handlePhotoCapture = (photoUrl: string) => {
+    setPhotos(prev => [...prev, photoUrl]);
   };
 
   const handleSeveritySelect = (severity: FlareSeverity) => {
@@ -81,6 +123,14 @@ export const DetailedEntry = ({ onSave, onDetailedSave }: DetailedEntryProps) =>
     
     if (note.trim()) {
       newEntry.note = note.trim();
+    }
+
+    // Add photos and voice transcript
+    if (photos.length > 0) {
+      newEntry.photos = photos;
+    }
+    if (voiceTranscript) {
+      newEntry.voiceTranscript = voiceTranscript;
     }
 
     // Collect environmental data for all entry types
@@ -216,6 +266,29 @@ export const DetailedEntry = ({ onSave, onDetailedSave }: DetailedEntryProps) =>
               </div>
             </div>
           )}
+
+          {/* Voice Note Recorder */}
+          <div className="space-y-2">
+            <label className="text-sm font-clinical">Voice Note</label>
+            <VoiceNoteRecorder 
+              onTranscriptComplete={handleVoiceTranscriptComplete}
+            />
+            {voiceTranscript && (
+              <p className="text-xs text-muted-foreground italic">
+                Transcript: "{voiceTranscript.substring(0, 100)}..."
+              </p>
+            )}
+          </div>
+
+          {/* Photo Capture */}
+          <div className="space-y-2">
+            <label className="text-sm font-clinical">Photos</label>
+            <PhotoCapture 
+              onPhotoCapture={handlePhotoCapture}
+              existingPhotos={photos}
+              maxPhotos={3}
+            />
+          </div>
 
           {/* Note field for all types */}
           <div className="space-y-2">
