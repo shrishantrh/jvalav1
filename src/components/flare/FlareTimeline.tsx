@@ -309,10 +309,16 @@ export const FlareTimeline = ({ entries, onUpdate, onDelete, onAddFollowUp }: Fl
                           {entry.environmentalData?.weather && (
                             <span>🌡️ {entry.environmentalData.weather.temperature}°C</span>
                           )}
-                          {entry.physiologicalData?.heartRate && (
-                            <span>❤️ {entry.physiologicalData.heartRate} bpm</span>
+                          {(entry.physiologicalData?.heartRate || entry.physiologicalData?.heart_rate) && (
+                            <span>❤️ {entry.physiologicalData.heartRate || entry.physiologicalData.heart_rate} bpm</span>
                           )}
-                          <span className="text-primary">Click to expand details</span>
+                          {entry.physiologicalData?.steps && (
+                            <span>👟 {entry.physiologicalData.steps.toLocaleString()}</span>
+                          )}
+                          {entry.physiologicalData?.source && (
+                            <span className="text-primary/70">📱 {entry.physiologicalData.source}</span>
+                          )}
+                          <span className="text-primary">↓ details</span>
                         </div>
                       )}
 
@@ -399,19 +405,24 @@ export const FlareTimeline = ({ entries, onUpdate, onDelete, onAddFollowUp }: Fl
                               <h4 className="font-clinical text-xs flex items-center gap-1.5 text-primary">
                                 <Heart className="w-3.5 h-3.5" />
                                 Health Metrics
+                                {(entry.physiologicalData.source || entry.physiologicalData.synced_at) && (
+                                  <span className="text-[10px] text-muted-foreground font-normal ml-auto">
+                                    {entry.physiologicalData.source && `via ${entry.physiologicalData.source}`}
+                                  </span>
+                                )}
                               </h4>
                               
                               <div className="grid grid-cols-2 gap-1.5 text-xs pl-5">
-                                {entry.physiologicalData.heartRate && (
+                                {(entry.physiologicalData.heartRate || entry.physiologicalData.heart_rate) && (
                                   <div className="flex items-center gap-1.5">
                                     <Heart className="w-3 h-3 text-red-500" />
-                                    <span>HR: {entry.physiologicalData.heartRate} bpm</span>
+                                    <span>HR: {entry.physiologicalData.heartRate || entry.physiologicalData.heart_rate} bpm</span>
                                   </div>
                                 )}
-                                {entry.physiologicalData.heartRateVariability && (
+                                {(entry.physiologicalData.heartRateVariability || entry.physiologicalData.heart_rate_variability) && (
                                   <div className="flex items-center gap-1.5">
                                     <Heart className="w-3 h-3 text-pink-500" />
-                                    <span>HRV: {entry.physiologicalData.heartRateVariability} ms</span>
+                                    <span>HRV: {entry.physiologicalData.heartRateVariability || entry.physiologicalData.heart_rate_variability} ms</span>
                                   </div>
                                 )}
                                 {entry.physiologicalData.bloodPressure && (
@@ -420,16 +431,37 @@ export const FlareTimeline = ({ entries, onUpdate, onDelete, onAddFollowUp }: Fl
                                     <span>BP: {entry.physiologicalData.bloodPressure.systolic}/{entry.physiologicalData.bloodPressure.diastolic} mmHg</span>
                                   </div>
                                 )}
-                                {entry.physiologicalData.sleepHours && (
+                                {(entry.physiologicalData.sleepHours || entry.physiologicalData.sleep_hours) && (
                                   <div className="flex items-center gap-1.5 col-span-2">
                                     <Moon className="w-3 h-3 text-indigo-500" />
-                                    <span>Sleep: {entry.physiologicalData.sleepHours}h ({entry.physiologicalData.sleepQuality})</span>
+                                    <span>Sleep: {entry.physiologicalData.sleepHours || entry.physiologicalData.sleep_hours}h 
+                                      {(entry.physiologicalData.sleepQuality || entry.physiologicalData.sleep_quality) && 
+                                        ` (${entry.physiologicalData.sleepQuality || entry.physiologicalData.sleep_quality})`}
+                                    </span>
                                   </div>
                                 )}
                                 {entry.physiologicalData.steps && (
                                   <div className="flex items-center gap-1.5">
                                     <Footprints className="w-3 h-3 text-green-500" />
                                     <span>{entry.physiologicalData.steps.toLocaleString()} steps</span>
+                                  </div>
+                                )}
+                                {(entry.physiologicalData.activeMinutes || entry.physiologicalData.active_minutes) && (
+                                  <div className="flex items-center gap-1.5">
+                                    <Activity className="w-3 h-3 text-blue-500" />
+                                    <span>{entry.physiologicalData.activeMinutes || entry.physiologicalData.active_minutes} active min</span>
+                                  </div>
+                                )}
+                                {(entry.physiologicalData.caloriesBurned || entry.physiologicalData.calories_burned) && (
+                                  <div className="flex items-center gap-1.5">
+                                    <Zap className="w-3 h-3 text-orange-500" />
+                                    <span>{(entry.physiologicalData.caloriesBurned || entry.physiologicalData.calories_burned)?.toLocaleString()} cal</span>
+                                  </div>
+                                )}
+                                {entry.physiologicalData.distance && (
+                                  <div className="flex items-center gap-1.5">
+                                    <Footprints className="w-3 h-3 text-teal-500" />
+                                    <span>{entry.physiologicalData.distance.toFixed(1)} km</span>
                                   </div>
                                 )}
                                 {entry.physiologicalData.stressLevel && (
