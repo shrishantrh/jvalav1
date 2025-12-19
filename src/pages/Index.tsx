@@ -54,11 +54,12 @@ const Index = () => {
   const [showDetailedEntry, setShowDetailedEntry] = useState(false);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [currentLocation, setCurrentLocation] = useState<{ city?: string } | null>(null);
+  const [insightViewCount, setInsightViewCount] = useState(0);
   const smartTrackRef = useRef<SmartTrackRef>(null);
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { updateEngagementOnLog, getEngagement, syncEngagementTotals, checkCorrelationBadges, checkTrackingBadges } = useEngagement();
+  const { updateEngagementOnLog, getEngagement, syncEngagementTotals, checkCorrelationBadges, checkTrackingBadges, awardBadge } = useEngagement();
   
   // Use correlations hook
   const { topCorrelations, recentActivities } = useCorrelations(user?.id || null);
@@ -488,7 +489,18 @@ const Index = () => {
           <Button
             variant={currentView === 'insights' ? 'default' : 'ghost'}
             size="sm"
-            onClick={() => setCurrentView('insights')}
+            onClick={async () => {
+              setCurrentView('insights');
+              // Track insight views for badge
+              const newCount = insightViewCount + 1;
+              setInsightViewCount(newCount);
+              if (newCount === 5 && user?.id) {
+                const awarded = await awardBadge(user.id, 'insight_seeker');
+                if (awarded) {
+                  toast({ title: "🏆 Badge Earned!", description: "Insight Seeker - Viewed insights 5 times" });
+                }
+              }
+            }}
             className={`flex-1 text-xs h-9 rounded-xl ${currentView === 'insights' ? 'shadow-primary' : ''}`}
           >
             <BarChart3 className="w-3.5 h-3.5 mr-1.5" />
