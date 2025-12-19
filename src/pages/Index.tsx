@@ -18,6 +18,7 @@ import { CONDITIONS } from "@/data/conditions";
 import { useEngagement } from "@/hooks/useEngagement";
 import { useCorrelations } from "@/hooks/useCorrelations";
 import { CorrelationInsights } from "@/components/insights/CorrelationInsights";
+import { WeeklyReportCard } from "@/components/insights/WeeklyReportCard";
 import { Activity, Calendar, BarChart3, User as UserIcon, ChevronDown, Flame, Settings, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format, isSameDay } from "date-fns";
@@ -484,6 +485,14 @@ const Index = () => {
             recentEntries={entries}
             userTriggers={userProfile?.known_triggers || []}
             userConditions={userProfile?.conditions || []}
+          />
+        )}
+        
+        {/* Weekly Report Card */}
+        {currentView === 'track' && user && (
+          <WeeklyReportCard 
+            userId={user.id}
+            onViewDetails={() => setCurrentView('insights')}
           />
         )}
         
