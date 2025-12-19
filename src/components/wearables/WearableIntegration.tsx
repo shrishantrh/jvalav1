@@ -35,10 +35,11 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
   
   const [connectingDevice, setConnectingDevice] = useState<string | null>(null);
 
-  const handleConnect = async (type: 'apple_health' | 'google_fit') => {
+  const handleConnect = async (type: 'fitbit' | 'apple_health' | 'google_fit') => {
     setConnectingDevice(type);
     const success = await connectDevice(type);
-    if (success && onDataSync) {
+    if (success && type !== 'fitbit' && onDataSync) {
+      // For Fitbit, data will sync after OAuth callback
       const newData = await syncData(type);
       if (newData) onDataSync(newData);
     }
@@ -62,6 +63,17 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
       case 'poor': return 'text-red-600 bg-red-100';
       default: return 'text-muted-foreground bg-muted';
     }
+  };
+
+  const getDeviceIcon = (type: string) => {
+    if (type === 'fitbit') {
+      return (
+        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
+          <path d="M12.5 5.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5S10.17 4 11 4s1.5.67 1.5 1.5zm0 6.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5.67-1.5 1.5-1.5 1.5.67 1.5 1.5zm0 6.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5.67-1.5 1.5-1.5 1.5.67 1.5 1.5z"/>
+        </svg>
+      );
+    }
+    return <Watch className="w-4 h-4" />;
   };
 
   return (
@@ -96,79 +108,87 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
         </div>
 
         {/* Connection Cards */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="grid grid-cols-1 gap-3 mb-4">
           {connections.map((conn) => (
             <div
               key={conn.id}
               className={cn(
-                "p-3 rounded-xl border transition-all",
+                "p-4 rounded-xl border transition-all",
                 conn.connected 
                   ? "bg-primary/5 border-primary/30" 
                   : "bg-muted/30 border-muted"
               )}
             >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">{conn.name}</span>
-                {conn.connected && (
-                  <Badge variant="secondary" className="text-[10px] bg-green-100 text-green-700">
-                    Connected
-                  </Badge>
-                )}
-              </div>
-              
-              {conn.connected ? (
-                <div className="space-y-2">
-                  {conn.lastSync && (
-                    <p className="text-[10px] text-muted-foreground">
-                      Last sync: {format(new Date(conn.lastSync), 'h:mm a')}
-                    </p>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full h-7 text-xs text-destructive hover:text-destructive"
-                    onClick={() => disconnectDevice(conn.type)}
-                  >
-                    <Unlink className="w-3 h-3 mr-1" />
-                    Disconnect
-                  </Button>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "p-2 rounded-full",
+                    conn.connected ? "bg-primary/20" : "bg-muted"
+                  )}>
+                    {getDeviceIcon(conn.type)}
+                  </div>
+                  <div>
+                    <span className="font-medium">{conn.name}</span>
+                    {conn.connected && conn.lastSync && (
+                      <p className="text-xs text-muted-foreground">
+                        Last sync: {format(new Date(conn.lastSync), 'h:mm a')}
+                      </p>
+                    )}
+                    {!conn.connected && conn.type !== 'fitbit' && (
+                      <p className="text-xs text-muted-foreground">
+                        Coming soon (mobile app)
+                      </p>
+                    )}
+                  </div>
                 </div>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full h-7 text-xs"
-                  onClick={() => handleConnect(conn.type)}
-                  disabled={isLoading || connectingDevice === conn.type}
-                >
-                  {connectingDevice === conn.type ? (
-                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                  ) : (
-                    <Link className="w-3 h-3 mr-1" />
+                
+                <div className="flex items-center gap-2">
+                  {conn.connected && (
+                    <Badge variant="secondary" className="bg-green-100 text-green-700">
+                      Connected
+                    </Badge>
                   )}
-                  Connect
-                </Button>
-              )}
+                  
+                  {conn.connected ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => disconnectDevice(conn.type)}
+                    >
+                      <Unlink className="w-4 h-4" />
+                    </Button>
+                  ) : (
+                    <Button
+                      variant={conn.type === 'fitbit' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleConnect(conn.type)}
+                      disabled={isLoading || connectingDevice === conn.type || conn.type !== 'fitbit'}
+                    >
+                      {connectingDevice === conn.type ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Link className="w-4 h-4 mr-1" />
+                          Connect
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
           ))}
-        </div>
-
-        {/* Note about web limitations */}
-        <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
-          <p className="text-xs text-amber-700">
-            <strong>Note:</strong> Full wearable integration requires the mobile app. 
-            Web preview shows simulated data for demonstration.
-          </p>
         </div>
       </Card>
 
       {/* Data Display */}
-      {data && (
+      {data && data.source === 'fitbit' && (
         <Card className="p-5 bg-gradient-card border-0 shadow-soft">
           <div className="flex items-center justify-between mb-4">
             <h4 className="font-semibold flex items-center gap-2">
               <Activity className="w-4 h-4 text-primary" />
-              Today's Health Data
+              Today's Fitbit Data
             </h4>
             {data.lastSyncedAt && (
               <span className="text-xs text-muted-foreground">
@@ -179,21 +199,18 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
 
           <div className="grid grid-cols-2 gap-3">
             {/* Heart Rate */}
-            <div className="p-3 rounded-xl bg-red-50 border border-red-100">
-              <div className="flex items-center gap-2 mb-1">
-                <Heart className="w-4 h-4 text-red-500" />
-                <span className="text-xs text-muted-foreground">Heart Rate</span>
+            {data.heartRate && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-100">
+                <div className="flex items-center gap-2 mb-1">
+                  <Heart className="w-4 h-4 text-red-500" />
+                  <span className="text-xs text-muted-foreground">Resting HR</span>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-bold text-red-600">{data.heartRate}</span>
+                  <span className="text-xs text-muted-foreground">bpm</span>
+                </div>
               </div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold text-red-600">{data.heartRate || '--'}</span>
-                <span className="text-xs text-muted-foreground">bpm</span>
-              </div>
-              {data.heartRateVariability && (
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  HRV: {data.heartRateVariability}ms
-                </p>
-              )}
-            </div>
+            )}
 
             {/* Steps */}
             <div className="p-3 rounded-xl bg-blue-50 border border-blue-100">
@@ -203,7 +220,7 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
               </div>
               <div className="flex items-baseline gap-1">
                 <span className="text-2xl font-bold text-blue-600">
-                  {data.steps?.toLocaleString() || '--'}
+                  {data.steps?.toLocaleString() || '0'}
                 </span>
               </div>
               {data.activeMinutes && (
@@ -214,7 +231,7 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
             </div>
 
             {/* Sleep */}
-            {data.sleepHours !== undefined && (
+            {data.sleepHours !== undefined && data.sleepHours !== null && (
               <div className="p-3 rounded-xl bg-purple-50 border border-purple-100">
                 <div className="flex items-center gap-2 mb-1">
                   <Moon className="w-4 h-4 text-purple-500" />
@@ -240,18 +257,12 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
               </div>
               <div className="flex items-baseline gap-1">
                 <span className="text-2xl font-bold text-orange-600">
-                  {data.caloriesBurned?.toLocaleString() || '--'}
+                  {data.caloriesBurned?.toLocaleString() || '0'}
                 </span>
                 <span className="text-xs text-muted-foreground">kcal</span>
               </div>
             </div>
           </div>
-
-          {data.source === 'simulated' && (
-            <p className="text-[10px] text-center text-muted-foreground mt-3">
-              Demo data - Connect a device for real metrics
-            </p>
-          )}
         </Card>
       )}
     </div>
