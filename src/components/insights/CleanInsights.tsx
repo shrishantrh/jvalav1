@@ -8,6 +8,8 @@ import { EnhancedMedicalExport } from "@/components/insights/EnhancedMedicalExpo
 import { FlareLocationMap } from "@/components/history/FlareLocationMap";
 import { CommunityHotspots } from "@/components/insights/CommunityHotspots";
 import { SmartPredictions } from "@/components/insights/SmartPredictions";
+import { HealthScoreDashboard } from "@/components/insights/HealthScoreDashboard";
+import { TriggerFrequencyChart } from "@/components/insights/TriggerFrequencyChart";
 import { 
   Brain, 
   TrendingUp, 
@@ -326,25 +328,31 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
       <SmartPredictions entries={entries} userConditions={userConditions} />
 
       {/* Detailed Views */}
-      <Tabs defaultValue="charts" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 h-9">
-          <TabsTrigger value="charts" className="text-xs">
+      <Tabs defaultValue="health" className="w-full">
+        <TabsList className="grid w-full grid-cols-5 h-9">
+          <TabsTrigger value="health" className="text-xs px-1">
+            ❤️ Score
+          </TabsTrigger>
+          <TabsTrigger value="charts" className="text-xs px-1">
             <BarChart3 className="w-3 h-3 mr-1" />
             Charts
           </TabsTrigger>
-          <TabsTrigger value="map" className="text-xs">
+          <TabsTrigger value="map" className="text-xs px-1">
             <MapPin className="w-3 h-3 mr-1" />
-            Your Map
+            Map
           </TabsTrigger>
-          <TabsTrigger value="community" className="text-xs">
+          <TabsTrigger value="community" className="text-xs px-1">
             🌍
-            Community
           </TabsTrigger>
-          <TabsTrigger value="export" className="text-xs">
+          <TabsTrigger value="export" className="text-xs px-1">
             <Download className="w-3 h-3 mr-1" />
-            Export
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="health" className="mt-4 space-y-4">
+          <HealthScoreDashboard entries={entries} />
+          <TriggerFrequencyChart entries={entries} />
+        </TabsContent>
 
         <TabsContent value="charts" className="mt-4">
           <div ref={chartRef}>
