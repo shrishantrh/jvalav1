@@ -11,6 +11,7 @@ import html2canvas from 'html2canvas';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useEngagement } from "@/hooks/useEngagement";
 
 interface ImprovedPDFExportProps {
   entries: FlareEntry[];
@@ -21,6 +22,7 @@ export const ImprovedPDFExport = ({ entries, chartRefs }: ImprovedPDFExportProps
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { awardBadge } = useEngagement();
 
   const generateSimplePDF = async (forSharing = false) => {
     setIsExporting(true);
@@ -271,6 +273,17 @@ export const ImprovedPDFExport = ({ entries, chartRefs }: ImprovedPDFExportProps
           export_type: 'simple_pdf',
           metadata: { entries_count: last30Days.length, flares_count: totalFlares }
         });
+        
+        // Award export badge
+        if (user?.id) {
+          const awarded = await awardBadge(user.id, 'export_pro');
+          if (awarded) {
+            toast({ 
+              title: "🏆 Badge Earned!", 
+              description: "Export Pro - First health export" 
+            });
+          }
+        }
         
         toast({ title: "PDF exported successfully" });
       }
