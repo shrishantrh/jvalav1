@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -33,12 +33,13 @@ export const useWearableData = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const { toast } = useToast();
+  const hasSyncedRef = useRef(false);
 
   // Check Fitbit connection status
   const checkFitbitConnection = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) return false;
 
       const { data: tokenData } = await supabase
         .from('fitbit_tokens')
@@ -52,18 +53,63 @@ export const useWearableData = () => {
             ? { ...c, connected: true, lastSync: new Date(tokenData.updated_at) }
             : c
         ));
+        return true;
       }
+      return false;
     } catch (error) {
       console.error('Error checking Fitbit connection:', error);
+      return false;
+    }
+  }, []);
+
+  const syncData = useCallback(async (type?: 'fitbit' | 'apple_health' | 'google_fit'): Promise<WearableData | null> => {
+    setIsSyncing(true);
+    
+    try {
+      const { data: fitbitData, error } = await supabase.functions.invoke('fitbit-data');
+      
+      if (error) {
+        console.error('Error fetching Fitbit data:', error);
+        return null;
+      }
+
+      if (fitbitData?.error) {
+        console.log('Fitbit data error:', fitbitData.error);
+        return null;
+      }
+
+      const wearableData: WearableData = {
+        heartRate: fitbitData.heartRate,
+        steps: fitbitData.steps,
+        activeMinutes: fitbitData.activeMinutes,
+        caloriesBurned: fitbitData.caloriesBurned,
+        sleepHours: fitbitData.sleepHours,
+        sleepQuality: fitbitData.sleepQuality,
+        distance: fitbitData.distance,
+        lastSyncedAt: new Date(fitbitData.lastSyncedAt),
+        source: 'fitbit',
+      };
+      
+      setData(wearableData);
+      setConnections(prev => prev.map(c => 
+        c.type === 'fitbit' ? { ...c, lastSync: new Date() } : c
+      ));
+      
+      return wearableData;
+    } catch (error) {
+      console.error('Error syncing wearable data:', error);
+      return null;
+    } finally {
+      setIsSyncing(false);
     }
   }, []);
 
   // Listen for OAuth callback message
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
+    const handleMessage = async (event: MessageEvent) => {
       if (event.data?.type === 'fitbit-connected') {
-        checkFitbitConnection();
-        syncData('fitbit');
+        await checkFitbitConnection();
+        await syncData('fitbit');
         toast({
           title: 'Fitbit Connected',
           description: 'Your Fitbit account has been linked successfully.',
@@ -72,13 +118,29 @@ export const useWearableData = () => {
     };
 
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [checkFitbitConnection, toast]);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [checkFitbitConnection, syncData, toast]);
 
   // Check connection on mount
   useEffect(() => {
-    checkFitbitConnection();
-  }, [checkFitbitConnection]);
+    let mounted = true;
+    
+    const init = async () => {
+      const connected = await checkFitbitConnection();
+      if (connected && mounted && !hasSyncedRef.current) {
+        hasSyncedRef.current = true;
+        await syncData('fitbit');
+      }
+    };
+    
+    init();
+    
+    return () => {
+      mounted = false;
+    };
+  }, [checkFitbitConnection, syncData]);
 
   const connectDevice = useCallback(async (type: 'fitbit' | 'apple_health' | 'google_fit'): Promise<boolean> => {
     setIsLoading(true);
@@ -95,7 +157,6 @@ export const useWearableData = () => {
           return false;
         }
 
-        // Get OAuth URL from edge function
         const { data, error } = await supabase.functions.invoke('fitbit-auth', {
           body: { 
             user_id: user.id,
@@ -113,7 +174,6 @@ export const useWearableData = () => {
           return false;
         }
 
-        // Open OAuth in popup
         const width = 500;
         const height = 700;
         const left = window.screenX + (window.outerWidth - width) / 2;
@@ -128,7 +188,6 @@ export const useWearableData = () => {
         return true;
       }
 
-      // For Apple Health and Google Fit - show coming soon
       toast({
         title: 'Coming Soon',
         description: `${type === 'apple_health' ? 'Apple Health' : 'Google Fit'} integration requires the mobile app.`,
@@ -168,82 +227,15 @@ export const useWearableData = () => {
         : c
     ));
     
-    // Clear data if no devices connected
-    const stillConnected = connections.filter(c => c.type !== type && c.connected);
-    if (stillConnected.length === 0) {
-      setData(null);
-    }
+    setData(null);
+    hasSyncedRef.current = false;
     
     toast({
       title: 'Device Disconnected',
       description: `Disconnected from ${type === 'fitbit' ? 'Fitbit' : type === 'apple_health' ? 'Apple Health' : 'Google Fit'}`,
     });
-  }, [connections, toast]);
+  }, [toast]);
 
-  const syncData = useCallback(async (type?: 'fitbit' | 'apple_health' | 'google_fit'): Promise<WearableData | null> => {
-    const fitbitConnection = connections.find(c => c.type === 'fitbit' && c.connected);
-    
-    if (!fitbitConnection && !type) {
-      return null;
-    }
-    
-    setIsSyncing(true);
-    
-    try {
-      if (type === 'fitbit' || fitbitConnection) {
-        const { data: fitbitData, error } = await supabase.functions.invoke('fitbit-data');
-        
-        if (error) {
-          console.error('Error fetching Fitbit data:', error);
-          if (error.message?.includes('not_connected')) {
-            toast({
-              title: 'Fitbit Not Connected',
-              description: 'Please connect your Fitbit account first.',
-              variant: 'destructive',
-            });
-          }
-          return null;
-        }
-
-        const wearableData: WearableData = {
-          heartRate: fitbitData.heartRate,
-          steps: fitbitData.steps,
-          activeMinutes: fitbitData.activeMinutes,
-          caloriesBurned: fitbitData.caloriesBurned,
-          sleepHours: fitbitData.sleepHours,
-          sleepQuality: fitbitData.sleepQuality,
-          distance: fitbitData.distance,
-          lastSyncedAt: new Date(fitbitData.lastSyncedAt),
-          source: 'fitbit',
-        };
-        
-        setData(wearableData);
-        
-        // Update last sync time
-        setConnections(prev => prev.map(c => 
-          c.type === 'fitbit'
-            ? { ...c, lastSync: new Date() }
-            : c
-        ));
-        
-        return wearableData;
-      }
-      
-      return null;
-    } catch (error) {
-      console.error('Error syncing wearable data:', error);
-      toast({
-        title: 'Sync Failed',
-        description: 'Could not sync health data. Please try again.',
-        variant: 'destructive',
-      });
-      return null;
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [connections, toast]);
-
-  // Get current data for logging
   const getDataForEntry = useCallback((): Record<string, unknown> | null => {
     if (!data) return null;
     
@@ -260,26 +252,6 @@ export const useWearableData = () => {
       source: data.source,
     };
   }, [data]);
-
-  // Auto-sync every 15 minutes if connected
-  useEffect(() => {
-    const hasConnection = connections.some(c => c.connected);
-    if (!hasConnection) return;
-    
-    const interval = setInterval(() => {
-      syncData();
-    }, 15 * 60 * 1000);
-    
-    return () => clearInterval(interval);
-  }, [connections, syncData]);
-
-  // Initial data load when connected
-  useEffect(() => {
-    const fitbitConnected = connections.find(c => c.type === 'fitbit' && c.connected);
-    if (fitbitConnected && !data) {
-      syncData('fitbit');
-    }
-  }, [connections, data, syncData]);
 
   return {
     data,
