@@ -178,13 +178,13 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
       .sort((a, b) => b.count - a.count)
       .slice(0, 3);
 
-    // Physiological data correlation analysis
+    // Physiological data correlation analysis - comprehensive Fitbit metrics
     const physioCorrelations: { metric: string; avgDuringFlare: number; unit: string; trend?: string }[] = [];
     
-    // HRV analysis - use heart_rate_variability which exists in the type
+    // HRV analysis (using hrv_rmssd or heart_rate_variability)
     const hrvValues = flares30d
-      .filter(f => f.physiologicalData?.heart_rate_variability || f.physiologicalData?.heartRateVariability)
-      .map(f => (f.physiologicalData?.heart_rate_variability || f.physiologicalData?.heartRateVariability) as number);
+      .filter(f => f.physiologicalData?.hrv_rmssd || f.physiologicalData?.hrvRmssd || f.physiologicalData?.heart_rate_variability || f.physiologicalData?.heartRateVariability)
+      .map(f => (f.physiologicalData?.hrv_rmssd || f.physiologicalData?.hrvRmssd || f.physiologicalData?.heart_rate_variability || f.physiologicalData?.heartRateVariability) as number);
     if (hrvValues.length > 0) {
       const avgHRV = hrvValues.reduce((a, b) => a + b, 0) / hrvValues.length;
       physioCorrelations.push({ metric: 'HRV', avgDuringFlare: Math.round(avgHRV), unit: 'ms', trend: avgHRV < 30 ? 'low' : avgHRV > 50 ? 'high' : 'normal' });
@@ -199,6 +199,33 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
       physioCorrelations.push({ metric: 'Resting HR', avgDuringFlare: Math.round(avgHR), unit: 'bpm', trend: avgHR > 80 ? 'elevated' : 'normal' });
     }
     
+    // SpO2 analysis
+    const spo2Values = flares30d
+      .filter(f => f.physiologicalData?.spo2)
+      .map(f => f.physiologicalData?.spo2 as number);
+    if (spo2Values.length > 0) {
+      const avgSpO2 = spo2Values.reduce((a, b) => a + b, 0) / spo2Values.length;
+      physioCorrelations.push({ metric: 'SpO2', avgDuringFlare: Math.round(avgSpO2 * 10) / 10, unit: '%', trend: avgSpO2 < 95 ? 'low' : 'normal' });
+    }
+    
+    // Breathing rate analysis
+    const breathingValues = flares30d
+      .filter(f => f.physiologicalData?.breathing_rate || f.physiologicalData?.breathingRate)
+      .map(f => (f.physiologicalData?.breathing_rate || f.physiologicalData?.breathingRate) as number);
+    if (breathingValues.length > 0) {
+      const avgBreathing = breathingValues.reduce((a, b) => a + b, 0) / breathingValues.length;
+      physioCorrelations.push({ metric: 'Breathing', avgDuringFlare: Math.round(avgBreathing * 10) / 10, unit: 'br/min', trend: avgBreathing > 18 ? 'elevated' : 'normal' });
+    }
+    
+    // Skin temperature variation
+    const tempValues = flares30d
+      .filter(f => f.physiologicalData?.skin_temperature || f.physiologicalData?.skinTemperature)
+      .map(f => (f.physiologicalData?.skin_temperature || f.physiologicalData?.skinTemperature) as number);
+    if (tempValues.length > 0) {
+      const avgTemp = tempValues.reduce((a, b) => a + b, 0) / tempValues.length;
+      physioCorrelations.push({ metric: 'Skin Temp', avgDuringFlare: Math.round(avgTemp * 10) / 10, unit: '°', trend: Math.abs(avgTemp) > 1 ? 'elevated' : 'normal' });
+    }
+    
     // Sleep analysis
     const sleepValues = flares30d
       .filter(f => f.physiologicalData?.sleep_hours || f.physiologicalData?.sleepHours)
@@ -208,6 +235,15 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
       physioCorrelations.push({ metric: 'Sleep', avgDuringFlare: Math.round(avgSleep * 10) / 10, unit: 'hrs', trend: avgSleep < 6 ? 'low' : avgSleep > 8 ? 'good' : 'moderate' });
     }
     
+    // Sleep efficiency
+    const efficiencyValues = flares30d
+      .filter(f => f.physiologicalData?.sleep_efficiency || f.physiologicalData?.sleepEfficiency)
+      .map(f => (f.physiologicalData?.sleep_efficiency || f.physiologicalData?.sleepEfficiency) as number);
+    if (efficiencyValues.length > 0) {
+      const avgEfficiency = efficiencyValues.reduce((a, b) => a + b, 0) / efficiencyValues.length;
+      physioCorrelations.push({ metric: 'Sleep Efficiency', avgDuringFlare: Math.round(avgEfficiency), unit: '%', trend: avgEfficiency < 85 ? 'low' : 'good' });
+    }
+    
     // Steps/activity analysis
     const stepsValues = flares30d
       .filter(f => f.physiologicalData?.steps)
@@ -215,6 +251,15 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
     if (stepsValues.length > 0) {
       const avgSteps = stepsValues.reduce((a, b) => a + b, 0) / stepsValues.length;
       physioCorrelations.push({ metric: 'Steps', avgDuringFlare: Math.round(avgSteps), unit: '', trend: avgSteps < 3000 ? 'low' : avgSteps > 8000 ? 'high' : 'normal' });
+    }
+    
+    // Active Zone Minutes
+    const azmValues = flares30d
+      .filter(f => f.physiologicalData?.active_zone_minutes_total || f.physiologicalData?.activeZoneMinutesTotal)
+      .map(f => (f.physiologicalData?.active_zone_minutes_total || f.physiologicalData?.activeZoneMinutesTotal) as number);
+    if (azmValues.length > 0) {
+      const avgAZM = azmValues.reduce((a, b) => a + b, 0) / azmValues.length;
+      physioCorrelations.push({ metric: 'Active Zone', avgDuringFlare: Math.round(avgAZM), unit: 'min', trend: avgAZM < 22 ? 'low' : 'good' });
     }
 
     const sortedFlares = [...flares30d].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
