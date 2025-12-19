@@ -29,3 +29,6 @@ verify_jwt = true
 
 [functions.send-reminder]
 verify_jwt = false
+
+[functions.correlation-engine]
+verify_jwt = false

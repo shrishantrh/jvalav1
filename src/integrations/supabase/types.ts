@@ -14,6 +14,93 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          activity_type: string
+          activity_value: string | null
+          created_at: string | null
+          duration_minutes: number | null
+          follow_up_result: Json | null
+          followed_up: boolean | null
+          id: string
+          intensity: string | null
+          metadata: Json | null
+          timestamp: string
+          user_id: string
+        }
+        Insert: {
+          activity_type: string
+          activity_value?: string | null
+          created_at?: string | null
+          duration_minutes?: number | null
+          follow_up_result?: Json | null
+          followed_up?: boolean | null
+          id?: string
+          intensity?: string | null
+          metadata?: Json | null
+          timestamp?: string
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          activity_value?: string | null
+          created_at?: string | null
+          duration_minutes?: number | null
+          follow_up_result?: Json | null
+          followed_up?: boolean | null
+          id?: string
+          intensity?: string | null
+          metadata?: Json | null
+          timestamp?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      correlations: {
+        Row: {
+          avg_delay_minutes: number | null
+          confidence: number | null
+          created_at: string | null
+          id: string
+          last_occurred: string | null
+          occurrence_count: number | null
+          outcome_type: string
+          outcome_value: string
+          trigger_type: string
+          trigger_value: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          avg_delay_minutes?: number | null
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          last_occurred?: string | null
+          occurrence_count?: number | null
+          outcome_type: string
+          outcome_value: string
+          trigger_type: string
+          trigger_value: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          avg_delay_minutes?: number | null
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          last_occurred?: string | null
+          occurrence_count?: number | null
+          outcome_type?: string
+          outcome_value?: string
+          trigger_type?: string
+          trigger_value?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       engagement: {
         Row: {
           badges: string[] | null
@@ -129,6 +216,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      physician_access: {
+        Row: {
+          access_count: number | null
+          access_level: string | null
+          access_token: string
+          created_at: string | null
+          expires_at: string
+          id: string
+          last_accessed: string | null
+          physician_email: string | null
+          physician_name: string | null
+          physician_practice: string | null
+          user_id: string
+        }
+        Insert: {
+          access_count?: number | null
+          access_level?: string | null
+          access_token: string
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          last_accessed?: string | null
+          physician_email?: string | null
+          physician_name?: string | null
+          physician_practice?: string | null
+          user_id: string
+        }
+        Update: {
+          access_count?: number | null
+          access_level?: string | null
+          access_token?: string
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          last_accessed?: string | null
+          physician_email?: string | null
+          physician_name?: string | null
+          physician_practice?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -250,6 +379,57 @@ export type Database = {
           password_hash?: string | null
           share_token?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      weekly_reports: {
+        Row: {
+          avg_severity: number | null
+          created_at: string | null
+          flare_count: number | null
+          health_score: number | null
+          id: string
+          key_insights: Json | null
+          logging_consistency: number | null
+          top_correlations: Json | null
+          top_symptoms: Json | null
+          top_triggers: Json | null
+          trend: string | null
+          user_id: string
+          week_end: string
+          week_start: string
+        }
+        Insert: {
+          avg_severity?: number | null
+          created_at?: string | null
+          flare_count?: number | null
+          health_score?: number | null
+          id?: string
+          key_insights?: Json | null
+          logging_consistency?: number | null
+          top_correlations?: Json | null
+          top_symptoms?: Json | null
+          top_triggers?: Json | null
+          trend?: string | null
+          user_id: string
+          week_end: string
+          week_start: string
+        }
+        Update: {
+          avg_severity?: number | null
+          created_at?: string | null
+          flare_count?: number | null
+          health_score?: number | null
+          id?: string
+          key_insights?: Json | null
+          logging_consistency?: number | null
+          top_correlations?: Json | null
+          top_symptoms?: Json | null
+          top_triggers?: Json | null
+          trend?: string | null
+          user_id?: string
+          week_end?: string
+          week_start?: string
         }
         Relationships: []
       }
