@@ -8,11 +8,14 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, User, Share2, Copy, Check, Pill, AlertTriangle, Stethoscope, Heart } from 'lucide-react';
+import { Loader2, User, Share2, Copy, Check, Pill, AlertTriangle, Stethoscope, Heart, Settings2 } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ProfileMedicationInput, type MedicationDetails } from "@/components/ProfileMedicationInput";
 import { CONDITIONS } from "@/data/conditions";
+import { NotificationSettings } from "@/components/notifications/NotificationSettings";
+import { WearableIntegration } from "@/components/wearables/WearableIntegration";
+import { WeeklyDigestSettings } from "@/components/email/WeeklyDigestSettings";
 
 interface ProfileData {
   full_name: string | null;
@@ -44,6 +47,7 @@ interface ProfileManagerProps {
 
 export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => {
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [currentMedications, setCurrentMedications] = useState<MedicationDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -58,6 +62,8 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      
+      setUserId(user.id);
 
       const { data } = await supabase
         .from('profiles')
@@ -230,7 +236,7 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
   return (
     <div className="space-y-4">
       <Tabs defaultValue="personal" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 h-9">
+        <TabsList className="grid w-full grid-cols-4 h-9">
           <TabsTrigger value="personal" className="text-xs">
             <User className="w-3 h-3 mr-1" />
             Personal
@@ -238,6 +244,10 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
           <TabsTrigger value="health" className="text-xs">
             <Heart className="w-3 h-3 mr-1" />
             Health
+          </TabsTrigger>
+          <TabsTrigger value="integrations" className="text-xs">
+            <Settings2 className="w-3 h-3 mr-1" />
+            Connect
           </TabsTrigger>
           <TabsTrigger value="share" className="text-xs">
             <Share2 className="w-3 h-3 mr-1" />
@@ -528,6 +538,23 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
             {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Save Changes
           </Button>
+        </TabsContent>
+
+        <TabsContent value="integrations" className="mt-4 space-y-4">
+          {/* Push Notifications */}
+          <NotificationSettings />
+
+          {/* Wearable Integration */}
+          <WearableIntegration />
+
+          {/* Weekly Email Digest */}
+          {userId && (
+            <WeeklyDigestSettings 
+              userId={userId} 
+              userEmail={profile.email || undefined}
+              userName={profile.full_name || undefined}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="share" className="mt-4 space-y-4">
