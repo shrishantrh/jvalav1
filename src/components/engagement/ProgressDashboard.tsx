@@ -165,46 +165,59 @@ export const ProgressDashboard = ({ userId, entries, onBack }: ProgressDashboard
           </span>
         </div>
 
-        {/* Earned Badges */}
-        {earnedBadges.length > 0 && (
-          <div className="mb-4">
-            <p className="text-xs text-muted-foreground mb-2">Earned</p>
-            <div className="grid grid-cols-4 gap-2">
-              {earnedBadges.map(badge => (
-                <div 
-                  key={badge.id}
-                  className="aspect-square rounded-xl bg-gradient-primary/10 flex flex-col items-center justify-center p-2 group relative"
-                >
-                  <span className="text-2xl mb-0.5">{badge.icon}</span>
-                  <span className="text-[10px] text-center leading-tight">{badge.name}</span>
-                  
-                  {/* Tooltip */}
-                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-foreground text-background text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                    {badge.description}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Badge Categories */}
+        {['milestone', 'streak', 'consistency', 'feature', 'tracking', 'insight', 'engagement'].map(category => {
+          const categoryBadges = BADGES.filter(b => b.category === category);
+          const earnedInCategory = categoryBadges.filter(b => engagement.badges?.includes(b.id));
+          const lockedInCategory = categoryBadges.filter(b => !engagement.badges?.includes(b.id));
+          
+          if (categoryBadges.length === 0) return null;
 
-        {/* Locked Badges */}
-        <div>
-          <p className="text-xs text-muted-foreground mb-2">Locked</p>
-          <div className="grid grid-cols-4 gap-2">
-            {lockedBadges.map(badge => (
-              <div 
-                key={badge.id}
-                className="aspect-square rounded-xl bg-muted/50 flex flex-col items-center justify-center p-2 opacity-50"
-              >
-                <Lock className="w-4 h-4 mb-1 text-muted-foreground" />
-                <span className="text-[10px] text-center leading-tight text-muted-foreground">
-                  {badge.name}
-                </span>
+          const categoryNames: Record<string, string> = {
+            milestone: '🎯 Milestones',
+            streak: '🔥 Streaks',
+            consistency: '📅 Consistency',
+            feature: '✨ Features',
+            tracking: '📊 Tracking',
+            insight: '💡 Insights',
+            engagement: '🌟 Engagement',
+          };
+
+          return (
+            <div key={category} className="mb-4 last:mb-0">
+              <p className="text-xs font-medium text-muted-foreground mb-2">
+                {categoryNames[category]} ({earnedInCategory.length}/{categoryBadges.length})
+              </p>
+              <div className="grid grid-cols-4 gap-2">
+                {earnedInCategory.map(badge => (
+                  <div 
+                    key={badge.id}
+                    className="aspect-square rounded-xl bg-gradient-primary/10 flex flex-col items-center justify-center p-2 group relative"
+                  >
+                    <span className="text-2xl mb-0.5">{badge.icon}</span>
+                    <span className="text-[9px] text-center leading-tight">{badge.name}</span>
+                    
+                    {/* Tooltip */}
+                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-foreground text-background text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                      {badge.description}
+                    </div>
+                  </div>
+                ))}
+                {lockedInCategory.map(badge => (
+                  <div 
+                    key={badge.id}
+                    className="aspect-square rounded-xl bg-muted/50 flex flex-col items-center justify-center p-2 opacity-40"
+                  >
+                    <Lock className="w-4 h-4 mb-1 text-muted-foreground" />
+                    <span className="text-[9px] text-center leading-tight text-muted-foreground">
+                      {badge.name}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+          );
+        })}
       </Card>
     </div>
   );
