@@ -8,12 +8,14 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Moon, Sun, LogOut, Shield, FileText, Bell, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Moon, Sun, LogOut, Shield, FileText, Bell, AlertTriangle, Watch, Mail } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ReminderSettings } from "@/components/profile/ReminderSettings";
 import { SmartMedicationReminders } from "@/components/profile/SmartMedicationReminders";
+import { NotificationSettings } from "@/components/notifications/NotificationSettings";
+import { WearableIntegration } from "@/components/wearables/WearableIntegration";
 
 interface MedicationDetails {
   name: string;
@@ -203,6 +205,12 @@ export default function Settings() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Push Notifications */}
+        <NotificationSettings />
+
+        {/* Wearables */}
+        <WearableIntegration />
 
         {/* Reminders */}
         <Card>
