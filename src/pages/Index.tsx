@@ -19,7 +19,7 @@ import { useEngagement } from "@/hooks/useEngagement";
 import { useCorrelations } from "@/hooks/useCorrelations";
 import { CorrelationInsights } from "@/components/insights/CorrelationInsights";
 import { WeeklyReportCard } from "@/components/insights/WeeklyReportCard";
-import { Activity, Calendar, BarChart3, User as UserIcon, ChevronDown, Flame, Settings, MapPin, Pill } from "lucide-react";
+import { Activity, Calendar, BarChart3, User as UserIcon, ChevronDown, Flame, Settings, MapPin } from "lucide-react";
 import { MedicationTracker } from "@/components/medication/MedicationTracker";
 import { useMedicationLogs } from "@/hooks/useMedicationLogs";
 import { useToast } from "@/hooks/use-toast";
@@ -47,7 +47,7 @@ interface UserProfile {
 }
 
 const Index = () => {
-  const [currentView, setCurrentView] = useState<'track' | 'history' | 'insights' | 'profile' | 'progress' | 'meds'>('track');
+  const [currentView, setCurrentView] = useState<'track' | 'history' | 'insights' | 'profile' | 'progress'>('track');
   const [entries, setEntries] = useState<FlareEntry[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -483,34 +483,25 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Navigation */}
-      <div className="container max-w-md mx-auto px-4 py-4">
+      {/* Navigation - Simplified to 3 core tabs */}
+      <div className="container max-w-md mx-auto px-4 py-3">
         <div className="flex bg-card/80 backdrop-blur rounded-2xl p-1 shadow-soft border">
           <Button
             variant={currentView === 'track' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setCurrentView('track')}
-            className={`flex-1 text-xs h-9 rounded-xl px-2 ${currentView === 'track' ? 'shadow-primary' : ''}`}
+            className={`flex-1 text-xs h-10 rounded-xl ${currentView === 'track' ? 'shadow-primary' : ''}`}
           >
-            <Activity className="w-3.5 h-3.5 mr-1" />
-            Track
-          </Button>
-          <Button
-            variant={currentView === 'meds' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setCurrentView('meds')}
-            className={`flex-1 text-xs h-9 rounded-xl px-2 ${currentView === 'meds' ? 'shadow-primary' : ''}`}
-          >
-            <Pill className="w-3.5 h-3.5 mr-1" />
-            Meds
+            <Activity className="w-4 h-4 mr-1.5" />
+            Log
           </Button>
           <Button
             variant={currentView === 'history' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setCurrentView('history')}
-            className={`flex-1 text-xs h-9 rounded-xl px-2 ${currentView === 'history' ? 'shadow-primary' : ''}`}
+            className={`flex-1 text-xs h-10 rounded-xl ${currentView === 'history' ? 'shadow-primary' : ''}`}
           >
-            <Calendar className="w-3.5 h-3.5 mr-1" />
+            <Calendar className="w-4 h-4 mr-1.5" />
             History
           </Button>
           <Button
@@ -518,113 +509,101 @@ const Index = () => {
             size="sm"
             onClick={async () => {
               setCurrentView('insights');
-              // Track insight views for badge
               const newCount = insightViewCount + 1;
               setInsightViewCount(newCount);
               if (newCount === 5 && user?.id) {
                 const awarded = await awardBadge(user.id, 'insight_seeker');
                 if (awarded) {
-                  toast({ title: "🏆 Badge Earned!", description: "Insight Seeker - Viewed insights 5 times" });
+                  toast({ title: "🏆 Badge Earned!", description: "Insight Seeker" });
                 }
               }
             }}
-            className={`flex-1 text-xs h-9 rounded-xl px-2 ${currentView === 'insights' ? 'shadow-primary' : ''}`}
+            className={`flex-1 text-xs h-10 rounded-xl ${currentView === 'insights' ? 'shadow-primary' : ''}`}
           >
-            <BarChart3 className="w-3.5 h-3.5 mr-1" />
+            <BarChart3 className="w-4 h-4 mr-1.5" />
             Insights
           </Button>
         </div>
       </div>
 
       {/* Content */}
-      <main className="container max-w-md mx-auto px-4 pb-8 space-y-4">
-        {/* Proactive Risk Alerts */}
-        {currentView === 'track' && entries.length > 0 && (
-          <ProactiveRiskAlerts 
-            recentEntries={entries}
-            userTriggers={userProfile?.known_triggers || []}
-            userConditions={userProfile?.conditions || []}
-          />
-        )}
-        
-        {/* Weekly Report Card */}
+      <main className="container max-w-md mx-auto px-4 pb-8">
+        {/* Track View - Clean and focused */}
         {currentView === 'track' && user && (
-          <WeeklyReportCard 
-            userId={user.id}
-            onViewDetails={() => setCurrentView('insights')}
-          />
-        )}
-        
-        {/* Correlation Insights - show discovered patterns */}
-        {currentView === 'track' && topCorrelations.length > 0 && (
-          <CorrelationInsights 
-            correlations={topCorrelations}
-            onViewDetails={() => setCurrentView('insights')}
-          />
-        )}
-        
-        {/* Track View */}
-        {currentView === 'track' && user && (
-          <Card className="p-4 shadow-soft-lg bg-gradient-card border-0 animate-fade-in">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-soft">
-                <Activity className="w-4 h-4 text-white" />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-clinical">How are you feeling?</h2>
-                  {currentLocation?.city && (
-                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                      <MapPin className="w-2.5 h-2.5" />
-                      <span>{currentLocation.city}</span>
-                    </div>
-                  )}
+          <div className="space-y-3">
+            {/* Quick Log Card - Primary Action */}
+            <Card className="p-4 shadow-soft-lg bg-gradient-card border-0 animate-fade-in">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-soft">
+                  <Activity className="w-4 h-4 text-primary-foreground" />
                 </div>
-                {userConditionNames.length > 0 && (
-                  <p className="text-[10px] text-muted-foreground">
-                    {userConditionNames.slice(0, 2).join(', ')}
-                    {userConditionNames.length > 2 && ` +${userConditionNames.length - 2}`}
-                  </p>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-sm font-clinical">How are you feeling?</h2>
+                    {currentLocation?.city && (
+                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <MapPin className="w-2.5 h-2.5" />
+                        <span>{currentLocation.city}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <SmartTrack
+                ref={smartTrackRef}
+                onSave={handleSaveEntry}
+                onUpdateEntry={handleUpdateEntry}
+                userSymptoms={userProfile?.known_symptoms || []}
+                userConditions={userProfile?.conditions || []}
+                userTriggers={userProfile?.known_triggers || []}
+                userMedications={userProfile?.medications || []}
+                recentEntries={entries}
+                userId={user.id}
+              />
+              
+              {/* Detailed Entry Toggle */}
+              <div className="pt-3 mt-3 border-t border-border/50">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowDetailedEntry(!showDetailedEntry)}
+                  className="w-full text-xs text-muted-foreground"
+                >
+                  <ChevronDown className={`w-3 h-3 mr-1 transition-transform ${showDetailedEntry ? 'rotate-180' : ''}`} />
+                  {showDetailedEntry ? 'Hide details' : 'Add more details'}
+                </Button>
+                {showDetailedEntry && (
+                  <div className="mt-3 animate-fade-in">
+                    <DetailedEntry 
+                      onSave={handleSaveEntry} 
+                      onDetailedSave={(entry) => {
+                        smartTrackRef.current?.addDetailedEntry(entry);
+                        setShowDetailedEntry(false);
+                      }}
+                    />
+                  </div>
                 )}
               </div>
-            </div>
+            </Card>
+
+            {/* Compact Risk Alert - Only show if there's a warning */}
+            {entries.length > 0 && (
+              <ProactiveRiskAlerts 
+                recentEntries={entries}
+                userTriggers={userProfile?.known_triggers || []}
+                userConditions={userProfile?.conditions || []}
+              />
+            )}
             
-            <SmartTrack
-              ref={smartTrackRef}
-              onSave={handleSaveEntry}
-              onUpdateEntry={handleUpdateEntry}
-              userSymptoms={userProfile?.known_symptoms || []}
-              userConditions={userProfile?.conditions || []}
-              userTriggers={userProfile?.known_triggers || []}
-              userMedications={userProfile?.medications || []}
-              recentEntries={entries}
-              userId={user.id}
-            />
-            
-            {/* Detailed Entry Toggle */}
-            <div className="pt-3 mt-3 border-t">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowDetailedEntry(!showDetailedEntry)}
-                className="w-full text-xs text-muted-foreground"
-              >
-                <ChevronDown className={`w-3 h-3 mr-1 transition-transform ${showDetailedEntry ? 'rotate-180' : ''}`} />
-                {showDetailedEntry ? 'Hide detailed entry' : 'Add more details'}
-              </Button>
-              {showDetailedEntry && (
-                <div className="mt-3 animate-fade-in">
-                  <DetailedEntry 
-                    onSave={handleSaveEntry} 
-                    onDetailedSave={(entry) => {
-                      smartTrackRef.current?.addDetailedEntry(entry);
-                      setShowDetailedEntry(false);
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-          </Card>
+            {/* Discovered Patterns - Compact teaser */}
+            {topCorrelations.length > 0 && (
+              <CorrelationInsights 
+                correlations={topCorrelations}
+                onViewDetails={() => setCurrentView('insights')}
+              />
+            )}
+          </div>
         )}
 
         {/* History View */}
@@ -661,21 +640,27 @@ const Index = () => {
           </div>
         )}
 
-        {/* Meds View */}
-        {currentView === 'meds' && user && (
-          <MedicationTracker
-            logs={medicationLogs}
-            onLogMedication={addMedicationLog}
-            userMedications={userProfile?.medications?.map(m => m.name) || []}
-          />
-        )}
-
-        {/* Insights View */}
-        {currentView === 'insights' && (
-          <CleanInsights 
-            entries={entries} 
-            userConditions={userProfile?.conditions}
-          />
+        {/* Insights View - Now includes Weekly Report and Meds */}
+        {currentView === 'insights' && user && (
+          <div className="space-y-4">
+            {/* Weekly Report at top of insights */}
+            <WeeklyReportCard 
+              userId={user.id}
+            />
+            
+            {/* Main Insights */}
+            <CleanInsights 
+              entries={entries} 
+              userConditions={userProfile?.conditions}
+            />
+            
+            {/* Medication Tracker - integrated into insights */}
+            <MedicationTracker
+              logs={medicationLogs}
+              onLogMedication={addMedicationLog}
+              userMedications={userProfile?.medications?.map(m => m.name) || []}
+            />
+          </div>
         )}
 
         {/* Profile View */}
