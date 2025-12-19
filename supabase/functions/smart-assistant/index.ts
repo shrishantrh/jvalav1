@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -38,6 +39,39 @@ interface UserContext {
 interface ConversationContext {
   recentMentions: string[];
   pendingTrigger?: string;
+}
+
+// Activity detection patterns for correlation engine
+const ACTIVITY_PATTERNS = [
+  { pattern: /(?:back|returned|finished)\s+(?:from\s+)?(?:a\s+)?(?:my\s+)?(run|jog|jogging)/i, type: 'run', intensity: 'moderate' },
+  { pattern: /(?:went|going|gone)\s+(?:for\s+)?(?:a\s+)?(run|jog|jogging)/i, type: 'run', intensity: 'moderate' },
+  { pattern: /(?:just\s+)?(?:finished|completed|did)\s+(?:a\s+)?(run|jog|jogging)/i, type: 'run', intensity: 'moderate' },
+  { pattern: /(?:back|returned|finished)\s+(?:from\s+)?(?:a\s+)?(?:my\s+)?(walk|walking)/i, type: 'walk', intensity: 'low' },
+  { pattern: /(?:went|going|gone)\s+(?:for\s+)?(?:a\s+)?(walk|walking)/i, type: 'walk', intensity: 'low' },
+  { pattern: /(?:back|returned|finished)\s+(?:from\s+)?(?:the\s+)?(gym|workout|exercise)/i, type: 'gym', intensity: 'high' },
+  { pattern: /(?:went|going|gone)\s+(?:to\s+)?(?:the\s+)?(gym)/i, type: 'gym', intensity: 'high' },
+  { pattern: /(?:just\s+)?(?:finished|completed|did)\s+(?:a\s+)?(workout|exercise)/i, type: 'gym', intensity: 'high' },
+  { pattern: /(?:woke\s+up|just\s+woke|got\s+up)/i, type: 'sleep', intensity: 'low' },
+  { pattern: /(?:finished|back\s+from|done\s+with)\s+work/i, type: 'work', intensity: 'moderate' },
+  { pattern: /(?:long|tough|stressful)\s+(?:day\s+at\s+)?work/i, type: 'work', intensity: 'high' },
+  { pattern: /(?:stressed|stress|anxious|anxiety)/i, type: 'stress', intensity: 'high' },
+  { pattern: /(?:yoga|meditation|meditate)/i, type: 'relaxation', intensity: 'low' },
+  { pattern: /(?:swimming|swam|swim)/i, type: 'swim', intensity: 'moderate' },
+  { pattern: /(?:cycling|cycled|biking|biked)/i, type: 'cycling', intensity: 'moderate' },
+  { pattern: /(?:hiking|hiked|hike)/i, type: 'hike', intensity: 'high' },
+];
+
+function detectActivity(message: string): { type: string; intensity: string; value?: string } | null {
+  const lower = message.toLowerCase();
+  
+  for (const { pattern, type, intensity } of ACTIVITY_PATTERNS) {
+    const match = lower.match(pattern);
+    if (match) {
+      return { type, intensity, value: match[1] || undefined };
+    }
+  }
+  
+  return null;
 }
 
 // Average weather data for popular destinations by month (for future date queries)
@@ -662,10 +696,15 @@ serve(async (req) => {
   }
 
   try {
-    const { message, userContext, history } = await req.json() as {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    const { message, userContext, history, userId } = await req.json() as {
       message: string;
       userContext: UserContext;
       history: Array<{ role: string; content: string }>;
+      userId?: string;
     };
     
     const apiKey = Deno.env.get('LOVABLE_API_KEY');
@@ -673,6 +712,63 @@ serve(async (req) => {
 
     console.log('💬 Message:', message);
     console.log('📍 Conditions:', userContext.conditions);
+    
+    // === ACTIVITY DETECTION FOR CORRELATION ENGINE ===
+    const detectedActivity = detectActivity(message);
+    let activityLog = null;
+    let correlationWarning = null;
+    let shouldFollowUp = false;
+    let followUpDelay = 0;
+    
+    if (detectedActivity && userId) {
+      console.log(`🏃 Activity detected: ${detectedActivity.type} (${detectedActivity.intensity})`);
+      
+      // Log the activity
+      const { data: newActivityLog, error: logError } = await supabase
+        .from('activity_logs')
+        .insert({
+          user_id: userId,
+          activity_type: detectedActivity.type,
+          activity_value: detectedActivity.value,
+          intensity: detectedActivity.intensity,
+          timestamp: new Date().toISOString(),
+          followed_up: false,
+        })
+        .select()
+        .single();
+      
+      if (!logError && newActivityLog) {
+        activityLog = newActivityLog;
+        shouldFollowUp = true;
+        followUpDelay = detectedActivity.type === 'run' || detectedActivity.type === 'gym' ? 30 : 60;
+        
+        // Check for existing correlations for this activity
+        const { data: existingCorrelations } = await supabase
+          .from('correlations')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('trigger_type', 'activity')
+          .eq('trigger_value', detectedActivity.type)
+          .gte('confidence', 0.3)
+          .gte('occurrence_count', 2)
+          .order('confidence', { ascending: false })
+          .limit(3);
+        
+        if (existingCorrelations && existingCorrelations.length > 0) {
+          const topCorr = existingCorrelations[0];
+          correlationWarning = {
+            triggerType: 'activity',
+            triggerValue: detectedActivity.type,
+            outcomeType: topCorr.outcome_type,
+            outcomeValue: topCorr.outcome_value,
+            occurrenceCount: topCorr.occurrence_count,
+            confidence: topCorr.confidence,
+            avgDelayMinutes: topCorr.avg_delay_minutes,
+          };
+          console.log(`⚠️ Correlation warning: ${detectedActivity.type} → ${topCorr.outcome_value} (${topCorr.occurrence_count}x)`);
+        }
+      }
+    }
     
     // Get ALL intents from message (supports multi-intent like "felt pain and took meds")
     const allIntents = classifyMultipleIntents(message, userContext);
@@ -688,6 +784,8 @@ serve(async (req) => {
         shouldLog: false,
         entryData: null,
         multipleEntries: null,
+        activityLog: null,
+        correlationWarning: null,
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     
@@ -698,6 +796,90 @@ serve(async (req) => {
     if ((intent.type === 'flare' || message.toLowerCase().includes('symptom')) && conversationContext.pendingTrigger) {
       linkedTrigger = conversationContext.pendingTrigger;
       console.log('🔗 Linked trigger:', linkedTrigger);
+    }
+    
+    // === BUILD CORRELATIONS WHEN FLARE IS LOGGED ===
+    let correlationsBuilt = 0;
+    if (intent.type === 'flare' && userId) {
+      console.log('🔍 Building correlations for flare...');
+      
+      // Get recent activities (last 24 hours)
+      const lookbackTime = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data: recentActivities } = await supabase
+        .from('activity_logs')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('timestamp', lookbackTime)
+        .order('timestamp', { ascending: false });
+      
+      if (recentActivities && recentActivities.length > 0) {
+        const flareTime = Date.now();
+        const symptoms = intent.extractedData?.symptoms || [];
+        const severity = intent.extractedData?.severity || 'moderate';
+        
+        for (const activity of recentActivities) {
+          const activityTime = new Date(activity.timestamp).getTime();
+          const delayMinutes = Math.round((flareTime - activityTime) / (1000 * 60));
+          
+          // Only correlate if activity was 15 min to 24 hours before
+          if (delayMinutes > 15 && delayMinutes < 1440) {
+            // Build correlation for activity → each symptom
+            for (const symptom of symptoms) {
+              const { data: existing } = await supabase
+                .from('correlations')
+                .select('*')
+                .eq('user_id', userId)
+                .eq('trigger_type', 'activity')
+                .eq('trigger_value', activity.activity_type)
+                .eq('outcome_type', 'symptom')
+                .eq('outcome_value', symptom)
+                .maybeSingle();
+              
+              if (existing) {
+                const newCount = existing.occurrence_count + 1;
+                const newAvgDelay = Math.round((existing.avg_delay_minutes * (newCount - 1) + delayMinutes) / newCount);
+                const newConfidence = Math.min(Math.log2(newCount + 1) / 5, 0.7) + 0.3;
+                
+                await supabase
+                  .from('correlations')
+                  .update({
+                    occurrence_count: newCount,
+                    avg_delay_minutes: newAvgDelay,
+                    confidence: Math.min(newConfidence, 1.0),
+                    last_occurred: new Date().toISOString(),
+                  })
+                  .eq('id', existing.id);
+              } else {
+                await supabase
+                  .from('correlations')
+                  .insert({
+                    user_id: userId,
+                    trigger_type: 'activity',
+                    trigger_value: activity.activity_type,
+                    outcome_type: 'symptom',
+                    outcome_value: symptom,
+                    avg_delay_minutes: delayMinutes,
+                    occurrence_count: 1,
+                    confidence: 0.2,
+                    last_occurred: new Date().toISOString(),
+                  });
+              }
+              correlationsBuilt++;
+            }
+            
+            // Mark activity as followed up
+            await supabase
+              .from('activity_logs')
+              .update({
+                followed_up: true,
+                follow_up_result: { symptoms, severity, delay_minutes: delayMinutes }
+              })
+              .eq('id', activity.id);
+          }
+        }
+        
+        console.log(`✅ Built ${correlationsBuilt} correlations from flare`);
+      }
     }
     
     // Build multiple entry data from all intents
@@ -977,6 +1159,11 @@ EXAMPLES:
             shouldLog: shouldUseMultiple ? true : (parsed.shouldLog || false),
             entryData: shouldUseMultiple ? null : entryData,
             multipleEntries: shouldUseMultiple ? multipleEntries : null,
+            activityLog,
+            correlationWarning,
+            shouldFollowUp,
+            followUpDelay,
+            correlationsBuilt,
           }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
       } catch (e) {
@@ -995,12 +1182,18 @@ EXAMPLES:
         shouldLog: shouldUseMultiple ? true : false,
         entryData: shouldUseMultiple ? null : (multipleEntries[0] || null),
         multipleEntries: shouldUseMultiple ? multipleEntries : null,
+        activityLog,
+        correlationWarning,
+        shouldFollowUp,
+        followUpDelay,
+        correlationsBuilt,
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     return new Response(JSON.stringify({ 
       response: "Could you rephrase that?",
-      isAIGenerated: false, dataUsed: [], shouldLog: false, entryData: null, multipleEntries: null
+      isAIGenerated: false, dataUsed: [], shouldLog: false, entryData: null, multipleEntries: null,
+      activityLog: null, correlationWarning: null, shouldFollowUp: false, followUpDelay: 0, correlationsBuilt: 0
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
