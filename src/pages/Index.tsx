@@ -648,15 +648,11 @@ const Index = () => {
               userId={user.id}
             />
             
-            {/* Main Insights */}
+            {/* Main Insights - now includes medication as a tab */}
             <CleanInsights 
               entries={entries} 
               userConditions={userProfile?.conditions}
-            />
-            
-            {/* Medication Tracker - integrated into insights */}
-            <MedicationTracker
-              logs={medicationLogs}
+              medicationLogs={medicationLogs}
               onLogMedication={addMedicationLog}
               userMedications={userProfile?.medications?.map(m => m.name) || []}
             />

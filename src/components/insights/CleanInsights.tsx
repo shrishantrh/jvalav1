@@ -11,6 +11,8 @@ import { SmartPredictions } from "@/components/insights/SmartPredictions";
 import { HealthScoreDashboard } from "@/components/insights/HealthScoreDashboard";
 import { TriggerFrequencyChart } from "@/components/insights/TriggerFrequencyChart";
 import { AdvancedAnalyticsDashboard } from "@/components/insights/AdvancedAnalyticsDashboard";
+import { PhysiologicalAnalytics } from "@/components/insights/PhysiologicalAnalytics";
+import { MedicationTracker } from "@/components/medication/MedicationTracker";
 import { 
   Brain, 
   TrendingUp, 
@@ -25,13 +27,26 @@ import {
   Target,
   ThermometerSun,
   Activity,
+  Pill,
+  Heart,
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { format, subDays, isWithinInterval, differenceInDays } from 'date-fns';
 
+interface MedicationLog {
+  id: string;
+  medicationName: string;
+  dosage: string;
+  frequency: string;
+  takenAt: Date;
+}
+
 interface CleanInsightsProps {
   entries: FlareEntry[];
   userConditions?: string[];
+  medicationLogs?: MedicationLog[];
+  onLogMedication?: (log: Omit<MedicationLog, 'id' | 'takenAt'>) => void;
+  userMedications?: string[];
 }
 
 // Stop words for trigger extraction
@@ -45,7 +60,7 @@ const STOP_WORDS = new Set([
   'got', 'get', 'getting', 'started', 'start', 'starting',
 ]);
 
-export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsProps) => {
+export const CleanInsights = ({ entries, userConditions = [], medicationLogs = [], onLogMedication, userMedications = [] }: CleanInsightsProps) => {
   const chartRef = React.useRef<HTMLDivElement>(null);
 
   const analytics = useMemo(() => {
@@ -455,38 +470,55 @@ export const CleanInsights = ({ entries, userConditions = [] }: CleanInsightsPro
 
       {/* Detailed Views */}
       <Tabs defaultValue="analytics" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 h-10 p-1 bg-muted/50">
+        <TabsList className="grid w-full grid-cols-6 h-10 p-1 bg-muted/50">
           <TabsTrigger value="analytics" className="text-xs px-1 data-[state=active]:shadow-primary data-[state=active]:animate-scale-in">
-            📊 Analytics
+            📊
           </TabsTrigger>
-          <TabsTrigger value="charts" className="text-xs px-1 data-[state=active]:shadow-primary">
-            <BarChart3 className="w-3 h-3 mr-1" />
-            Charts
+          <TabsTrigger value="body" className="text-xs px-1 data-[state=active]:shadow-primary">
+            <Heart className="w-3 h-3" />
+          </TabsTrigger>
+          <TabsTrigger value="meds" className="text-xs px-1 data-[state=active]:shadow-primary">
+            <Pill className="w-3 h-3" />
           </TabsTrigger>
           <TabsTrigger value="map" className="text-xs px-1 data-[state=active]:shadow-primary">
-            <MapPin className="w-3 h-3 mr-1" />
-            Map
+            <MapPin className="w-3 h-3" />
           </TabsTrigger>
           <TabsTrigger value="community" className="text-xs px-1 data-[state=active]:shadow-primary">
             🌍
           </TabsTrigger>
           <TabsTrigger value="export" className="text-xs px-1 data-[state=active]:shadow-primary">
-            <Download className="w-3 h-3 mr-1" />
+            <Download className="w-3 h-3" />
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="analytics" className="mt-4 animate-fade-in">
-          <AdvancedAnalyticsDashboard entries={entries} />
-        </TabsContent>
-
-        <TabsContent value="charts" className="mt-4 animate-fade-in">
           <div className="space-y-4">
+            <AdvancedAnalyticsDashboard entries={entries} />
             <HealthScoreDashboard entries={entries} />
             <TriggerFrequencyChart entries={entries} />
             <div ref={chartRef}>
               <InsightsCharts entries={entries} />
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="body" className="mt-4 animate-fade-in">
+          <PhysiologicalAnalytics entries={entries} />
+        </TabsContent>
+
+        <TabsContent value="meds" className="mt-4 animate-fade-in">
+          {onLogMedication ? (
+            <MedicationTracker
+              logs={medicationLogs}
+              onLogMedication={onLogMedication}
+              userMedications={userMedications}
+            />
+          ) : (
+            <Card className="p-6 text-center">
+              <Pill className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+              <p className="text-sm text-muted-foreground">Medication tracking not available</p>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="map" className="mt-4 animate-fade-in">
