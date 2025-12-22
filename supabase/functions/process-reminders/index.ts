@@ -203,10 +203,10 @@ serve(async (req) => {
 
         if (!response.ok) {
           const error = await response.text();
-          console.error(`❌ Failed to send to ${userProfile.email}:`, error);
+          console.error(`❌ Failed to send email to ${userProfile.email}:`, error);
           results.errors++;
         } else {
-          console.log(`✅ Sent ${type} reminder to ${userProfile.email}`);
+          console.log(`✅ Sent ${type} email reminder to ${userProfile.email}`);
           results.sent++;
 
           // Update last sent timestamp to prevent duplicates
@@ -218,6 +218,29 @@ serve(async (req) => {
             .from('engagement')
             .update(updateData)
             .eq('user_id', user.user_id);
+        }
+
+        // Also send push notification
+        try {
+          const pushPayload = {
+            userId: user.user_id,
+            title: type === 'morning' ? '🌅 Morning Check-in' : '🌙 Evening Reflection',
+            body: bodyText,
+            tag: `${type}-reminder`,
+            url: '/',
+          };
+
+          await fetch(`${supabaseUrl}/functions/v1/send-push`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(pushPayload),
+          });
+          console.log(`📱 Sent ${type} push notification to ${user.user_id}`);
+        } catch (pushError) {
+          console.log(`⚠️ Push notification failed for ${user.user_id}:`, pushError);
         }
 
       } catch (userError) {

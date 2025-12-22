@@ -22,7 +22,7 @@ interface NotificationSettings {
 }
 
 export const NotificationSettings = ({ onSettingsChange }: NotificationSettingsProps) => {
-  const { isSupported, permission, requestPermission, sendStreakReminder } = usePushNotifications();
+  const { isSupported, permission, isSubscribed, requestPermission, sendStreakReminder } = usePushNotifications();
   
   const [settings, setSettings] = useState<NotificationSettings>(() => {
     const stored = localStorage.getItem('notification_settings');
@@ -74,7 +74,10 @@ export const NotificationSettings = ({ onSettingsChange }: NotificationSettingsP
       <Card className="p-4 bg-muted/50">
         <div className="flex items-center gap-3 text-muted-foreground">
           <AlertCircle className="w-5 h-5" />
-          <span className="text-sm">Notifications are not supported in this browser</span>
+          <div>
+            <span className="text-sm font-medium">Push Notifications</span>
+            <p className="text-xs">Push notifications require a modern browser with service worker support. Try using Chrome, Firefox, Edge, or Safari on your device. If installed as an app, notifications work even when closed.</p>
+          </div>
         </div>
       </Card>
     );
@@ -115,9 +118,16 @@ export const NotificationSettings = ({ onSettingsChange }: NotificationSettingsP
           </Button>
         )}
         {permission === 'granted' && (
-          <Badge variant="secondary" className="bg-green-100 text-green-700">
-            Active
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="bg-green-100 text-green-700">
+              Active
+            </Badge>
+            {isSubscribed && (
+              <Badge variant="outline" className="text-xs">
+                Background enabled
+              </Badge>
+            )}
+          </div>
         )}
       </div>
 
