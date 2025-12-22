@@ -107,7 +107,9 @@ export type Database = {
           created_at: string
           current_streak: number | null
           home_shortcuts: string[] | null
+          last_evening_sent: string | null
           last_log_date: string | null
+          last_morning_sent: string | null
           longest_streak: number | null
           reminder_enabled: boolean | null
           reminder_times: string[] | null
@@ -120,7 +122,9 @@ export type Database = {
           created_at?: string
           current_streak?: number | null
           home_shortcuts?: string[] | null
+          last_evening_sent?: string | null
           last_log_date?: string | null
+          last_morning_sent?: string | null
           longest_streak?: number | null
           reminder_enabled?: boolean | null
           reminder_times?: string[] | null
@@ -133,7 +137,9 @@ export type Database = {
           created_at?: string
           current_streak?: number | null
           home_shortcuts?: string[] | null
+          last_evening_sent?: string | null
           last_log_date?: string | null
+          last_morning_sent?: string | null
           longest_streak?: number | null
           reminder_enabled?: boolean | null
           reminder_times?: string[] | null
@@ -445,6 +451,36 @@ export type Database = {
           timezone?: string | null
           updated_at?: string
           weight_kg?: number | null
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth_key: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh_key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auth_key: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh_key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auth_key?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh_key?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
