@@ -21,6 +21,28 @@ const EVENING_MESSAGES = [
   (streak: number) => `Before bed check-in. ${streak > 0 ? `Streak: ${streak} days and counting!` : 'Capture your day before it fades.'}`,
 ];
 
+// Helper to get current hour in a timezone
+const getCurrentHourInTimezone = (timezone: string): number => {
+  try {
+    const now = new Date();
+    const localTime = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
+    return localTime.getHours();
+  } catch {
+    return new Date().getUTCHours();
+  }
+};
+
+// Get today's date in a timezone
+const getTodayInTimezone = (timezone: string): string => {
+  try {
+    const now = new Date();
+    const localTime = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
+    return localTime.toISOString().split('T')[0];
+  } catch {
+    return new Date().toISOString().split('T')[0];
+  }
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -40,15 +62,9 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Get current hour in UTC
-    const now = new Date();
-    const currentHour = now.getUTCHours();
-    const currentMinute = now.getUTCMinutes();
-    const timeWindow = `${currentHour.toString().padStart(2, '0')}:${Math.floor(currentMinute / 30) * 30 === 0 ? '00' : '30'}`;
-    
-    console.log(`🕐 Processing reminders for time window: ${timeWindow} UTC`);
+    console.log(`🕐 Processing reminders at ${new Date().toISOString()}`);
 
-    // Get users with reminders enabled that match current time window
+    // Get users with reminders enabled
     const { data: usersWithReminders, error: fetchError } = await supabase
       .from('engagement')
       .select(`
@@ -56,7 +72,9 @@ serve(async (req) => {
         reminder_enabled,
         reminder_times,
         current_streak,
-        last_log_date
+        last_log_date,
+        last_morning_sent,
+        last_evening_sent
       `)
       .eq('reminder_enabled', true);
 
@@ -67,39 +85,61 @@ serve(async (req) => {
 
     console.log(`📋 Found ${usersWithReminders?.length || 0} users with reminders enabled`);
 
-    const results: { sent: number; skipped: number; errors: number } = { sent: 0, skipped: 0, errors: 0 };
+    const results = { sent: 0, skipped: 0, errors: 0 };
 
     for (const user of usersWithReminders || []) {
       try {
-        const reminderTimes = user.reminder_times || ['08:00', '20:00'];
-        const morningTime = reminderTimes[0] || '08:00';
-        const eveningTime = reminderTimes[1] || '20:00';
+        // Get user's profile for email and timezone
+        const { data: userProfile } = await supabase
+          .from('profiles')
+          .select('email, timezone')
+          .eq('id', user.user_id)
+          .single();
 
-        // Check if current time matches any reminder time (with 30 min window)
-        const isMorningTime = Math.abs(parseInt(morningTime.split(':')[0]) - currentHour) <= 1;
-        const isEveningTime = Math.abs(parseInt(eveningTime.split(':')[0]) - currentHour) <= 1;
+        if (!userProfile?.email) {
+          console.log(`⚠️ No email for user ${user.user_id}`);
+          results.skipped++;
+          continue;
+        }
+
+        const timezone = userProfile.timezone || 'UTC';
+        const currentLocalHour = getCurrentHourInTimezone(timezone);
+        const todayLocal = getTodayInTimezone(timezone);
+        
+        // Get reminder times (default to 9am and 9pm)
+        const reminderTimes = (user.reminder_times && user.reminder_times.length >= 2) 
+          ? user.reminder_times 
+          : ['09:00', '21:00'];
+        const morningHour = parseInt(reminderTimes[0]?.split(':')[0] || '9');
+        const eveningHour = parseInt(reminderTimes[1]?.split(':')[0] || '21');
+
+        // Check if it's time for morning or evening reminder (exact hour match)
+        const isMorningTime = currentLocalHour === morningHour;
+        const isEveningTime = currentLocalHour === eveningHour;
 
         if (!isMorningTime && !isEveningTime) {
           continue; // Not time for this user's reminder
         }
 
-        // Check if user already logged today
-        const today = now.toISOString().split('T')[0];
-        if (user.last_log_date === today) {
-          console.log(`⏭️ User ${user.user_id} already logged today, skipping`);
+        // Check if we already sent this reminder today (prevent duplicates)
+        const alreadySentMorning = user.last_morning_sent === todayLocal;
+        const alreadySentEvening = user.last_evening_sent === todayLocal;
+
+        if (isMorningTime && alreadySentMorning) {
+          console.log(`⏭️ Already sent morning reminder to ${user.user_id} today`);
           results.skipped++;
           continue;
         }
 
-        // Get user's email from profiles
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('email')
-          .eq('id', user.user_id)
-          .single();
+        if (isEveningTime && alreadySentEvening) {
+          console.log(`⏭️ Already sent evening reminder to ${user.user_id} today`);
+          results.skipped++;
+          continue;
+        }
 
-        if (!profile?.email) {
-          console.log(`⚠️ No email for user ${user.user_id}`);
+        // Check if user already logged today
+        if (user.last_log_date === todayLocal) {
+          console.log(`⏭️ User ${user.user_id} already logged today, skipping`);
           results.skipped++;
           continue;
         }
@@ -155,7 +195,7 @@ serve(async (req) => {
           },
           body: JSON.stringify({
             from: 'Jvala <onboarding@resend.dev>',
-            to: [profile.email],
+            to: [userProfile.email],
             subject,
             html: bodyHtml,
           }),
@@ -163,11 +203,21 @@ serve(async (req) => {
 
         if (!response.ok) {
           const error = await response.text();
-          console.error(`❌ Failed to send to ${profile.email}:`, error);
+          console.error(`❌ Failed to send to ${userProfile.email}:`, error);
           results.errors++;
         } else {
-          console.log(`✅ Sent ${type} reminder to ${profile.email}`);
+          console.log(`✅ Sent ${type} reminder to ${userProfile.email}`);
           results.sent++;
+
+          // Update last sent timestamp to prevent duplicates
+          const updateData = type === 'morning' 
+            ? { last_morning_sent: todayLocal }
+            : { last_evening_sent: todayLocal };
+
+          await supabase
+            .from('engagement')
+            .update(updateData)
+            .eq('user_id', user.user_id);
         }
 
       } catch (userError) {
