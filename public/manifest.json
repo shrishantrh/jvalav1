@@ -1,0 +1,65 @@
+{
+  "name": "Jvala",
+  "short_name": "Jvala",
+  "description": "AI-powered flare tracking for chronic conditions",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f3f2",
+  "theme_color": "#8B2346",
+  "orientation": "portrait-primary",
+  "categories": ["health", "medical", "lifestyle"],
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/screenshot-narrow.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Quick Log",
+      "short_name": "Log",
+      "description": "Quickly log how you're feeling",
+      "url": "/?action=quick-log",
+      "icons": [{ "src": "/icon-log.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "View Insights",
+      "short_name": "Insights",
+      "description": "See your health patterns",
+      "url": "/?view=insights",
+      "icons": [{ "src": "/icon-insights.png", "sizes": "96x96" }]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "scope": "/",
+  "lang": "en-US",
+  "dir": "ltr"
+}
