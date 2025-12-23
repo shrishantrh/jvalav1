@@ -26,6 +26,9 @@ import { useToast } from "@/hooks/use-toast";
 import { format, isSameDay } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { OfflineIndicator } from "@/components/pwa/OfflineIndicator";
+import { AIHealthCoach } from "@/components/ai/AIHealthCoach";
 
 interface MedicationDetails {
   name: string;
