@@ -314,14 +314,20 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
     setIsProcessing(true);
 
     try {
+      const historyForAI = messages
+        .slice(-20)
+        .map((m) => ({ role: m.role === 'system' ? 'assistant' : m.role, content: m.content }))
+        // The backend only expects user/assistant roles
+        .filter((m): m is { role: 'user' | 'assistant'; content: string } => m.role === 'user' || m.role === 'assistant');
+
       const { data, error } = await supabase.functions.invoke('chat-assistant', {
-        body: { 
+        body: {
           message: messageText,
           userSymptoms,
           userConditions,
           userId,
-          history: messages.slice(-6).map(m => ({ role: m.role === 'system' ? 'assistant' : m.role, content: m.content }))
-        }
+          history: historyForAI,
+        },
       });
 
       if (error) throw error;
