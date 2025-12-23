@@ -27,6 +27,9 @@ interface ChatMessage {
   entryData?: Partial<FlareEntry>;
   isQuickLog?: boolean;
   visualization?: Visualization;
+  confidence?: number;
+  evidenceSources?: string[];
+  suggestedFollowUp?: string;
 }
 
 interface ChatLogProps {
@@ -339,6 +342,9 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
         timestamp: new Date(),
         entryData: data.entryData,
         visualization: data.visualization,
+        confidence: data.confidence,
+        evidenceSources: data.evidenceSources,
+        suggestedFollowUp: data.suggestedFollowUp,
       };
       setMessages(prev => [...prev, assistantMessage]);
 
@@ -432,6 +438,30 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
                   )}
                   {message.visualization && (
                     <VisualizationRenderer visualization={message.visualization} />
+                  )}
+                  {/* Confidence & Evidence */}
+                  {message.role === 'assistant' && message.confidence != null && (
+                    <div className="mt-2 pt-1.5 border-t border-current/5 text-[10px] text-muted-foreground/70 space-y-0.5">
+                      <div className="flex items-center gap-1">
+                        <span className={cn(
+                          "w-1.5 h-1.5 rounded-full",
+                          message.confidence >= 0.8 ? "bg-green-500" : message.confidence >= 0.5 ? "bg-yellow-500" : "bg-orange-500"
+                        )} />
+                        <span>{Math.round(message.confidence * 100)}% confidence</span>
+                        {message.evidenceSources?.length ? (
+                          <span className="opacity-60">• {message.evidenceSources.slice(0, 2).join(", ")}</span>
+                        ) : null}
+                      </div>
+                    </div>
+                  )}
+                  {/* Suggested follow-up */}
+                  {message.suggestedFollowUp && (
+                    <button
+                      onClick={() => setInput(message.suggestedFollowUp!)}
+                      className="mt-2 text-[10px] text-primary hover:underline block"
+                    >
+                      💡 {message.suggestedFollowUp}
+                    </button>
                   )}
                 </div>
               </>
