@@ -9,7 +9,10 @@ import Demo from "./pages/Demo";
 import Settings from "./pages/Settings";
 import SharedReport from "./pages/SharedReport";
 import SharedProfile from "./pages/SharedProfile";
+import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
+import { OfflineIndicator } from "./components/pwa/OfflineIndicator";
+import { InstallPrompt } from "./components/pwa/InstallPrompt";
 
 const queryClient = new QueryClient();
 
@@ -18,6 +21,8 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <OfflineIndicator />
+      <InstallPrompt />
       <HashRouter>
         <Routes>
           <Route path="/" element={<Index />} />
@@ -26,6 +31,7 @@ const App = () => (
           <Route path="/settings" element={<Settings />} />
           <Route path="/shared-report" element={<SharedReport />} />
           <Route path="/shared-profile" element={<SharedProfile />} />
+          <Route path="/install" element={<Install />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
