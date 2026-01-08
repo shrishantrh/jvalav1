@@ -12,7 +12,8 @@ import { CalendarHistory } from "@/components/history/CalendarHistory";
 import { FlareTimeline } from "@/components/flare/FlareTimeline";
 import { ProfileManager } from "@/components/profile/ProfileManager";
 import { ProgressDashboard } from "@/components/engagement/ProgressDashboard";
-import { OnboardingFlow } from "@/components/onboarding/OnboardingFlow";
+import { SmartOnboarding } from "@/components/onboarding/SmartOnboarding";
+import { HealthForecast } from "@/components/forecast/HealthForecast";
 import { StreakBadge } from "@/components/engagement/StreakBadge";
 import { CONDITIONS } from "@/data/conditions";
 import { useEngagement } from "@/hooks/useEngagement";
@@ -434,9 +435,18 @@ const Index = () => {
     return entries.filter(e => isSameDay(e.timestamp, selectedDate));
   }, [entries, selectedDate]);
 
-  // Show onboarding if needed
+  // Show onboarding if needed - now using SmartOnboarding (3 steps instead of 7)
   if (showOnboarding && !isLoadingProfile) {
-    return <OnboardingFlow onComplete={handleOnboardingComplete} />;
+    return <SmartOnboarding onComplete={(data) => {
+      // Convert SmartOnboarding data to full onboarding format
+      handleOnboardingComplete({
+        conditions: data.conditions,
+        symptoms: [], // AI will learn these
+        triggers: [], // AI will learn these
+        enableReminders: data.enableReminders,
+        reminderTime: data.reminderTime,
+      });
+    }} />;
   }
 
   // Get condition names for display
@@ -590,8 +600,17 @@ const Index = () => {
               </div>
             </Card>
 
+            {/* Health Forecast - AI Prediction */}
+            {user && entries.length >= 5 && (
+              <HealthForecast 
+                userId={user.id}
+                currentWeather={currentLocation ? undefined : undefined}
+                onViewDetails={() => setCurrentView('insights')}
+              />
+            )}
+
             {/* Compact Risk Alert - Only show if there's a warning */}
-            {entries.length > 0 && (
+            {entries.length > 0 && entries.length < 5 && (
               <ProactiveRiskAlerts 
                 recentEntries={entries}
                 userTriggers={userProfile?.known_triggers || []}
