@@ -63,5 +63,11 @@ verify_jwt = false
 [functions.get-vapid-key]
 verify_jwt = false
 
+[functions.limitless-ai]
+verify_jwt = false
+
+[functions.pattern-learner]
+verify_jwt = false
+
 [functions.health-forecast]
 verify_jwt = false

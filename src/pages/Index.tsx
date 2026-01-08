@@ -14,6 +14,9 @@ import { ProfileManager } from "@/components/profile/ProfileManager";
 import { ProgressDashboard } from "@/components/engagement/ProgressDashboard";
 import { SmartOnboarding } from "@/components/onboarding/SmartOnboarding";
 import { HealthForecast } from "@/components/forecast/HealthForecast";
+import { CycleTracker } from "@/components/tracking/CycleTracker";
+import { CalendarStress } from "@/components/tracking/CalendarStress";
+import { LimitlessAIChat } from "@/components/ai/LimitlessAIChat";
 import { StreakBadge } from "@/components/engagement/StreakBadge";
 import { CONDITIONS } from "@/data/conditions";
 import { useEngagement } from "@/hooks/useEngagement";
@@ -609,12 +612,19 @@ const Index = () => {
               />
             )}
 
-            {/* Compact Risk Alert - Only show if there's a warning */}
-            {entries.length > 0 && entries.length < 5 && (
-              <ProactiveRiskAlerts 
-                recentEntries={entries}
-                userTriggers={userProfile?.known_triggers || []}
-                userConditions={userProfile?.conditions || []}
+            {/* Cycle Tracker + Stress Analysis Row */}
+            {user && (
+              <div className="grid grid-cols-2 gap-3">
+                <CycleTracker userId={user.id} />
+                <CalendarStress userId={user.id} />
+              </div>
+            )}
+            
+            {/* Discovered Patterns - Compact teaser */}
+            {topCorrelations.length > 0 && (
+              <CorrelationInsights 
+                correlations={topCorrelations}
+                onViewDetails={() => setCurrentView('insights')}
               />
             )}
             
