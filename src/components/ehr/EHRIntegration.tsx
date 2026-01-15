@@ -97,13 +97,16 @@ export const EHRIntegration = ({ userId }: EHRIntegrationProps) => {
 
       if (error) throw error;
 
+      if (data?.status === 'error') {
+        throw new Error(data.error || 'Failed to connect');
+      }
+
       if (data?.status === 'connected' && data?.connect_url) {
         toast({
           title: "Connected to 1Up Health!",
           description: "Opening provider connection page...",
         });
-        
-        // Open the 1Up Health connect page in a new tab
+
         window.open(data.connect_url, '_blank');
         await loadConnection();
       } else {
@@ -131,11 +134,15 @@ export const EHRIntegration = ({ userId }: EHRIntegrationProps) => {
 
       if (error) throw error;
 
+      if (data?.status === 'error') {
+        throw new Error(data.error || 'Sync failed');
+      }
+
       toast({
         title: "Data synced!",
         description: `Imported ${data.records_synced} health records.`,
       });
-      
+
       await loadConnection();
       await loadFhirData();
     } catch (err: any) {

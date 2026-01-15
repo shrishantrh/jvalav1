@@ -81,40 +81,78 @@ serve(async (req) => {
           throw new Error('1Up Health credentials not configured');
         }
 
-        // Step 1: Create a 1Up Health user and get auth code
-        // Note: 1Up Health API requires app_user_id to be a string identifier
-        console.log('Creating 1Up Health user for:', userId);
-        
+        // Step 1: Ensure a 1Up Health user exists for this app_user_id
+        // 1Up returns "this user does not exist" unless we create/upsert the mapping first.
+        console.log('Ensuring 1Up Health user exists for:', userId);
+
+        const createUserResponse = await fetch('https://api.1up.health/user-management/v1/user', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            // Per 1Up docs these are sent as headers
+            'client_id': ONEUP_CLIENT_ID,
+            'client_secret': ONEUP_CLIENT_SECRET,
+          },
+          body: new URLSearchParams({
+            app_user_id: userId,
+          }),
+        });
+
+        const createUserText = await createUserResponse.text();
+        console.log('1Up create user status:', createUserResponse.status);
+
+        if (!createUserResponse.ok) {
+          console.error('1Up create user error:', createUserText);
+          return new Response(JSON.stringify({
+            status: 'error',
+            error: 'Unable to create 1Up Health user. Please verify your 1Up app is enabled for User Management APIs.',
+            details: createUserText,
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        // Step 2: Request an auth code for that user
         const authCodeResponse = await fetch(ONEUP_AUTH_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'client_id': ONEUP_CLIENT_ID,
+            'client_secret': ONEUP_CLIENT_SECRET,
           },
-          body: JSON.stringify({
-            app_user_id: userId,
-            client_id: ONEUP_CLIENT_ID,
-            client_secret: ONEUP_CLIENT_SECRET,
-          }),
+          body: JSON.stringify({ app_user_id: userId }),
         });
 
-        const authData = await authCodeResponse.json();
+        const authData = await authCodeResponse.json().catch(async () => ({ raw: await authCodeResponse.text() }));
         console.log('1Up auth response:', JSON.stringify(authData));
 
         if (!authCodeResponse.ok) {
           console.error('1Up auth code error:', authData);
-          throw new Error(authData.error_description || authData.error || `Failed to get auth code: ${authCodeResponse.status}`);
+          return new Response(JSON.stringify({
+            status: 'error',
+            error: (authData as any)?.error_description || (authData as any)?.error || `Failed to get auth code (${authCodeResponse.status})`,
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
         }
 
-        // The response should contain 'code' for new users or might have different structure
-        const authCode = authData.code;
+        const authCode = (authData as any)?.code;
         if (!authCode) {
           console.error('No auth code in response:', authData);
-          throw new Error('1Up Health did not return an auth code. Please verify your API credentials are correct and have the right permissions.');
+          return new Response(JSON.stringify({
+            status: 'error',
+            error: '1Up Health did not return an auth code. In 1Up, ensure your app is configured for OAuth + User Management and that the user mapping succeeded.',
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
         }
 
         console.log('Got 1Up auth code successfully');
 
-        // Step 2: Exchange auth code for access token
+        // Step 3: Exchange auth code for access token
         const tokenResponse = await fetch(ONEUP_TOKEN_URL, {
           method: 'POST',
           headers: {
@@ -128,12 +166,18 @@ serve(async (req) => {
           }),
         });
 
-        const tokens = await tokenResponse.json();
+        const tokens = await tokenResponse.json().catch(async () => ({ raw: await tokenResponse.text() }));
         console.log('1Up token response status:', tokenResponse.status);
 
         if (!tokenResponse.ok) {
           console.error('1Up token error:', tokens);
-          throw new Error(tokens.error_description || tokens.error || `Failed to get access token: ${tokenResponse.status}`);
+          return new Response(JSON.stringify({
+            status: 'error',
+            error: (tokens as any)?.error_description || (tokens as any)?.error || `Failed to get access token (${tokenResponse.status})`,
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
         }
         console.log('Got 1Up access token:', tokens.access_token ? 'yes' : 'no');
 
@@ -403,8 +447,13 @@ serve(async (req) => {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('EHR connect error:', error);
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
+
+    // Return 200 so the client can render a friendly error state (Supabase client treats non-2xx as a hard error).
+    return new Response(JSON.stringify({
+      status: 'error',
+      error: errorMessage,
+    }), {
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
