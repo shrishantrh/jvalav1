@@ -12,7 +12,7 @@ import { CalendarHistory } from "@/components/history/CalendarHistory";
 import { FlareTimeline } from "@/components/flare/FlareTimeline";
 import { ProfileManager } from "@/components/profile/ProfileManager";
 import { ProgressDashboard } from "@/components/engagement/ProgressDashboard";
-import { SmartOnboarding } from "@/components/onboarding/SmartOnboarding";
+import { RevolutionaryOnboarding } from "@/components/onboarding/RevolutionaryOnboarding";
 import { HealthForecast } from "@/components/forecast/HealthForecast";
 import { CycleTracker } from "@/components/tracking/CycleTracker";
 import { CalendarStress } from "@/components/tracking/CalendarStress";
@@ -440,12 +440,11 @@ const Index = () => {
 
   // Show onboarding if needed - now using SmartOnboarding (3 steps instead of 7)
   if (showOnboarding && !isLoadingProfile) {
-    return <SmartOnboarding onComplete={(data) => {
-      // Convert SmartOnboarding data to full onboarding format
+    return <RevolutionaryOnboarding onComplete={(data) => {
       handleOnboardingComplete({
         conditions: data.conditions,
-        symptoms: [], // AI will learn these
-        triggers: [], // AI will learn these
+        symptoms: [],
+        triggers: [],
         enableReminders: data.enableReminders,
         reminderTime: data.reminderTime,
       });
@@ -628,13 +627,6 @@ const Index = () => {
               />
             )}
             
-            {/* Discovered Patterns - Compact teaser */}
-            {topCorrelations.length > 0 && (
-              <CorrelationInsights 
-                correlations={topCorrelations}
-                onViewDetails={() => setCurrentView('insights')}
-              />
-            )}
           </div>
         )}
 
