@@ -82,6 +82,7 @@ serve(async (req) => {
         }
 
         // Step 1: Create a 1Up Health user and get auth code
+        // Note: 1Up Health API requires app_user_id to be a string identifier
         console.log('Creating 1Up Health user for:', userId);
         
         const authCodeResponse = await fetch(ONEUP_AUTH_URL, {
@@ -96,14 +97,22 @@ serve(async (req) => {
           }),
         });
 
+        const authData = await authCodeResponse.json();
+        console.log('1Up auth response:', JSON.stringify(authData));
+
         if (!authCodeResponse.ok) {
-          const errorText = await authCodeResponse.text();
-          console.error('1Up auth code error:', errorText);
-          throw new Error(`Failed to get auth code: ${authCodeResponse.status}`);
+          console.error('1Up auth code error:', authData);
+          throw new Error(authData.error_description || authData.error || `Failed to get auth code: ${authCodeResponse.status}`);
         }
 
-        const authData = await authCodeResponse.json();
-        console.log('Got 1Up auth code:', authData.code ? 'yes' : 'no');
+        // The response should contain 'code' for new users or might have different structure
+        const authCode = authData.code;
+        if (!authCode) {
+          console.error('No auth code in response:', authData);
+          throw new Error('1Up Health did not return an auth code. Please verify your API credentials are correct and have the right permissions.');
+        }
+
+        console.log('Got 1Up auth code successfully');
 
         // Step 2: Exchange auth code for access token
         const tokenResponse = await fetch(ONEUP_TOKEN_URL, {
@@ -114,18 +123,18 @@ serve(async (req) => {
           body: new URLSearchParams({
             client_id: ONEUP_CLIENT_ID,
             client_secret: ONEUP_CLIENT_SECRET,
-            code: authData.code,
+            code: authCode,
             grant_type: 'authorization_code',
           }),
         });
 
-        if (!tokenResponse.ok) {
-          const errorText = await tokenResponse.text();
-          console.error('1Up token error:', errorText);
-          throw new Error(`Failed to get access token: ${tokenResponse.status}`);
-        }
-
         const tokens = await tokenResponse.json();
+        console.log('1Up token response status:', tokenResponse.status);
+
+        if (!tokenResponse.ok) {
+          console.error('1Up token error:', tokens);
+          throw new Error(tokens.error_description || tokens.error || `Failed to get access token: ${tokenResponse.status}`);
+        }
         console.log('Got 1Up access token:', tokens.access_token ? 'yes' : 'no');
 
         // Store tokens securely
