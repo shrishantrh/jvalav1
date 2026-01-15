@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { query, userId, context } = await req.json();
+    const { query, userId } = await req.json();
     const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
     
     if (!anthropicKey) throw new Error("ANTHROPIC_API_KEY not configured");
@@ -67,11 +67,6 @@ serve(async (req) => {
       thisMonth: thisMonthFlares.length,
       lastMonth: lastMonthFlares.length,
       avgSeverity: calcSeverityScore(flares),
-      thisWeekSeverity: calcSeverityScore(thisWeekFlares),
-      lastWeekSeverity: calcSeverityScore(lastWeekFlares),
-      thisMonthSeverity: calcSeverityScore(thisMonthFlares),
-      lastMonthSeverity: calcSeverityScore(lastMonthFlares),
-      daysSinceLast: flares.length > 0 ? Math.floor((now - new Date(flares[0].timestamp).getTime()) / oneDay) : null,
       mildCount: flares.filter((e: any) => e.severity === "mild").length,
       moderateCount: flares.filter((e: any) => e.severity === "moderate").length,
       severeCount: flares.filter((e: any) => e.severity === "severe").length,
@@ -95,187 +90,311 @@ serve(async (req) => {
     });
     const topTriggers = Object.entries(triggerCounts).sort((a, b) => b[1] - a[1]).slice(0, 15);
 
-    // Time patterns
+    // Time patterns - by hour
     const hourCounts: Record<number, number> = {};
-    const dayCounts: Record<number, number> = {};
+    const dayCounts: Record<number, { count: number; severity: number[] }> = {};
     flares.forEach((e: any) => {
       const d = new Date(e.timestamp);
       hourCounts[d.getHours()] = (hourCounts[d.getHours()] || 0) + 1;
-      dayCounts[d.getDay()] = (dayCounts[d.getDay()] || 0) + 1;
+      if (!dayCounts[d.getDay()]) dayCounts[d.getDay()] = { count: 0, severity: [] };
+      dayCounts[d.getDay()].count++;
+      dayCounts[d.getDay()].severity.push(e.severity === "mild" ? 1 : e.severity === "moderate" ? 2 : 3);
     });
 
-    const peakHours = Object.entries(hourCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
-    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
     // Location data
-    const locationCounts: Record<string, number> = {};
-    const locationSeverities: Record<string, number[]> = {};
+    const locationCounts: Record<string, { count: number; severity: number[] }> = {};
     flares.forEach((e: any) => {
       const city = e.city || e.environmental_data?.location?.city;
       if (city) {
-        locationCounts[city] = (locationCounts[city] || 0) + 1;
-        if (!locationSeverities[city]) locationSeverities[city] = [];
-        locationSeverities[city].push(e.severity === "mild" ? 1 : e.severity === "moderate" ? 2 : 3);
+        if (!locationCounts[city]) locationCounts[city] = { count: 0, severity: [] };
+        locationCounts[city].count++;
+        locationCounts[city].severity.push(e.severity === "mild" ? 1 : e.severity === "moderate" ? 2 : 3);
       }
     });
-    const topLocations = Object.entries(locationCounts)
-      .map(([city, count]) => ({
-        city,
-        count,
-        avgSeverity: locationSeverities[city].reduce((a, b) => a + b, 0) / locationSeverities[city].length
-      }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
 
     // Weather analysis
-    const weatherCounts: Record<string, { count: number; severities: number[]; temps: number[]; humidities: number[] }> = {};
+    const weatherCounts: Record<string, { count: number; severity: number[]; temps: number[] }> = {};
     flares.forEach((e: any) => {
       const weather = e.environmental_data?.weather;
       if (weather?.condition) {
         const cond = weather.condition.toLowerCase();
-        if (!weatherCounts[cond]) weatherCounts[cond] = { count: 0, severities: [], temps: [], humidities: [] };
+        if (!weatherCounts[cond]) weatherCounts[cond] = { count: 0, severity: [], temps: [] };
         weatherCounts[cond].count++;
-        weatherCounts[cond].severities.push(e.severity === "mild" ? 1 : e.severity === "moderate" ? 2 : 3);
+        weatherCounts[cond].severity.push(e.severity === "mild" ? 1 : e.severity === "moderate" ? 2 : 3);
         if (weather.temperature) weatherCounts[cond].temps.push(weather.temperature);
-        if (weather.humidity) weatherCounts[cond].humidities.push(weather.humidity);
       }
     });
-    const weatherAnalysis = Object.entries(weatherCounts)
-      .map(([condition, data]) => ({
-        condition,
-        count: data.count,
-        avgSeverity: data.severities.length ? (data.severities.reduce((a, b) => a + b, 0) / data.severities.length).toFixed(1) : "N/A",
-        avgTemp: data.temps.length ? Math.round(data.temps.reduce((a, b) => a + b, 0) / data.temps.length) : null,
-      }))
-      .sort((a, b) => b.count - a.count);
 
-    // Temperature correlation
-    const tempRanges: Record<string, { count: number; severities: number[] }> = {
-      "cold (<50°F)": { count: 0, severities: [] },
-      "cool (50-65°F)": { count: 0, severities: [] },
-      "mild (65-75°F)": { count: 0, severities: [] },
-      "warm (75-85°F)": { count: 0, severities: [] },
-      "hot (>85°F)": { count: 0, severities: [] },
-    };
+    // Temperature buckets
+    const tempBuckets: Record<string, number> = { "<40°F": 0, "40-55°F": 0, "55-70°F": 0, "70-85°F": 0, ">85°F": 0 };
     flares.forEach((e: any) => {
       const temp = e.environmental_data?.weather?.temperature;
       if (temp != null) {
-        const sev = e.severity === "mild" ? 1 : e.severity === "moderate" ? 2 : 3;
-        if (temp < 50) { tempRanges["cold (<50°F)"].count++; tempRanges["cold (<50°F)"].severities.push(sev); }
-        else if (temp < 65) { tempRanges["cool (50-65°F)"].count++; tempRanges["cool (50-65°F)"].severities.push(sev); }
-        else if (temp < 75) { tempRanges["mild (65-75°F)"].count++; tempRanges["mild (65-75°F)"].severities.push(sev); }
-        else if (temp < 85) { tempRanges["warm (75-85°F)"].count++; tempRanges["warm (75-85°F)"].severities.push(sev); }
-        else { tempRanges["hot (>85°F)"].count++; tempRanges["hot (>85°F)"].severities.push(sev); }
+        if (temp < 40) tempBuckets["<40°F"]++;
+        else if (temp < 55) tempBuckets["40-55°F"]++;
+        else if (temp < 70) tempBuckets["55-70°F"]++;
+        else if (temp < 85) tempBuckets["70-85°F"]++;
+        else tempBuckets[">85°F"]++;
       }
+    });
+
+    // Monthly trend
+    const monthlyFlares: Record<string, number> = {};
+    flares.forEach((e: any) => {
+      const d = new Date(e.timestamp);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      monthlyFlares[key] = (monthlyFlares[key] || 0) + 1;
+    });
+
+    // Weekly trend (last 8 weeks)
+    const weeklyFlares: { week: string; count: number }[] = [];
+    for (let i = 7; i >= 0; i--) {
+      const weekStart = new Date(now - i * oneWeek);
+      const weekEnd = new Date(now - (i - 1) * oneWeek);
+      const count = flares.filter((e: any) => {
+        const t = new Date(e.timestamp).getTime();
+        return t >= weekStart.getTime() && t < weekEnd.getTime();
+      }).length;
+      weeklyFlares.push({ week: `Week ${8 - i}`, count });
+    }
+
+    // Severity by hour
+    const hourSeverity: Record<number, { total: number; count: number }> = {};
+    flares.forEach((e: any) => {
+      const h = new Date(e.timestamp).getHours();
+      if (!hourSeverity[h]) hourSeverity[h] = { total: 0, count: 0 };
+      hourSeverity[h].total += e.severity === "mild" ? 1 : e.severity === "moderate" ? 2 : 3;
+      hourSeverity[h].count++;
     });
 
     // Medication analysis
-    const medEffectiveness: Record<string, { timesLogged: number; flaresWithin24h: number }> = {};
+    const medStats: Record<string, { times: number; flaresAfter: number }> = {};
     medications.forEach((med: any) => {
       const medTime = new Date(med.taken_at).getTime();
       const flaresAfter = flares.filter((f: any) => {
-        const flareTime = new Date(f.timestamp).getTime();
-        return flareTime > medTime && flareTime < medTime + 24 * 60 * 60 * 1000;
-      });
+        const t = new Date(f.timestamp).getTime();
+        return t > medTime && t < medTime + oneDay;
+      }).length;
       const name = med.medication_name;
-      if (!medEffectiveness[name]) {
-        medEffectiveness[name] = { timesLogged: 0, flaresWithin24h: 0 };
-      }
-      medEffectiveness[name].timesLogged++;
-      medEffectiveness[name].flaresWithin24h += flaresAfter.length;
+      if (!medStats[name]) medStats[name] = { times: 0, flaresAfter: 0 };
+      medStats[name].times++;
+      medStats[name].flaresAfter += flaresAfter;
     });
 
-    // Build compact data summary for Claude
-    const dataSummary = {
-      totalFlares: stats.total,
-      mildCount: stats.mildCount,
-      moderateCount: stats.moderateCount,
-      severeCount: stats.severeCount,
-      avgSeverity: stats.avgSeverity.toFixed(1),
-      thisWeek: stats.thisWeek,
-      lastWeek: stats.lastWeek,
-      thisMonth: stats.thisMonth,
-      lastMonth: stats.lastMonth,
-      daysSinceLast: stats.daysSinceLast,
-      topSymptoms: topSymptoms.slice(0, 8),
-      topTriggers: topTriggers.slice(0, 8),
-      topLocations: topLocations.slice(0, 5),
-      weatherPatterns: weatherAnalysis.slice(0, 5),
-      tempPatterns: Object.entries(tempRanges).filter(([_, d]) => d.count > 0).map(([r, d]) => ({ range: r, count: d.count })),
-      peakHours: peakHours.map(([h, c]) => `${h}:00 (${c})`),
-      peakDays: Object.entries(dayCounts).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([d, c]) => `${dayNames[parseInt(d)]} (${c})`),
-      medications: Object.entries(medEffectiveness).map(([n, d]) => ({ name: n, logged: d.timesLogged, flaresAfter: d.flaresWithin24h })),
-      correlations: correlations.slice(0, 10).map((c: any) => ({ trigger: c.trigger_value, outcome: c.outcome_value, confidence: Math.round((c.confidence || 0) * 100), count: c.occurrence_count })),
-      streak: engagement?.current_streak || 0,
-      conditions: profile?.conditions || [],
+    // Build rich data context for Claude
+    const dataContext = {
+      overview: {
+        totalFlares: stats.total,
+        severityBreakdown: { mild: stats.mildCount, moderate: stats.moderateCount, severe: stats.severeCount },
+        avgSeverity: stats.avgSeverity.toFixed(1),
+        thisWeek: stats.thisWeek,
+        lastWeek: stats.lastWeek,
+        thisMonth: stats.thisMonth,
+        lastMonth: stats.lastMonth,
+        weekChange: stats.thisWeek - stats.lastWeek,
+        monthChange: stats.thisMonth - stats.lastMonth,
+      },
+      topSymptoms: topSymptoms.slice(0, 10).map(([name, count]) => ({ name, count })),
+      topTriggers: topTriggers.slice(0, 10).map(([name, count]) => ({ name, count })),
+      locations: Object.entries(locationCounts).map(([city, data]) => ({
+        city,
+        count: data.count,
+        avgSeverity: (data.severity.reduce((a, b) => a + b, 0) / data.severity.length).toFixed(1)
+      })).sort((a, b) => b.count - a.count).slice(0, 8),
+      weather: Object.entries(weatherCounts).map(([condition, data]) => ({
+        condition,
+        count: data.count,
+        avgSeverity: (data.severity.reduce((a, b) => a + b, 0) / data.severity.length).toFixed(1),
+        avgTemp: data.temps.length ? Math.round(data.temps.reduce((a, b) => a + b, 0) / data.temps.length) : null,
+      })).sort((a, b) => b.count - a.count).slice(0, 8),
+      temperature: Object.entries(tempBuckets).filter(([_, c]) => c > 0).map(([range, count]) => ({ range, count })),
+      byDayOfWeek: dayNames.map((name, i) => ({
+        day: name,
+        count: dayCounts[i]?.count || 0,
+        avgSeverity: dayCounts[i]?.severity.length ? (dayCounts[i].severity.reduce((a, b) => a + b, 0) / dayCounts[i].severity.length).toFixed(1) : "0",
+      })),
+      byHour: Object.entries(hourCounts).map(([hour, count]) => ({
+        hour: `${hour}:00`,
+        count,
+        avgSeverity: hourSeverity[parseInt(hour)] ? (hourSeverity[parseInt(hour)].total / hourSeverity[parseInt(hour)].count).toFixed(1) : "0",
+      })).sort((a, b) => parseInt(a.hour) - parseInt(b.hour)),
+      weeklyTrend: weeklyFlares,
+      monthlyTrend: Object.entries(monthlyFlares).sort((a, b) => a[0].localeCompare(b[0])).slice(-6).map(([month, count]) => ({ month, count })),
+      medications: Object.entries(medStats).map(([name, data]) => ({
+        name,
+        timesLogged: data.times,
+        flaresWithin24h: data.flaresAfter,
+        avgFlaresPerDose: data.times > 0 ? (data.flaresAfter / data.times).toFixed(1) : "0",
+      })),
+      correlations: correlations.slice(0, 12).map((c: any) => ({
+        trigger: c.trigger_value,
+        outcome: c.outcome_value,
+        confidence: Math.round((c.confidence || 0) * 100),
+        occurrences: c.occurrence_count,
+      })),
+      profile: {
+        conditions: profile?.conditions || [],
+        knownSymptoms: profile?.known_symptoms || [],
+        knownTriggers: profile?.known_triggers || [],
+      },
+      engagement: {
+        streak: engagement?.current_streak || 0,
+        longestStreak: engagement?.longest_streak || 0,
+        totalLogs: engagement?.total_logs || 0,
+      },
     };
 
-    const systemPrompt = `You are Jvala, a warm and insightful health companion. You speak naturally like a friend who happens to be really good with data.
+    const systemPrompt = `You are Jvala, a brilliant health data analyst who speaks like a warm friend. You create beautiful, insightful visualizations.
 
-YOUR VOICE:
-- Conversational, not clinical. Like texting a smart friend.
-- SHORT responses. 2-3 sentences max for simple questions. Never write essays.
-- Lead with the insight, not the data. The chart shows the numbers.
-- Use "you" and "your", not "the user" or "the data shows".
+═══════════════════════════════════════════════════════════════════════════════
+YOUR PERSONALITY
+═══════════════════════════════════════════════════════════════════════════════
+- Conversational and warm, like texting a really smart friend
+- SHORT responses: 1-3 sentences max. Let the chart tell the story.
+- Lead with the insight, not the data dump
+- Never say "I don't have access" - you have ALL their data below
 
-CRITICAL RULES:
-1. NEVER write more than 3 sentences in your response text
-2. Let the visualization do the heavy lifting - don't repeat all the numbers in text
-3. If you generate a chart, your text should be a brief insight about what it shows
-4. Be direct: "Cold weather hits you hardest" not "Based on your data, cold weather conditions appear to be associated with..."
-5. ALWAYS generate a visualization if data would help - but only ONE, and pick the most relevant type
+═══════════════════════════════════════════════════════════════════════════════
+CHART TYPES YOU CAN CREATE (pick the BEST one for the question)
+═══════════════════════════════════════════════════════════════════════════════
 
-RESPONSE STYLE EXAMPLES:
-✓ "Cold weather's your biggest trigger - 109 of your flares happened below 50°F. Overcast days also seem to hit harder."
-✗ "Your flare data indicates interesting correlations between your location, weather, and flare occurrences. Grayslake accounts for the highest number of flares at 56, with Urbana following at 35..."
+1. BAR CHARTS (use for rankings, comparisons)
+   - "bar_chart" or "horizontal_bar": Best for comparing things
+   - Data: [{ label: "Headache", value: 45 }, { label: "Fatigue", value: 32 }]
 
-✓ "You're doing better this month - down 15% from last month with milder flares overall."
-✗ "This month, you've experienced 39 flares. Unfortunately, I don't have direct access to..."
+2. PIE/DONUT (use for proportions, breakdowns)
+   - "pie_chart" or "donut_chart": Best for showing parts of a whole
+   - Data: [{ label: "Mild", value: 12 }, { label: "Moderate", value: 8 }, { label: "Severe", value: 3 }]
 
-USER'S HEALTH DATA:
-${JSON.stringify(dataSummary, null, 2)}
+3. LINE/AREA (use for trends over time)
+   - "line_chart" or "area_chart": Best for showing change over time
+   - Data: [{ label: "Week 1", value: 5 }, { label: "Week 2", value: 8 }]
 
-Answer the user's question with a brief, insightful response and generate a relevant visualization.`;
+4. SCATTER PLOT (use for correlations between two variables)
+   - "scatter_plot": Best for showing relationships
+   - Data: [{ x: 45, y: 2.1, label: "Clear" }, { x: 78, y: 1.8, label: "Humid" }]
+   - Config: { xAxis: "Temperature (°F)", yAxis: "Severity" }
+
+5. HISTOGRAM (use for distributions)
+   - "histogram": Best for showing frequency distributions
+   - Data: [{ label: "0-2 hrs", value: 5 }, { label: "2-4 hrs", value: 12 }]
+
+6. COMPARISON CARDS (use for before/after, this vs that)
+   - "comparison": Best for simple A vs B comparisons
+   - Data: [{ label: "This Month", value: 23, extra: "-15% from last month" }, { label: "Last Month", value: 27 }]
+
+7. HEATMAP (use for patterns by day/hour)
+   - "heatmap": Best for time patterns
+   - Data: Array of 7 items for days, or grid data
+
+8. PATTERN SUMMARY (use for key insights list)
+   - "pattern_summary": Best for listing key findings
+   - Data: [{ label: "Peak flare time", value: "3 PM", extra: "(15 flares)" }]
+
+9. RADIAL/GAUGE (use for progress, goals)
+   - "gauge": Best for showing progress toward a goal
+   - Data: [{ label: "Streak", value: 7 }, { label: "Goal", value: 14 }]
+
+═══════════════════════════════════════════════════════════════════════════════
+VISUALIZATION STRATEGY
+═══════════════════════════════════════════════════════════════════════════════
+
+- ALWAYS generate a chart when data would help explain the answer
+- Pick the chart type that BEST answers the question
+- Make titles SHORT (3-5 words max)
+- Data should have 3-10 items (not too few, not overwhelming)
+
+EXAMPLES:
+Q: "What triggers my flares?"
+→ horizontal_bar of top triggers
+
+Q: "How am I doing this month vs last?"
+→ comparison cards showing both periods
+
+Q: "When do I get flares?"
+→ bar_chart by hour of day, OR line_chart of weekly trend
+
+Q: "Is weather affecting me?"
+→ scatter_plot with temp vs severity, OR bar_chart of conditions
+
+Q: "Show me my progress"
+→ line_chart of weekly flare counts, OR gauge showing streak
+
+═══════════════════════════════════════════════════════════════════════════════
+USER'S COMPLETE HEALTH DATA
+═══════════════════════════════════════════════════════════════════════════════
+
+${JSON.stringify(dataContext, null, 2)}
+
+═══════════════════════════════════════════════════════════════════════════════
+USER'S QUESTION: "${query}"
+═══════════════════════════════════════════════════════════════════════════════
+
+Give a brief insight (1-3 sentences) and create the PERFECT visualization.`;
 
     const tools = [
       {
-        name: "respond_with_insight",
-        description: "Respond with a brief insight and optional visualization",
+        name: "respond_with_visualization",
+        description: "Respond with insight and a dynamic chart",
         input_schema: {
           type: "object",
-          required: ["response"],
+          required: ["response", "chart"],
           properties: {
             response: { 
               type: "string", 
-              description: "Your response - MAX 3 sentences. Be conversational, not clinical." 
+              description: "Brief conversational insight (1-3 sentences). Let the chart do the heavy lifting." 
             },
-            visualization: {
+            chart: {
               type: "object",
-              description: "A chart to show data. Only include if it adds value.",
+              description: "The visualization to display",
+              required: ["type", "title", "data"],
               properties: {
                 type: { 
                   type: "string", 
-                  enum: ["bar_chart", "pie_chart", "line_chart", "pattern_summary", "comparison"] 
+                  enum: [
+                    "bar_chart", "horizontal_bar", "stacked_bar",
+                    "pie_chart", "donut_chart",
+                    "line_chart", "area_chart", "stacked_area",
+                    "scatter_plot", "histogram",
+                    "comparison", "heatmap", "pattern_summary", "gauge"
+                  ],
+                  description: "Chart type - pick the best one for the question"
                 },
-                title: { type: "string", description: "Short chart title (3-5 words)" },
+                title: { 
+                  type: "string", 
+                  description: "Short chart title (3-5 words)" 
+                },
                 data: { 
                   type: "array", 
+                  description: "Chart data points",
                   items: { 
                     type: "object", 
                     properties: { 
                       label: { type: "string" }, 
                       value: { type: "number" },
-                      extra: { type: "string" }
+                      x: { type: "number" },
+                      y: { type: "number" },
+                      extra: { type: "string" },
+                      color: { type: "string" }
                     } 
                   } 
                 },
+                config: {
+                  type: "object",
+                  description: "Optional chart configuration",
+                  properties: {
+                    xAxis: { type: "string" },
+                    yAxis: { type: "string" },
+                  }
+                }
               },
-              required: ["type", "title", "data"],
             },
             dynamicFollowUps: {
               type: "array",
               items: { type: "string" },
-              description: "2-3 short follow-up questions (under 8 words each)",
+              description: "2-3 short follow-up questions the user might ask next",
             },
           },
         },
@@ -291,11 +410,11 @@ Answer the user's question with a brief, insightful response and generate a rele
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 1024,
+        max_tokens: 2048,
         system: systemPrompt,
         messages: [{ role: "user", content: query }],
         tools,
-        tool_choice: { type: "tool", name: "respond_with_insight" },
+        tool_choice: { type: "tool", name: "respond_with_visualization" },
       }),
     });
 
@@ -315,12 +434,18 @@ Answer the user's question with a brief, insightful response and generate a rele
     const toolUse = data.content?.find((c: any) => c.type === "tool_use");
     
     if (toolUse?.input) {
-      return new Response(JSON.stringify(toolUse.input), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      // Map chart to visualization for compatibility
+      const result = {
+        response: toolUse.input.response,
+        visualization: toolUse.input.chart,
+        dynamicFollowUps: toolUse.input.dynamicFollowUps,
+      };
+      return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Fallback to text response
+    // Fallback
     const textContent = data.content?.find((c: any) => c.type === "text");
-    return new Response(JSON.stringify({ response: textContent?.text || "I'm here to help with your health patterns." }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ response: textContent?.text || "I'm here to help analyze your health patterns." }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error) {
     console.error("AI error:", error);
