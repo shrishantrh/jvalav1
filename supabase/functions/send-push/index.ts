@@ -1,53 +1,36 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { ApplicationServer, importVapidKeys } from "jsr:@negrel/webpush@0.5.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Web Push implementation using VAPID
-async function sendWebPush(
-  subscription: { endpoint: string; p256dh_key: string; auth_key: string },
-  payload: object,
-  vapidPublicKey: string,
-  vapidPrivateKey: string
-): Promise<boolean> {
+let appServer: ApplicationServer | null = null;
+
+async function getAppServer(): Promise<ApplicationServer | null> {
+  if (appServer) return appServer;
+  
+  const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY');
+  const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY');
+  
+  if (!vapidPublicKey || !vapidPrivateKey) {
+    console.error('VAPID keys not configured');
+    return null;
+  }
+  
   try {
-    // Import web-push compatible library for Deno
-    const encoder = new TextEncoder();
-    
-    // Create JWT for VAPID authentication
-    const header = { alg: 'ES256', typ: 'JWT' };
-    const now = Math.floor(Date.now() / 1000);
-    const claims = {
-      aud: new URL(subscription.endpoint).origin,
-      exp: now + 12 * 60 * 60, // 12 hours
-      sub: 'mailto:support@jvala.tech',
-    };
-
-    const payloadString = JSON.stringify(payload);
-    
-    // For now, use a simple fetch to the push endpoint
-    // In production, you'd want to use proper VAPID signing
-    const response = await fetch(subscription.endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'TTL': '86400',
-      },
-      body: payloadString,
+    const vapidKeys = await importVapidKeys({
+      publicKey: vapidPublicKey,
+      privateKey: vapidPrivateKey,
     });
-
-    if (!response.ok) {
-      console.log(`Push failed: ${response.status} ${response.statusText}`);
-      return false;
-    }
-
-    return true;
+    
+    appServer = new ApplicationServer(vapidKeys, 'mailto:support@jvala.tech');
+    return appServer;
   } catch (error) {
-    console.error('Error sending push:', error);
-    return false;
+    console.error('Failed to initialize VAPID:', error);
+    return null;
   }
 }
 
@@ -57,23 +40,20 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY');
-    const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY');
-
-    if (!vapidPublicKey || !vapidPrivateKey) {
-      console.log('⚠️ VAPID keys not configured');
+    const server = await getAppServer();
+    if (!server) {
       return new Response(JSON.stringify({ error: 'VAPID not configured' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const body = await req.json();
     
-    const { userId, title, body: messageBody, tag, data, url } = body;
+    const body = await req.json();
+    const { userId, title, body: messageBody, tag, data, url, requireInteraction = true } = body;
 
     if (!userId) {
       return new Response(JSON.stringify({ error: 'userId required' }), {
@@ -82,68 +62,64 @@ serve(async (req) => {
       });
     }
 
-    // Get user's push subscriptions
     const { data: subscriptions, error } = await supabase
       .from('push_subscriptions')
       .select('*')
       .eq('user_id', userId);
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     if (!subscriptions || subscriptions.length === 0) {
-      console.log(`No push subscriptions for user ${userId}`);
       return new Response(JSON.stringify({ sent: 0, reason: 'no_subscriptions' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const payload = {
+    const payload = JSON.stringify({
       title: title || 'Jvala',
       body: messageBody || 'Time to check in!',
-      icon: '/favicon.ico',
-      badge: '/favicon.ico',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
       tag: tag || 'jvala-notification',
       data: { url: url || '/', ...data },
-      requireInteraction: true,
-    };
+      requireInteraction,
+      vibrate: [200, 100, 200],
+    });
 
     let successCount = 0;
     const failedEndpoints: string[] = [];
 
     for (const sub of subscriptions) {
-      const success = await sendWebPush(sub, payload, vapidPublicKey, vapidPrivateKey);
-      if (success) {
-        successCount++;
-      } else {
+      try {
+        const subscriber = server.subscribe({
+          endpoint: sub.endpoint,
+          keys: { p256dh: sub.p256dh_key, auth: sub.auth_key },
+        });
+
+        const response = await subscriber.pushTextMessage(payload, { ttl: 86400 });
+
+        if (response.ok) {
+          successCount++;
+        } else if (response.status === 410 || response.status === 404) {
+          failedEndpoints.push(sub.endpoint);
+        }
+      } catch {
         failedEndpoints.push(sub.endpoint);
       }
     }
 
-    // Clean up failed subscriptions (they may have been unsubscribed)
     if (failedEndpoints.length > 0) {
-      await supabase
-        .from('push_subscriptions')
-        .delete()
-        .eq('user_id', userId)
-        .in('endpoint', failedEndpoints);
+      await supabase.from('push_subscriptions').delete()
+        .eq('user_id', userId).in('endpoint', failedEndpoints);
     }
 
-    console.log(`✅ Sent ${successCount}/${subscriptions.length} push notifications to user ${userId}`);
-
-    return new Response(JSON.stringify({ 
-      sent: successCount, 
-      total: subscriptions.length,
-      cleaned: failedEndpoints.length 
-    }), {
+    return new Response(JSON.stringify({ sent: successCount, total: subscriptions.length }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error: unknown) {
-    console.error('❌ Send push error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    console.error('Send push error:', error);
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

@@ -77,3 +77,9 @@ verify_jwt = false
 
 [functions.health-forecast]
 verify_jwt = false
+
+[functions.proactive-monitor]
+verify_jwt = false
+
+[functions.ai-insights]
+verify_jwt = false
