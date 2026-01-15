@@ -51,6 +51,10 @@ interface ChatMessage {
     type: 'severity' | 'symptoms' | 'triggers' | 'timeline';
     data: any;
   };
+  // Limitless AI payload
+  visualization?: AIVisualization;
+  followUp?: string;
+
   updateInfo?: {
     entryId: string;
     updates: Partial<FlareEntry>;

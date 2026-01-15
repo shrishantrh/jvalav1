@@ -2,13 +2,13 @@ import { useMemo, useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { FlareEntry } from "@/types/flare";
 import { InsightsCharts } from "@/components/insights/InsightsCharts";
 import { EnhancedMedicalExport } from "@/components/insights/EnhancedMedicalExport";
 import { SmartPredictions } from "@/components/insights/SmartPredictions";
 import { MedicationTracker } from "@/components/medication/MedicationTracker";
 import { EHRIntegration } from "@/components/ehr/EHRIntegration";
+import { CommunityHotspots } from "@/components/insights/CommunityHotspots";
 import { 
   TrendingUp, 
   TrendingDown,
@@ -20,10 +20,11 @@ import {
   Brain,
   Target,
   Clock,
-  Sparkles
+  Sparkles,
+  MapPin
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
-import { format, subDays, isWithinInterval, differenceInDays } from 'date-fns';
+import { isWithinInterval, subDays, differenceInDays } from 'date-fns';
 import { useAuth } from "@/hooks/useAuth";
 
 interface MedicationLog {
@@ -60,13 +61,9 @@ export const StreamlinedInsights = ({
     const last30Days = entries.filter(e => 
       isWithinInterval(e.timestamp, { start: subDays(now, 30), end: now })
     );
-    const prev30Days = entries.filter(e => 
-      isWithinInterval(e.timestamp, { start: subDays(now, 60), end: subDays(now, 30) })
-    );
 
     const flares7d = last7Days.filter(e => e.type === 'flare');
     const flares30d = last30Days.filter(e => e.type === 'flare');
-    const flaresPrev30d = prev30Days.filter(e => e.type === 'flare');
 
     // Trend calculation
     const weeklyAvgFlares = flares30d.length / 4;
@@ -233,12 +230,16 @@ export const StreamlinedInsights = ({
         userConditions={userConditions} 
       />
 
-      {/* Tabbed Content - Simplified to 4 tabs */}
+      {/* Tabbed Content - 5 tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 h-10">
+        <TabsList className="grid w-full grid-cols-5 h-10">
           <TabsTrigger value="overview" className="text-xs gap-1">
             <BarChart3 className="w-3 h-3" />
             Charts
+          </TabsTrigger>
+          <TabsTrigger value="community" className="text-xs gap-1">
+            <MapPin className="w-3 h-3" />
+            Local
           </TabsTrigger>
           <TabsTrigger value="meds" className="text-xs gap-1">
             <Pill className="w-3 h-3" />
@@ -257,6 +258,10 @@ export const StreamlinedInsights = ({
         <div className="mt-4">
           <TabsContent value="overview" className="mt-0">
             <InsightsCharts entries={entries} />
+          </TabsContent>
+
+          <TabsContent value="community" className="mt-0">
+            <CommunityHotspots entries={entries} userConditions={userConditions} />
           </TabsContent>
 
           <TabsContent value="meds" className="mt-0">
