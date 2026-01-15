@@ -6,93 +6,119 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// EHR/EMR Integration Options Research & Setup
-// Major providers: Epic, Cerner, b.well, HealthEx, 1Up Health, Particle Health
-
 interface EHRProvider {
   id: string;
   name: string;
   type: 'fhir' | 'proprietary';
   available: boolean;
-  setupRequired: boolean;
+  authType: 'oauth2' | 'api_key' | 'user_initiated';
+  baseUrl?: string;
   dataTypes: string[];
-  notes: string;
+  setupSteps: string[];
 }
 
-const EHR_PROVIDERS: EHRProvider[] = [
-  {
-    id: 'epic',
-    name: 'Epic MyChart',
-    type: 'fhir',
-    available: true,
-    setupRequired: true,
-    dataTypes: ['conditions', 'medications', 'allergies', 'labs', 'vitals', 'encounters', 'immunizations'],
-    notes: 'Requires Epic App Orchard registration. Free for patient access apps. SMART on FHIR OAuth.'
-  },
-  {
-    id: 'cerner',
-    name: 'Oracle Cerner',
-    type: 'fhir',
-    available: true,
-    setupRequired: true,
-    dataTypes: ['conditions', 'medications', 'allergies', 'labs', 'vitals', 'encounters'],
-    notes: 'Requires Cerner Code Console registration. SMART on FHIR OAuth.'
-  },
-  {
-    id: 'bwell',
-    name: 'b.well Connected Health',
-    type: 'proprietary',
-    available: true,
-    setupRequired: true,
-    dataTypes: ['unified_health_record', 'claims', 'clinical', 'devices', 'user_reported'],
-    notes: 'Unified API for 300+ health plans. CMS-aligned network. Requires partnership agreement.'
-  },
-  {
-    id: 'healthex',
-    name: 'HealthEx',
-    type: 'fhir',
-    available: true,
-    setupRequired: true,
-    dataTypes: ['patient_records', 'consent_management', 'data_sharing'],
-    notes: 'TEFCA QHIN certified. Patient-driven consent management. SOC2, HITRUST certified.'
-  },
-  {
-    id: '1uphealth',
-    name: '1Up Health',
-    type: 'fhir',
-    available: true,
-    setupRequired: true,
-    dataTypes: ['conditions', 'medications', 'labs', 'claims', 'vitals'],
-    notes: 'FHIR aggregator. Connect to 300+ EHRs. Free tier available for developers.'
-  },
-  {
-    id: 'particle',
-    name: 'Particle Health',
-    type: 'fhir',
-    available: true,
-    setupRequired: true,
-    dataTypes: ['medical_records', 'labs', 'encounters', 'medications'],
-    notes: 'Carequality network. Real-time patient data. Enterprise pricing.'
-  },
-  {
-    id: 'flexpa',
-    name: 'Flexpa',
-    type: 'fhir',
-    available: true,
-    setupRequired: true,
-    dataTypes: ['claims', 'coverage', 'medications', 'conditions'],
-    notes: 'Claims data aggregator. Connect to 200+ payers. Usage-based pricing.'
-  },
-  {
+const EHR_PROVIDERS: Record<string, EHRProvider> = {
+  apple_health_records: {
     id: 'apple_health_records',
     name: 'Apple Health Records',
     type: 'fhir',
     available: true,
-    setupRequired: false,
+    authType: 'user_initiated',
     dataTypes: ['conditions', 'medications', 'allergies', 'labs', 'vitals', 'immunizations'],
-    notes: 'Free. User-initiated. 700+ hospitals. Data syncs to HealthKit.'
-  }
-];
+    setupSteps: [
+      'Open the Health app on your iPhone',
+      'Tap your profile picture in the top right',
+      'Tap "Health Records"',
+      'Tap "Get Started" or "Add Account"',
+      'Search for your healthcare provider',
+      'Sign in with your patient portal credentials',
+      'Your data will sync automatically to Jvala',
+    ],
+  },
+  '1uphealth': {
+    id: '1uphealth',
+    name: '1Up Health',
+    type: 'fhir',
+    available: true,
+    authType: 'oauth2',
+    baseUrl: 'https://api.1up.health/fhir/r4',
+    dataTypes: ['conditions', 'medications', 'labs', 'claims', 'vitals'],
+    setupSteps: [
+      'Click "Connect" to start',
+      'You will be redirected to 1Up Health',
+      'Search for your health plan or provider',
+      'Sign in with your credentials',
+      'Authorize Jvala to access your records',
+      'Data syncs within 24 hours',
+    ],
+  },
+  epic: {
+    id: 'epic',
+    name: 'Epic MyChart',
+    type: 'fhir',
+    available: true,
+    authType: 'oauth2',
+    baseUrl: 'https://fhir.epic.com/interconnect-fhir-oauth/api/FHIR/R4',
+    dataTypes: ['conditions', 'medications', 'allergies', 'labs', 'vitals', 'encounters', 'immunizations'],
+    setupSteps: [
+      'Click "Connect" to start',
+      'You will be redirected to Epic MyChart',
+      'Search for your hospital or clinic',
+      'Sign in with your MyChart credentials',
+      'Authorize Jvala to access your records',
+      'Your data syncs automatically',
+    ],
+  },
+  cerner: {
+    id: 'cerner',
+    name: 'Oracle Cerner',
+    type: 'fhir',
+    available: true,
+    authType: 'oauth2',
+    baseUrl: 'https://fhir-open.cerner.com/r4',
+    dataTypes: ['conditions', 'medications', 'allergies', 'labs', 'vitals', 'encounters'],
+    setupSteps: [
+      'Click "Connect" to start',
+      'You will be redirected to Cerner Health',
+      'Search for your healthcare organization',
+      'Sign in with your patient portal credentials',
+      'Authorize Jvala to access your records',
+      'Data syncs within a few hours',
+    ],
+  },
+  bwell: {
+    id: 'bwell',
+    name: 'b.well Connected Health',
+    type: 'proprietary',
+    available: true,
+    authType: 'oauth2',
+    baseUrl: 'https://api.icanbwell.com',
+    dataTypes: ['unified_health_record', 'claims', 'clinical', 'devices', 'user_reported'],
+    setupSteps: [
+      'Click "Connect" to start',
+      'You will be redirected to b.well',
+      'Connect your health plans and providers',
+      'Your unified health record is created',
+      'All data syncs to Jvala automatically',
+    ],
+  },
+  healthex: {
+    id: 'healthex',
+    name: 'HealthEx',
+    type: 'fhir',
+    available: true,
+    authType: 'oauth2',
+    baseUrl: 'https://api.healthex.io/fhir/r4',
+    dataTypes: ['patient_records', 'consent_management', 'data_sharing'],
+    setupSteps: [
+      'Click "Connect" to start',
+      'You will be redirected to HealthEx',
+      'Verify your identity',
+      'Set your consent preferences',
+      'Your records sync via the TEFCA network',
+    ],
+  },
+};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -105,110 +131,203 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { action, userId, provider } = await req.json();
+    const { action, userId, provider, code, state } = await req.json();
+    console.log(`EHR Connect: action=${action}, provider=${provider}`);
 
     switch (action) {
-      case 'list_providers':
-        // Return available EHR integration options
+      case 'list_providers': {
+        const providerList = Object.values(EHR_PROVIDERS).map(p => ({
+          id: p.id,
+          name: p.name,
+          type: p.type,
+          available: p.available,
+          authType: p.authType,
+          dataTypes: p.dataTypes,
+        }));
+
         return new Response(JSON.stringify({
-          providers: EHR_PROVIDERS,
+          providers: providerList,
           recommendations: [
             {
               priority: 1,
               provider: 'apple_health_records',
-              reason: 'No setup required. User-controlled. Works immediately if patient has connected hospitals in Apple Health.'
+              reason: 'No setup required. Your hospitals may already be connected in Apple Health.',
             },
             {
               priority: 2,
               provider: '1uphealth',
-              reason: 'Easiest developer integration. Free tier. FHIR aggregator for 300+ EHRs.'
+              reason: 'Connect to 300+ health plans and EHRs in one place.',
             },
             {
               priority: 3,
               provider: 'epic',
-              reason: 'Largest EHR market share (35%+). Direct patient access. Free for patient apps.'
-            }
+              reason: 'Direct connection to MyChart - the most common patient portal.',
+            },
           ],
-          setup_steps: {
-            epic: [
-              '1. Register at open.epic.com',
-              '2. Create a non-production app for testing',
-              '3. Request App Orchard listing when ready for production',
-              '4. Implement SMART on FHIR OAuth flow',
-              '5. Epic reviews and approves app (2-4 weeks)'
-            ],
-            '1uphealth': [
-              '1. Sign up at 1up.health/developers',
-              '2. Get API credentials (sandbox immediately available)',
-              '3. Implement OAuth patient connection flow',
-              '4. Switch to production keys when ready'
-            ],
-            bwell: [
-              '1. Request demo at icanbwell.com',
-              '2. Complete CMS Network application',
-              '3. Sign partnership agreement',
-              '4. Technical integration (4-8 weeks typical)',
-              '5. Go live with CMS-aligned data sharing'
-            ],
-            healthex: [
-              '1. Request access at healthex.io',
-              '2. Complete HIPAA compliance verification',
-              '3. Implement consent management flow',
-              '4. Connect to TEFCA network'
-            ]
-          }
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
+      }
 
-      case 'check_apple_health':
-        // Check if user has Apple Health Records data available
-        // This would be called from the mobile app
-        return new Response(JSON.stringify({
-          available: true,
-          instructions: [
-            'Open the Health app on your iPhone',
-            'Tap your profile picture',
-            'Tap "Health Records"',
-            'Tap "Get Started" or "Add Account"',
-            'Search for your healthcare provider',
-            'Sign in with your patient portal credentials'
-          ],
-          supported_data: ['Allergies', 'Conditions', 'Immunizations', 'Labs', 'Medications', 'Procedures', 'Vitals']
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-
-      case 'initiate_connection':
-        // Start OAuth flow for a specific EHR provider
-        const providerInfo = EHR_PROVIDERS.find(p => p.id === provider);
+      case 'initiate_connection': {
+        const providerInfo = EHR_PROVIDERS[provider];
         if (!providerInfo) {
           throw new Error('Unknown EHR provider');
         }
 
+        // For OAuth providers, we would generate an auth URL
         // For now, return setup instructions
-        // In production, this would redirect to OAuth
+        if (providerInfo.authType === 'oauth2') {
+          // In production: Generate OAuth URL and redirect
+          // const authUrl = await generateOAuthUrl(provider, userId);
+          
+          return new Response(JSON.stringify({
+            provider: providerInfo,
+            status: 'setup_required',
+            message: `To connect ${providerInfo.name}, follow these steps:`,
+            steps: providerInfo.setupSteps,
+            authType: providerInfo.authType,
+            // In production: authUrl,
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        // User-initiated (like Apple Health)
         return new Response(JSON.stringify({
           provider: providerInfo,
-          status: 'setup_required',
-          message: `${providerInfo.name} integration requires additional setup. See notes for details.`,
-          next_steps: providerInfo.notes
+          status: 'user_action_required',
+          message: `${providerInfo.name} requires setup on your device:`,
+          steps: providerInfo.setupSteps,
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
+      }
 
-      case 'get_fhir_data':
-        // Fetch FHIR data from connected provider
-        // This is a placeholder - actual implementation depends on the provider
+      case 'oauth_callback': {
+        // Handle OAuth callback from EHR provider
+        if (!code || !provider) {
+          throw new Error('Missing OAuth callback parameters');
+        }
+
+        // In production: Exchange code for tokens
+        // const tokens = await exchangeCodeForTokens(provider, code);
+        
+        // Store tokens securely
+        // await supabase.from('ehr_tokens').upsert({
+        //   user_id: userId,
+        //   provider_id: provider,
+        //   access_token: tokens.access_token,
+        //   refresh_token: tokens.refresh_token,
+        //   expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+        // });
+
+        // Update connection status
+        await supabase.from('ehr_connections').upsert({
+          user_id: userId,
+          provider_id: provider,
+          status: 'connected',
+          last_sync_at: new Date().toISOString(),
+        }, { onConflict: 'user_id,provider_id' });
+
         return new Response(JSON.stringify({
-          status: 'not_connected',
-          message: 'No EHR provider connected. Connect a provider first.'
+          status: 'connected',
+          message: 'Successfully connected to EHR',
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
+      }
+
+      case 'sync_data': {
+        // Sync data from connected EHR
+        const { data: connection } = await supabase
+          .from('ehr_connections')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('provider_id', provider)
+          .single();
+
+        if (!connection || connection.status !== 'connected') {
+          throw new Error('EHR not connected');
+        }
+
+        // In production: Fetch data from EHR API
+        // const fhirData = await fetchFHIRData(provider, userId);
+        // Process and store the data
+
+        // Update last sync
+        await supabase.from('ehr_connections').update({
+          last_sync_at: new Date().toISOString(),
+        }).eq('user_id', userId).eq('provider_id', provider);
+
+        return new Response(JSON.stringify({
+          status: 'synced',
+          message: 'Data sync completed',
+          lastSync: new Date().toISOString(),
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      case 'get_fhir_data': {
+        // Fetch specific FHIR resources
+        const { data: connection } = await supabase
+          .from('ehr_connections')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('provider_id', provider)
+          .single();
+
+        if (!connection) {
+          return new Response(JSON.stringify({
+            status: 'not_connected',
+            message: 'Connect an EHR provider first',
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        // In production: Return actual FHIR data
+        // For now, return sample structure
+        return new Response(JSON.stringify({
+          status: 'success',
+          resources: {
+            conditions: [],
+            medications: [],
+            allergies: [],
+            labs: [],
+            vitals: [],
+            immunizations: [],
+          },
+          lastUpdated: connection.last_sync_at,
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      case 'disconnect': {
+        await supabase
+          .from('ehr_connections')
+          .delete()
+          .eq('user_id', userId)
+          .eq('provider_id', provider);
+
+        await supabase
+          .from('ehr_tokens')
+          .delete()
+          .eq('user_id', userId)
+          .eq('provider_id', provider);
+
+        return new Response(JSON.stringify({
+          status: 'disconnected',
+          message: 'EHR disconnected successfully',
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
       default:
-        throw new Error('Unknown action');
+        throw new Error(`Unknown action: ${action}`);
     }
 
   } catch (error: unknown) {

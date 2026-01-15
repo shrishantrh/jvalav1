@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { FlareEntry } from "@/types/flare";
 import { SmartTrack, SmartTrackRef } from "@/components/tracking/SmartTrack";
 import { DetailedEntry } from "@/components/DetailedEntry";
-import { CleanInsights } from "@/components/insights/CleanInsights";
-import { ProactiveRiskAlerts } from "@/components/insights/ProactiveRiskAlerts";
+import { StreamlinedInsights } from "@/components/insights/StreamlinedInsights";
 import { CalendarHistory } from "@/components/history/CalendarHistory";
 import { FlareTimeline } from "@/components/flare/FlareTimeline";
 import { ProfileManager } from "@/components/profile/ProfileManager";
@@ -672,8 +671,8 @@ const Index = () => {
               userId={user.id}
             />
             
-            {/* Main Insights - now includes medication as a tab */}
-            <CleanInsights 
+            {/* Main Insights - streamlined */}
+            <StreamlinedInsights 
               entries={entries} 
               userConditions={userProfile?.conditions}
               medicationLogs={medicationLogs}
