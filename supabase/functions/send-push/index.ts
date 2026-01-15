@@ -1,36 +1,74 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { ApplicationServer, importVapidKeys } from "jsr:@negrel/webpush@0.5.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-let appServer: ApplicationServer | null = null;
-
-async function getAppServer(): Promise<ApplicationServer | null> {
-  if (appServer) return appServer;
-  
-  const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY');
-  const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY');
-  
-  if (!vapidPublicKey || !vapidPrivateKey) {
-    console.error('VAPID keys not configured');
-    return null;
-  }
-  
+// Simple web push implementation using fetch to push service endpoints
+async function sendWebPush(
+  subscription: { endpoint: string; p256dh_key: string; auth_key: string },
+  payload: string,
+  vapidPublicKey: string,
+  vapidPrivateKey: string
+): Promise<{ success: boolean; status?: number }> {
   try {
-    const vapidKeys = await importVapidKeys({
-      publicKey: vapidPublicKey,
-      privateKey: vapidPrivateKey,
+    // Create JWT for VAPID authentication
+    const audience = new URL(subscription.endpoint).origin;
+    const expiration = Math.floor(Date.now() / 1000) + 12 * 60 * 60; // 12 hours
+    
+    const header = { alg: 'ES256', typ: 'JWT' };
+    const jwtPayload = {
+      aud: audience,
+      exp: expiration,
+      sub: 'mailto:support@jvala.tech'
+    };
+    
+    // Base64url encode
+    const base64url = (data: string) => btoa(data).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const textEncoder = new TextEncoder();
+    
+    // Import the private key for signing
+    const privateKeyBuffer = Uint8Array.from(atob(vapidPrivateKey.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+    
+    // For ES256, we need the raw 32-byte private key
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      privateKeyBuffer,
+      { name: 'ECDSA', namedCurve: 'P-256' },
+      false,
+      ['sign']
+    );
+    
+    const unsignedToken = base64url(JSON.stringify(header)) + '.' + base64url(JSON.stringify(jwtPayload));
+    const signature = await crypto.subtle.sign(
+      { name: 'ECDSA', hash: 'SHA-256' },
+      cryptoKey,
+      textEncoder.encode(unsignedToken)
+    );
+    
+    // Convert signature to base64url
+    const signatureBase64 = base64url(String.fromCharCode(...new Uint8Array(signature)));
+    const jwt = unsignedToken + '.' + signatureBase64;
+    
+    // Make the push request
+    const response = await fetch(subscription.endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Encoding': 'aes128gcm',
+        'TTL': '86400',
+        'Authorization': `vapid t=${jwt}, k=${vapidPublicKey}`,
+        'Urgency': 'high'
+      },
+      body: payload
     });
     
-    appServer = new ApplicationServer(vapidKeys, 'mailto:support@jvala.tech');
-    return appServer;
+    return { success: response.ok, status: response.status };
   } catch (error) {
-    console.error('Failed to initialize VAPID:', error);
-    return null;
+    console.error('Push send error:', error);
+    return { success: false };
   }
 }
 
@@ -40,8 +78,11 @@ serve(async (req) => {
   }
 
   try {
-    const server = await getAppServer();
-    if (!server) {
+    const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY');
+    const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY');
+    
+    if (!vapidPublicKey || !vapidPrivateKey) {
+      console.error('VAPID keys not configured');
       return new Response(JSON.stringify({ error: 'VAPID not configured' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -90,24 +131,20 @@ serve(async (req) => {
     const failedEndpoints: string[] = [];
 
     for (const sub of subscriptions) {
-      try {
-        const subscriber = server.subscribe({
-          endpoint: sub.endpoint,
-          keys: { p256dh: sub.p256dh_key, auth: sub.auth_key },
-        });
-
-        const response = await subscriber.pushTextMessage(payload, { ttl: 86400 });
-
-        if (response.ok) {
-          successCount++;
-        } else if (response.status === 410 || response.status === 404) {
-          failedEndpoints.push(sub.endpoint);
-        }
-      } catch {
+      const result = await sendWebPush(sub, payload, vapidPublicKey, vapidPrivateKey);
+      
+      if (result.success) {
+        successCount++;
+        console.log(`Push sent successfully to ${sub.endpoint.substring(0, 50)}...`);
+      } else if (result.status === 410 || result.status === 404) {
         failedEndpoints.push(sub.endpoint);
+        console.log(`Subscription expired: ${sub.endpoint.substring(0, 50)}...`);
+      } else {
+        console.error(`Push failed with status ${result.status}`);
       }
     }
 
+    // Clean up expired subscriptions
     if (failedEndpoints.length > 0) {
       await supabase.from('push_subscriptions').delete()
         .eq('user_id', userId).in('endpoint', failedEndpoints);
