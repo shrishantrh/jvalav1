@@ -4,36 +4,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
-import { 
-  Brain, 
-  Send, 
-  Sparkles, 
-  BarChart3, 
-  PieChart,
-  TrendingUp,
-  Activity,
-  Loader2
-} from "lucide-react";
+import { Brain, Send, Sparkles, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, PieChart as RePieChart, Pie, Cell, LineChart, Line, Tooltip } from "recharts";
+import { AIVisualization, AIVisualizationRenderer } from "@/components/chat/AIVisualization";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
-  visualization?: {
-    type: string;
-    title: string;
-    data: any[];
-    config?: any;
-  };
+  visualization?: AIVisualization;
   followUp?: string;
 }
 
 interface LimitlessAIChatProps {
   userId: string;
 }
-
-const CHART_COLORS = ["hsl(var(--primary))", "hsl(var(--severity-moderate))", "hsl(var(--severity-severe))", "#8b5cf6", "#10b981", "#f59e0b"];
 
 export const LimitlessAIChat = ({ userId }: LimitlessAIChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -49,13 +33,13 @@ export const LimitlessAIChat = ({ userId }: LimitlessAIChatProps) => {
     if (!input.trim() || loading) return;
 
     const userMessage: Message = { role: "user", content: input };
-    setMessages(prev => [...prev, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setLoading(true);
 
     try {
       const { data, error } = await supabase.functions.invoke("limitless-ai", {
-        body: { query: input, userId },
+        body: { query: userMessage.content, userId },
       });
 
       if (error) throw error;
@@ -67,106 +51,18 @@ export const LimitlessAIChat = ({ userId }: LimitlessAIChatProps) => {
         followUp: data.followUp,
       };
 
-      setMessages(prev => [...prev, assistantMessage]);
+      setMessages((prev) => [...prev, assistantMessage]);
     } catch (err) {
       console.error("AI error:", err);
-      setMessages(prev => [...prev, {
-        role: "assistant",
-        content: "Sorry, I had trouble processing that. Try again?",
-      }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Sorry, I had trouble processing that. Try again?",
+        },
+      ]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const renderVisualization = (viz: Message["visualization"]) => {
-    if (!viz || !viz.data || viz.data.length === 0) return null;
-
-    const height = 180;
-
-    switch (viz.type) {
-      case "bar_chart":
-      case "symptom_frequency":
-      case "trigger_frequency":
-        return (
-          <div className="mt-3 p-3 bg-muted/30 rounded-lg">
-            <h4 className="text-xs font-medium mb-2">{viz.title}</h4>
-            <ResponsiveContainer width="100%" height={height}>
-              <BarChart data={viz.data} layout="vertical">
-                <XAxis type="number" hide />
-                <YAxis dataKey="label" type="category" width={80} tick={{ fontSize: 10 }} />
-                <Tooltip />
-                <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        );
-
-      case "pie_chart":
-      case "severity_breakdown":
-        return (
-          <div className="mt-3 p-3 bg-muted/30 rounded-lg">
-            <h4 className="text-xs font-medium mb-2">{viz.title}</h4>
-            <ResponsiveContainer width="100%" height={height}>
-              <RePieChart>
-                <Pie
-                  data={viz.data}
-                  dataKey="value"
-                  nameKey="label"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={60}
-                  label={({ label, percent }) => `${label} ${(percent * 100).toFixed(0)}%`}
-                  labelLine={false}
-                >
-                  {viz.data.map((_, i) => (
-                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </RePieChart>
-            </ResponsiveContainer>
-          </div>
-        );
-
-      case "line_chart":
-      case "timeline":
-        return (
-          <div className="mt-3 p-3 bg-muted/30 rounded-lg">
-            <h4 className="text-xs font-medium mb-2">{viz.title}</h4>
-            <ResponsiveContainer width="100%" height={height}>
-              <LineChart data={viz.data}>
-                <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip />
-                <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        );
-
-      case "pattern_summary":
-        return (
-          <div className="mt-3 p-3 bg-muted/30 rounded-lg space-y-2">
-            <h4 className="text-xs font-medium">{viz.title}</h4>
-            {viz.data.map((item, i) => (
-              <div key={i} className="flex items-center justify-between text-xs">
-                <span>{item.label}</span>
-                <span className="font-medium">{item.value}{item.extra ? ` ${item.extra}` : ""}</span>
-              </div>
-            ))}
-          </div>
-        );
-
-      default:
-        return (
-          <div className="mt-3 p-3 bg-muted/30 rounded-lg">
-            <h4 className="text-xs font-medium mb-2">{viz.title}</h4>
-            <div className="text-xs text-muted-foreground">
-              {JSON.stringify(viz.data.slice(0, 5), null, 2)}
-            </div>
-          </div>
-        );
     }
   };
 
@@ -223,25 +119,17 @@ export const LimitlessAIChat = ({ userId }: LimitlessAIChatProps) => {
         ) : (
           <div className="space-y-4">
             {messages.map((msg, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "flex",
-                  msg.role === "user" ? "justify-end" : "justify-start"
-                )}
-              >
+              <div key={i} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
                 <div
                   className={cn(
                     "max-w-[85%] rounded-2xl px-4 py-2",
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
+                    msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
                   )}
                 >
                   <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                  
-                  {msg.visualization && renderVisualization(msg.visualization)}
-                  
+
+                  {msg.visualization && <AIVisualizationRenderer viz={msg.visualization} />}
+
                   {msg.followUp && (
                     <Button
                       variant="ghost"
@@ -259,7 +147,7 @@ export const LimitlessAIChat = ({ userId }: LimitlessAIChatProps) => {
                 </div>
               </div>
             ))}
-            
+
             {loading && (
               <div className="flex justify-start">
                 <div className="bg-muted rounded-2xl px-4 py-3">
@@ -267,7 +155,7 @@ export const LimitlessAIChat = ({ userId }: LimitlessAIChatProps) => {
                 </div>
               </div>
             )}
-            
+
             <div ref={scrollRef} />
           </div>
         )}

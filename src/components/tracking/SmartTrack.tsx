@@ -3,14 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { FlareEntry } from "@/types/flare";
-import { Send, Mic, MicOff, Check, Sparkles, Thermometer, Droplets, Calendar, AlertTriangle, BarChart3, MapPin, Activity, TrendingUp, Heart } from "lucide-react";
+import { Send, Mic, MicOff, Check, Sparkles, Thermometer, Droplets, Calendar, AlertTriangle, BarChart3, Activity, TrendingUp } from "lucide-react";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { FluidLogSelector } from "./FluidLogSelector";
 import { Badge } from "@/components/ui/badge";
-import { useCorrelations, Correlation } from "@/hooks/useCorrelations";
+import { useCorrelations } from "@/hooks/useCorrelations";
 import { useEntryContext } from "@/hooks/useEntryContext";
+import { AIVisualization, AIVisualizationRenderer } from "@/components/chat/AIVisualization";
+
 
 interface ChatMessage {
   id: string;
@@ -583,7 +585,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     try {
       // Get the most recent entry ID for potential updates
       const mostRecentEntry = recentEntries[0];
-      
+
       const userContext = {
         conditions: userConditions,
         knownSymptoms: userSymptoms,
@@ -603,45 +605,60 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         })),
       };
 
-      const { data, error } = await supabase.functions.invoke('smart-assistant', {
-        body: { 
-          message: text,
-          userContext,
-          userId, // Pass userId for correlation engine
-          history: messages.slice(-8).map(m => ({ 
-            role: m.role === 'system' ? 'assistant' : m.role, 
-            content: m.content 
-          }))
-        }
-      });
+      // Run both assistants:
+      // - smart-assistant (keeps existing structured logging/update behavior)
+      // - limitless-ai (richer reasoning + charts)
+      const [smartResult, limitlessResult] = await Promise.allSettled([
+        supabase.functions.invoke('smart-assistant', {
+          body: {
+            message: text,
+            userContext,
+            userId,
+            history: messages.slice(-8).map(m => ({
+              role: m.role === 'system' ? 'assistant' : m.role,
+              content: m.content,
+            }))
+          }
+        }),
+        supabase.functions.invoke('limitless-ai', {
+          body: { query: text, userId },
+        })
+      ]);
 
-      if (error) throw error;
+      const smart = smartResult.status === 'fulfilled' ? smartResult.value : null;
+      const limitless = limitlessResult.status === 'fulfilled' ? limitlessResult.value : null;
 
-      // Handle entry updates if AI suggests one
-      if (data.updateEntry && data.updateEntry.entryId && onUpdateEntry) {
-        onUpdateEntry(data.updateEntry.entryId, data.updateEntry.updates);
+      if (smart?.error) throw smart.error;
+      if (limitless?.error) console.warn('Limitless AI error:', limitless.error);
+
+      const smartData = smart?.data;
+      const limitlessData = limitless?.data;
+
+      // Prefer Limitless response if present
+      let responseContent = (limitlessData?.response || smartData?.response || "").trim();
+      if (!responseContent) responseContent = "Tell me more.";
+
+      // Keep correlation follow-up messaging from smart-assistant (if present)
+      if (smartData?.activityLog && smartData?.correlationWarning) {
+        const warning = smartData.correlationWarning;
+        const delayText = warning.avgDelayMinutes < 60
+          ? `${warning.avgDelayMinutes} min`
+          : `${Math.round(warning.avgDelayMinutes / 60)} hr`;
+
+        responseContent += `\n\n⚠️ Pattern detected: ${warning.triggerValue} has preceded ${warning.outcomeValue} ${warning.occurrenceCount} times (~${delayText} later). I'll check in with you later.`;
+      } else if (smartData?.activityLog && smartData?.shouldFollowUp) {
+        responseContent += `\n\n📋 Logged your ${smartData.activityLog.activity_type}. I'll check in ${smartData.followUpDelay} min to see how you feel.`;
+
+        setPendingFollowUp({
+          activityType: smartData.activityLog.activity_type,
+          activityId: smartData.activityLog.id,
+          followUpTime: new Date(Date.now() + smartData.followUpDelay * 60 * 1000)
+        });
       }
 
-      // Build response content with correlation warning if applicable
-      let responseContent = data.response || "I need more data to answer that.";
-      
-      // If activity was detected and has correlation warning, enhance the response
-      if (data.activityLog && data.correlationWarning) {
-        const warning = data.correlationWarning;
-        const delayText = warning.avgDelayMinutes < 60 
-          ? `${warning.avgDelayMinutes} min` 
-          : `${Math.round(warning.avgDelayMinutes / 60)} hr`;
-        
-        responseContent += `\n\n⚠️ Pattern detected: ${warning.triggerValue} has preceded ${warning.outcomeValue} ${warning.occurrenceCount} times (~${delayText} later). I'll check in with you later.`;
-      } else if (data.activityLog && data.shouldFollowUp) {
-        responseContent += `\n\n📋 Logged your ${data.activityLog.activity_type}. I'll check in ${data.followUpDelay} min to see how you feel.`;
-        
-        // Set pending follow-up
-        setPendingFollowUp({
-          activityType: data.activityLog.activity_type,
-          activityId: data.activityLog.id,
-          followUpTime: new Date(Date.now() + data.followUpDelay * 60 * 1000)
-        });
+      // Handle entry updates if AI suggests one
+      if (smartData?.updateEntry && smartData.updateEntry.entryId && onUpdateEntry) {
+        onUpdateEntry(smartData.updateEntry.entryId, smartData.updateEntry.updates);
       }
 
       const assistantMessage: ChatMessage = {
@@ -649,27 +666,29 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         role: 'assistant',
         content: responseContent,
         timestamp: new Date(),
-        entryData: data.entryData,
-        isAIGenerated: data.isAIGenerated,
-        dataUsed: data.dataUsed,
-        weatherUsed: data.weatherUsed,
-        weatherCard: data.weatherCard,
-        chartData: data.chartData,
-        updateInfo: data.updateEntry,
-        activityDetected: data.activityLog ? { type: data.activityLog.activity_type, intensity: data.activityLog.intensity } : undefined,
-        correlationWarning: data.correlationWarning,
+        // smart-assistant fields
+        entryData: smartData?.entryData,
+        isAIGenerated: smartData?.isAIGenerated,
+        dataUsed: smartData?.dataUsed,
+        weatherUsed: smartData?.weatherUsed,
+        weatherCard: smartData?.weatherCard,
+        chartData: smartData?.chartData,
+        updateInfo: smartData?.updateEntry,
+        activityDetected: smartData?.activityLog ? { type: smartData.activityLog.activity_type, intensity: smartData.activityLog.intensity } : undefined,
+        correlationWarning: smartData?.correlationWarning,
+        // limitless-ai fields
+        visualization: limitlessData?.visualization,
+        followUp: limitlessData?.followUp,
       };
       setMessages(prev => [...prev, assistantMessage]);
 
-      // Handle multiple entries from a single message (e.g., "felt pain and took meds")
-      if (data.multipleEntries && data.multipleEntries.length > 0) {
-        console.log('📝 Logging multiple entries:', data.multipleEntries.length);
-        
-        // Get unified context data (environmental + wearable)
+      // Preserve existing structured logging behavior (smart-assistant)
+      if (smartData?.multipleEntries && smartData.multipleEntries.length > 0) {
+        console.log('📝 Logging multiple entries:', smartData.multipleEntries.length);
+
         const contextData = await getEntryContext();
-        
-        // Save each entry with context
-        for (const entryData of data.multipleEntries) {
+
+        for (const entryData of smartData.multipleEntries) {
           const entry: Partial<FlareEntry> = {
             ...entryData,
             note: text,
@@ -679,12 +698,11 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
           };
           onSave(entry);
         }
-      } else if (data.entryData && data.shouldLog) {
-        // Single entry - get unified context data
+      } else if (smartData?.entryData && smartData?.shouldLog) {
         const contextData = await getEntryContext();
-        
+
         const entry: Partial<FlareEntry> = {
-          ...data.entryData,
+          ...smartData.entryData,
           note: text,
           timestamp: new Date(),
           environmentalData: contextData.environmentalData || undefined,
@@ -744,11 +762,23 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                 : "bg-muted/50 rounded-bl-md"
             )}>
               <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+              {msg.visualization && <AIVisualizationRenderer viz={msg.visualization} />}
+              {msg.followUp && msg.role === 'assistant' && (
+                <button
+                  onClick={() => {
+                    setInput(msg.followUp!);
+                    setTimeout(() => handleSend(msg.followUp!), 50);
+                  }}
+                  className="mt-2 text-[11px] text-primary hover:underline block text-left"
+                >
+                  ✨ {msg.followUp}
+                </button>
+              )}
             </div>
             
             {msg.weatherCard && <WeatherCard weather={msg.weatherCard} />}
             {msg.chartData && <MiniChart chartData={msg.chartData} />}
-            
+
             {msg.updateInfo && (
               <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-primary">
                 <Check className="w-3 h-3" />
