@@ -18,7 +18,12 @@ import {
   ChevronRight,
   Activity,
   Heart,
-  Shield
+  Shield,
+  Bell,
+  MessageSquare,
+  Clock,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { FlareEntry } from "@/types/flare";
@@ -28,6 +33,7 @@ import { useAuth } from "@/hooks/useAuth";
 interface AIInsightsPanelProps {
   entries: FlareEntry[];
   userConditions?: string[];
+  onStartProtocol?: (recommendation: string) => void;
 }
 
 interface AIInsight {
@@ -53,12 +59,22 @@ interface AIAnalysis {
   recommendations: string[];
 }
 
-export const AIInsightsPanel = ({ entries, userConditions = [] }: AIInsightsPanelProps) => {
+export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol }: AIInsightsPanelProps) => {
   const { user } = useAuth();
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['insights']));
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(section)) next.delete(section);
+      else next.add(section);
+      return next;
+    });
+  };
 
   const fetchAIInsights = async () => {
     if (!user) return;
@@ -105,58 +121,43 @@ export const AIInsightsPanel = ({ entries, userConditions = [] }: AIInsightsPane
     return 'text-severity-severe';
   };
 
-  const getHealthScoreGradient = (score: number) => {
-    if (score >= 70) return 'from-severity-none/20 to-severity-none/5';
-    if (score >= 40) return 'from-severity-moderate/20 to-severity-moderate/5';
-    return 'from-severity-severe/20 to-severity-severe/5';
-  };
-
   const getInsightIcon = (type: string) => {
     switch (type) {
-      case 'warning': return <AlertTriangle className="w-4 h-4" />;
-      case 'success': return <CheckCircle2 className="w-4 h-4" />;
-      case 'trigger': return <Zap className="w-4 h-4" />;
-      case 'recommendation': return <Lightbulb className="w-4 h-4" />;
-      default: return <Target className="w-4 h-4" />;
+      case 'warning': return <AlertTriangle className="w-3.5 h-3.5" />;
+      case 'success': return <CheckCircle2 className="w-3.5 h-3.5" />;
+      case 'trigger': return <Zap className="w-3.5 h-3.5" />;
+      case 'recommendation': return <Lightbulb className="w-3.5 h-3.5" />;
+      default: return <Target className="w-3.5 h-3.5" />;
     }
   };
 
   const getInsightColors = (type: string) => {
     switch (type) {
-      case 'warning': return { bg: 'bg-severity-severe/10', text: 'text-severity-severe', border: 'border-severity-severe/20' };
-      case 'success': return { bg: 'bg-severity-none/10', text: 'text-severity-none', border: 'border-severity-none/20' };
-      case 'trigger': return { bg: 'bg-severity-moderate/10', text: 'text-severity-moderate', border: 'border-severity-moderate/20' };
-      case 'recommendation': return { bg: 'bg-primary/10', text: 'text-primary', border: 'border-primary/20' };
-      default: return { bg: 'bg-accent', text: 'text-accent-foreground', border: 'border-accent' };
+      case 'warning': return { bg: 'bg-severity-severe/10', text: 'text-severity-severe' };
+      case 'success': return { bg: 'bg-severity-none/10', text: 'text-severity-none' };
+      case 'trigger': return { bg: 'bg-severity-moderate/10', text: 'text-severity-moderate' };
+      case 'recommendation': return { bg: 'bg-primary/10', text: 'text-primary' };
+      default: return { bg: 'bg-accent', text: 'text-accent-foreground' };
     }
-  };
-
-  const getConfidenceBadge = (confidence: string) => {
-    const colors = {
-      high: 'bg-severity-none/20 text-severity-none',
-      medium: 'bg-severity-mild/20 text-severity-mild',
-      low: 'bg-muted text-muted-foreground'
-    };
-    return colors[confidence as keyof typeof colors] || colors.low;
   };
 
   if (entries.length < 5) {
     return (
-      <Card className="p-6 bg-gradient-card border-0 shadow-soft">
+      <Card className="p-5 bg-gradient-card border-0 shadow-soft">
         <div className="flex items-center gap-3 mb-4">
-          <div className="p-2.5 rounded-xl bg-gradient-primary">
+          <div className="p-2 rounded-xl bg-gradient-primary">
             <Brain className="w-5 h-5 text-primary-foreground" />
           </div>
           <div>
-            <h3 className="font-semibold">AI Health Analysis</h3>
-            <p className="text-xs text-muted-foreground">Powered by Claude</p>
+            <h3 className="font-semibold text-sm">AI Health Analysis</h3>
+            <p className="text-[10px] text-muted-foreground">Powered by Claude</p>
           </div>
         </div>
-        <div className="text-center py-8">
-          <Sparkles className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-          <p className="text-sm font-medium mb-1">Need more data</p>
-          <p className="text-xs text-muted-foreground">
-            Log {5 - entries.length} more {5 - entries.length === 1 ? 'entry' : 'entries'} to unlock AI insights
+        <div className="text-center py-6">
+          <Sparkles className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+          <p className="text-xs font-medium">Need more data</p>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            Log {5 - entries.length} more {5 - entries.length === 1 ? 'entry' : 'entries'} to unlock
           </p>
         </div>
       </Card>
@@ -165,248 +166,203 @@ export const AIInsightsPanel = ({ entries, userConditions = [] }: AIInsightsPane
 
   if (loading) {
     return (
-      <Card className="p-6 bg-gradient-card border-0 shadow-soft overflow-hidden">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2.5 rounded-xl bg-gradient-primary animate-pulse">
+      <Card className="p-5 bg-gradient-card border-0 shadow-soft">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 rounded-xl bg-gradient-primary animate-pulse">
             <Brain className="w-5 h-5 text-primary-foreground" />
           </div>
           <div>
-            <h3 className="font-semibold">Analyzing your data...</h3>
-            <p className="text-xs text-muted-foreground">Claude is reviewing your health patterns</p>
+            <h3 className="font-semibold text-sm">Analyzing...</h3>
+            <p className="text-[10px] text-muted-foreground">Claude is reviewing your patterns</p>
           </div>
         </div>
-        <div className="space-y-4">
-          <Skeleton className="h-24 w-full rounded-xl" />
-          <div className="grid grid-cols-2 gap-3">
-            <Skeleton className="h-16 rounded-xl" />
-            <Skeleton className="h-16 rounded-xl" />
-          </div>
-          <Skeleton className="h-20 w-full rounded-xl" />
-          <Skeleton className="h-20 w-full rounded-xl" />
+        <div className="space-y-3">
+          <Skeleton className="h-16 w-full rounded-xl" />
+          <Skeleton className="h-12 w-full rounded-xl" />
+          <Skeleton className="h-12 w-full rounded-xl" />
         </div>
       </Card>
     );
   }
 
-  if (error) {
+  if (error || !analysis) {
     return (
-      <Card className="p-6 bg-gradient-card border-0 shadow-soft">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2.5 rounded-xl bg-destructive/10">
-            <AlertTriangle className="w-5 h-5 text-destructive" />
-          </div>
-          <div>
-            <h3 className="font-semibold">Analysis Error</h3>
-            <p className="text-xs text-muted-foreground">{error}</p>
-          </div>
-        </div>
-        <Button 
-          onClick={fetchAIInsights} 
-          variant="outline" 
-          className="w-full"
-        >
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Try Again
-        </Button>
-      </Card>
-    );
-  }
-
-  if (!analysis) {
-    return (
-      <Card className="p-6 bg-gradient-card border-0 shadow-soft">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2.5 rounded-xl bg-gradient-primary">
+      <Card className="p-5 bg-gradient-card border-0 shadow-soft">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="p-2 rounded-xl bg-gradient-primary">
             <Brain className="w-5 h-5 text-primary-foreground" />
           </div>
           <div>
-            <h3 className="font-semibold">AI Health Analysis</h3>
-            <p className="text-xs text-muted-foreground">Powered by Claude</p>
+            <h3 className="font-semibold text-sm">AI Health Analysis</h3>
+            <p className="text-[10px] text-muted-foreground">Powered by Claude</p>
           </div>
         </div>
-        <Button 
-          onClick={fetchAIInsights} 
-          className="w-full bg-gradient-primary hover:opacity-90"
-        >
+        <Button onClick={fetchAIInsights} className="w-full bg-gradient-primary hover:opacity-90" size="sm">
           <Sparkles className="w-4 h-4 mr-2" />
-          Generate AI Insights
+          Generate Insights
         </Button>
       </Card>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Health Score Hero Card */}
-      <Card className={cn(
-        "p-6 bg-gradient-to-br border-0 shadow-soft overflow-hidden relative",
-        getHealthScoreGradient(analysis.healthScore)
-      )}>
-        <div className="absolute inset-0 bg-gradient-card opacity-60" />
-        <div className="relative">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-gradient-primary shadow-primary">
-                <Brain className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <div>
-                <h3 className="font-semibold">AI Health Analysis</h3>
-                <p className="text-xs text-muted-foreground">Powered by Claude</p>
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={fetchAIInsights}
-              className="h-8 w-8"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-6 mb-4">
-            {/* Health Score Circle */}
-            <div className="relative">
-              <svg className="w-20 h-20 -rotate-90">
+    <div className="space-y-3">
+      {/* Health Score Compact Card */}
+      <Card className="p-4 bg-gradient-card border-0 shadow-soft">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="relative w-14 h-14">
+              <svg className="w-14 h-14 -rotate-90">
+                <circle cx="28" cy="28" r="24" stroke="currentColor" strokeWidth="4" fill="none" className="text-muted/30" />
                 <circle
-                  cx="40"
-                  cy="40"
-                  r="36"
-                  stroke="currentColor"
-                  strokeWidth="6"
-                  fill="none"
-                  className="text-muted/30"
-                />
-                <circle
-                  cx="40"
-                  cy="40"
-                  r="36"
-                  stroke="currentColor"
-                  strokeWidth="6"
-                  fill="none"
-                  strokeLinecap="round"
+                  cx="28" cy="28" r="24" stroke="currentColor" strokeWidth="4" fill="none" strokeLinecap="round"
                   className={getHealthScoreColor(analysis.healthScore)}
-                  strokeDasharray={`${(analysis.healthScore / 100) * 226} 226`}
+                  strokeDasharray={`${(analysis.healthScore / 100) * 151} 151`}
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className={cn("text-2xl font-bold", getHealthScoreColor(analysis.healthScore))}>
+                <span className={cn("text-lg font-bold", getHealthScoreColor(analysis.healthScore))}>
                   {analysis.healthScore}
                 </span>
               </div>
             </div>
-
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
+            <div>
+              <div className="flex items-center gap-1.5">
                 {getTrendIcon(analysis.trend)}
                 <span className="text-sm font-medium capitalize">{analysis.trend}</span>
               </div>
-              <p className="text-sm text-muted-foreground line-clamp-2">
+              <p className="text-[10px] text-muted-foreground max-w-[180px] line-clamp-2">
                 {analysis.summary}
               </p>
             </div>
           </div>
+          <Button variant="ghost" size="icon" onClick={fetchAIInsights} className="h-8 w-8">
+            <RefreshCw className="w-4 h-4" />
+          </Button>
         </div>
       </Card>
 
-      {/* AI Insights */}
+      {/* Key Insights - Compact List */}
       {analysis.insights && analysis.insights.length > 0 && (
-        <Card className="p-4 bg-gradient-card border-0 shadow-soft">
-          <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-primary" />
-            Key Insights
-          </h4>
-          <div className="space-y-2">
-            {analysis.insights.slice(0, 4).map((insight, idx) => {
-              const colors = getInsightColors(insight.type);
-              return (
-                <div
-                  key={idx}
-                  className={cn(
-                    "p-3 rounded-xl border transition-all hover-lift cursor-default",
-                    colors.bg,
-                    colors.border
-                  )}
-                  style={{ animationDelay: `${idx * 100}ms` }}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={cn("p-1.5 rounded-lg", colors.bg)}>
-                      <span className={colors.text}>{getInsightIcon(insight.type)}</span>
-                    </div>
+        <Card className="p-3 bg-gradient-card border-0 shadow-soft">
+          <button
+            onClick={() => toggleSection('insights')}
+            className="w-full flex items-center justify-between mb-2"
+          >
+            <h4 className="text-xs font-semibold flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              Key Insights ({analysis.insights.length})
+            </h4>
+            {expandedSections.has('insights') ? (
+              <ChevronUp className="w-4 h-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+            )}
+          </button>
+          
+          {expandedSections.has('insights') && (
+            <div className="space-y-1.5">
+              {analysis.insights.slice(0, 4).map((insight, idx) => {
+                const colors = getInsightColors(insight.type);
+                return (
+                  <div key={idx} className={cn("p-2.5 rounded-lg flex items-start gap-2", colors.bg)}>
+                    <span className={cn("mt-0.5", colors.text)}>{getInsightIcon(insight.type)}</span>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="text-sm font-medium">{insight.title}</p>
-                        <Badge className={cn("text-[9px] px-1.5 py-0", getConfidenceBadge(insight.confidence))}>
-                          {insight.confidence}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{insight.description}</p>
-                      {insight.actionable && (
-                        <p className="text-xs text-primary mt-1.5 font-medium flex items-center gap-1">
-                          <ChevronRight className="w-3 h-3" />
-                          {insight.actionable}
-                        </p>
-                      )}
+                      <p className="text-xs font-medium leading-tight">{insight.title}</p>
+                      <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{insight.description}</p>
                     </div>
+                    <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0">
+                      {insight.confidence}
+                    </Badge>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </Card>
       )}
 
-      {/* Predictions */}
+      {/* Predictions - Minimal */}
       {analysis.predictions && analysis.predictions.length > 0 && (
-        <Card className="p-4 bg-gradient-card border-0 shadow-soft">
-          <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-primary" />
-            Predictions
-          </h4>
-          <div className="space-y-2">
-            {analysis.predictions.map((pred, idx) => (
-              <div
-                key={idx}
-                className="p-3 rounded-xl bg-muted/50 border border-border/50"
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-sm font-medium">{pred.title}</p>
+        <Card className="p-3 bg-gradient-card border-0 shadow-soft">
+          <button
+            onClick={() => toggleSection('predictions')}
+            className="w-full flex items-center justify-between mb-2"
+          >
+            <h4 className="text-xs font-semibold flex items-center gap-1.5">
+              <Activity className="w-3.5 h-3.5 text-primary" />
+              Predictions ({analysis.predictions.length})
+            </h4>
+            {expandedSections.has('predictions') ? (
+              <ChevronUp className="w-4 h-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+            )}
+          </button>
+          
+          {expandedSections.has('predictions') && (
+            <div className="space-y-1.5">
+              {analysis.predictions.map((pred, idx) => (
+                <div key={idx} className="p-2 rounded-lg bg-muted/50 flex items-center justify-between">
+                  <p className="text-xs font-medium">{pred.title}</p>
                   <Badge 
                     variant="outline" 
                     className={cn(
-                      "text-[9px]",
+                      "text-[8px] px-1.5",
                       pred.likelihood === 'high' ? 'border-severity-severe/50 text-severity-severe' :
                       pred.likelihood === 'medium' ? 'border-severity-moderate/50 text-severity-moderate' :
-                      'border-muted-foreground/50 text-muted-foreground'
+                      'border-muted-foreground/50'
                     )}
                   >
-                    {pred.likelihood} likelihood
+                    {pred.likelihood}
                   </Badge>
                 </div>
-                <p className="text-xs text-muted-foreground">{pred.basedOn}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </Card>
       )}
 
-      {/* Recommendations */}
+      {/* Actionable Recommendations */}
       {analysis.recommendations && analysis.recommendations.length > 0 && (
-        <Card className="p-4 bg-gradient-card border-0 shadow-soft">
-          <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <Shield className="w-4 h-4 text-primary" />
-            Personalized Recommendations
+        <Card className="p-3 bg-gradient-card border-0 shadow-soft">
+          <h4 className="text-xs font-semibold flex items-center gap-1.5 mb-2">
+            <Shield className="w-3.5 h-3.5 text-primary" />
+            Action Plan
           </h4>
           <div className="space-y-2">
             {analysis.recommendations.map((rec, idx) => (
-              <div
-                key={idx}
-                className="flex items-start gap-3 p-3 rounded-xl bg-primary/5 border border-primary/10"
-              >
-                <div className="p-1 rounded-full bg-primary/10 mt-0.5">
-                  <Heart className="w-3 h-3 text-primary" />
+              <div key={idx} className="p-2.5 rounded-lg bg-primary/5 border border-primary/10">
+                <div className="flex items-start gap-2">
+                  <div className="p-1 rounded-full bg-primary/10 mt-0.5 shrink-0">
+                    <Heart className="w-2.5 h-2.5 text-primary" />
+                  </div>
+                  <p className="text-xs text-foreground flex-1">{rec}</p>
                 </div>
-                <p className="text-sm text-foreground">{rec}</p>
+                
+                {/* Action buttons */}
+                <div className="flex gap-2 mt-2 ml-6">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[10px] gap-1 flex-1"
+                    onClick={() => onStartProtocol?.(rec)}
+                  >
+                    <MessageSquare className="w-3 h-3" />
+                    Create Protocol
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-[10px] gap-1"
+                    onClick={() => {
+                      // TODO: Set up reminder for this
+                    }}
+                  >
+                    <Bell className="w-3 h-3" />
+                    Remind Me
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
