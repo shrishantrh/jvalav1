@@ -6,18 +6,29 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// 1Up Health API endpoints
+const ONEUP_AUTH_URL = 'https://api.1up.health/user-management/v1/user/auth-code';
+const ONEUP_TOKEN_URL = 'https://api.1up.health/fhir/oauth2/token';
+const ONEUP_FHIR_URL = 'https://api.1up.health/fhir/dstu2';
+
 interface EHRProvider {
   id: string;
   name: string;
   type: 'fhir' | 'proprietary';
   available: boolean;
   authType: 'oauth2' | 'api_key' | 'user_initiated';
-  baseUrl?: string;
   dataTypes: string[];
-  setupSteps: string[];
 }
 
 const EHR_PROVIDERS: Record<string, EHRProvider> = {
+  '1uphealth': {
+    id: '1uphealth',
+    name: '1Up Health',
+    type: 'fhir',
+    available: true,
+    authType: 'oauth2',
+    dataTypes: ['conditions', 'medications', 'labs', 'claims', 'vitals', 'allergies'],
+  },
   apple_health_records: {
     id: 'apple_health_records',
     name: 'Apple Health Records',
@@ -25,102 +36,11 @@ const EHR_PROVIDERS: Record<string, EHRProvider> = {
     available: true,
     authType: 'user_initiated',
     dataTypes: ['conditions', 'medications', 'allergies', 'labs', 'vitals', 'immunizations'],
-    setupSteps: [
-      'Open the Health app on your iPhone',
-      'Tap your profile picture in the top right',
-      'Tap "Health Records"',
-      'Tap "Get Started" or "Add Account"',
-      'Search for your healthcare provider',
-      'Sign in with your patient portal credentials',
-      'Your data will sync automatically to Jvala',
-    ],
-  },
-  '1uphealth': {
-    id: '1uphealth',
-    name: '1Up Health',
-    type: 'fhir',
-    available: true,
-    authType: 'oauth2',
-    baseUrl: 'https://api.1up.health/fhir/r4',
-    dataTypes: ['conditions', 'medications', 'labs', 'claims', 'vitals'],
-    setupSteps: [
-      'Click "Connect" to start',
-      'You will be redirected to 1Up Health',
-      'Search for your health plan or provider',
-      'Sign in with your credentials',
-      'Authorize Jvala to access your records',
-      'Data syncs within 24 hours',
-    ],
-  },
-  epic: {
-    id: 'epic',
-    name: 'Epic MyChart',
-    type: 'fhir',
-    available: true,
-    authType: 'oauth2',
-    baseUrl: 'https://fhir.epic.com/interconnect-fhir-oauth/api/FHIR/R4',
-    dataTypes: ['conditions', 'medications', 'allergies', 'labs', 'vitals', 'encounters', 'immunizations'],
-    setupSteps: [
-      'Click "Connect" to start',
-      'You will be redirected to Epic MyChart',
-      'Search for your hospital or clinic',
-      'Sign in with your MyChart credentials',
-      'Authorize Jvala to access your records',
-      'Your data syncs automatically',
-    ],
-  },
-  cerner: {
-    id: 'cerner',
-    name: 'Oracle Cerner',
-    type: 'fhir',
-    available: true,
-    authType: 'oauth2',
-    baseUrl: 'https://fhir-open.cerner.com/r4',
-    dataTypes: ['conditions', 'medications', 'allergies', 'labs', 'vitals', 'encounters'],
-    setupSteps: [
-      'Click "Connect" to start',
-      'You will be redirected to Cerner Health',
-      'Search for your healthcare organization',
-      'Sign in with your patient portal credentials',
-      'Authorize Jvala to access your records',
-      'Data syncs within a few hours',
-    ],
-  },
-  bwell: {
-    id: 'bwell',
-    name: 'b.well Connected Health',
-    type: 'proprietary',
-    available: true,
-    authType: 'oauth2',
-    baseUrl: 'https://api.icanbwell.com',
-    dataTypes: ['unified_health_record', 'claims', 'clinical', 'devices', 'user_reported'],
-    setupSteps: [
-      'Click "Connect" to start',
-      'You will be redirected to b.well',
-      'Connect your health plans and providers',
-      'Your unified health record is created',
-      'All data syncs to Jvala automatically',
-    ],
-  },
-  healthex: {
-    id: 'healthex',
-    name: 'HealthEx',
-    type: 'fhir',
-    available: true,
-    authType: 'oauth2',
-    baseUrl: 'https://api.healthex.io/fhir/r4',
-    dataTypes: ['patient_records', 'consent_management', 'data_sharing'],
-    setupSteps: [
-      'Click "Connect" to start',
-      'You will be redirected to HealthEx',
-      'Verify your identity',
-      'Set your consent preferences',
-      'Your records sync via the TEFCA network',
-    ],
   },
 };
 
 serve(async (req) => {
+  // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -131,196 +51,337 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { action, userId, provider, code, state } = await req.json();
-    console.log(`EHR Connect: action=${action}, provider=${provider}`);
+    const ONEUP_CLIENT_ID = Deno.env.get('ONEUP_CLIENT_ID');
+    const ONEUP_CLIENT_SECRET = Deno.env.get('ONEUP_CLIENT_SECRET');
+
+    const { action, userId, provider, code, appUserId } = await req.json();
+    console.log(`EHR Connect: action=${action}, provider=${provider}, userId=${userId}`);
 
     switch (action) {
       case 'list_providers': {
-        const providerList = Object.values(EHR_PROVIDERS).map(p => ({
-          id: p.id,
-          name: p.name,
-          type: p.type,
-          available: p.available,
-          authType: p.authType,
-          dataTypes: p.dataTypes,
-        }));
-
         return new Response(JSON.stringify({
-          providers: providerList,
-          recommendations: [
-            {
-              priority: 1,
-              provider: 'apple_health_records',
-              reason: 'No setup required. Your hospitals may already be connected in Apple Health.',
-            },
-            {
-              priority: 2,
-              provider: '1uphealth',
-              reason: 'Connect to 300+ health plans and EHRs in one place.',
-            },
-            {
-              priority: 3,
-              provider: 'epic',
-              reason: 'Direct connection to MyChart - the most common patient portal.',
-            },
-          ],
+          providers: Object.values(EHR_PROVIDERS),
+          has_1up_credentials: !!ONEUP_CLIENT_ID && !!ONEUP_CLIENT_SECRET,
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
       case 'initiate_connection': {
-        const providerInfo = EHR_PROVIDERS[provider];
-        if (!providerInfo) {
-          throw new Error('Unknown EHR provider');
-        }
-
-        // For OAuth providers, we would generate an auth URL
-        // For now, return setup instructions
-        if (providerInfo.authType === 'oauth2') {
-          // In production: Generate OAuth URL and redirect
-          // const authUrl = await generateOAuthUrl(provider, userId);
-          
+        if (provider !== '1uphealth') {
           return new Response(JSON.stringify({
-            provider: providerInfo,
-            status: 'setup_required',
-            message: `To connect ${providerInfo.name}, follow these steps:`,
-            steps: providerInfo.setupSteps,
-            authType: providerInfo.authType,
-            // In production: authUrl,
+            status: 'user_action_required',
+            message: 'This provider requires manual setup on your device.',
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
 
-        // User-initiated (like Apple Health)
+        if (!ONEUP_CLIENT_ID || !ONEUP_CLIENT_SECRET) {
+          throw new Error('1Up Health credentials not configured');
+        }
+
+        // Step 1: Create a 1Up Health user and get auth code
+        console.log('Creating 1Up Health user for:', userId);
+        
+        const authCodeResponse = await fetch(ONEUP_AUTH_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            app_user_id: userId,
+            client_id: ONEUP_CLIENT_ID,
+            client_secret: ONEUP_CLIENT_SECRET,
+          }),
+        });
+
+        if (!authCodeResponse.ok) {
+          const errorText = await authCodeResponse.text();
+          console.error('1Up auth code error:', errorText);
+          throw new Error(`Failed to get auth code: ${authCodeResponse.status}`);
+        }
+
+        const authData = await authCodeResponse.json();
+        console.log('Got 1Up auth code:', authData.code ? 'yes' : 'no');
+
+        // Step 2: Exchange auth code for access token
+        const tokenResponse = await fetch(ONEUP_TOKEN_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            client_id: ONEUP_CLIENT_ID,
+            client_secret: ONEUP_CLIENT_SECRET,
+            code: authData.code,
+            grant_type: 'authorization_code',
+          }),
+        });
+
+        if (!tokenResponse.ok) {
+          const errorText = await tokenResponse.text();
+          console.error('1Up token error:', errorText);
+          throw new Error(`Failed to get access token: ${tokenResponse.status}`);
+        }
+
+        const tokens = await tokenResponse.json();
+        console.log('Got 1Up access token:', tokens.access_token ? 'yes' : 'no');
+
+        // Store tokens securely
+        const expiresAt = new Date(Date.now() + (tokens.expires_in || 3600) * 1000).toISOString();
+        
+        await supabase.from('ehr_tokens').upsert({
+          user_id: userId,
+          provider_id: '1uphealth',
+          access_token: tokens.access_token,
+          refresh_token: tokens.refresh_token || null,
+          expires_at: expiresAt,
+          scope: tokens.scope || null,
+          metadata: { oneup_user_id: authData.oneup_user_id },
+        }, { onConflict: 'user_id,provider_id' });
+
+        // Update connection status
+        await supabase.from('ehr_connections').upsert({
+          user_id: userId,
+          provider_id: '1uphealth',
+          status: 'connected',
+          last_sync_at: null,
+          metadata: { 
+            oneup_user_id: authData.oneup_user_id,
+            connected_at: new Date().toISOString(),
+          },
+        }, { onConflict: 'user_id,provider_id' });
+
+        // Return the 1Up Health provider connect URL for the user to link their health systems
+        const connectUrl = `https://api.1up.health/connect/system/clinical?client_id=${ONEUP_CLIENT_ID}&access_token=${tokens.access_token}`;
+
         return new Response(JSON.stringify({
-          provider: providerInfo,
-          status: 'user_action_required',
-          message: `${providerInfo.name} requires setup on your device:`,
-          steps: providerInfo.setupSteps,
+          status: 'connected',
+          connect_url: connectUrl,
+          message: 'Connected to 1Up Health! Click the link to connect your health systems.',
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
-      case 'oauth_callback': {
-        // Handle OAuth callback from EHR provider
-        if (!code || !provider) {
-          throw new Error('Missing OAuth callback parameters');
+      case 'get_connect_url': {
+        // Get the stored access token and return connect URL
+        const { data: tokenData } = await supabase
+          .from('ehr_tokens')
+          .select('access_token')
+          .eq('user_id', userId)
+          .eq('provider_id', '1uphealth')
+          .single();
+
+        if (!tokenData?.access_token) {
+          throw new Error('Not connected to 1Up Health. Please connect first.');
         }
 
-        // In production: Exchange code for tokens
-        // const tokens = await exchangeCodeForTokens(provider, code);
-        
-        // Store tokens securely
-        // await supabase.from('ehr_tokens').upsert({
-        //   user_id: userId,
-        //   provider_id: provider,
-        //   access_token: tokens.access_token,
-        //   refresh_token: tokens.refresh_token,
-        //   expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
-        // });
-
-        // Update connection status
-        await supabase.from('ehr_connections').upsert({
-          user_id: userId,
-          provider_id: provider,
-          status: 'connected',
-          last_sync_at: new Date().toISOString(),
-        }, { onConflict: 'user_id,provider_id' });
+        const connectUrl = `https://api.1up.health/connect/system/clinical?client_id=${ONEUP_CLIENT_ID}&access_token=${tokenData.access_token}`;
 
         return new Response(JSON.stringify({
-          status: 'connected',
-          message: 'Successfully connected to EHR',
+          connect_url: connectUrl,
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
       case 'sync_data': {
-        // Sync data from connected EHR
-        const { data: connection } = await supabase
-          .from('ehr_connections')
+        // Get stored tokens
+        const { data: tokenData, error: tokenError } = await supabase
+          .from('ehr_tokens')
           .select('*')
           .eq('user_id', userId)
-          .eq('provider_id', provider)
+          .eq('provider_id', '1uphealth')
           .single();
 
-        if (!connection || connection.status !== 'connected') {
-          throw new Error('EHR not connected');
+        if (tokenError || !tokenData) {
+          throw new Error('Not connected to 1Up Health');
         }
 
-        // In production: Fetch data from EHR API
-        // const fhirData = await fetchFHIRData(provider, userId);
-        // Process and store the data
+        // Check if token is expired and refresh if needed
+        let accessToken = tokenData.access_token;
+        if (new Date(tokenData.expires_at) < new Date()) {
+          if (tokenData.refresh_token) {
+            console.log('Refreshing 1Up token...');
+            const refreshResponse = await fetch(ONEUP_TOKEN_URL, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body: new URLSearchParams({
+                client_id: ONEUP_CLIENT_ID!,
+                client_secret: ONEUP_CLIENT_SECRET!,
+                refresh_token: tokenData.refresh_token,
+                grant_type: 'refresh_token',
+              }),
+            });
 
-        // Update last sync
+            if (refreshResponse.ok) {
+              const newTokens = await refreshResponse.json();
+              accessToken = newTokens.access_token;
+              
+              await supabase.from('ehr_tokens').update({
+                access_token: newTokens.access_token,
+                refresh_token: newTokens.refresh_token || tokenData.refresh_token,
+                expires_at: new Date(Date.now() + (newTokens.expires_in || 3600) * 1000).toISOString(),
+              }).eq('user_id', userId).eq('provider_id', '1uphealth');
+            }
+          }
+        }
+
+        // Fetch FHIR data from 1Up Health
+        console.log('Fetching FHIR data from 1Up Health...');
+        
+        const fhirResources: Record<string, any[]> = {
+          conditions: [],
+          medications: [],
+          allergies: [],
+          labs: [],
+          vitals: [],
+        };
+
+        // Fetch Conditions
+        try {
+          const conditionsRes = await fetch(`${ONEUP_FHIR_URL}/Condition`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+          });
+          if (conditionsRes.ok) {
+            const data = await conditionsRes.json();
+            fhirResources.conditions = data.entry?.map((e: any) => e.resource) || [];
+            console.log(`Fetched ${fhirResources.conditions.length} conditions`);
+          }
+        } catch (e) {
+          console.error('Error fetching conditions:', e);
+        }
+
+        // Fetch MedicationStatements
+        try {
+          const medsRes = await fetch(`${ONEUP_FHIR_URL}/MedicationStatement`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+          });
+          if (medsRes.ok) {
+            const data = await medsRes.json();
+            fhirResources.medications = data.entry?.map((e: any) => e.resource) || [];
+            console.log(`Fetched ${fhirResources.medications.length} medications`);
+          }
+        } catch (e) {
+          console.error('Error fetching medications:', e);
+        }
+
+        // Fetch AllergyIntolerances
+        try {
+          const allergiesRes = await fetch(`${ONEUP_FHIR_URL}/AllergyIntolerance`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+          });
+          if (allergiesRes.ok) {
+            const data = await allergiesRes.json();
+            fhirResources.allergies = data.entry?.map((e: any) => e.resource) || [];
+            console.log(`Fetched ${fhirResources.allergies.length} allergies`);
+          }
+        } catch (e) {
+          console.error('Error fetching allergies:', e);
+        }
+
+        // Fetch Observations (labs/vitals)
+        try {
+          const obsRes = await fetch(`${ONEUP_FHIR_URL}/Observation`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+          });
+          if (obsRes.ok) {
+            const data = await obsRes.json();
+            const observations = data.entry?.map((e: any) => e.resource) || [];
+            // Separate labs from vitals based on category
+            fhirResources.labs = observations.filter((o: any) => 
+              o.category?.some((c: any) => c.coding?.some((cd: any) => cd.code === 'laboratory'))
+            );
+            fhirResources.vitals = observations.filter((o: any) => 
+              o.category?.some((c: any) => c.coding?.some((cd: any) => cd.code === 'vital-signs'))
+            );
+            console.log(`Fetched ${fhirResources.labs.length} labs, ${fhirResources.vitals.length} vitals`);
+          }
+        } catch (e) {
+          console.error('Error fetching observations:', e);
+        }
+
+        // Store the FHIR data in the connection metadata
+        const totalRecords = Object.values(fhirResources).reduce((sum, arr) => sum + arr.length, 0);
+        
         await supabase.from('ehr_connections').update({
           last_sync_at: new Date().toISOString(),
-        }).eq('user_id', userId).eq('provider_id', provider);
+          metadata: {
+            last_sync_records: totalRecords,
+            fhir_data: fhirResources,
+            synced_at: new Date().toISOString(),
+          },
+        }).eq('user_id', userId).eq('provider_id', '1uphealth');
 
         return new Response(JSON.stringify({
           status: 'synced',
-          message: 'Data sync completed',
-          lastSync: new Date().toISOString(),
+          records_synced: totalRecords,
+          breakdown: {
+            conditions: fhirResources.conditions.length,
+            medications: fhirResources.medications.length,
+            allergies: fhirResources.allergies.length,
+            labs: fhirResources.labs.length,
+            vitals: fhirResources.vitals.length,
+          },
+          last_sync: new Date().toISOString(),
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
       case 'get_fhir_data': {
-        // Fetch specific FHIR resources
         const { data: connection } = await supabase
           .from('ehr_connections')
           .select('*')
           .eq('user_id', userId)
-          .eq('provider_id', provider)
+          .eq('provider_id', provider || '1uphealth')
           .single();
 
         if (!connection) {
           return new Response(JSON.stringify({
             status: 'not_connected',
-            message: 'Connect an EHR provider first',
+            message: 'Connect to 1Up Health first to import your records.',
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
 
-        // In production: Return actual FHIR data
-        // For now, return sample structure
+        const metadata = connection.metadata as any;
+        
         return new Response(JSON.stringify({
           status: 'success',
-          resources: {
+          resources: metadata?.fhir_data || {
             conditions: [],
             medications: [],
             allergies: [],
             labs: [],
             vitals: [],
-            immunizations: [],
           },
-          lastUpdated: connection.last_sync_at,
+          last_sync: connection.last_sync_at,
+          records_count: metadata?.last_sync_records || 0,
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
       case 'disconnect': {
-        await supabase
-          .from('ehr_connections')
+        await supabase.from('ehr_connections')
           .delete()
           .eq('user_id', userId)
           .eq('provider_id', provider);
 
-        await supabase
-          .from('ehr_tokens')
+        await supabase.from('ehr_tokens')
           .delete()
           .eq('user_id', userId)
           .eq('provider_id', provider);
 
         return new Response(JSON.stringify({
           status: 'disconnected',
-          message: 'EHR disconnected successfully',
+          message: 'Successfully disconnected from EHR provider.',
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });

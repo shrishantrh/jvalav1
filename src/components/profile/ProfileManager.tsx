@@ -16,6 +16,7 @@ import { CONDITIONS } from "@/data/conditions";
 import { NotificationSettings } from "@/components/notifications/NotificationSettings";
 import { WearableIntegration } from "@/components/wearables/WearableIntegration";
 import { WeeklyDigestSettings } from "@/components/email/WeeklyDigestSettings";
+import { EHRIntegration } from "@/components/ehr/EHRIntegration";
 
 interface ProfileData {
   full_name: string | null;
@@ -541,6 +542,9 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
         </TabsContent>
 
         <TabsContent value="integrations" className="mt-4 space-y-4">
+          {/* EHR Integration - 1Up Health */}
+          {userId && <EHRIntegration userId={userId} />}
+
           {/* Push Notifications */}
           <NotificationSettings />
 
