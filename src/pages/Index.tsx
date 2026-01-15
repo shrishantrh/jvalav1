@@ -30,6 +30,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { OfflineIndicator } from "@/components/pwa/OfflineIndicator";
 import { AIHealthCoach } from "@/components/ai/AIHealthCoach";
+import { LimitlessAIChat } from "@/components/ai/LimitlessAIChat";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 interface MedicationDetails {
   name: string;
@@ -61,6 +63,8 @@ const Index = () => {
   const [currentStreak, setCurrentStreak] = useState(0);
   const [currentLocation, setCurrentLocation] = useState<{ city?: string } | null>(null);
   const [insightViewCount, setInsightViewCount] = useState(0);
+  const [showProtocolChat, setShowProtocolChat] = useState(false);
+  const [protocolPrompt, setProtocolPrompt] = useState<string | null>(null);
   const smartTrackRef = useRef<SmartTrackRef>(null);
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
@@ -675,6 +679,10 @@ const Index = () => {
               medicationLogs={medicationLogs}
               onLogMedication={addMedicationLog}
               userMedications={userProfile?.medications?.map(m => m.name) || []}
+              onStartProtocol={(rec) => {
+                setProtocolPrompt(rec);
+                setShowProtocolChat(true);
+              }}
             />
           </div>
         )}
@@ -695,8 +703,26 @@ const Index = () => {
           />
         )}
       </main>
+
+      {/* Protocol Builder Chat Dialog */}
+      <Dialog open={showProtocolChat} onOpenChange={setShowProtocolChat}>
+        <DialogContent className="max-w-md p-0 overflow-hidden">
+          {user && (
+            <LimitlessAIChat 
+              userId={user.id}
+              initialPrompt={protocolPrompt || undefined}
+              isProtocolMode={true}
+              onClose={() => {
+                setShowProtocolChat(false);
+                setProtocolPrompt(null);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
+
 
 export default Index;

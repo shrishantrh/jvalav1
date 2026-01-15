@@ -7,7 +7,6 @@ import { InsightsCharts } from "@/components/insights/InsightsCharts";
 import { EnhancedMedicalExport } from "@/components/insights/EnhancedMedicalExport";
 import { AIInsightsPanel } from "@/components/insights/AIInsightsPanel";
 import { MedicationTracker } from "@/components/medication/MedicationTracker";
-import { EHRIntegration } from "@/components/ehr/EHRIntegration";
 import { CommunityHotspots } from "@/components/insights/CommunityHotspots";
 import { 
   TrendingUp, 
@@ -16,7 +15,6 @@ import {
   BarChart3,
   Download,
   Pill,
-  Hospital,
   Brain,
   Target,
   Clock,
@@ -27,7 +25,7 @@ import {
   Activity
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
-import { isWithinInterval, subDays, differenceInDays, format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
+import { isWithinInterval, subDays, differenceInDays, format, startOfMonth, eachDayOfInterval } from 'date-fns';
 import { useAuth } from "@/hooks/useAuth";
 
 interface MedicationLog {
@@ -44,6 +42,7 @@ interface RevampedInsightsProps {
   medicationLogs?: MedicationLog[];
   onLogMedication?: (log: Omit<MedicationLog, 'id' | 'takenAt'>) => void;
   userMedications?: string[];
+  onStartProtocol?: (recommendation: string) => void;
 }
 
 export const RevampedInsights = ({ 
@@ -51,7 +50,8 @@ export const RevampedInsights = ({
   userConditions = [], 
   medicationLogs = [], 
   onLogMedication, 
-  userMedications = [] 
+  userMedications = [],
+  onStartProtocol
 }: RevampedInsightsProps) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('ai');
@@ -88,18 +88,6 @@ export const RevampedInsights = ({
       .slice(0, 3)
       .map(([name, count]) => ({ name, count }));
 
-    // Top symptoms
-    const symptomCounts: Record<string, number> = {};
-    flares30d.forEach(f => {
-      f.symptoms?.forEach(s => {
-        symptomCounts[s] = (symptomCounts[s] || 0) + 1;
-      });
-    });
-    const topSymptoms = Object.entries(symptomCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([name, count]) => ({ name, count }));
-
     // Peak time
     const timeSlots: Record<string, number> = { morning: 0, afternoon: 0, evening: 0, night: 0 };
     flares30d.forEach(f => {
@@ -120,13 +108,10 @@ export const RevampedInsights = ({
     const moderateCt = flares7d.filter(f => f.severity === 'moderate').length;
     const mildCt = flares7d.filter(f => f.severity === 'mild').length;
 
-    // Month logging streak
+    // Month logging rate
     const monthStart = startOfMonth(now);
-    const monthEnd = endOfMonth(now);
     const daysInMonth = eachDayOfInterval({ start: monthStart, end: now });
-    const daysLogged = new Set(
-      entries.map(e => format(e.timestamp, 'yyyy-MM-dd'))
-    );
+    const daysLogged = new Set(entries.map(e => format(e.timestamp, 'yyyy-MM-dd')));
     const monthLoggingRate = Math.round(
       (daysInMonth.filter(d => daysLogged.has(format(d, 'yyyy-MM-dd'))).length / daysInMonth.length) * 100
     );
@@ -136,10 +121,8 @@ export const RevampedInsights = ({
       flares30d: flares30d.length,
       trend,
       topTriggers,
-      topSymptoms,
       peakTime,
       daysSinceFlare,
-      totalEntries: entries.length,
       severeCt,
       moderateCt,
       mildCt,
@@ -149,9 +132,9 @@ export const RevampedInsights = ({
 
   const getTrendIcon = () => {
     switch (analytics.trend) {
-      case 'improving': return <TrendingDown className="w-4 h-4 text-severity-none" />;
-      case 'worsening': return <TrendingUp className="w-4 h-4 text-severity-severe" />;
-      default: return <Minus className="w-4 h-4 text-muted-foreground" />;
+      case 'improving': return <TrendingDown className="w-3.5 h-3.5 text-severity-none" />;
+      case 'worsening': return <TrendingUp className="w-3.5 h-3.5 text-severity-severe" />;
+      default: return <Minus className="w-3.5 h-3.5 text-muted-foreground" />;
     }
   };
 
@@ -165,184 +148,133 @@ export const RevampedInsights = ({
 
   if (entries.length === 0) {
     return (
-      <Card className="p-8 text-center bg-gradient-card border-0 shadow-soft">
-        <Sparkles className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-        <h3 className="text-lg font-medium mb-2">No data yet</h3>
-        <p className="text-sm text-muted-foreground">
-          Start logging to see your insights
-        </p>
+      <Card className="p-6 text-center bg-gradient-card border-0 shadow-soft">
+        <Sparkles className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+        <h3 className="text-base font-medium mb-1">No data yet</h3>
+        <p className="text-xs text-muted-foreground">Start logging to see your insights</p>
       </Card>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Hero Stats Row */}
+    <div className="space-y-3">
+      {/* Compact Stats Row */}
       <div className="grid grid-cols-4 gap-2">
-        <Card className="p-3 bg-gradient-card border-0 shadow-soft text-center">
-          <div className="flex items-center justify-center gap-1 mb-1">
-            <Flame className="w-3.5 h-3.5 text-severity-severe" />
-          </div>
-          <p className="text-xl font-bold">{analytics.flares7d}</p>
-          <p className="text-[10px] text-muted-foreground">This Week</p>
+        <Card className="p-2.5 bg-gradient-card border-0 shadow-soft text-center">
+          <Flame className="w-3.5 h-3.5 mx-auto text-severity-severe mb-1" />
+          <p className="text-lg font-bold leading-none">{analytics.flares7d}</p>
+          <p className="text-[9px] text-muted-foreground mt-0.5">This Week</p>
         </Card>
 
-        <Card className={cn("p-3 border-0 shadow-soft text-center", getTrendColor())}>
-          <div className="flex items-center justify-center gap-1 mb-1">
-            {getTrendIcon()}
-          </div>
-          <p className="text-sm font-semibold capitalize">{analytics.trend}</p>
-          <p className="text-[10px] opacity-70">Trend</p>
+        <Card className={cn("p-2.5 border-0 shadow-soft text-center", getTrendColor())}>
+          <div className="flex justify-center mb-1">{getTrendIcon()}</div>
+          <p className="text-xs font-semibold capitalize leading-none">{analytics.trend}</p>
+          <p className="text-[9px] opacity-70 mt-0.5">Trend</p>
         </Card>
 
-        <Card className="p-3 bg-gradient-card border-0 shadow-soft text-center">
-          <div className="flex items-center justify-center gap-1 mb-1">
-            <Clock className="w-3.5 h-3.5 text-primary" />
-          </div>
-          <p className="text-sm font-semibold capitalize">{analytics.peakTime}</p>
-          <p className="text-[10px] text-muted-foreground">Peak Time</p>
+        <Card className="p-2.5 bg-gradient-card border-0 shadow-soft text-center">
+          <Clock className="w-3.5 h-3.5 mx-auto text-primary mb-1" />
+          <p className="text-xs font-semibold capitalize leading-none">{analytics.peakTime}</p>
+          <p className="text-[9px] text-muted-foreground mt-0.5">Peak</p>
         </Card>
 
-        <Card className="p-3 bg-gradient-card border-0 shadow-soft text-center">
-          <div className="flex items-center justify-center gap-1 mb-1">
-            <Calendar className="w-3.5 h-3.5 text-severity-none" />
-          </div>
-          <p className="text-xl font-bold">
+        <Card className="p-2.5 bg-gradient-card border-0 shadow-soft text-center">
+          <Calendar className="w-3.5 h-3.5 mx-auto text-severity-none mb-1" />
+          <p className="text-lg font-bold leading-none">
             {analytics.daysSinceFlare !== null ? analytics.daysSinceFlare : '—'}
           </p>
-          <p className="text-[10px] text-muted-foreground">Days Clear</p>
+          <p className="text-[9px] text-muted-foreground mt-0.5">Days Clear</p>
         </Card>
       </div>
 
-      {/* Severity Breakdown Mini Chart */}
+      {/* Severity Bar */}
       {analytics.flares7d > 0 && (
-        <Card className="p-4 bg-gradient-card border-0 shadow-soft">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium flex items-center gap-2">
-              <Activity className="w-4 h-4 text-primary" />
-              This Week's Severity
-            </h3>
-            <Badge variant="outline" className="text-[10px]">
-              {analytics.monthLoggingRate}% logged this month
-            </Badge>
+        <Card className="p-3 bg-gradient-card border-0 shadow-soft">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-medium flex items-center gap-1">
+              <Activity className="w-3 h-3 text-primary" />
+              Week Severity
+            </span>
+            <span className="text-[9px] text-muted-foreground">{analytics.monthLoggingRate}% logged</span>
           </div>
-          <div className="flex gap-2 h-3 rounded-full overflow-hidden bg-muted">
+          <div className="flex gap-1 h-2 rounded-full overflow-hidden bg-muted">
             {analytics.severeCt > 0 && (
-              <div 
-                className="bg-severity-severe h-full transition-all"
-                style={{ width: `${(analytics.severeCt / analytics.flares7d) * 100}%` }}
-              />
+              <div className="bg-severity-severe h-full" style={{ width: `${(analytics.severeCt / analytics.flares7d) * 100}%` }} />
             )}
             {analytics.moderateCt > 0 && (
-              <div 
-                className="bg-severity-moderate h-full transition-all"
-                style={{ width: `${(analytics.moderateCt / analytics.flares7d) * 100}%` }}
-              />
+              <div className="bg-severity-moderate h-full" style={{ width: `${(analytics.moderateCt / analytics.flares7d) * 100}%` }} />
             )}
             {analytics.mildCt > 0 && (
-              <div 
-                className="bg-severity-mild h-full transition-all"
-                style={{ width: `${(analytics.mildCt / analytics.flares7d) * 100}%` }}
-              />
+              <div className="bg-severity-mild h-full" style={{ width: `${(analytics.mildCt / analytics.flares7d) * 100}%` }} />
             )}
           </div>
-          <div className="flex justify-between mt-2 text-[10px] text-muted-foreground">
+          <div className="flex justify-between mt-1.5 text-[9px] text-muted-foreground">
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-severity-severe" />
-              Severe ({analytics.severeCt})
+              <span className="w-1.5 h-1.5 rounded-full bg-severity-severe" /> {analytics.severeCt}
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-severity-moderate" />
-              Moderate ({analytics.moderateCt})
+              <span className="w-1.5 h-1.5 rounded-full bg-severity-moderate" /> {analytics.moderateCt}
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-severity-mild" />
-              Mild ({analytics.mildCt})
+              <span className="w-1.5 h-1.5 rounded-full bg-severity-mild" /> {analytics.mildCt}
             </span>
           </div>
         </Card>
       )}
 
-      {/* Top Patterns - Compact */}
-      {(analytics.topTriggers.length > 0 || analytics.topSymptoms.length > 0) && (
-        <Card className="p-4 bg-gradient-card border-0 shadow-soft">
-          <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
-            <Target className="w-4 h-4 text-primary" />
-            Your Patterns (30 days)
-          </h3>
-          <div className="space-y-3">
-            {analytics.topTriggers.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-1.5">Top Triggers</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {analytics.topTriggers.map((t, i) => (
-                    <Badge 
-                      key={t.name} 
-                      variant="outline" 
-                      className={cn(
-                        "text-xs",
-                        i === 0 && "bg-severity-severe/10 border-severity-severe/30 text-severity-severe"
-                      )}
-                    >
-                      {t.name}
-                      <span className="ml-1 opacity-60">×{t.count}</span>
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-            {analytics.topSymptoms.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-1.5">Common Symptoms</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {analytics.topSymptoms.map((s, i) => (
-                    <Badge 
-                      key={s.name} 
-                      variant="secondary" 
-                      className={cn(
-                        "text-xs",
-                        i === 0 && "bg-primary/10 text-primary"
-                      )}
-                    >
-                      {s.name}
-                      <span className="ml-1 opacity-60">×{s.count}</span>
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
+      {/* Top Triggers Compact */}
+      {analytics.topTriggers.length > 0 && (
+        <Card className="p-3 bg-gradient-card border-0 shadow-soft">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Target className="w-3.5 h-3.5 text-primary" />
+            <span className="text-[10px] font-medium">Top Triggers</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {analytics.topTriggers.map((t, i) => (
+              <Badge 
+                key={t.name} 
+                variant="outline" 
+                className={cn("text-[10px] py-0.5", i === 0 && "bg-severity-severe/10 border-severity-severe/30 text-severity-severe")}
+              >
+                {t.name} <span className="ml-1 opacity-60">×{t.count}</span>
+              </Badge>
+            ))}
           </div>
         </Card>
       )}
 
-      {/* Tabbed Content - AI First */}
+      {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5 h-10">
-          <TabsTrigger value="ai" className="text-xs gap-1">
+        <TabsList className="grid w-full grid-cols-5 h-9">
+          <TabsTrigger value="ai" className="text-[10px] gap-1">
             <Brain className="w-3 h-3" />
             AI
           </TabsTrigger>
-          <TabsTrigger value="charts" className="text-xs gap-1">
+          <TabsTrigger value="charts" className="text-[10px] gap-1">
             <BarChart3 className="w-3 h-3" />
             Charts
           </TabsTrigger>
-          <TabsTrigger value="local" className="text-xs gap-1">
+          <TabsTrigger value="local" className="text-[10px] gap-1">
             <MapPin className="w-3 h-3" />
             Local
           </TabsTrigger>
-          <TabsTrigger value="meds" className="text-xs gap-1">
+          <TabsTrigger value="meds" className="text-[10px] gap-1">
             <Pill className="w-3 h-3" />
             Meds
           </TabsTrigger>
-          <TabsTrigger value="export" className="text-xs gap-1">
+          <TabsTrigger value="export" className="text-[10px] gap-1">
             <Download className="w-3 h-3" />
             Export
           </TabsTrigger>
         </TabsList>
 
-        <div className="mt-4">
+        <div className="mt-3">
           <TabsContent value="ai" className="mt-0">
-            <AIInsightsPanel entries={entries} userConditions={userConditions} />
+            <AIInsightsPanel 
+              entries={entries} 
+              userConditions={userConditions} 
+              onStartProtocol={onStartProtocol}
+            />
           </TabsContent>
 
           <TabsContent value="charts" className="mt-0">
@@ -361,18 +293,15 @@ export const RevampedInsights = ({
                 userMedications={userMedications}
               />
             ) : (
-              <Card className="p-6 text-center">
-                <Pill className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">Medication tracking coming soon</p>
+              <Card className="p-4 text-center">
+                <Pill className="w-6 h-6 mx-auto text-muted-foreground mb-2" />
+                <p className="text-xs text-muted-foreground">Medication tracking coming soon</p>
               </Card>
             )}
           </TabsContent>
 
           <TabsContent value="export" className="mt-0">
-            <EnhancedMedicalExport 
-              entries={entries}
-              conditions={userConditions}
-            />
+            <EnhancedMedicalExport entries={entries} conditions={userConditions} />
           </TabsContent>
         </div>
       </Tabs>
