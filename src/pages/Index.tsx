@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { FlareEntry } from "@/types/flare";
 import { SmartTrack, SmartTrackRef } from "@/components/tracking/SmartTrack";
 import { DetailedEntry } from "@/components/DetailedEntry";
-import { StreamlinedInsights } from "@/components/insights/StreamlinedInsights";
+import { RevampedInsights } from "@/components/insights/RevampedInsights";
 import { CalendarHistory } from "@/components/history/CalendarHistory";
 import { FlareTimeline } from "@/components/flare/FlareTimeline";
 import { ProfileManager } from "@/components/profile/ProfileManager";
@@ -668,8 +668,8 @@ const Index = () => {
               userId={user.id}
             />
             
-            {/* Main Insights - streamlined */}
-            <StreamlinedInsights 
+            {/* Main Insights - AI-Powered */}
+            <RevampedInsights 
               entries={entries} 
               userConditions={userProfile?.conditions}
               medicationLogs={medicationLogs}
