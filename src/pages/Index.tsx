@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import jvalaLogo from "@/assets/jvala-logo.png";
 import { Card } from "@/components/ui/card";
@@ -14,7 +14,6 @@ import { ProgressDashboard } from "@/components/engagement/ProgressDashboard";
 import { RevolutionaryOnboarding } from "@/components/onboarding/RevolutionaryOnboarding";
 import { HealthForecast } from "@/components/forecast/HealthForecast";
 import { CycleTracker } from "@/components/tracking/CycleTracker";
-import { CalendarStress } from "@/components/tracking/CalendarStress";
 import { LimitlessAIChat } from "@/components/ai/LimitlessAIChat";
 import { StreakBadge } from "@/components/engagement/StreakBadge";
 import { CONDITIONS } from "@/data/conditions";
@@ -610,12 +609,11 @@ const Index = () => {
               />
             )}
 
-            {/* Cycle Tracker + Stress Analysis Row */}
-            {user && (
-              <div className="grid grid-cols-2 gap-3">
-                <CycleTracker userId={user.id} />
-                <CalendarStress userId={user.id} />
-              </div>
+            {/* Cycle Tracker - Only show if user has menstrual-related condition */}
+            {user && userProfile?.conditions?.some(c => 
+              ['menstrual-disorders', 'endometriosis', 'pcos', 'pmdd', 'pms'].includes(c)
+            ) && (
+              <CycleTracker userId={user.id} />
             )}
             
             {/* Discovered Patterns - Compact teaser */}
@@ -663,10 +661,13 @@ const Index = () => {
           </div>
         )}
 
-        {/* Insights View - Now includes Weekly Report and Meds */}
+        {/* Insights View - AI Chat + Analytics */}
         {currentView === 'insights' && user && (
           <div className="space-y-4">
-            {/* Weekly Report at top of insights */}
+            {/* Smart AI Chat - Primary interaction */}
+            <LimitlessAIChat userId={user.id} />
+            
+            {/* Weekly Report */}
             <WeeklyReportCard 
               userId={user.id}
             />
