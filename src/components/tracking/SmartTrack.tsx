@@ -685,6 +685,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         // limitless-ai fields
         visualization: limitlessData?.visualization,
         followUp: limitlessData?.followUp,
+        dynamicFollowUps: limitlessData?.dynamicFollowUps,
       };
       setMessages(prev => [...prev, assistantMessage]);
 
