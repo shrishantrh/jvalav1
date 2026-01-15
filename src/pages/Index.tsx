@@ -6,25 +6,19 @@ import { Button } from "@/components/ui/button";
 import { FlareEntry } from "@/types/flare";
 import { SmartTrack, SmartTrackRef } from "@/components/tracking/SmartTrack";
 import { DetailedEntry } from "@/components/DetailedEntry";
-import { CleanInsights } from "@/components/insights/CleanInsights";
-import { ProactiveRiskAlerts } from "@/components/insights/ProactiveRiskAlerts";
+import { UnifiedInsights } from "@/components/insights/UnifiedInsights";
 import { CalendarHistory } from "@/components/history/CalendarHistory";
 import { FlareTimeline } from "@/components/flare/FlareTimeline";
 import { ProfileManager } from "@/components/profile/ProfileManager";
 import { ProgressDashboard } from "@/components/engagement/ProgressDashboard";
 import { RevolutionaryOnboarding } from "@/components/onboarding/RevolutionaryOnboarding";
 import { HealthForecast } from "@/components/forecast/HealthForecast";
-import { CycleTracker } from "@/components/tracking/CycleTracker";
-import { CalendarStress } from "@/components/tracking/CalendarStress";
-import { LimitlessAIChat } from "@/components/ai/LimitlessAIChat";
+import { QuickHealthStatus } from "@/components/tracking/QuickHealthStatus";
+import { WeeklyReportCard } from "@/components/insights/WeeklyReportCard";
 import { StreakBadge } from "@/components/engagement/StreakBadge";
 import { CONDITIONS } from "@/data/conditions";
 import { useEngagement } from "@/hooks/useEngagement";
-import { useCorrelations } from "@/hooks/useCorrelations";
-import { CorrelationInsights } from "@/components/insights/CorrelationInsights";
-import { WeeklyReportCard } from "@/components/insights/WeeklyReportCard";
-import { Activity, Calendar, BarChart3, User as UserIcon, ChevronDown, Flame, Settings, MapPin } from "lucide-react";
-import { MedicationTracker } from "@/components/medication/MedicationTracker";
+import { Activity, Calendar, BarChart3, User as UserIcon, ChevronDown, Settings, MapPin } from "lucide-react";
 import { useMedicationLogs } from "@/hooks/useMedicationLogs";
 import { useToast } from "@/hooks/use-toast";
 import { format, isSameDay } from "date-fns";
@@ -32,7 +26,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { OfflineIndicator } from "@/components/pwa/OfflineIndicator";
-import { AIHealthCoach } from "@/components/ai/AIHealthCoach";
 
 interface MedicationDetails {
   name: string;
@@ -63,34 +56,14 @@ const Index = () => {
   const [showDetailedEntry, setShowDetailedEntry] = useState(false);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [currentLocation, setCurrentLocation] = useState<{ city?: string } | null>(null);
-  const [insightViewCount, setInsightViewCount] = useState(0);
   const smartTrackRef = useRef<SmartTrackRef>(null);
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { updateEngagementOnLog, getEngagement, syncEngagementTotals, checkCorrelationBadges, checkTrackingBadges, awardBadge } = useEngagement();
-  
-  // Use correlations hook
-  const { topCorrelations, recentActivities } = useCorrelations(user?.id || null);
+  const { updateEngagementOnLog, getEngagement, syncEngagementTotals, checkTrackingBadges, awardBadge } = useEngagement();
   
   // Medication logs hook
   const { logs: medicationLogs, addLog: addMedicationLog } = useMedicationLogs(user?.id);
-
-  // Check for special badges when correlations change
-  useEffect(() => {
-    const checkBadges = async () => {
-      if (!user || topCorrelations.length === 0) return;
-      
-      const newBadges = await checkCorrelationBadges(user.id);
-      if (newBadges.length > 0) {
-        toast({
-          title: "🏆 Badge Earned!",
-          description: `You earned: ${newBadges.map(b => b === 'pattern_detective' ? 'Pattern Detective' : 'Health Analyst').join(', ')}`,
-        });
-      }
-    };
-    checkBadges();
-  }, [topCorrelations.length, user?.id]);
 
   // Check auth and load data
   useEffect(() => {
@@ -184,19 +157,16 @@ const Index = () => {
         .from('profiles')
         .update({
           conditions: data.conditions,
-          known_symptoms: data.symptoms,
-          known_triggers: data.triggers,
-          physician_name: data.physicianName || null,
-          physician_email: data.physicianEmail || null,
-          physician_phone: data.physicianPhone || null,
-          physician_practice: data.physicianPractice || null,
-          date_of_birth: data.dateOfBirth || null,
-          gender: data.gender || null,
-          biological_sex: data.biologicalSex || null,
-          height_cm: data.heightCm || null,
-          weight_kg: data.weightKg || null,
-          blood_type: data.bloodType || null,
+          known_symptoms: [],
+          known_triggers: [],
           onboarding_completed: true,
+          metadata: {
+            trackingItems: data.trackingItems,
+            dataSources: data.dataSources,
+            menstrualApp: data.menstrualApp,
+            biologicalSex: data.biologicalSex,
+            age: data.age,
+          }
         })
         .eq('id', user.id);
 
@@ -204,13 +174,13 @@ const Index = () => {
 
       setUserProfile({
         conditions: data.conditions,
-        known_symptoms: data.symptoms,
-        known_triggers: data.triggers,
+        known_symptoms: [],
+        known_triggers: [],
         medications: [],
-        physician_name: data.physicianName || null,
-        physician_email: data.physicianEmail || null,
-        physician_phone: data.physicianPhone || null,
-        physician_practice: data.physicianPractice || null,
+        physician_name: null,
+        physician_email: null,
+        physician_phone: null,
+        physician_practice: null,
         onboarding_completed: true,
       });
 
@@ -218,7 +188,7 @@ const Index = () => {
 
       toast({
         title: "Welcome to Jvala! 💜",
-        description: "You're all set. Start tracking to see insights.",
+        description: "Your health AI is ready. Start tracking!",
       });
     } catch (error) {
       console.error('Failed to save onboarding:', error);
@@ -313,7 +283,7 @@ const Index = () => {
 
         // Update engagement
         const isDetailed = !!(entryData.symptoms?.length || entryData.triggers?.length || entryData.note || entryData.medications?.length);
-        const { newBadges, streakIncreased, currentStreak: newStreak } = await updateEngagementOnLog(user.id, isDetailed);
+        const { newBadges, currentStreak: newStreak } = await updateEngagementOnLog(user.id, isDetailed);
         setCurrentStreak(newStreak);
         
         // Check for tracking variety badges
@@ -438,23 +408,10 @@ const Index = () => {
     return entries.filter(e => isSameDay(e.timestamp, selectedDate));
   }, [entries, selectedDate]);
 
-  // Show onboarding if needed - now using SmartOnboarding (3 steps instead of 7)
+  // Show onboarding if needed
   if (showOnboarding && !isLoadingProfile) {
-    return <RevolutionaryOnboarding onComplete={(data) => {
-      handleOnboardingComplete({
-        conditions: data.conditions,
-        symptoms: [],
-        triggers: [],
-        enableReminders: data.enableReminders,
-        reminderTime: data.reminderTime,
-      });
-    }} />;
+    return <RevolutionaryOnboarding onComplete={handleOnboardingComplete} />;
   }
-
-  // Get condition names for display
-  const userConditionNames = userProfile?.conditions
-    .map(id => CONDITIONS.find(c => c.id === id)?.name)
-    .filter(Boolean) || [];
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -470,7 +427,6 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center gap-1">
-              {/* Streak Badge */}
               {currentStreak > 0 && (
                 <StreakBadge 
                   streak={currentStreak} 
@@ -498,7 +454,7 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Navigation - Simplified to 3 core tabs */}
+      {/* Navigation */}
       <div className="container max-w-md mx-auto px-4 py-3">
         <div className="flex bg-card/80 backdrop-blur rounded-2xl p-1 shadow-soft border">
           <Button
@@ -522,17 +478,7 @@ const Index = () => {
           <Button
             variant={currentView === 'insights' ? 'default' : 'ghost'}
             size="sm"
-            onClick={async () => {
-              setCurrentView('insights');
-              const newCount = insightViewCount + 1;
-              setInsightViewCount(newCount);
-              if (newCount === 5 && user?.id) {
-                const awarded = await awardBadge(user.id, 'insight_seeker');
-                if (awarded) {
-                  toast({ title: "🏆 Badge Earned!", description: "Insight Seeker" });
-                }
-              }
-            }}
+            onClick={() => setCurrentView('insights')}
             className={`flex-1 text-xs h-10 rounded-xl ${currentView === 'insights' ? 'shadow-primary' : ''}`}
           >
             <BarChart3 className="w-4 h-4 mr-1.5" />
@@ -543,10 +489,10 @@ const Index = () => {
 
       {/* Content */}
       <main className="container max-w-md mx-auto px-4 pb-8">
-        {/* Track View - Clean and focused */}
+        {/* Track View */}
         {currentView === 'track' && user && (
           <div className="space-y-3">
-            {/* Quick Log Card - Primary Action */}
+            {/* Quick Log Card */}
             <Card className="p-4 shadow-soft-lg bg-gradient-card border-0 animate-fade-in">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-soft">
@@ -602,31 +548,19 @@ const Index = () => {
               </div>
             </Card>
 
-            {/* Health Forecast - AI Prediction */}
-            {user && entries.length >= 5 && (
+            {/* Health Status (combines forecast + cycle + stress) */}
+            <QuickHealthStatus 
+              userId={user.id}
+              onViewForecast={() => setCurrentView('insights')}
+            />
+
+            {/* Full Forecast (when enough data) */}
+            {entries.length >= 7 && (
               <HealthForecast 
                 userId={user.id}
-                currentWeather={currentLocation ? undefined : undefined}
                 onViewDetails={() => setCurrentView('insights')}
               />
             )}
-
-            {/* Cycle Tracker + Stress Analysis Row */}
-            {user && (
-              <div className="grid grid-cols-2 gap-3">
-                <CycleTracker userId={user.id} />
-                <CalendarStress userId={user.id} />
-              </div>
-            )}
-            
-            {/* Discovered Patterns - Compact teaser */}
-            {topCorrelations.length > 0 && (
-              <CorrelationInsights 
-                correlations={topCorrelations}
-                onViewDetails={() => setCurrentView('insights')}
-              />
-            )}
-            
           </div>
         )}
 
@@ -641,7 +575,6 @@ const Index = () => {
               />
             </Card>
 
-            {/* Timeline for selected date */}
             {selectedDateEntries.length > 0 ? (
               <div className="animate-fade-in">
                 <h3 className="text-sm font-clinical mb-3 text-muted-foreground">
@@ -664,17 +597,14 @@ const Index = () => {
           </div>
         )}
 
-        {/* Insights View - Now includes Weekly Report and Meds */}
+        {/* Insights View - Unified & Clean */}
         {currentView === 'insights' && user && (
           <div className="space-y-4">
-            {/* Weekly Report at top of insights */}
-            <WeeklyReportCard 
-              userId={user.id}
-            />
+            <WeeklyReportCard userId={user.id} />
             
-            {/* Main Insights - now includes medication as a tab */}
-            <CleanInsights 
-              entries={entries} 
+            <UnifiedInsights 
+              entries={entries}
+              userId={user.id}
               userConditions={userProfile?.conditions}
               medicationLogs={medicationLogs}
               onLogMedication={addMedicationLog}
