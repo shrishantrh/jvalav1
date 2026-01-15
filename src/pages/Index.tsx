@@ -14,14 +14,13 @@ import { ProgressDashboard } from "@/components/engagement/ProgressDashboard";
 import { RevolutionaryOnboarding } from "@/components/onboarding/RevolutionaryOnboarding";
 import { HealthForecast } from "@/components/forecast/HealthForecast";
 import { CycleTracker } from "@/components/tracking/CycleTracker";
-import { LimitlessAIChat } from "@/components/ai/LimitlessAIChat";
 import { StreakBadge } from "@/components/engagement/StreakBadge";
 import { CONDITIONS } from "@/data/conditions";
 import { useEngagement } from "@/hooks/useEngagement";
 import { useCorrelations } from "@/hooks/useCorrelations";
 import { CorrelationInsights } from "@/components/insights/CorrelationInsights";
 import { WeeklyReportCard } from "@/components/insights/WeeklyReportCard";
-import { Activity, Calendar, BarChart3, User as UserIcon, ChevronDown, Flame, Settings, MapPin } from "lucide-react";
+import { Activity, Calendar, BarChart3, User as UserIcon, ChevronDown, Settings, MapPin } from "lucide-react";
 import { MedicationTracker } from "@/components/medication/MedicationTracker";
 import { useMedicationLogs } from "@/hooks/useMedicationLogs";
 import { useToast } from "@/hooks/use-toast";
@@ -661,12 +660,9 @@ const Index = () => {
           </div>
         )}
 
-        {/* Insights View - AI Chat + Analytics */}
+        {/* Insights View - Analytics */}
         {currentView === 'insights' && user && (
           <div className="space-y-4">
-            {/* Smart AI Chat - Primary interaction */}
-            <LimitlessAIChat userId={user.id} />
-            
             {/* Weekly Report */}
             <WeeklyReportCard 
               userId={user.id}
