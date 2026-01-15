@@ -11,7 +11,7 @@ import { FluidLogSelector } from "./FluidLogSelector";
 import { Badge } from "@/components/ui/badge";
 import { useCorrelations } from "@/hooks/useCorrelations";
 import { useEntryContext } from "@/hooks/useEntryContext";
-import { AIVisualization, AIVisualizationRenderer } from "@/components/chat/AIVisualization";
+import { DynamicChart, DynamicChartRenderer } from "@/components/chat/DynamicChartRenderer";
 import { AIChatPrompts, generateFollowUps } from "@/components/chat/AIChatPrompts";
 
 
@@ -52,8 +52,8 @@ interface ChatMessage {
     type: 'severity' | 'symptoms' | 'triggers' | 'timeline';
     data: any;
   };
-  // Limitless AI payload
-  visualization?: AIVisualization;
+  // Dynamic chart from Limitless AI
+  visualization?: DynamicChart;
   followUp?: string;
   dynamicFollowUps?: string[];
 
@@ -793,7 +793,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                 : "bg-muted/50 rounded-bl-md"
             )}>
               <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-              {msg.visualization && <AIVisualizationRenderer viz={msg.visualization} />}
+              {msg.visualization && <DynamicChartRenderer chart={msg.visualization} />}
             </div>
             
             {msg.weatherCard && <WeatherCard weather={msg.weatherCard} />}
