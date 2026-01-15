@@ -1,5 +1,11 @@
 project_id = "rvhpwjhemwvvdtnzmobs"
 
+[functions.terra-webhook]
+verify_jwt = false
+
+[functions.ehr-connect]
+verify_jwt = false
+
 [functions.transcribe-voice]
 verify_jwt = false
 
