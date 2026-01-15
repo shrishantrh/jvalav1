@@ -2,243 +2,195 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Hospital, 
   Link2, 
-  Check, 
-  ChevronRight, 
   ExternalLink,
-  AlertCircle,
   Shield,
   FileText,
   Loader2,
   RefreshCw,
-  Heart
+  CheckCircle2,
+  AlertCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
-interface EHRProvider {
-  id: string;
-  name: string;
-  type: 'fhir' | 'proprietary';
-  available: boolean;
-  setupRequired: boolean;
-  dataTypes: string[];
-  notes: string;
-  icon: string;
-  priority: number;
-}
-
 interface EHRConnection {
   id: string;
   provider_id: string;
-  status: 'disconnected' | 'connecting' | 'connected' | 'error';
+  status: string;
   last_sync_at: string | null;
   metadata: Record<string, any>;
 }
 
-const EHR_PROVIDERS: EHRProvider[] = [
-  {
-    id: 'apple_health_records',
-    name: 'Apple Health Records',
-    type: 'fhir',
-    available: true,
-    setupRequired: false,
-    dataTypes: ['conditions', 'medications', 'allergies', 'labs', 'vitals', 'immunizations'],
-    notes: 'Free. User-initiated. 700+ hospitals. Data syncs to HealthKit.',
-    icon: '🍎',
-    priority: 1,
-  },
-  {
-    id: '1uphealth',
-    name: '1Up Health',
-    type: 'fhir',
-    available: true,
-    setupRequired: true,
-    dataTypes: ['conditions', 'medications', 'labs', 'claims', 'vitals'],
-    notes: 'FHIR aggregator. Connect to 300+ EHRs. Free tier available.',
-    icon: '🔗',
-    priority: 2,
-  },
-  {
-    id: 'epic',
-    name: 'Epic MyChart',
-    type: 'fhir',
-    available: true,
-    setupRequired: true,
-    dataTypes: ['conditions', 'medications', 'allergies', 'labs', 'vitals', 'encounters'],
-    notes: 'Largest EHR. SMART on FHIR OAuth.',
-    icon: '🏥',
-    priority: 3,
-  },
-  {
-    id: 'cerner',
-    name: 'Oracle Cerner',
-    type: 'fhir',
-    available: true,
-    setupRequired: true,
-    dataTypes: ['conditions', 'medications', 'allergies', 'labs', 'vitals'],
-    notes: 'Second largest EHR. SMART on FHIR OAuth.',
-    icon: '🏨',
-    priority: 4,
-  },
-  {
-    id: 'bwell',
-    name: 'b.well Connected Health',
-    type: 'proprietary',
-    available: true,
-    setupRequired: true,
-    dataTypes: ['unified_health_record', 'claims', 'clinical', 'devices'],
-    notes: 'Unified API for 300+ health plans. CMS-aligned.',
-    icon: '💊',
-    priority: 5,
-  },
-  {
-    id: 'healthex',
-    name: 'HealthEx',
-    type: 'fhir',
-    available: true,
-    setupRequired: true,
-    dataTypes: ['patient_records', 'consent_management', 'data_sharing'],
-    notes: 'TEFCA QHIN certified. Patient-driven consent.',
-    icon: '🔒',
-    priority: 6,
-  },
-];
+interface FhirData {
+  conditions: any[];
+  medications: any[];
+  allergies: any[];
+  labs: any[];
+  vitals: any[];
+}
 
 interface EHRIntegrationProps {
   userId: string;
 }
 
 export const EHRIntegration = ({ userId }: EHRIntegrationProps) => {
-  const [providers] = useState<EHRProvider[]>(EHR_PROVIDERS);
-  const [connections, setConnections] = useState<EHRConnection[]>([]);
+  const [connection, setConnection] = useState<EHRConnection | null>(null);
   const [loading, setLoading] = useState(true);
-  const [connecting, setConnecting] = useState<string | null>(null);
+  const [connecting, setConnecting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [fhirData, setFhirData] = useState<FhirData | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    loadConnections();
+    loadConnection();
   }, [userId]);
 
-  const loadConnections = async () => {
+  const loadConnection = async () => {
     try {
       const { data, error } = await supabase
         .from('ehr_connections')
         .select('*')
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .eq('provider_id', '1uphealth')
+        .maybeSingle();
 
       if (error) throw error;
-      setConnections((data as EHRConnection[]) || []);
+      setConnection(data as EHRConnection | null);
+      
+      // If connected, load FHIR data
+      if (data?.status === 'connected') {
+        await loadFhirData();
+      }
     } catch (err) {
-      console.error('Failed to load EHR connections:', err);
+      console.error('Failed to load EHR connection:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleConnect = async (providerId: string) => {
-    setConnecting(providerId);
-    
+  const loadFhirData = async () => {
     try {
-      const provider = providers.find(p => p.id === providerId);
+      const { data, error } = await supabase.functions.invoke('ehr-connect', {
+        body: { action: 'get_fhir_data', userId, provider: '1uphealth' },
+      });
       
-      if (provider?.id === 'apple_health_records') {
-        // Apple Health Records - show instructions
-        toast({
-          title: "Apple Health Records",
-          description: "Open the Health app on your iPhone → Profile → Health Records → Get Started",
-        });
-        
-        // Mark as "connecting" in our system
-        await supabase
-          .from('ehr_connections')
-          .upsert({
-            user_id: userId,
-            provider_id: providerId,
-            status: 'connecting',
-            metadata: { initiated_at: new Date().toISOString() },
-          }, { onConflict: 'user_id,provider_id' });
-        
-        await loadConnections();
-      } else {
-        // For other providers, call edge function to get setup info
-        const { data, error } = await supabase.functions.invoke('ehr-connect', {
-          body: { action: 'initiate_connection', userId, provider: providerId },
-        });
-
-        if (error) throw error;
-
-        // Save pending connection
-        await supabase
-          .from('ehr_connections')
-          .upsert({
-            user_id: userId,
-            provider_id: providerId,
-            status: 'connecting',
-            metadata: { setup_info: data },
-          }, { onConflict: 'user_id,provider_id' });
-
-        toast({
-          title: `Connecting to ${provider?.name}`,
-          description: data?.message || "Setup initiated. Follow the provider's instructions.",
-        });
-
-        await loadConnections();
+      if (error) throw error;
+      if (data?.resources) {
+        setFhirData(data.resources);
       }
     } catch (err) {
-      console.error('Connection error:', err);
-      toast({
-        title: "Connection failed",
-        description: "Please try again later",
-        variant: "destructive",
-      });
-    } finally {
-      setConnecting(null);
+      console.error('Failed to load FHIR data:', err);
     }
   };
 
-  const handleDisconnect = async (providerId: string) => {
+  const handleConnect = async () => {
+    setConnecting(true);
+    
     try {
-      await supabase
-        .from('ehr_connections')
-        .delete()
-        .eq('user_id', userId)
-        .eq('provider_id', providerId);
+      const { data, error } = await supabase.functions.invoke('ehr-connect', {
+        body: { action: 'initiate_connection', userId, provider: '1uphealth' },
+      });
 
-      await loadConnections();
-      toast({ title: "Disconnected" });
+      if (error) throw error;
+
+      if (data?.status === 'connected' && data?.connect_url) {
+        toast({
+          title: "Connected to 1Up Health!",
+          description: "Opening provider connection page...",
+        });
+        
+        // Open the 1Up Health connect page in a new tab
+        window.open(data.connect_url, '_blank');
+        await loadConnection();
+      } else {
+        throw new Error(data?.message || 'Failed to connect');
+      }
+    } catch (err: any) {
+      console.error('Connection error:', err);
+      toast({
+        title: "Connection failed",
+        description: err.message || "Please try again later",
+        variant: "destructive",
+      });
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const handleSync = async () => {
+    setSyncing(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('ehr-connect', {
+        body: { action: 'sync_data', userId, provider: '1uphealth' },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Data synced!",
+        description: `Imported ${data.records_synced} health records.`,
+      });
+      
+      await loadConnection();
+      await loadFhirData();
+    } catch (err: any) {
+      console.error('Sync error:', err);
+      toast({
+        title: "Sync failed",
+        description: err.message || "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleOpenProviderConnect = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('ehr-connect', {
+        body: { action: 'get_connect_url', userId },
+      });
+
+      if (error) throw error;
+      if (data?.connect_url) {
+        window.open(data.connect_url, '_blank');
+      }
+    } catch (err) {
+      console.error('Error getting connect URL:', err);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      await supabase.functions.invoke('ehr-connect', {
+        body: { action: 'disconnect', userId, provider: '1uphealth' },
+      });
+
+      setConnection(null);
+      setFhirData(null);
+      toast({ title: "Disconnected from 1Up Health" });
     } catch (err) {
       console.error('Disconnect error:', err);
     }
   };
 
-  const getConnectionStatus = (providerId: string): EHRConnection | undefined => {
-    return connections.find(c => c.provider_id === providerId);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'connected': return 'text-severity-none bg-severity-none/10';
-      case 'connecting': return 'text-yellow-500 bg-yellow-500/10';
-      case 'error': return 'text-severity-severe bg-severity-severe/10';
-      default: return 'text-muted-foreground bg-muted';
-    }
-  };
-
-  const connectedCount = connections.filter(c => c.status === 'connected').length;
+  const isConnected = connection?.status === 'connected';
+  const totalRecords = fhirData ? 
+    Object.values(fhirData).reduce((sum: number, arr: unknown) => sum + (Array.isArray(arr) ? arr.length : 0), 0) : 0;
 
   if (loading) {
     return (
       <Card className="animate-pulse">
-        <CardHeader>
-          <div className="h-6 w-48 bg-muted rounded" />
+        <CardHeader className="pb-3">
+          <div className="h-5 w-40 bg-muted rounded" />
         </CardHeader>
         <CardContent>
-          <div className="h-32 bg-muted rounded" />
+          <div className="h-24 bg-muted rounded" />
         </CardContent>
       </Card>
     );
@@ -252,121 +204,174 @@ export const EHRIntegration = ({ userId }: EHRIntegrationProps) => {
             <Hospital className="w-5 h-5 text-primary" />
             <CardTitle className="text-base">Medical Records</CardTitle>
           </div>
-          {connectedCount > 0 && (
+          {isConnected && (
             <Badge className="text-xs bg-severity-none/10 text-severity-none">
-              {connectedCount} connected
+              <CheckCircle2 className="w-3 h-3 mr-1" />
+              Connected
             </Badge>
           )}
         </div>
         <CardDescription className="text-xs">
-          Import your health records for complete insights
+          Import your health records via 1Up Health
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-3">
-        {/* Quick Info */}
+      <CardContent className="space-y-4">
+        {/* Privacy Notice */}
         <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/5">
           <Shield className="w-4 h-4 text-primary mt-0.5 shrink-0" />
           <div className="text-xs">
             <p className="font-medium">Your data stays private</p>
             <p className="text-muted-foreground">
-              Records are encrypted and only you can access them.
+              Records are encrypted. Only you can access them.
             </p>
           </div>
         </div>
 
-        {/* Provider List */}
-        <div className="space-y-2">
-          {providers.sort((a, b) => a.priority - b.priority).map((provider) => {
-            const connection = getConnectionStatus(provider.id);
-            const isConnected = connection?.status === 'connected';
-            const isConnecting = connection?.status === 'connecting' || connecting === provider.id;
-
-            return (
-              <div
-                key={provider.id}
-                className={cn(
-                  "p-3 rounded-lg border transition-all",
-                  isConnected ? "bg-severity-none/5 border-severity-none/30" : "bg-card hover:bg-muted/50"
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{provider.icon}</span>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{provider.name}</span>
-                        {!provider.setupRequired && (
-                          <Badge variant="secondary" className="text-[9px]">Easy</Badge>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        {provider.dataTypes.slice(0, 3).join(', ')}
-                        {provider.dataTypes.length > 3 && ` +${provider.dataTypes.length - 3}`}
+        {/* Connection Status */}
+        {!isConnected ? (
+          <div className="p-4 rounded-lg border bg-card">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-2xl">🔗</span>
+              <div>
+                <p className="font-medium text-sm">1Up Health</p>
+                <p className="text-xs text-muted-foreground">
+                  Connect to 300+ health systems
+                </p>
+              </div>
+            </div>
+            
+            <Button
+              onClick={handleConnect}
+              disabled={connecting}
+              className="w-full"
+            >
+              {connecting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                <>
+                  <Link2 className="w-4 h-4 mr-2" />
+                  Connect Health Records
+                </>
+              )}
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {/* Connected Provider */}
+            <div className="p-4 rounded-lg border bg-severity-none/5 border-severity-none/30">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🔗</span>
+                  <div>
+                    <p className="font-medium text-sm">1Up Health</p>
+                    {connection?.last_sync_at && (
+                      <p className="text-[10px] text-muted-foreground">
+                        Last synced: {new Date(connection.last_sync_at).toLocaleDateString()}
                       </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {connection && (
-                      <Badge className={cn("text-[10px] capitalize", getStatusColor(connection.status))}>
-                        {connection.status}
-                      </Badge>
-                    )}
-                    
-                    {isConnected ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-xs h-8"
-                        onClick={() => handleDisconnect(provider.id)}
-                      >
-                        Disconnect
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        className="text-xs h-8 gap-1"
-                        disabled={isConnecting}
-                        onClick={() => handleConnect(provider.id)}
-                      >
-                        {isConnecting ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <Link2 className="w-3 h-3" />
-                        )}
-                        Connect
-                      </Button>
                     )}
                   </div>
                 </div>
-
-                {/* Connection details */}
-                {connection?.last_sync_at && (
-                  <div className="mt-2 pt-2 border-t border-border/50 flex items-center gap-2 text-[10px] text-muted-foreground">
-                    <RefreshCw className="w-3 h-3" />
-                    Last synced: {new Date(connection.last_sync_at).toLocaleDateString()}
-                  </div>
-                )}
               </div>
-            );
-          })}
-        </div>
 
-        {/* What you get */}
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleOpenProviderConnect}
+                  className="flex-1 text-xs"
+                >
+                  <ExternalLink className="w-3 h-3 mr-1" />
+                  Add Providers
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSync}
+                  disabled={syncing}
+                  className="flex-1 text-xs"
+                >
+                  {syncing ? (
+                    <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-3 h-3 mr-1" />
+                  )}
+                  Sync Data
+                </Button>
+              </div>
+            </div>
+
+            {/* Imported Data Summary */}
+            {totalRecords > 0 && (
+              <div className="p-3 rounded-lg bg-muted/50">
+                <h4 className="text-xs font-medium flex items-center gap-2 mb-2">
+                  <FileText className="w-3 h-3" />
+                  Imported Records ({totalRecords})
+                </h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {fhirData?.conditions?.length > 0 && (
+                    <div className="text-xs">
+                      <span className="text-muted-foreground">Conditions:</span>{' '}
+                      <span className="font-medium">{fhirData.conditions.length}</span>
+                    </div>
+                  )}
+                  {fhirData?.medications?.length > 0 && (
+                    <div className="text-xs">
+                      <span className="text-muted-foreground">Medications:</span>{' '}
+                      <span className="font-medium">{fhirData.medications.length}</span>
+                    </div>
+                  )}
+                  {fhirData?.allergies?.length > 0 && (
+                    <div className="text-xs">
+                      <span className="text-muted-foreground">Allergies:</span>{' '}
+                      <span className="font-medium">{fhirData.allergies.length}</span>
+                    </div>
+                  )}
+                  {fhirData?.labs?.length > 0 && (
+                    <div className="text-xs">
+                      <span className="text-muted-foreground">Lab Results:</span>{' '}
+                      <span className="font-medium">{fhirData.labs.length}</span>
+                    </div>
+                  )}
+                  {fhirData?.vitals?.length > 0 && (
+                    <div className="text-xs">
+                      <span className="text-muted-foreground">Vitals:</span>{' '}
+                      <span className="font-medium">{fhirData.vitals.length}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {totalRecords === 0 && connection?.last_sync_at && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+                <AlertCircle className="w-4 h-4" />
+                No records found. Click "Add Providers" to connect your health systems.
+              </div>
+            )}
+
+            {/* Disconnect */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDisconnect}
+              className="w-full text-xs text-muted-foreground"
+            >
+              Disconnect
+            </Button>
+          </div>
+        )}
+
+        {/* What gets imported */}
         <div className="pt-3 border-t space-y-2">
-          <h4 className="text-xs font-medium flex items-center gap-2">
-            <FileText className="w-3 h-3" />
-            What gets imported:
-          </h4>
+          <h4 className="text-xs font-medium">What gets imported:</h4>
           <div className="flex flex-wrap gap-1">
-            {['Diagnoses', 'Medications', 'Lab Results', 'Allergies', 'Vitals', 'Immunizations'].map(item => (
+            {['Diagnoses', 'Medications', 'Lab Results', 'Allergies', 'Vitals'].map(item => (
               <Badge key={item} variant="outline" className="text-[10px]">{item}</Badge>
             ))}
           </div>
-          <p className="text-[10px] text-muted-foreground">
-            Your doctor visits and test results help the AI understand your full health picture.
-          </p>
         </div>
       </CardContent>
     </Card>
