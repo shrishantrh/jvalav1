@@ -458,19 +458,19 @@ const Index = () => {
     .filter(Boolean) || [];
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
-      {/* Header */}
-      <header className="sticky top-0 z-50 glass border-b shadow-soft">
+    <div className="min-h-screen bg-background">
+      {/* Header - Clean clinical style */}
+      <header className="sticky top-0 z-50 bg-card/95 backdrop-blur-sm border-b border-border">
         <div className="container max-w-md mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <img src={jvalaLogo} alt="jvala" className="w-7 h-7" />
+            <div className="flex items-center gap-2.5">
+              <img src={jvalaLogo} alt="jvala" className="w-8 h-8" />
               <div>
-                <h1 className="text-base font-medical text-foreground leading-tight">Jvala</h1>
-                <p className="text-[10px] text-muted-foreground">{format(new Date(), 'EEEE, MMM d')}</p>
+                <h1 className="text-base font-semibold text-foreground tracking-tight">Jvala</h1>
+                <p className="text-[11px] text-muted-foreground font-medium">{format(new Date(), 'EEEE, MMM d')}</p>
               </div>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               {/* Streak Badge */}
               {currentStreak > 0 && (
                 <StreakBadge 
@@ -482,42 +482,42 @@ const Index = () => {
                 variant="ghost"
                 size="icon"
                 onClick={() => setCurrentView('profile')}
-                className="h-9 w-9 rounded-full"
+                className="h-9 w-9 rounded-lg hover:bg-muted"
               >
-                <UserIcon className="w-4 h-4" />
+                <UserIcon className="w-4 h-4 text-muted-foreground" />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate('/settings')}
-                className="h-9 w-9 rounded-full"
+                className="h-9 w-9 rounded-lg hover:bg-muted"
               >
-                <Settings className="w-4 h-4" />
+                <Settings className="w-4 h-4 text-muted-foreground" />
               </Button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Navigation - Simplified to 3 core tabs */}
+      {/* Navigation - Professional tab bar */}
       <div className="container max-w-md mx-auto px-4 py-3">
-        <div className="flex bg-card/80 backdrop-blur rounded-2xl p-1 shadow-soft border">
+        <div className="flex bg-muted/60 rounded-xl p-1 border border-border/50">
           <Button
             variant={currentView === 'track' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setCurrentView('track')}
-            className={`flex-1 text-xs h-10 rounded-xl ${currentView === 'track' ? 'shadow-primary' : ''}`}
+            className={`flex-1 text-xs h-9 rounded-lg font-medium ${currentView === 'track' ? 'shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
           >
-            <Activity className="w-4 h-4 mr-1.5" />
+            <Activity className="w-3.5 h-3.5 mr-1.5" />
             Log
           </Button>
           <Button
             variant={currentView === 'history' ? 'default' : 'ghost'}
             size="sm"
             onClick={() => setCurrentView('history')}
-            className={`flex-1 text-xs h-10 rounded-xl ${currentView === 'history' ? 'shadow-primary' : ''}`}
+            className={`flex-1 text-xs h-9 rounded-lg font-medium ${currentView === 'history' ? 'shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
           >
-            <Calendar className="w-4 h-4 mr-1.5" />
+            <Calendar className="w-3.5 h-3.5 mr-1.5" />
             History
           </Button>
           <Button
@@ -534,9 +534,9 @@ const Index = () => {
                 }
               }
             }}
-            className={`flex-1 text-xs h-10 rounded-xl ${currentView === 'insights' ? 'shadow-primary' : ''}`}
+            className={`flex-1 text-xs h-9 rounded-lg font-medium ${currentView === 'insights' ? 'shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
           >
-            <BarChart3 className="w-4 h-4 mr-1.5" />
+            <BarChart3 className="w-3.5 h-3.5 mr-1.5" />
             Insights
           </Button>
         </div>
@@ -546,18 +546,18 @@ const Index = () => {
       <main className="container max-w-md mx-auto px-4 pb-8">
         {/* Track View - Clean and focused */}
         {currentView === 'track' && user && (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {/* Quick Log Card - Primary Action */}
-            <Card className="p-4 shadow-soft-lg bg-gradient-card border-0 animate-fade-in">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-soft">
+            <Card className="p-5 shadow-soft-md bg-card border border-border/80 animate-fade-in">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center shadow-sm">
                   <Activity className="w-4 h-4 text-primary-foreground" />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-clinical">How are you feeling?</h2>
+                    <h2 className="text-sm font-semibold text-foreground">How are you feeling?</h2>
                     {currentLocation?.city && (
-                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full">
                         <MapPin className="w-2.5 h-2.5" />
                         <span>{currentLocation.city}</span>
                       </div>
@@ -579,18 +579,18 @@ const Index = () => {
               />
               
               {/* Detailed Entry Toggle */}
-              <div className="pt-3 mt-3 border-t border-border/50">
+              <div className="pt-4 mt-4 border-t border-border/60">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowDetailedEntry(!showDetailedEntry)}
-                  className="w-full text-xs text-muted-foreground"
+                  className="w-full text-xs text-muted-foreground hover:text-foreground font-medium"
                 >
-                  <ChevronDown className={`w-3 h-3 mr-1 transition-transform ${showDetailedEntry ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-3 h-3 mr-1.5 transition-transform ${showDetailedEntry ? 'rotate-180' : ''}`} />
                   {showDetailedEntry ? 'Hide details' : 'Add more details'}
                 </Button>
                 {showDetailedEntry && (
-                  <div className="mt-3 animate-fade-in">
+                  <div className="mt-4 animate-fade-in">
                     <DetailedEntry 
                       onSave={handleSaveEntry} 
                       onDetailedSave={(entry) => {
@@ -633,7 +633,7 @@ const Index = () => {
         {/* History View */}
         {currentView === 'history' && (
           <div className="space-y-4">
-            <Card className="p-4 shadow-soft-lg bg-gradient-card border-0">
+            <Card className="p-4 shadow-soft-md bg-card border border-border/80">
               <CalendarHistory 
                 entries={entries}
                 selectedDate={selectedDate}
@@ -644,9 +644,14 @@ const Index = () => {
             {/* Timeline for selected date */}
             {selectedDateEntries.length > 0 ? (
               <div className="animate-fade-in">
-                <h3 className="text-sm font-clinical mb-3 text-muted-foreground">
-                  {format(selectedDate, 'EEEE, MMMM d')} — {selectedDateEntries.length} {selectedDateEntries.length === 1 ? 'entry' : 'entries'}
-                </h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    {format(selectedDate, 'EEEE, MMMM d')}
+                  </h3>
+                  <span className="text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full">
+                    {selectedDateEntries.length} {selectedDateEntries.length === 1 ? 'entry' : 'entries'}
+                  </span>
+                </div>
                 <FlareTimeline 
                   entries={selectedDateEntries} 
                   onUpdate={handleUpdateEntry}
@@ -655,7 +660,7 @@ const Index = () => {
                 />
               </div>
             ) : (
-              <Card className="p-6 text-center bg-gradient-card border-0">
+              <Card className="p-6 text-center bg-card border border-border/80">
                 <p className="text-sm text-muted-foreground">
                   No entries on {format(selectedDate, 'MMMM d')}
                 </p>

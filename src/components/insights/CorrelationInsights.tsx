@@ -51,10 +51,10 @@ export function CorrelationInsights({ correlations, onViewDetails }: Correlation
   
   if (highConfidence.length === 0) {
     return (
-      <Card className="p-4 bg-gradient-to-br from-muted/30 to-muted/10 border-0">
-        <div className="flex items-center gap-2 text-muted-foreground">
+      <Card className="p-4 bg-muted/30 border-border/60">
+        <div className="flex items-center gap-2.5 text-muted-foreground">
           <Sparkles className="w-4 h-4" />
-          <span className="text-sm">
+          <span className="text-sm font-medium">
             Keep logging to discover your personal patterns
           </span>
         </div>
@@ -65,16 +65,16 @@ export function CorrelationInsights({ correlations, onViewDetails }: Correlation
   const topCorrelations = highConfidence.slice(0, 4);
 
   return (
-    <Card className="p-4 bg-gradient-to-br from-primary/5 to-background border-0 space-y-3">
+    <Card className="p-4 bg-card border-border/80 space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-primary/10">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-lg bg-primary/10">
             <TrendingUp className="w-4 h-4 text-primary" />
           </div>
-          <h3 className="font-semibold text-sm">Discovered Patterns</h3>
+          <h3 className="font-semibold text-sm text-foreground">Discovered Patterns</h3>
         </div>
         {onViewDetails && (
-          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={onViewDetails}>
+          <Button variant="ghost" size="sm" className="h-7 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={onViewDetails}>
             View All
             <ChevronRight className="w-3 h-3 ml-1" />
           </Button>
@@ -85,10 +85,10 @@ export function CorrelationInsights({ correlations, onViewDetails }: Correlation
         {topCorrelations.map((correlation) => (
           <div 
             key={correlation.id}
-            className="flex items-center gap-3 p-2.5 rounded-lg bg-background/60 hover:bg-background/80 transition-colors"
+            className="flex items-center gap-3 p-3 rounded-lg bg-muted/40 border border-border/50 hover:bg-muted/60 transition-colors"
           >
             <div className={cn(
-              "p-1.5 rounded-lg",
+              "p-2 rounded-lg",
               correlation.trigger_type === 'activity' ? 'bg-blue-500/10 text-blue-600' :
               correlation.trigger_type === 'food' ? 'bg-orange-500/10 text-orange-600' :
               correlation.trigger_type === 'weather' ? 'bg-sky-500/10 text-sky-600' :
@@ -99,7 +99,7 @@ export function CorrelationInsights({ correlations, onViewDetails }: Correlation
             
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-medium capitalize truncate">
+                <span className="text-sm font-medium capitalize truncate text-foreground">
                   {correlation.trigger_value}
                 </span>
                 <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
@@ -107,13 +107,13 @@ export function CorrelationInsights({ correlations, onViewDetails }: Correlation
                   {correlation.outcome_value}
                 </span>
               </div>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-[10px] text-muted-foreground">
-                  {correlation.occurrence_count}x
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-[10px] text-muted-foreground font-medium">
+                  {correlation.occurrence_count}x observed
                 </span>
                 {correlation.avg_delay_minutes > 0 && (
                   <span className="text-[10px] text-muted-foreground">
-                    ~{formatDelay(correlation.avg_delay_minutes)} delay
+                    • ~{formatDelay(correlation.avg_delay_minutes)} delay
                   </span>
                 )}
               </div>
@@ -121,7 +121,7 @@ export function CorrelationInsights({ correlations, onViewDetails }: Correlation
 
             <Badge 
               variant="outline" 
-              className={cn("text-[10px] h-5 shrink-0", getConfidenceColor(correlation.confidence))}
+              className={cn("text-[10px] h-5 shrink-0 font-semibold", getConfidenceColor(correlation.confidence))}
             >
               {Math.round(correlation.confidence * 100)}%
             </Badge>
@@ -130,18 +130,18 @@ export function CorrelationInsights({ correlations, onViewDetails }: Correlation
       </div>
 
       {highConfidence.length > 4 && (
-        <p className="text-xs text-muted-foreground text-center">
+        <p className="text-xs text-muted-foreground text-center font-medium">
           +{highConfidence.length - 4} more patterns discovered
         </p>
       )}
 
       {/* High confidence warning */}
       {highConfidence.some(c => c.confidence >= 0.6) && (
-        <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+        <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20">
           <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
           <div>
-            <p className="text-xs font-medium text-amber-700">Strong pattern detected</p>
-            <p className="text-[10px] text-amber-600/80 mt-0.5">
+            <p className="text-xs font-semibold text-amber-800 dark:text-amber-400">Strong pattern detected</p>
+            <p className="text-[11px] text-amber-700 dark:text-amber-500 mt-0.5">
               Consider discussing these patterns with your healthcare provider
             </p>
           </div>
