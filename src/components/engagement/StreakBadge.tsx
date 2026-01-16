@@ -13,14 +13,14 @@ export const StreakBadge = ({ streak, onClick }: StreakBadgeProps) => {
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-all",
-        "hover:scale-105 active:scale-95",
+        "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all",
+        "hover:scale-102 active:scale-98 border",
         streak >= 7 
-          ? "bg-gradient-primary text-white shadow-soft" 
-          : "bg-severity-moderate/20 text-severity-moderate"
+          ? "bg-gradient-primary text-white border-transparent shadow-sm" 
+          : "bg-severity-moderate/10 text-severity-moderate border-severity-moderate/20"
       )}
     >
-      <Flame className="w-3 h-3" />
+      <Flame className="w-3.5 h-3.5" />
       <span>{streak}</span>
     </button>
   );
