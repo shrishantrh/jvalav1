@@ -10,6 +10,7 @@ import Settings from "./pages/Settings";
 import SharedReport from "./pages/SharedReport";
 import SharedProfile from "./pages/SharedProfile";
 import Install from "./pages/Install";
+import ClinicianDashboard from "./pages/ClinicianDashboard";
 import NotFound from "./pages/NotFound";
 import { OfflineIndicator } from "./components/pwa/OfflineIndicator";
 import { InstallPrompt } from "./components/pwa/InstallPrompt";
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/demo" element={<Demo />} />
+          <Route path="/clinician" element={<ClinicianDashboard />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/shared-report" element={<SharedReport />} />
           <Route path="/shared-profile" element={<SharedProfile />} />
