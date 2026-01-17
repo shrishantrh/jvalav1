@@ -59,12 +59,32 @@ interface AIAnalysis {
   recommendations: string[];
 }
 
+// Cache AI insights to prevent constant reloading
+const analysisCache = new Map<string, { analysis: AIAnalysis; timestamp: number }>();
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+
 export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol }: AIInsightsPanelProps) => {
   const { user } = useAuth();
-  const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
+  const [analysis, setAnalysis] = useState<AIAnalysis | null>(() => {
+    // Try to restore from cache on mount
+    if (user?.id) {
+      const cached = analysisCache.get(user.id);
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        return cached.analysis;
+      }
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasAnalyzed, setHasAnalyzed] = useState(false);
+  const [hasAnalyzed, setHasAnalyzed] = useState(() => {
+    // Check if we have cached analysis
+    if (user?.id) {
+      const cached = analysisCache.get(user.id);
+      return !!(cached && Date.now() - cached.timestamp < CACHE_DURATION);
+    }
+    return false;
+  });
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['insights']));
 
   const toggleSection = (section: string) => {
@@ -76,8 +96,18 @@ export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol 
     });
   };
 
-  const fetchAIInsights = async () => {
+  const fetchAIInsights = async (forceRefresh = false) => {
     if (!user) return;
+    
+    // Check cache first unless force refresh
+    if (!forceRefresh) {
+      const cached = analysisCache.get(user.id);
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        setAnalysis(cached.analysis);
+        setHasAnalyzed(true);
+        return;
+      }
+    }
     
     setLoading(true);
     setError(null);
@@ -92,6 +122,8 @@ export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol 
       if (data) {
         setAnalysis(data);
         setHasAnalyzed(true);
+        // Cache the result
+        analysisCache.set(user.id, { analysis: data, timestamp: Date.now() });
       }
     } catch (err) {
       console.error('AI Insights error:', err);
@@ -101,11 +133,14 @@ export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol 
     }
   };
 
+  // Helper for button click (wraps fetchAIInsights with force=true)
+  const generateAIInsights = () => fetchAIInsights(true);
+
   useEffect(() => {
     if (user && entries.length >= 5 && !hasAnalyzed) {
       fetchAIInsights();
     }
-  }, [user, entries.length]);
+  }, [user?.id, entries.length]);
 
   const getTrendIcon = (trend: string) => {
     switch (trend) {
@@ -197,7 +232,7 @@ export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol 
             <p className="text-[10px] text-muted-foreground">Powered by Claude</p>
           </div>
         </div>
-        <Button onClick={fetchAIInsights} className="w-full bg-gradient-primary hover:opacity-90" size="sm">
+        <Button onClick={generateAIInsights} className="w-full bg-gradient-primary hover:opacity-90" size="sm">
           <Sparkles className="w-4 h-4 mr-2" />
           Generate Insights
         </Button>
@@ -236,8 +271,8 @@ export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol 
               </p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={fetchAIInsights} className="h-8 w-8">
-            <RefreshCw className="w-4 h-4" />
+          <Button variant="ghost" size="icon" onClick={generateAIInsights} className="h-8 w-8" title="Refresh insights">
+            <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />
           </Button>
         </div>
       </Card>

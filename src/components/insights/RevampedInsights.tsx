@@ -8,6 +8,7 @@ import { EnhancedMedicalExport } from "@/components/insights/EnhancedMedicalExpo
 import { AIInsightsPanel } from "@/components/insights/AIInsightsPanel";
 import { MedicationTracker } from "@/components/medication/MedicationTracker";
 import { CommunityHotspots } from "@/components/insights/CommunityHotspots";
+import { FlareMap } from "@/components/insights/FlareMap";
 import { 
   TrendingUp, 
   TrendingDown,
@@ -282,7 +283,10 @@ export const RevampedInsights = ({
           </TabsContent>
 
           <TabsContent value="local" className="mt-0">
-            <CommunityHotspots entries={entries} userConditions={userConditions} />
+            <div className="space-y-4">
+              <FlareMap />
+              <CommunityHotspots entries={entries} userConditions={userConditions} />
+            </div>
           </TabsContent>
 
           <TabsContent value="meds" className="mt-0">
