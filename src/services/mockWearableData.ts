@@ -1,4 +1,4 @@
-// Mock wearable data service for VC demo
+// Mock wearable data service for demo
 // Generates realistic Fitbit data for demonstration purposes
 
 export interface MockWearableData {
@@ -63,30 +63,6 @@ export interface MockWearableData {
   lastSyncedAt: string;
   source: 'fitbit';
   dataDate: string;
-}
-
-export interface MockEnvironmentalData {
-  location: {
-    latitude: number;
-    longitude: number;
-    city: string;
-    country: string;
-    address: string;
-  };
-  weather: {
-    temperature: number;
-    humidity: number;
-    pressure: number;
-    condition: string;
-    windSpeed: number;
-  };
-  airQuality: {
-    aqi: number;
-    pollen: number;
-    pollutants: number;
-    category: string;
-  };
-  season: 'spring' | 'summer' | 'fall' | 'winter';
 }
 
 // Generate realistic mock Fitbit data
@@ -158,8 +134,69 @@ export function generateMockWearableData(variant: 'healthy' | 'flare-warning' | 
   return baseData;
 }
 
-// Generate mock environmental data
-export function generateMockEnvironmentalData(): MockEnvironmentalData {
+export interface MockEnvironmentalData {
+  location: {
+    latitude: number;
+    longitude: number;
+    city: string;
+    country: string;
+    address: string;
+    elevation: number;
+    timezone: string;
+  };
+  weather: {
+    temperature: number;
+    feelsLike: number;
+    humidity: number;
+    pressure: number;
+    condition: string;
+    conditionIcon: string;
+    windSpeed: number;
+    windDirection: string;
+    windGusts: number;
+    visibility: number;
+    dewPoint: number;
+    cloudCover: number;
+    uvIndex: number;
+    precipitation: number;
+    precipitationType: string | null;
+  };
+  airQuality: {
+    aqi: number;
+    category: string;
+    pm25: number;
+    pm10: number;
+    o3: number;
+    no2: number;
+    so2: number;
+    co: number;
+    pollenTree: number;
+    pollenGrass: number;
+    pollenWeed: number;
+    pollenMold: number;
+    dominantPollutant: string;
+  };
+  astronomy: {
+    sunrise: string;
+    sunset: string;
+    moonPhase: string;
+    moonIllumination: number;
+    dayLength: string;
+  };
+  season: 'spring' | 'summer' | 'fall' | 'winter';
+  capturedAt: string;
+}
+
+// Generate realistic mock environmental data
+export function generateMockEnvironmentalData(variant: 'normal' | 'flare-risk' | 'high-risk' = 'normal'): MockEnvironmentalData {
+  const now = new Date();
+  const hour = now.getHours();
+  
+  // Weather varies based on risk level
+  const baseTemp = variant === 'high-risk' ? 95 : variant === 'flare-risk' ? 38 : 72;
+  const baseHumidity = variant === 'high-risk' ? 85 : variant === 'flare-risk' ? 45 : 58;
+  const basePressure = variant === 'high-risk' ? 1002 : variant === 'flare-risk' ? 1008 : 1015;
+  
   return {
     location: {
       latitude: 40.1020,
@@ -167,21 +204,50 @@ export function generateMockEnvironmentalData(): MockEnvironmentalData {
       city: 'Champaign',
       country: 'United States',
       address: 'University of Illinois',
+      elevation: 225,
+      timezone: 'America/Chicago',
     },
     weather: {
-      temperature: 72,
-      humidity: 58,
-      pressure: 1015.2,
-      condition: 'Partly Cloudy',
-      windSpeed: 8.5,
+      temperature: baseTemp,
+      feelsLike: baseTemp + (variant === 'high-risk' ? 8 : variant === 'flare-risk' ? -5 : 2),
+      humidity: baseHumidity,
+      pressure: basePressure,
+      condition: variant === 'high-risk' ? 'Thunderstorms' : variant === 'flare-risk' ? 'Overcast' : 'Partly Cloudy',
+      conditionIcon: variant === 'high-risk' ? '⛈️' : variant === 'flare-risk' ? '☁️' : '⛅',
+      windSpeed: variant === 'high-risk' ? 25 : variant === 'flare-risk' ? 15 : 8.5,
+      windDirection: 'SSW',
+      windGusts: variant === 'high-risk' ? 42 : variant === 'flare-risk' ? 22 : 12,
+      visibility: variant === 'high-risk' ? 3 : variant === 'flare-risk' ? 7 : 10,
+      dewPoint: 55,
+      cloudCover: variant === 'high-risk' ? 95 : variant === 'flare-risk' ? 75 : 35,
+      uvIndex: variant === 'high-risk' ? 2 : variant === 'flare-risk' ? 4 : 7,
+      precipitation: variant === 'high-risk' ? 85 : variant === 'flare-risk' ? 40 : 10,
+      precipitationType: variant === 'high-risk' ? 'rain' : null,
     },
     airQuality: {
-      aqi: 42,
-      pollen: 3.2,
-      pollutants: 15,
-      category: 'Good',
+      aqi: variant === 'high-risk' ? 125 : variant === 'flare-risk' ? 78 : 42,
+      category: variant === 'high-risk' ? 'Unhealthy for Sensitive' : variant === 'flare-risk' ? 'Moderate' : 'Good',
+      pm25: variant === 'high-risk' ? 45.2 : variant === 'flare-risk' ? 22.8 : 8.5,
+      pm10: variant === 'high-risk' ? 68 : variant === 'flare-risk' ? 35 : 15,
+      o3: variant === 'high-risk' ? 82 : variant === 'flare-risk' ? 55 : 32,
+      no2: variant === 'high-risk' ? 28 : variant === 'flare-risk' ? 18 : 8,
+      so2: 3,
+      co: 0.4,
+      pollenTree: variant === 'high-risk' ? 9.5 : variant === 'flare-risk' ? 6.2 : 2.8,
+      pollenGrass: variant === 'high-risk' ? 8.2 : variant === 'flare-risk' ? 5.5 : 3.2,
+      pollenWeed: variant === 'high-risk' ? 7.8 : variant === 'flare-risk' ? 4.8 : 1.5,
+      pollenMold: variant === 'high-risk' ? 6.5 : variant === 'flare-risk' ? 4.2 : 2.1,
+      dominantPollutant: variant === 'high-risk' ? 'PM2.5' : variant === 'flare-risk' ? 'O3' : 'None',
+    },
+    astronomy: {
+      sunrise: '6:42 AM',
+      sunset: '8:15 PM',
+      moonPhase: hour > 12 ? 'Waxing Gibbous' : 'First Quarter',
+      moonIllumination: 68,
+      dayLength: '13h 33m',
     },
     season: 'summer',
+    capturedAt: now.toISOString(),
   };
 }
 
