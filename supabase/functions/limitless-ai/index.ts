@@ -103,27 +103,62 @@ serve(async (req) => {
 
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-    // Location data
-    const locationCounts: Record<string, { count: number; severity: number[] }> = {};
+    // Location data with coordinates
+    const locationData: { city: string; lat: number; lng: number; count: number; severity: string; weather?: any }[] = [];
+    const locationCounts: Record<string, { count: number; severity: number[]; lat?: number; lng?: number; weather?: any }> = {};
+    
     flares.forEach((e: any) => {
       const city = e.city || e.environmental_data?.location?.city;
+      const lat = e.latitude || e.environmental_data?.location?.latitude;
+      const lng = e.longitude || e.environmental_data?.location?.longitude;
+      
       if (city) {
-        if (!locationCounts[city]) locationCounts[city] = { count: 0, severity: [] };
+        if (!locationCounts[city]) {
+          locationCounts[city] = { count: 0, severity: [], lat, lng };
+        }
         locationCounts[city].count++;
         locationCounts[city].severity.push(e.severity === "mild" ? 1 : e.severity === "moderate" ? 2 : 3);
+        if (e.environmental_data?.weather) {
+          locationCounts[city].weather = e.environmental_data.weather;
+        }
       }
     });
 
-    // Weather analysis
+    // Build location array for map display
+    Object.entries(locationCounts).forEach(([city, data]) => {
+      const avgSev = data.severity.reduce((a, b) => a + b, 0) / data.severity.length;
+      locationData.push({
+        city,
+        lat: data.lat || 0,
+        lng: data.lng || 0,
+        count: data.count,
+        severity: avgSev > 2.5 ? 'severe' : avgSev > 1.5 ? 'moderate' : 'mild',
+        weather: data.weather,
+      });
+    });
+
+    // Weather analysis - comprehensive
     const weatherCounts: Record<string, { count: number; severity: number[]; temps: number[] }> = {};
+    const recentWeather: any[] = [];
+    
     flares.forEach((e: any) => {
       const weather = e.environmental_data?.weather;
-      if (weather?.condition) {
-        const cond = weather.condition.toLowerCase();
-        if (!weatherCounts[cond]) weatherCounts[cond] = { count: 0, severity: [], temps: [] };
-        weatherCounts[cond].count++;
-        weatherCounts[cond].severity.push(e.severity === "mild" ? 1 : e.severity === "moderate" ? 2 : 3);
-        if (weather.temperature) weatherCounts[cond].temps.push(weather.temperature);
+      if (weather) {
+        recentWeather.push({
+          timestamp: e.timestamp,
+          condition: weather.condition,
+          temperature: weather.temperature,
+          humidity: weather.humidity,
+          city: e.city || e.environmental_data?.location?.city,
+        });
+        
+        if (weather.condition) {
+          const cond = weather.condition.toLowerCase();
+          if (!weatherCounts[cond]) weatherCounts[cond] = { count: 0, severity: [], temps: [] };
+          weatherCounts[cond].count++;
+          weatherCounts[cond].severity.push(e.severity === "mild" ? 1 : e.severity === "moderate" ? 2 : 3);
+          if (weather.temperature) weatherCounts[cond].temps.push(weather.temperature);
+        }
       }
     });
 
@@ -201,14 +236,18 @@ serve(async (req) => {
       locations: Object.entries(locationCounts).map(([city, data]) => ({
         city,
         count: data.count,
-        avgSeverity: (data.severity.reduce((a, b) => a + b, 0) / data.severity.length).toFixed(1)
+        avgSeverity: (data.severity.reduce((a, b) => a + b, 0) / data.severity.length).toFixed(1),
+        latitude: data.lat,
+        longitude: data.lng,
       })).sort((a, b) => b.count - a.count).slice(0, 8),
+      locationMapData: locationData.slice(0, 20),
       weather: Object.entries(weatherCounts).map(([condition, data]) => ({
         condition,
         count: data.count,
         avgSeverity: (data.severity.reduce((a, b) => a + b, 0) / data.severity.length).toFixed(1),
         avgTemp: data.temps.length ? Math.round(data.temps.reduce((a, b) => a + b, 0) / data.temps.length) : null,
       })).sort((a, b) => b.count - a.count).slice(0, 8),
+      recentWeatherConditions: recentWeather.slice(0, 10),
       temperature: Object.entries(tempBuckets).filter(([_, c]) => c > 0).map(([range, count]) => ({ range, count })),
       byDayOfWeek: dayNames.map((name, i) => ({
         day: name,
@@ -340,6 +379,32 @@ CHART TYPES YOU CAN CREATE (pick the BEST one for data questions)
    - "gauge": Best for showing progress toward a goal
    - Data: [{ label: "Streak", value: 7 }, { label: "Goal", value: 14 }]
 
+10. LOCATION MAP (use for geographic questions, "where do I flare?")
+   - "location_map": Shows flare locations on a map
+   - Data: [{ label: "New York", value: 5, latitude: 40.7, longitude: -74.0, extra: "Mostly moderate" }]
+   - Use when user asks about location patterns, "where", geographic trends, or city-based questions
+
+11. WEATHER SUMMARY (use for weather-related questions)
+   - "weather_chart": Shows weather condition correlations
+   - Data: [{ label: "Rainy", value: 12, extra: "Avg severity: 2.3" }, { label: "Clear", value: 8, extra: "Avg severity: 1.5" }]
+   - Use when user asks about weather patterns, temperature effects, or environmental correlations
+
+═══════════════════════════════════════════════════════════════════════════════
+WEATHER & LOCATION CAPABILITIES
+═══════════════════════════════════════════════════════════════════════════════
+
+You have FULL ACCESS to the user's weather and location data:
+- Recent weather conditions during flares (temperature, humidity, condition)
+- Which weather conditions correlate with more/worse flares
+- Temperature ranges that trigger more flares
+- Geographic locations where user has logged flares
+- City-by-city breakdown of flare frequency and severity
+
+When users ask about weather or location:
+- USE the data in recentWeatherConditions, weather, temperature, locations, locationMapData
+- SHOW a location_map or weather_chart visualization
+- Be specific: "Your flares are 40% more likely on rainy days" not vague statements
+
 ═══════════════════════════════════════════════════════════════════════════════
 RESPONSE STRATEGY
 ═══════════════════════════════════════════════════════════════════════════════
@@ -349,6 +414,10 @@ Example: "How do I connect Fitbit?" → "Head to Profile → Wearable Integratio
 
 **For data/insight questions:** Brief insight + chart
 Example: "What triggers my flares?" → "Stress is your #1 trigger by far." + horizontal_bar chart
+
+**For weather/location questions:** Use the weather or location data + appropriate chart
+Example: "Where do I flare most?" → "Most of your flares happen in New York, and they tend to be more severe there." + location_map chart
+Example: "Does weather affect me?" → "Rainy days are your worst - 40% more flares than clear days." + weather_chart
 
 **For general questions about Jvala:** Explain the feature confidently.
 Example: "What can you do?" → "I can analyze all your health data, spot patterns, and help you navigate the app. Try asking about your triggers or how you're trending!"
@@ -363,7 +432,7 @@ ${JSON.stringify(dataContext, null, 2)}
 USER'S QUESTION: "${query}"
 ═══════════════════════════════════════════════════════════════════════════════
 
-Give a helpful, confident response. Include navigation for "how to" questions. Create a chart ONLY for data questions.`;
+Give a helpful, confident response. Include navigation for "how to" questions. Create a chart ONLY for data questions. For weather/location questions, use location_map or weather_chart types.`;
 
     const tools = [
       {
@@ -389,9 +458,10 @@ Give a helpful, confident response. Include navigation for "how to" questions. C
                     "pie_chart", "donut_chart",
                     "line_chart", "area_chart", "stacked_area",
                     "scatter_plot", "histogram",
-                    "comparison", "heatmap", "pattern_summary", "gauge"
+                    "comparison", "heatmap", "pattern_summary", "gauge",
+                    "location_map", "weather_chart"
                   ],
-                  description: "Chart type - pick the best one for the question"
+                  description: "Chart type - pick the best one for the question. Use location_map for geographic/where questions, weather_chart for weather questions."
                 },
                 title: { 
                   type: "string", 
@@ -399,7 +469,7 @@ Give a helpful, confident response. Include navigation for "how to" questions. C
                 },
                 data: { 
                   type: "array", 
-                  description: "Chart data points",
+                  description: "Chart data points. For location_map: include latitude, longitude. For weather_chart: include weather conditions.",
                   items: { 
                     type: "object", 
                     properties: { 
@@ -407,6 +477,8 @@ Give a helpful, confident response. Include navigation for "how to" questions. C
                       value: { type: "number" },
                       x: { type: "number" },
                       y: { type: "number" },
+                      latitude: { type: "number" },
+                      longitude: { type: "number" },
                       extra: { type: "string" },
                       color: { type: "string" }
                     } 

@@ -3,13 +3,13 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { FlareEntry } from "@/types/flare";
-import { InsightsCharts } from "@/components/insights/InsightsCharts";
+import { PremiumInsightsCharts } from "@/components/insights/PremiumInsightsCharts";
 import { EnhancedMedicalExport } from "@/components/insights/EnhancedMedicalExport";
 import { AIInsightsPanel } from "@/components/insights/AIInsightsPanel";
 import { MedicationTracker } from "@/components/medication/MedicationTracker";
 import { CommunityHotspots } from "@/components/insights/CommunityHotspots";
-import { FlareMap } from "@/components/insights/FlareMap";
-import { 
+import { UserFlareMap } from "@/components/insights/UserFlareMap";
+import {
   TrendingUp, 
   TrendingDown,
   Minus,
@@ -279,12 +279,12 @@ export const RevampedInsights = ({
           </TabsContent>
 
           <TabsContent value="charts" className="mt-0">
-            <InsightsCharts entries={entries} />
+            <PremiumInsightsCharts entries={entries} />
           </TabsContent>
 
           <TabsContent value="local" className="mt-0">
             <div className="space-y-4">
-              <FlareMap />
+              <UserFlareMap entries={entries} />
               <CommunityHotspots entries={entries} userConditions={userConditions} />
             </div>
           </TabsContent>
