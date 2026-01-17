@@ -8,6 +8,8 @@ import { SmartTrack, SmartTrackRef } from "@/components/tracking/SmartTrack";
 import { DetailedEntry } from "@/components/DetailedEntry";
 import { RevampedInsights } from "@/components/insights/RevampedInsights";
 import { CalendarHistory } from "@/components/history/CalendarHistory";
+import { EnhancedFlareHistory } from "@/components/history/EnhancedFlareHistory";
+import { ClinicalRecordGenerator } from "@/components/history/ClinicalRecordGenerator";
 import { FlareTimeline } from "@/components/flare/FlareTimeline";
 import { ProfileManager } from "@/components/profile/ProfileManager";
 import { ProgressDashboard } from "@/components/engagement/ProgressDashboard";
@@ -65,6 +67,8 @@ const Index = () => {
   const [insightViewCount, setInsightViewCount] = useState(0);
   const [showProtocolChat, setShowProtocolChat] = useState(false);
   const [protocolPrompt, setProtocolPrompt] = useState<string | null>(null);
+  const [clinicalRecordEntry, setClinicalRecordEntry] = useState<FlareEntry | null>(null);
+  const [showClinicalRecord, setShowClinicalRecord] = useState(false);
   const smartTrackRef = useRef<SmartTrackRef>(null);
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
@@ -641,7 +645,7 @@ const Index = () => {
               />
             </Card>
 
-            {/* Timeline for selected date */}
+            {/* Timeline for selected date - Enhanced */}
             {selectedDateEntries.length > 0 ? (
               <div className="animate-fade-in">
                 <div className="flex items-center justify-between mb-3">
@@ -652,11 +656,14 @@ const Index = () => {
                     {selectedDateEntries.length} {selectedDateEntries.length === 1 ? 'entry' : 'entries'}
                   </span>
                 </div>
-                <FlareTimeline 
+                <EnhancedFlareHistory 
                   entries={selectedDateEntries} 
                   onUpdate={handleUpdateEntry}
                   onDelete={handleDeleteEntry}
-                  onAddFollowUp={handleAddFollowUp}
+                  onGenerateClinicalRecord={(entry) => {
+                    setClinicalRecordEntry(entry);
+                    setShowClinicalRecord(true);
+                  }}
                 />
               </div>
             ) : (
@@ -725,9 +732,15 @@ const Index = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Clinical Record Generator */}
+      <ClinicalRecordGenerator 
+        entry={clinicalRecordEntry}
+        open={showClinicalRecord}
+        onOpenChange={setShowClinicalRecord}
+      />
     </div>
   );
 };
-
 
 export default Index;

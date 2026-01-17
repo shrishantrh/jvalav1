@@ -8,7 +8,8 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Moon, Sun, LogOut, Shield, FileText, Bell, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Moon, Sun, LogOut, Shield, FileText, Bell, AlertTriangle, Activity, User as UserIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -193,7 +194,7 @@ export default function Settings() {
               Appearance
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <Label>Dark Mode</Label>
@@ -201,6 +202,40 @@ export default function Settings() {
               </div>
               <Switch checked={isDarkMode} onCheckedChange={toggleDarkMode} />
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Demo Mode for VCs */}
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Activity className="w-4 h-4 text-primary" />
+              Demo Mode
+              <Badge variant="secondary" className="text-[10px]">VC Ready</Badge>
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Access presentation-ready demo views for investor pitches
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button 
+              variant="outline" 
+              className="w-full justify-start gap-2 h-10"
+              onClick={() => navigate('/demo')}
+            >
+              <Activity className="w-4 h-4" />
+              Patient Demo View
+              <span className="ml-auto text-xs text-muted-foreground">→</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              className="w-full justify-start gap-2 h-10"
+              onClick={() => navigate('/clinician')}
+            >
+              <UserIcon className="w-4 h-4" />
+              Clinician Dashboard
+              <span className="ml-auto text-xs text-muted-foreground">→</span>
+            </Button>
           </CardContent>
         </Card>
 
