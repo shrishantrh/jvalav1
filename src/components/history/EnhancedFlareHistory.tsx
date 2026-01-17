@@ -23,14 +23,19 @@ import {
   Stethoscope,
   Zap,
   AlertTriangle,
-  CheckCircle2,
   MoreVertical,
   Trash2,
   Edit,
   Copy,
   Gauge,
   Brain,
-  Sparkles
+  Sparkles,
+  Sun,
+  Cloud,
+  Eye,
+  Leaf,
+  MessageSquare,
+  FileOutput
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -41,21 +46,29 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { EditFlareDialog } from '@/components/flare/EditFlareDialog';
+import { FollowUpDialog } from '@/components/flare/FollowUpDialog';
 
 interface EnhancedFlareHistoryProps {
   entries: FlareEntry[];
   onUpdate?: (entryId: string, updates: Partial<FlareEntry>) => void;
   onDelete?: (entryId: string) => void;
+  onAddFollowUp?: (entryId: string, note: string) => void;
   onGenerateClinicalRecord?: (entry: FlareEntry) => void;
+  onGenerateBulkClinicalRecord?: (entries: FlareEntry[]) => void;
 }
 
 export const EnhancedFlareHistory = ({ 
   entries, 
   onUpdate, 
   onDelete,
-  onGenerateClinicalRecord 
+  onAddFollowUp,
+  onGenerateClinicalRecord,
+  onGenerateBulkClinicalRecord,
 }: EnhancedFlareHistoryProps) => {
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
+  const [editingEntry, setEditingEntry] = useState<FlareEntry | null>(null);
+  const [followUpEntry, setFollowUpEntry] = useState<FlareEntry | null>(null);
   const { toast } = useToast();
 
   const toggleExpand = (id: string) => {
@@ -71,30 +84,22 @@ export const EnhancedFlareHistory = ({
     switch (severity) {
       case 'severe': return { 
         bg: 'bg-gradient-to-br from-red-500 to-red-600', 
-        text: 'text-white', 
-        border: 'border-red-400',
-        light: 'bg-red-50 border-red-200',
+        border: 'border-l-red-500',
         accent: 'text-red-600'
       };
       case 'moderate': return { 
         bg: 'bg-gradient-to-br from-amber-500 to-orange-500', 
-        text: 'text-white', 
-        border: 'border-amber-400',
-        light: 'bg-amber-50 border-amber-200',
+        border: 'border-l-amber-500',
         accent: 'text-amber-600'
       };
       case 'mild': return { 
         bg: 'bg-gradient-to-br from-blue-500 to-blue-600', 
-        text: 'text-white', 
-        border: 'border-blue-400',
-        light: 'bg-blue-50 border-blue-200',
+        border: 'border-l-blue-500',
         accent: 'text-blue-600'
       };
       default: return { 
         bg: 'bg-muted', 
-        text: 'text-foreground', 
-        border: 'border-muted',
-        light: 'bg-muted/50 border-muted',
+        border: 'border-l-muted',
         accent: 'text-muted-foreground'
       };
     }
@@ -102,10 +107,10 @@ export const EnhancedFlareHistory = ({
 
   const getEntryIcon = (type: string) => {
     switch (type) {
-      case 'flare': return <Zap className="w-4 h-4" />;
-      case 'energy': return <Activity className="w-4 h-4" />;
-      case 'medication': return <Stethoscope className="w-4 h-4" />;
-      default: return <FileText className="w-4 h-4" />;
+      case 'flare': return <Zap className="w-3.5 h-3.5" />;
+      case 'energy': return <Activity className="w-3.5 h-3.5" />;
+      case 'medication': return <Stethoscope className="w-3.5 h-3.5" />;
+      default: return <FileText className="w-3.5 h-3.5" />;
     }
   };
 
@@ -135,335 +140,416 @@ export const EnhancedFlareHistory = ({
     toast({ title: "Downloaded", description: "Entry saved to your device" });
   };
 
+  const handleEdit = (entry: FlareEntry) => {
+    setEditingEntry(entry);
+  };
+
+  const handleFollowUp = (entry: FlareEntry) => {
+    setFollowUpEntry(entry);
+  };
+
   if (entries.length === 0) {
     return (
-      <Card className="p-8 text-center bg-card border border-border/80">
-        <div className="w-16 h-16 mx-auto rounded-full bg-muted/50 flex items-center justify-center mb-4">
-          <Clock className="w-8 h-8 text-muted-foreground" />
+      <Card className="p-6 text-center bg-card border border-border/80">
+        <div className="w-12 h-12 mx-auto rounded-full bg-muted/50 flex items-center justify-center mb-3">
+          <Clock className="w-6 h-6 text-muted-foreground" />
         </div>
         <p className="text-sm font-medium">No entries for this date</p>
-        <p className="text-xs text-muted-foreground mt-1">Start logging to build your health history</p>
+        <p className="text-xs text-muted-foreground mt-1">Start logging to build your history</p>
       </Card>
     );
   }
 
+  // Get environmental and physiological data with fallbacks
+  const getEnvValue = (entry: FlareEntry, key: string): any => {
+    const env = entry.environmentalData as any;
+    if (!env) return null;
+    // Check nested weather object first
+    if (env.weather?.[key] !== undefined) return env.weather[key];
+    // Check nested location object
+    if (env.location?.[key] !== undefined) return env.location[key];
+    // Check direct properties
+    if (env[key] !== undefined) return env[key];
+    return null;
+  };
+
+  const getPhysValue = (entry: FlareEntry, key: string): any => {
+    const phys = entry.physiologicalData as any;
+    if (!phys) return null;
+    return phys[key] ?? phys[key.replace(/_/g, '')] ?? null;
+  };
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
+      {/* Bulk Export Button */}
+      {entries.length > 1 && onGenerateBulkClinicalRecord && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full mb-2 gap-2 text-xs"
+          onClick={() => onGenerateBulkClinicalRecord(entries)}
+        >
+          <FileOutput className="w-3.5 h-3.5" />
+          Export All {entries.length} Entries to EHR
+        </Button>
+      )}
+
       {entries.map((entry) => {
         const isExpanded = expandedEntries.has(entry.id);
         const severity = getSeverityStyles(entry.severity);
-        const hasEnvData = entry.environmentalData?.weather || entry.environmentalData?.location;
+        const hasEnvData = entry.environmentalData;
         const hasPhysData = entry.physiologicalData;
-        const hasDetailedData = hasEnvData || hasPhysData;
+
+        // Extract values
+        const temp = getEnvValue(entry, 'temperature');
+        const humidity = getEnvValue(entry, 'humidity');
+        const pressure = getEnvValue(entry, 'pressure');
+        const condition = getEnvValue(entry, 'condition');
+        const city = getEnvValue(entry, 'city');
+        const uvIndex = getEnvValue(entry, 'uvIndex') ?? getEnvValue(entry, 'uv_index');
+        const aqi = getEnvValue(entry, 'aqi');
+        const windSpeed = getEnvValue(entry, 'windSpeed') ?? getEnvValue(entry, 'wind_speed');
+        const visibility = getEnvValue(entry, 'visibility');
+        const pollenTree = getEnvValue(entry, 'pollenTree') ?? getEnvValue(entry, 'pollen_tree');
+        const pollenGrass = getEnvValue(entry, 'pollenGrass') ?? getEnvValue(entry, 'pollen_grass');
+
+        const heartRate = getPhysValue(entry, 'heart_rate') ?? getPhysValue(entry, 'heartRate');
+        const hrv = getPhysValue(entry, 'heart_rate_variability') ?? getPhysValue(entry, 'heartRateVariability');
+        const sleepHours = getPhysValue(entry, 'sleep_hours') ?? getPhysValue(entry, 'sleepHours');
+        const steps = getPhysValue(entry, 'steps');
+        const spo2 = getPhysValue(entry, 'spo2');
+        const calories = getPhysValue(entry, 'calories_burned') ?? getPhysValue(entry, 'caloriesBurned');
+        const restingHr = getPhysValue(entry, 'resting_heart_rate') ?? getPhysValue(entry, 'restingHeartRate');
 
         return (
           <Collapsible key={entry.id} open={isExpanded} onOpenChange={() => toggleExpand(entry.id)}>
             <Card className={cn(
-              "overflow-hidden transition-all duration-300 shadow-soft bg-card border border-border/80",
-              isExpanded ? "ring-2 ring-primary/20 shadow-soft-lg" : "hover:shadow-soft-md",
+              "overflow-hidden transition-all duration-200 bg-card border shadow-sm",
+              isExpanded ? "ring-1 ring-primary/20" : "hover:shadow-md",
               entry.type === 'flare' && `border-l-4 ${severity.border}`
             )}>
-              {/* Header - Always Visible */}
-              <div className="p-4">
-                <div className="flex items-start gap-3">
-                  {/* Severity/Type Indicator */}
+              {/* Compact Header */}
+              <div className="p-3">
+                <div className="flex items-center gap-2.5">
+                  {/* Severity Icon */}
                   <div className={cn(
-                    "w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-sm",
-                    entry.type === 'flare' ? severity.bg : 'bg-gradient-to-br from-primary/80 to-primary'
+                    "w-9 h-9 rounded-lg flex items-center justify-center shrink-0",
+                    entry.type === 'flare' ? severity.bg : 'bg-primary'
                   )}>
-                    <span className="text-white">
-                      {getEntryIcon(entry.type)}
-                    </span>
+                    <span className="text-white">{getEntryIcon(entry.type)}</span>
                   </div>
 
                   {/* Main Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-semibold capitalize">{entry.type}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-semibold capitalize">{entry.type}</span>
                       {entry.severity && (
-                        <Badge 
-                          variant="outline" 
-                          className={cn("text-[10px] capitalize font-medium", severity.accent)}
-                        >
+                        <Badge variant="outline" className={cn("text-[9px] capitalize px-1.5 py-0", severity.accent)}>
                           {entry.severity}
                         </Badge>
                       )}
-                      {hasDetailedData && (
-                        <Badge className="text-[10px] bg-primary/10 text-primary border-0 gap-1">
-                          <Sparkles className="w-2.5 h-2.5" />
-                          Rich Data
+                      {(hasEnvData || hasPhysData) && (
+                        <Badge className="text-[9px] bg-primary/10 text-primary border-0 gap-0.5 px-1.5 py-0">
+                          <Sparkles className="w-2 h-2" /> Data
                         </Badge>
                       )}
                     </div>
-
-                    <p className="text-xs text-muted-foreground mb-2">
-                      {format(entry.timestamp, 'h:mm a')} • {format(entry.timestamp, 'EEEE, MMMM d')}
+                    <p className="text-[10px] text-muted-foreground">
+                      {format(entry.timestamp, 'h:mm a')} • {city || format(entry.timestamp, 'MMM d')}
                     </p>
-
-                    {/* Symptoms */}
-                    {entry.symptoms && entry.symptoms.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mb-2">
-                        {entry.symptoms.slice(0, 3).map((s, i) => (
-                          <Badge key={i} variant="secondary" className="text-[10px] bg-muted/60">
-                            {s}
-                          </Badge>
-                        ))}
-                        {entry.symptoms.length > 3 && (
-                          <Badge variant="outline" className="text-[10px]">
-                            +{entry.symptoms.length - 3}
-                          </Badge>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Note Preview */}
-                    {entry.note && (
-                      <p className="text-xs text-muted-foreground line-clamp-1 italic">"{entry.note}"</p>
-                    )}
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-1">
+                  {/* Quick Actions */}
+                  <div className="flex items-center gap-0.5">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-7 w-7"
+                      onClick={(e) => { e.stopPropagation(); handleEdit(entry); }}
+                      title="Edit"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-7 w-7"
+                      onClick={(e) => { e.stopPropagation(); handleFollowUp(entry); }}
+                      title="Follow-up"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                    </Button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreVertical className="w-4 h-4" />
+                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                          <MoreVertical className="w-3.5 h-3.5" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem onClick={() => onGenerateClinicalRecord?.(entry)} className="gap-2">
-                          <FileText className="w-4 h-4" />
-                          Generate Clinical Record
+                      <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuItem onClick={() => onGenerateClinicalRecord?.(entry)} className="gap-2 text-xs">
+                          <FileText className="w-3.5 h-3.5" /> EHR Record
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => copyEntryData(entry)} className="gap-2">
-                          <Copy className="w-4 h-4" />
-                          Copy Details
+                        <DropdownMenuItem onClick={() => copyEntryData(entry)} className="gap-2 text-xs">
+                          <Copy className="w-3.5 h-3.5" /> Copy
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => shareEntry(entry)} className="gap-2">
-                          <Share2 className="w-4 h-4" />
-                          Share
+                        <DropdownMenuItem onClick={() => shareEntry(entry)} className="gap-2 text-xs">
+                          <Share2 className="w-3.5 h-3.5" /> Share
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => downloadEntry(entry)} className="gap-2">
-                          <Download className="w-4 h-4" />
-                          Export JSON
+                        <DropdownMenuItem onClick={() => downloadEntry(entry)} className="gap-2 text-xs">
+                          <Download className="w-3.5 h-3.5" /> Export JSON
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem 
                           onClick={() => onDelete?.(entry.id)} 
-                          className="gap-2 text-red-600 focus:text-red-600"
+                          className="gap-2 text-xs text-red-600 focus:text-red-600"
                         >
-                          <Trash2 className="w-4 h-4" />
-                          Delete Entry
+                          <Trash2 className="w-3.5 h-3.5" /> Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                     
                     <CollapsibleTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0">
+                        {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                       </Button>
                     </CollapsibleTrigger>
                   </div>
                 </div>
+
+                {/* Symptoms Preview */}
+                {entry.symptoms && entry.symptoms.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2 ml-11">
+                    {entry.symptoms.slice(0, 4).map((s, i) => (
+                      <Badge key={i} variant="secondary" className="text-[9px] px-1.5 py-0 bg-muted/60">{s}</Badge>
+                    ))}
+                    {entry.symptoms.length > 4 && (
+                      <Badge variant="outline" className="text-[9px] px-1.5 py-0">+{entry.symptoms.length - 4}</Badge>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Expanded Content */}
               <CollapsibleContent>
-                <div className="px-4 pb-4 space-y-4 border-t pt-4 bg-muted/20">
-                  {/* Environmental Data */}
-                  {hasEnvData && (
-                    <div className="space-y-3">
-                      <h4 className="text-xs font-semibold flex items-center gap-2 text-foreground">
-                        <div className="w-6 h-6 rounded-md bg-emerald-500/10 flex items-center justify-center">
-                          <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-                        </div>
-                        Environmental Context
-                        <Badge variant="outline" className="text-[9px] ml-auto">Auto-Captured</Badge>
-                      </h4>
+                <div className="px-3 pb-3 space-y-3 border-t pt-3 bg-muted/10">
+                  {/* Physiological Data - Wearables */}
+                  {hasPhysData && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1.5">
+                        <Activity className="w-3 h-3 text-rose-500" />
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Wearable Metrics</span>
+                        <Badge variant="outline" className="text-[8px] px-1 py-0 ml-auto">Fitbit</Badge>
+                      </div>
                       
-                      <div className="grid grid-cols-2 gap-2">
-                        {entry.environmentalData?.location?.city && (
-                          <div className="p-3 rounded-xl bg-card border border-border/60 shadow-sm">
-                            <div className="flex items-center gap-2 mb-1">
-                              <MapPin className="w-3.5 h-3.5 text-primary" />
-                              <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Location</span>
-                            </div>
-                            <p className="text-sm font-semibold">{entry.environmentalData.location.city}</p>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {heartRate && (
+                          <div className="p-2 rounded-lg bg-red-50 dark:bg-red-950/30 text-center">
+                            <Heart className="w-3 h-3 text-red-500 mx-auto mb-0.5" />
+                            <p className="text-sm font-bold text-red-600">{heartRate}</p>
+                            <p className="text-[8px] text-red-500/70">bpm</p>
                           </div>
                         )}
-                        
-                        {entry.environmentalData?.weather?.temperature && (
-                          <div className="p-3 rounded-xl bg-card border border-border/60 shadow-sm">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Thermometer className="w-3.5 h-3.5 text-orange-500" />
-                              <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Temperature</span>
-                            </div>
-                            <p className="text-sm font-semibold">{entry.environmentalData.weather.temperature}°F</p>
+                        {hrv && (
+                          <div className="p-2 rounded-lg bg-purple-50 dark:bg-purple-950/30 text-center">
+                            <Brain className="w-3 h-3 text-purple-500 mx-auto mb-0.5" />
+                            <p className="text-sm font-bold text-purple-600">{hrv}</p>
+                            <p className="text-[8px] text-purple-500/70">ms HRV</p>
                           </div>
                         )}
-                        
-                        {entry.environmentalData?.weather?.humidity && (
-                          <div className="p-3 rounded-xl bg-card border border-border/60 shadow-sm">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Droplets className="w-3.5 h-3.5 text-blue-500" />
-                              <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Humidity</span>
-                            </div>
-                            <p className="text-sm font-semibold">{entry.environmentalData.weather.humidity}%</p>
+                        {sleepHours && (
+                          <div className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 text-center">
+                            <Moon className="w-3 h-3 text-indigo-500 mx-auto mb-0.5" />
+                            <p className="text-sm font-bold text-indigo-600">{sleepHours}</p>
+                            <p className="text-[8px] text-indigo-500/70">hrs sleep</p>
                           </div>
                         )}
-                        
-                        {entry.environmentalData?.weather?.pressure && (
-                          <div className="p-3 rounded-xl bg-card border border-border/60 shadow-sm">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Gauge className="w-3.5 h-3.5 text-purple-500" />
-                              <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Pressure</span>
-                            </div>
-                            <p className="text-sm font-semibold">{entry.environmentalData.weather.pressure} inHg</p>
+                        {steps && (
+                          <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-center">
+                            <Footprints className="w-3 h-3 text-emerald-500 mx-auto mb-0.5" />
+                            <p className="text-sm font-bold text-emerald-600">{steps >= 1000 ? `${(steps/1000).toFixed(1)}k` : steps}</p>
+                            <p className="text-[8px] text-emerald-500/70">steps</p>
                           </div>
                         )}
-                        
-                        {entry.environmentalData?.weather?.condition && (
-                          <div className="p-3 rounded-xl bg-card border border-border/60 shadow-sm col-span-2">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Wind className="w-3.5 h-3.5 text-slate-500" />
-                              <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Conditions</span>
-                            </div>
-                            <p className="text-sm font-semibold capitalize">{entry.environmentalData.weather.condition}</p>
+                        {spo2 && (
+                          <div className="p-2 rounded-lg bg-cyan-50 dark:bg-cyan-950/30 text-center">
+                            <Activity className="w-3 h-3 text-cyan-500 mx-auto mb-0.5" />
+                            <p className="text-sm font-bold text-cyan-600">{spo2}%</p>
+                            <p className="text-[8px] text-cyan-500/70">SpO2</p>
+                          </div>
+                        )}
+                        {restingHr && (
+                          <div className="p-2 rounded-lg bg-pink-50 dark:bg-pink-950/30 text-center">
+                            <Heart className="w-3 h-3 text-pink-500 mx-auto mb-0.5" />
+                            <p className="text-sm font-bold text-pink-600">{restingHr}</p>
+                            <p className="text-[8px] text-pink-500/70">resting</p>
+                          </div>
+                        )}
+                        {calories && (
+                          <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-950/30 text-center">
+                            <Zap className="w-3 h-3 text-orange-500 mx-auto mb-0.5" />
+                            <p className="text-sm font-bold text-orange-600">{calories >= 1000 ? `${(calories/1000).toFixed(1)}k` : calories}</p>
+                            <p className="text-[8px] text-orange-500/70">cals</p>
                           </div>
                         )}
                       </div>
                     </div>
                   )}
 
-                  {/* Physiological Data */}
-                  {hasPhysData && (
-                    <div className="space-y-3">
-                      <h4 className="text-xs font-semibold flex items-center gap-2 text-foreground">
-                        <div className="w-6 h-6 rounded-md bg-rose-500/10 flex items-center justify-center">
-                          <Activity className="w-3.5 h-3.5 text-rose-600" />
-                        </div>
-                        Wearable Metrics
-                        <Badge variant="outline" className="text-[9px] ml-auto">Fitbit Sync</Badge>
-                      </h4>
+                  {/* Environmental Data */}
+                  {hasEnvData && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="w-3 h-3 text-emerald-500" />
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Environment</span>
+                        <Badge variant="outline" className="text-[8px] px-1 py-0 ml-auto">Auto</Badge>
+                      </div>
                       
-                      <div className="grid grid-cols-3 gap-2">
-                        {(entry.physiologicalData?.heartRate || entry.physiologicalData?.restingHeartRate) && (
-                          <div className="p-3 rounded-xl bg-gradient-to-br from-red-50 to-rose-50 border border-red-100 shadow-sm">
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <Heart className="w-3.5 h-3.5 text-red-500" />
-                              <span className="text-[9px] text-red-600/80 font-medium uppercase">Heart Rate</span>
-                            </div>
-                            <p className="text-xl font-bold text-red-600">
-                              {entry.physiologicalData.heartRate || entry.physiologicalData.restingHeartRate}
-                            </p>
-                            <p className="text-[10px] text-red-500/70">bpm</p>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {temp !== null && (
+                          <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-950/30 text-center">
+                            <Thermometer className="w-3 h-3 text-orange-500 mx-auto mb-0.5" />
+                            <p className="text-sm font-bold text-orange-600">{temp}°</p>
+                            <p className="text-[8px] text-orange-500/70">temp</p>
                           </div>
                         )}
-                        
-                        {entry.physiologicalData?.heartRateVariability && (
-                          <div className="p-3 rounded-xl bg-gradient-to-br from-purple-50 to-violet-50 border border-purple-100 shadow-sm">
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <Brain className="w-3.5 h-3.5 text-purple-500" />
-                              <span className="text-[9px] text-purple-600/80 font-medium uppercase">HRV</span>
-                            </div>
-                            <p className="text-xl font-bold text-purple-600">{entry.physiologicalData.heartRateVariability}</p>
-                            <p className="text-[10px] text-purple-500/70">ms</p>
+                        {humidity !== null && (
+                          <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 text-center">
+                            <Droplets className="w-3 h-3 text-blue-500 mx-auto mb-0.5" />
+                            <p className="text-sm font-bold text-blue-600">{humidity}%</p>
+                            <p className="text-[8px] text-blue-500/70">humidity</p>
                           </div>
                         )}
-                        
-                        {entry.physiologicalData?.sleepHours && (
-                          <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 shadow-sm">
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <Moon className="w-3.5 h-3.5 text-indigo-500" />
-                              <span className="text-[9px] text-indigo-600/80 font-medium uppercase">Sleep</span>
-                            </div>
-                            <p className="text-xl font-bold text-indigo-600">{entry.physiologicalData.sleepHours}</p>
-                            <p className="text-[10px] text-indigo-500/70">hours</p>
+                        {pressure !== null && (
+                          <div className="p-2 rounded-lg bg-violet-50 dark:bg-violet-950/30 text-center">
+                            <Gauge className="w-3 h-3 text-violet-500 mx-auto mb-0.5" />
+                            <p className="text-sm font-bold text-violet-600">{pressure}</p>
+                            <p className="text-[8px] text-violet-500/70">inHg</p>
                           </div>
                         )}
-                        
-                        {entry.physiologicalData?.steps && (
-                          <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-100 shadow-sm">
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <Footprints className="w-3.5 h-3.5 text-emerald-500" />
-                              <span className="text-[9px] text-emerald-600/80 font-medium uppercase">Steps</span>
-                            </div>
-                            <p className="text-xl font-bold text-emerald-600">{entry.physiologicalData.steps.toLocaleString()}</p>
-                            <p className="text-[10px] text-emerald-500/70">today</p>
+                        {uvIndex !== null && (
+                          <div className="p-2 rounded-lg bg-yellow-50 dark:bg-yellow-950/30 text-center">
+                            <Sun className="w-3 h-3 text-yellow-500 mx-auto mb-0.5" />
+                            <p className="text-sm font-bold text-yellow-600">{uvIndex}</p>
+                            <p className="text-[8px] text-yellow-500/70">UV</p>
                           </div>
                         )}
-
-                        {entry.physiologicalData?.stressLevel && (
-                          <div className="p-3 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 shadow-sm">
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                              <span className="text-[9px] text-amber-600/80 font-medium uppercase">Stress</span>
-                            </div>
-                            <p className="text-xl font-bold text-amber-600">{entry.physiologicalData.stressLevel}</p>
-                            <p className="text-[10px] text-amber-500/70">/10</p>
+                        {aqi !== null && (
+                          <div className="p-2 rounded-lg bg-gray-50 dark:bg-gray-950/30 text-center">
+                            <Cloud className="w-3 h-3 text-gray-500 mx-auto mb-0.5" />
+                            <p className="text-sm font-bold text-gray-600">{aqi}</p>
+                            <p className="text-[8px] text-gray-500/70">AQI</p>
                           </div>
                         )}
-
-                        {entry.physiologicalData?.spo2 && (
-                          <div className="p-3 rounded-xl bg-gradient-to-br from-cyan-50 to-teal-50 border border-cyan-100 shadow-sm">
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <Activity className="w-3.5 h-3.5 text-cyan-500" />
-                              <span className="text-[9px] text-cyan-600/80 font-medium uppercase">SpO2</span>
-                            </div>
-                            <p className="text-xl font-bold text-cyan-600">{entry.physiologicalData.spo2}</p>
-                            <p className="text-[10px] text-cyan-500/70">%</p>
+                        {windSpeed !== null && (
+                          <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-950/30 text-center">
+                            <Wind className="w-3 h-3 text-slate-500 mx-auto mb-0.5" />
+                            <p className="text-sm font-bold text-slate-600">{windSpeed}</p>
+                            <p className="text-[8px] text-slate-500/70">mph</p>
+                          </div>
+                        )}
+                        {visibility !== null && (
+                          <div className="p-2 rounded-lg bg-sky-50 dark:bg-sky-950/30 text-center">
+                            <Eye className="w-3 h-3 text-sky-500 mx-auto mb-0.5" />
+                            <p className="text-sm font-bold text-sky-600">{visibility}</p>
+                            <p className="text-[8px] text-sky-500/70">mi vis</p>
+                          </div>
+                        )}
+                        {(pollenTree !== null || pollenGrass !== null) && (
+                          <div className="p-2 rounded-lg bg-lime-50 dark:bg-lime-950/30 text-center">
+                            <Leaf className="w-3 h-3 text-lime-500 mx-auto mb-0.5" />
+                            <p className="text-sm font-bold text-lime-600">{pollenTree || pollenGrass}</p>
+                            <p className="text-[8px] text-lime-500/70">pollen</p>
                           </div>
                         )}
                       </div>
+
+                      {condition && (
+                        <p className="text-[10px] text-muted-foreground text-center capitalize">{condition}</p>
+                      )}
                     </div>
                   )}
 
                   {/* Triggers */}
                   {entry.triggers && entry.triggers.length > 0 && (
-                    <div className="space-y-2">
-                      <h4 className="text-xs font-semibold flex items-center gap-2 text-foreground">
-                        <div className="w-6 h-6 rounded-md bg-amber-500/10 flex items-center justify-center">
-                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                        </div>
-                        Identified Triggers
-                      </h4>
-                      <div className="flex flex-wrap gap-1.5">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <AlertTriangle className="w-3 h-3 text-amber-500" />
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Triggers</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
                         {entry.triggers.map((t, i) => (
-                          <Badge key={i} variant="secondary" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
-                            {t}
-                          </Badge>
+                          <Badge key={i} variant="secondary" className="text-[9px] bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 px-1.5 py-0">{t}</Badge>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {/* Full Note */}
+                  {/* Note */}
                   {entry.note && (
-                    <div className="space-y-2">
-                      <h4 className="text-xs font-semibold text-foreground">Patient Notes</h4>
-                      <p className="text-sm text-foreground bg-card p-3 rounded-xl border border-border/60 italic">
-                        "{entry.note}"
-                      </p>
+                    <div className="p-2 rounded-lg bg-muted/50 border border-border/50">
+                      <p className="text-[11px] text-foreground italic">"{entry.note}"</p>
                     </div>
                   )}
 
-                  {/* Clinical Record Action */}
-                  <div className="pt-3 border-t border-border/50">
-                    <Button 
-                      onClick={() => onGenerateClinicalRecord?.(entry)}
-                      className="w-full gap-2 h-11 shadow-sm"
-                    >
-                      <FileText className="w-4 h-4" />
-                      Generate EHR Clinical Record
-                      <Sparkles className="w-3 h-3 ml-auto" />
-                    </Button>
-                  </div>
+                  {/* Follow-ups */}
+                  {entry.followUps && entry.followUps.length > 0 && (
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Follow-ups</span>
+                      <div className="space-y-1">
+                        {entry.followUps.map((fu: any, i: number) => (
+                          <div key={i} className="p-2 rounded-lg bg-primary/5 border border-primary/10">
+                            <p className="text-[10px] text-foreground">{fu.note}</p>
+                            <p className="text-[9px] text-muted-foreground mt-0.5">
+                              {format(new Date(fu.timestamp), 'MMM d, h:mm a')}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Clinical Record Button */}
+                  <Button 
+                    onClick={() => onGenerateClinicalRecord?.(entry)}
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2 text-xs h-8"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    Generate EHR Record
+                  </Button>
                 </div>
               </CollapsibleContent>
             </Card>
           </Collapsible>
         );
       })}
+
+      {/* Edit Dialog */}
+      {editingEntry && (
+        <EditFlareDialog
+          entry={editingEntry}
+          open={!!editingEntry}
+          onOpenChange={(open) => !open && setEditingEntry(null)}
+          onSave={(updates) => {
+            onUpdate?.(editingEntry.id, updates);
+            setEditingEntry(null);
+          }}
+        />
+      )}
+
+      {/* Follow-up Dialog */}
+      {followUpEntry && (
+        <FollowUpDialog
+          entry={followUpEntry}
+          open={!!followUpEntry}
+          onOpenChange={(open) => !open && setFollowUpEntry(null)}
+          onSave={(note) => {
+            onAddFollowUp?.(followUpEntry.id, note);
+            setFollowUpEntry(null);
+          }}
+        />
+      )}
     </div>
   );
 };
