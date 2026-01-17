@@ -660,8 +660,14 @@ const Index = () => {
                   entries={selectedDateEntries} 
                   onUpdate={handleUpdateEntry}
                   onDelete={handleDeleteEntry}
+                  onAddFollowUp={handleAddFollowUp}
                   onGenerateClinicalRecord={(entry) => {
                     setClinicalRecordEntry(entry);
+                    setShowClinicalRecord(true);
+                  }}
+                  onGenerateBulkClinicalRecord={(entries) => {
+                    // For bulk, set first entry and pass all entries
+                    setClinicalRecordEntry(entries[0]);
                     setShowClinicalRecord(true);
                   }}
                 />

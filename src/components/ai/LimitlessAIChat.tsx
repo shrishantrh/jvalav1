@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
-import { Brain, Send, Sparkles, Loader2, X, Bell, CheckCircle2 } from "lucide-react";
+import { Brain, Send, Sparkles, Loader2, X, Bell, CheckCircle2, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AIVisualization, AIVisualizationRenderer } from "@/components/chat/AIVisualization";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +23,18 @@ interface LimitlessAIChatProps {
   onClose?: () => void;
   isProtocolMode?: boolean;
 }
+
+// Google Calendar logo as SVG
+const GoogleCalendarIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M18 4H17V2H15V4H9V2H7V4H6C4.9 4 4 4.9 4 6V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V6C20 4.9 19.1 4 18 4Z" fill="#4285F4"/>
+    <path d="M18 20H6V9H18V20Z" fill="#FFFFFF"/>
+    <path d="M8 11H11V14H8V11Z" fill="#EA4335"/>
+    <path d="M13 11H16V14H13V11Z" fill="#FBBC04"/>
+    <path d="M8 16H11V19H8V16Z" fill="#34A853"/>
+    <path d="M13 16H16V19H13V16Z" fill="#4285F4"/>
+  </svg>
+);
 
 export const LimitlessAIChat = ({ userId, initialPrompt, onClose, isProtocolMode = false }: LimitlessAIChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -104,7 +116,29 @@ Make it practical and personalized to my data.`;
       title: "🔔 Reminder set!",
       description: `You'll be reminded: "${step.substring(0, 50)}..."`,
     });
-    setProtocolCreated(true);
+  };
+
+  const handleAddToCalendar = (step: string, index: number) => {
+    // Create a Google Calendar event URL
+    const title = encodeURIComponent(`Health Protocol: Step ${index + 1}`);
+    const details = encodeURIComponent(step);
+    
+    // Default to tomorrow at 9am
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    
+    const startDate = tomorrow.toISOString().replace(/-|:|\.\d\d\d/g, '').slice(0, 15) + 'Z';
+    tomorrow.setHours(10, 0, 0, 0);
+    const endDate = tomorrow.toISOString().replace(/-|:|\.\d\d\d/g, '').slice(0, 15) + 'Z';
+    
+    const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${startDate}/${endDate}`;
+    
+    window.open(calendarUrl, '_blank');
+    toast({
+      title: "📅 Opening Google Calendar",
+      description: "Add this step to your schedule",
+    });
   };
 
   const handleActivateProtocol = () => {
@@ -208,7 +242,7 @@ Make it practical and personalized to my data.`;
 
                   {msg.visualization && <AIVisualizationRenderer viz={msg.visualization} />}
 
-                  {/* Protocol Steps with Reminder Buttons */}
+                  {/* Protocol Steps with Reminder & Calendar Buttons */}
                   {msg.protocolSteps && msg.protocolSteps.length > 0 && (
                     <div className="mt-3 space-y-2">
                       <p className="text-xs font-medium text-muted-foreground">Protocol Steps:</p>
@@ -219,15 +253,26 @@ Make it practical and personalized to my data.`;
                           </div>
                           <div className="flex-1">
                             <p className="text-xs">{step}</p>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 text-[10px] mt-1 gap-1"
-                              onClick={() => handleSetReminder(step)}
-                            >
-                              <Bell className="w-3 h-3" />
-                              Set Reminder
-                            </Button>
+                            <div className="flex gap-1 mt-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 text-[10px] gap-1 px-2"
+                                onClick={() => handleSetReminder(step)}
+                              >
+                                <Bell className="w-3 h-3" />
+                                Remind
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 text-[10px] gap-1 px-2"
+                                onClick={() => handleAddToCalendar(step, idx)}
+                              >
+                                <GoogleCalendarIcon />
+                                Calendar
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       ))}

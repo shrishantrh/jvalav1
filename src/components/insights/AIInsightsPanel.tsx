@@ -15,13 +15,11 @@ import {
   Target,
   Zap,
   RefreshCw,
-  ChevronRight,
   Activity,
   Heart,
   Shield,
   Bell,
-  MessageSquare,
-  Clock,
+  MessageCircle,
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
@@ -34,6 +32,7 @@ interface AIInsightsPanelProps {
   entries: FlareEntry[];
   userConditions?: string[];
   onStartProtocol?: (recommendation: string) => void;
+  onNavigateToChat?: (prompt: string) => void;
 }
 
 interface AIInsight {
@@ -63,10 +62,9 @@ interface AIAnalysis {
 const analysisCache = new Map<string, { analysis: AIAnalysis; timestamp: number }>();
 const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
 
-export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol }: AIInsightsPanelProps) => {
+export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol, onNavigateToChat }: AIInsightsPanelProps) => {
   const { user } = useAuth();
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(() => {
-    // Try to restore from cache on mount
     if (user?.id) {
       const cached = analysisCache.get(user.id);
       if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
@@ -78,7 +76,6 @@ export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasAnalyzed, setHasAnalyzed] = useState(() => {
-    // Check if we have cached analysis
     if (user?.id) {
       const cached = analysisCache.get(user.id);
       return !!(cached && Date.now() - cached.timestamp < CACHE_DURATION);
@@ -99,7 +96,6 @@ export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol 
   const fetchAIInsights = async (forceRefresh = false) => {
     if (!user) return;
     
-    // Check cache first unless force refresh
     if (!forceRefresh) {
       const cached = analysisCache.get(user.id);
       if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
@@ -122,7 +118,6 @@ export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol 
       if (data) {
         setAnalysis(data);
         setHasAnalyzed(true);
-        // Cache the result
         analysisCache.set(user.id, { analysis: data, timestamp: Date.now() });
       }
     } catch (err) {
@@ -133,7 +128,6 @@ export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol 
     }
   };
 
-  // Helper for button click (wraps fetchAIInsights with force=true)
   const generateAIInsights = () => fetchAIInsights(true);
 
   useEffect(() => {
@@ -174,6 +168,11 @@ export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol 
       case 'recommendation': return { bg: 'bg-primary/10', text: 'text-primary' };
       default: return { bg: 'bg-accent', text: 'text-accent-foreground' };
     }
+  };
+
+  const handleChatWithRecommendation = (rec: string) => {
+    const prompt = `I want to create a health protocol based on this recommendation: "${rec}". Help me break this down into actionable steps with a schedule I can follow.`;
+    onNavigateToChat?.(prompt);
   };
 
   if (entries.length < 5) {
@@ -277,7 +276,7 @@ export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol 
         </div>
       </Card>
 
-      {/* Key Insights - Compact List */}
+      {/* Key Insights */}
       {analysis.insights && analysis.insights.length > 0 && (
         <Card className="p-3 bg-gradient-card border-0 shadow-soft">
           <button
@@ -317,7 +316,7 @@ export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol 
         </Card>
       )}
 
-      {/* Predictions - Minimal */}
+      {/* Predictions */}
       {analysis.predictions && analysis.predictions.length > 0 && (
         <Card className="p-3 bg-gradient-card border-0 shadow-soft">
           <button
@@ -381,10 +380,10 @@ export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol 
                     size="sm"
                     variant="outline"
                     className="h-7 text-[10px] gap-1 flex-1"
-                    onClick={() => onStartProtocol?.(rec)}
+                    onClick={() => handleChatWithRecommendation(rec)}
                   >
-                    <MessageSquare className="w-3 h-3" />
-                    Create Protocol
+                    <MessageCircle className="w-3 h-3" />
+                    Chat
                   </Button>
                   <Button
                     size="sm"
@@ -395,7 +394,7 @@ export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol 
                     }}
                   >
                     <Bell className="w-3 h-3" />
-                    Remind Me
+                    Remind
                   </Button>
                 </div>
               </div>
