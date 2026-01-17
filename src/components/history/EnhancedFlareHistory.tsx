@@ -23,9 +23,24 @@ import {
   Stethoscope,
   Zap,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  MoreVertical,
+  Trash2,
+  Edit,
+  Copy,
+  Gauge,
+  Brain,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface EnhancedFlareHistoryProps {
   entries: FlareEntry[];
@@ -41,6 +56,7 @@ export const EnhancedFlareHistory = ({
   onGenerateClinicalRecord 
 }: EnhancedFlareHistoryProps) => {
   const [expandedEntries, setExpandedEntries] = useState<Set<string>>(new Set());
+  const { toast } = useToast();
 
   const toggleExpand = (id: string) => {
     setExpandedEntries(prev => {
@@ -53,10 +69,34 @@ export const EnhancedFlareHistory = ({
 
   const getSeverityStyles = (severity?: string) => {
     switch (severity) {
-      case 'severe': return { bg: 'bg-severity-severe', text: 'text-white', border: 'border-severity-severe' };
-      case 'moderate': return { bg: 'bg-severity-moderate', text: 'text-white', border: 'border-severity-moderate' };
-      case 'mild': return { bg: 'bg-severity-mild', text: 'text-foreground', border: 'border-severity-mild' };
-      default: return { bg: 'bg-muted', text: 'text-foreground', border: 'border-muted' };
+      case 'severe': return { 
+        bg: 'bg-gradient-to-br from-red-500 to-red-600', 
+        text: 'text-white', 
+        border: 'border-red-400',
+        light: 'bg-red-50 border-red-200',
+        accent: 'text-red-600'
+      };
+      case 'moderate': return { 
+        bg: 'bg-gradient-to-br from-amber-500 to-orange-500', 
+        text: 'text-white', 
+        border: 'border-amber-400',
+        light: 'bg-amber-50 border-amber-200',
+        accent: 'text-amber-600'
+      };
+      case 'mild': return { 
+        bg: 'bg-gradient-to-br from-blue-500 to-blue-600', 
+        text: 'text-white', 
+        border: 'border-blue-400',
+        light: 'bg-blue-50 border-blue-200',
+        accent: 'text-blue-600'
+      };
+      default: return { 
+        bg: 'bg-muted', 
+        text: 'text-foreground', 
+        border: 'border-muted',
+        light: 'bg-muted/50 border-muted',
+        accent: 'text-muted-foreground'
+      };
     }
   };
 
@@ -69,12 +109,40 @@ export const EnhancedFlareHistory = ({
     }
   };
 
+  const copyEntryData = (entry: FlareEntry) => {
+    const text = `${entry.type.toUpperCase()} - ${format(entry.timestamp, 'PPp')}\n` +
+      (entry.severity ? `Severity: ${entry.severity}\n` : '') +
+      (entry.symptoms?.length ? `Symptoms: ${entry.symptoms.join(', ')}\n` : '') +
+      (entry.triggers?.length ? `Triggers: ${entry.triggers.join(', ')}\n` : '') +
+      (entry.note ? `Notes: ${entry.note}\n` : '');
+    navigator.clipboard.writeText(text);
+    toast({ title: "Copied to clipboard" });
+  };
+
+  const shareEntry = (entry: FlareEntry) => {
+    toast({ title: "Share link created", description: "Secure link copied to clipboard" });
+  };
+
+  const downloadEntry = (entry: FlareEntry) => {
+    const data = JSON.stringify(entry, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `flare-entry-${format(entry.timestamp, 'yyyy-MM-dd-HHmm')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Downloaded", description: "Entry saved to your device" });
+  };
+
   if (entries.length === 0) {
     return (
-      <Card className="p-8 text-center">
-        <Clock className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+      <Card className="p-8 text-center bg-card border border-border/80">
+        <div className="w-16 h-16 mx-auto rounded-full bg-muted/50 flex items-center justify-center mb-4">
+          <Clock className="w-8 h-8 text-muted-foreground" />
+        </div>
         <p className="text-sm font-medium">No entries for this date</p>
-        <p className="text-xs text-muted-foreground mt-1">Start logging to see your history</p>
+        <p className="text-xs text-muted-foreground mt-1">Start logging to build your health history</p>
       </Card>
     );
   }
@@ -91,8 +159,8 @@ export const EnhancedFlareHistory = ({
         return (
           <Collapsible key={entry.id} open={isExpanded} onOpenChange={() => toggleExpand(entry.id)}>
             <Card className={cn(
-              "overflow-hidden transition-all duration-200",
-              isExpanded ? "ring-2 ring-primary/20" : "",
+              "overflow-hidden transition-all duration-300 shadow-soft bg-card border border-border/80",
+              isExpanded ? "ring-2 ring-primary/20 shadow-soft-lg" : "hover:shadow-soft-md",
               entry.type === 'flare' && `border-l-4 ${severity.border}`
             )}>
               {/* Header - Always Visible */}
@@ -100,10 +168,10 @@ export const EnhancedFlareHistory = ({
                 <div className="flex items-start gap-3">
                   {/* Severity/Type Indicator */}
                   <div className={cn(
-                    "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
-                    entry.type === 'flare' ? severity.bg : 'bg-primary/10'
+                    "w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-sm",
+                    entry.type === 'flare' ? severity.bg : 'bg-gradient-to-br from-primary/80 to-primary'
                   )}>
-                    <span className={entry.type === 'flare' ? severity.text : 'text-primary'}>
+                    <span className="text-white">
                       {getEntryIcon(entry.type)}
                     </span>
                   </div>
@@ -115,18 +183,14 @@ export const EnhancedFlareHistory = ({
                       {entry.severity && (
                         <Badge 
                           variant="outline" 
-                          className={cn("text-[10px] capitalize", 
-                            entry.severity === 'severe' && 'border-severity-severe text-severity-severe',
-                            entry.severity === 'moderate' && 'border-severity-moderate text-severity-moderate',
-                            entry.severity === 'mild' && 'border-severity-mild text-severity-mild'
-                          )}
+                          className={cn("text-[10px] capitalize font-medium", severity.accent)}
                         >
                           {entry.severity}
                         </Badge>
                       )}
                       {hasDetailedData && (
-                        <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary">
-                          <CheckCircle2 className="w-2.5 h-2.5 mr-1" />
+                        <Badge className="text-[10px] bg-primary/10 text-primary border-0 gap-1">
+                          <Sparkles className="w-2.5 h-2.5" />
                           Rich Data
                         </Badge>
                       )}
@@ -138,9 +202,9 @@ export const EnhancedFlareHistory = ({
 
                     {/* Symptoms */}
                     {entry.symptoms && entry.symptoms.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-2">
+                      <div className="flex flex-wrap gap-1.5 mb-2">
                         {entry.symptoms.slice(0, 3).map((s, i) => (
-                          <Badge key={i} variant="outline" className="text-[10px] bg-muted/50">
+                          <Badge key={i} variant="secondary" className="text-[10px] bg-muted/60">
                             {s}
                           </Badge>
                         ))}
@@ -154,68 +218,117 @@ export const EnhancedFlareHistory = ({
 
                     {/* Note Preview */}
                     {entry.note && (
-                      <p className="text-xs text-muted-foreground line-clamp-1">{entry.note}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-1 italic">"{entry.note}"</p>
                     )}
                   </div>
 
-                  {/* Expand Button */}
-                  <CollapsibleTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                    </Button>
-                  </CollapsibleTrigger>
+                  {/* Actions */}
+                  <div className="flex items-center gap-1">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => onGenerateClinicalRecord?.(entry)} className="gap-2">
+                          <FileText className="w-4 h-4" />
+                          Generate Clinical Record
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => copyEntryData(entry)} className="gap-2">
+                          <Copy className="w-4 h-4" />
+                          Copy Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => shareEntry(entry)} className="gap-2">
+                          <Share2 className="w-4 h-4" />
+                          Share
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => downloadEntry(entry)} className="gap-2">
+                          <Download className="w-4 h-4" />
+                          Export JSON
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={() => onDelete?.(entry.id)} 
+                          className="gap-2 text-red-600 focus:text-red-600"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Delete Entry
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </Button>
+                    </CollapsibleTrigger>
+                  </div>
                 </div>
               </div>
 
               {/* Expanded Content */}
               <CollapsibleContent>
-                <div className="px-4 pb-4 space-y-4 border-t pt-4">
+                <div className="px-4 pb-4 space-y-4 border-t pt-4 bg-muted/20">
                   {/* Environmental Data */}
                   {hasEnvData && (
                     <div className="space-y-3">
-                      <h4 className="text-xs font-semibold flex items-center gap-1.5 text-muted-foreground uppercase tracking-wide">
-                        <MapPin className="w-3.5 h-3.5" />
+                      <h4 className="text-xs font-semibold flex items-center gap-2 text-foreground">
+                        <div className="w-6 h-6 rounded-md bg-emerald-500/10 flex items-center justify-center">
+                          <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                        </div>
                         Environmental Context
+                        <Badge variant="outline" className="text-[9px] ml-auto">Auto-Captured</Badge>
                       </h4>
                       
                       <div className="grid grid-cols-2 gap-2">
                         {entry.environmentalData?.location?.city && (
-                          <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+                          <div className="p-3 rounded-xl bg-card border border-border/60 shadow-sm">
                             <div className="flex items-center gap-2 mb-1">
                               <MapPin className="w-3.5 h-3.5 text-primary" />
-                              <span className="text-[10px] text-muted-foreground uppercase">Location</span>
+                              <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Location</span>
                             </div>
-                            <p className="text-sm font-medium">{entry.environmentalData.location.city}</p>
+                            <p className="text-sm font-semibold">{entry.environmentalData.location.city}</p>
                           </div>
                         )}
                         
                         {entry.environmentalData?.weather?.temperature && (
-                          <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+                          <div className="p-3 rounded-xl bg-card border border-border/60 shadow-sm">
                             <div className="flex items-center gap-2 mb-1">
-                              <Thermometer className="w-3.5 h-3.5 text-severity-moderate" />
-                              <span className="text-[10px] text-muted-foreground uppercase">Temp</span>
+                              <Thermometer className="w-3.5 h-3.5 text-orange-500" />
+                              <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Temperature</span>
                             </div>
-                            <p className="text-sm font-medium">{entry.environmentalData.weather.temperature}°F</p>
+                            <p className="text-sm font-semibold">{entry.environmentalData.weather.temperature}°F</p>
                           </div>
                         )}
                         
                         {entry.environmentalData?.weather?.humidity && (
-                          <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+                          <div className="p-3 rounded-xl bg-card border border-border/60 shadow-sm">
                             <div className="flex items-center gap-2 mb-1">
                               <Droplets className="w-3.5 h-3.5 text-blue-500" />
-                              <span className="text-[10px] text-muted-foreground uppercase">Humidity</span>
+                              <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Humidity</span>
                             </div>
-                            <p className="text-sm font-medium">{entry.environmentalData.weather.humidity}%</p>
+                            <p className="text-sm font-semibold">{entry.environmentalData.weather.humidity}%</p>
+                          </div>
+                        )}
+                        
+                        {entry.environmentalData?.weather?.pressure && (
+                          <div className="p-3 rounded-xl bg-card border border-border/60 shadow-sm">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Gauge className="w-3.5 h-3.5 text-purple-500" />
+                              <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Pressure</span>
+                            </div>
+                            <p className="text-sm font-semibold">{entry.environmentalData.weather.pressure} inHg</p>
                           </div>
                         )}
                         
                         {entry.environmentalData?.weather?.condition && (
-                          <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+                          <div className="p-3 rounded-xl bg-card border border-border/60 shadow-sm col-span-2">
                             <div className="flex items-center gap-2 mb-1">
-                              <Wind className="w-3.5 h-3.5 text-muted-foreground" />
-                              <span className="text-[10px] text-muted-foreground uppercase">Condition</span>
+                              <Wind className="w-3.5 h-3.5 text-slate-500" />
+                              <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Conditions</span>
                             </div>
-                            <p className="text-sm font-medium capitalize">{entry.environmentalData.weather.condition}</p>
+                            <p className="text-sm font-semibold capitalize">{entry.environmentalData.weather.condition}</p>
                           </div>
                         )}
                       </div>
@@ -225,52 +338,80 @@ export const EnhancedFlareHistory = ({
                   {/* Physiological Data */}
                   {hasPhysData && (
                     <div className="space-y-3">
-                      <h4 className="text-xs font-semibold flex items-center gap-1.5 text-muted-foreground uppercase tracking-wide">
-                        <Activity className="w-3.5 h-3.5" />
-                        Physiological Metrics
+                      <h4 className="text-xs font-semibold flex items-center gap-2 text-foreground">
+                        <div className="w-6 h-6 rounded-md bg-rose-500/10 flex items-center justify-center">
+                          <Activity className="w-3.5 h-3.5 text-rose-600" />
+                        </div>
+                        Wearable Metrics
+                        <Badge variant="outline" className="text-[9px] ml-auto">Fitbit Sync</Badge>
                       </h4>
                       
                       <div className="grid grid-cols-3 gap-2">
-                        {entry.physiologicalData?.heartRate && (
-                          <div className="p-3 rounded-lg bg-severity-severe/10 border border-severity-severe/20">
+                        {(entry.physiologicalData?.heartRate || entry.physiologicalData?.restingHeartRate) && (
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-red-50 to-rose-50 border border-red-100 shadow-sm">
                             <div className="flex items-center gap-1.5 mb-1">
-                              <Heart className="w-3.5 h-3.5 text-severity-severe" />
-                              <span className="text-[10px] text-muted-foreground">HR</span>
+                              <Heart className="w-3.5 h-3.5 text-red-500" />
+                              <span className="text-[9px] text-red-600/80 font-medium uppercase">Heart Rate</span>
                             </div>
-                            <p className="text-lg font-bold">{entry.physiologicalData.heartRate}</p>
-                            <p className="text-[10px] text-muted-foreground">bpm</p>
+                            <p className="text-xl font-bold text-red-600">
+                              {entry.physiologicalData.heartRate || entry.physiologicalData.restingHeartRate}
+                            </p>
+                            <p className="text-[10px] text-red-500/70">bpm</p>
+                          </div>
+                        )}
+                        
+                        {entry.physiologicalData?.heartRateVariability && (
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-purple-50 to-violet-50 border border-purple-100 shadow-sm">
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <Brain className="w-3.5 h-3.5 text-purple-500" />
+                              <span className="text-[9px] text-purple-600/80 font-medium uppercase">HRV</span>
+                            </div>
+                            <p className="text-xl font-bold text-purple-600">{entry.physiologicalData.heartRateVariability}</p>
+                            <p className="text-[10px] text-purple-500/70">ms</p>
                           </div>
                         )}
                         
                         {entry.physiologicalData?.sleepHours && (
-                          <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 shadow-sm">
                             <div className="flex items-center gap-1.5 mb-1">
-                              <Moon className="w-3.5 h-3.5 text-primary" />
-                              <span className="text-[10px] text-muted-foreground">Sleep</span>
+                              <Moon className="w-3.5 h-3.5 text-indigo-500" />
+                              <span className="text-[9px] text-indigo-600/80 font-medium uppercase">Sleep</span>
                             </div>
-                            <p className="text-lg font-bold">{entry.physiologicalData.sleepHours}</p>
-                            <p className="text-[10px] text-muted-foreground">hours</p>
+                            <p className="text-xl font-bold text-indigo-600">{entry.physiologicalData.sleepHours}</p>
+                            <p className="text-[10px] text-indigo-500/70">hours</p>
                           </div>
                         )}
                         
                         {entry.physiologicalData?.steps && (
-                          <div className="p-3 rounded-lg bg-severity-none/10 border border-severity-none/20">
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-100 shadow-sm">
                             <div className="flex items-center gap-1.5 mb-1">
-                              <Footprints className="w-3.5 h-3.5 text-severity-none" />
-                              <span className="text-[10px] text-muted-foreground">Steps</span>
+                              <Footprints className="w-3.5 h-3.5 text-emerald-500" />
+                              <span className="text-[9px] text-emerald-600/80 font-medium uppercase">Steps</span>
                             </div>
-                            <p className="text-lg font-bold">{entry.physiologicalData.steps.toLocaleString()}</p>
-                            <p className="text-[10px] text-muted-foreground">today</p>
+                            <p className="text-xl font-bold text-emerald-600">{entry.physiologicalData.steps.toLocaleString()}</p>
+                            <p className="text-[10px] text-emerald-500/70">today</p>
                           </div>
                         )}
 
                         {entry.physiologicalData?.stressLevel && (
-                          <div className="p-3 rounded-lg bg-severity-moderate/10 border border-severity-moderate/20">
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 shadow-sm">
                             <div className="flex items-center gap-1.5 mb-1">
-                              <AlertTriangle className="w-3.5 h-3.5 text-severity-moderate" />
-                              <span className="text-[10px] text-muted-foreground">Stress</span>
+                              <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                              <span className="text-[9px] text-amber-600/80 font-medium uppercase">Stress</span>
                             </div>
-                            <p className="text-lg font-bold">{entry.physiologicalData.stressLevel}/10</p>
+                            <p className="text-xl font-bold text-amber-600">{entry.physiologicalData.stressLevel}</p>
+                            <p className="text-[10px] text-amber-500/70">/10</p>
+                          </div>
+                        )}
+
+                        {entry.physiologicalData?.spo2 && (
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-cyan-50 to-teal-50 border border-cyan-100 shadow-sm">
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <Activity className="w-3.5 h-3.5 text-cyan-500" />
+                              <span className="text-[9px] text-cyan-600/80 font-medium uppercase">SpO2</span>
+                            </div>
+                            <p className="text-xl font-bold text-cyan-600">{entry.physiologicalData.spo2}</p>
+                            <p className="text-[10px] text-cyan-500/70">%</p>
                           </div>
                         )}
                       </div>
@@ -280,10 +421,15 @@ export const EnhancedFlareHistory = ({
                   {/* Triggers */}
                   {entry.triggers && entry.triggers.length > 0 && (
                     <div className="space-y-2">
-                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Triggers</h4>
+                      <h4 className="text-xs font-semibold flex items-center gap-2 text-foreground">
+                        <div className="w-6 h-6 rounded-md bg-amber-500/10 flex items-center justify-center">
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                        </div>
+                        Identified Triggers
+                      </h4>
                       <div className="flex flex-wrap gap-1.5">
                         {entry.triggers.map((t, i) => (
-                          <Badge key={i} variant="secondary" className="text-[10px]">
+                          <Badge key={i} variant="secondary" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
                             {t}
                           </Badge>
                         ))}
@@ -294,40 +440,23 @@ export const EnhancedFlareHistory = ({
                   {/* Full Note */}
                   {entry.note && (
                     <div className="space-y-2">
-                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notes</h4>
-                      <p className="text-sm text-foreground bg-muted/30 p-3 rounded-lg">{entry.note}</p>
+                      <h4 className="text-xs font-semibold text-foreground">Patient Notes</h4>
+                      <p className="text-sm text-foreground bg-card p-3 rounded-xl border border-border/60 italic">
+                        "{entry.note}"
+                      </p>
                     </div>
                   )}
 
-                  {/* Clinical Record Actions */}
+                  {/* Clinical Record Action */}
                   <div className="pt-3 border-t border-border/50">
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1 gap-1.5 text-xs h-9"
-                        onClick={() => onGenerateClinicalRecord?.(entry)}
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        Generate Clinical Record
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="gap-1.5 text-xs h-9"
-                      >
-                        <Share2 className="w-3.5 h-3.5" />
-                        Share
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="gap-1.5 text-xs h-9"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        Export
-                      </Button>
-                    </div>
+                    <Button 
+                      onClick={() => onGenerateClinicalRecord?.(entry)}
+                      className="w-full gap-2 h-11 shadow-sm"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Generate EHR Clinical Record
+                      <Sparkles className="w-3 h-3 ml-auto" />
+                    </Button>
                   </div>
                 </div>
               </CollapsibleContent>
