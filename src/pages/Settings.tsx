@@ -211,7 +211,7 @@ export default function Settings() {
             <CardTitle className="text-base flex items-center gap-2">
               <Activity className="w-4 h-4 text-primary" />
               Clinician Portal
-              <Badge variant="secondary" className="text-[10px]">VC Demo</Badge>
+              <Badge variant="secondary" className="text-[10px]">Demo</Badge>
             </CardTitle>
             <CardDescription className="text-xs">
               Access the clinician dashboard for investor demos
