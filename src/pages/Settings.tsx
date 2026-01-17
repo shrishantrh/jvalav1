@@ -205,35 +205,26 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        {/* Demo Mode for VCs */}
+        {/* Clinician Portal for VCs */}
         <Card className="border-primary/30 bg-primary/5">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Activity className="w-4 h-4 text-primary" />
-              Demo Mode
-              <Badge variant="secondary" className="text-[10px]">VC Ready</Badge>
+              Clinician Portal
+              <Badge variant="secondary" className="text-[10px]">VC Demo</Badge>
             </CardTitle>
             <CardDescription className="text-xs">
-              Access presentation-ready demo views for investor pitches
+              Access the clinician dashboard for investor demos
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <Button 
-              variant="outline" 
-              className="w-full justify-start gap-2 h-10"
-              onClick={() => navigate('/demo')}
-            >
-              <Activity className="w-4 h-4" />
-              Patient Demo View
-              <span className="ml-auto text-xs text-muted-foreground">→</span>
-            </Button>
+          <CardContent>
             <Button 
               variant="outline" 
               className="w-full justify-start gap-2 h-10"
               onClick={() => navigate('/clinician')}
             >
               <UserIcon className="w-4 h-4" />
-              Clinician Dashboard
+              Open Clinician Dashboard
               <span className="ml-auto text-xs text-muted-foreground">→</span>
             </Button>
           </CardContent>
