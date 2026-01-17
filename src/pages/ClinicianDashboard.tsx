@@ -6,11 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { 
   ArrowLeft, User, Activity, FileText, Download, Share2,
   TrendingUp, TrendingDown, AlertTriangle, Calendar, Clock,
   Heart, Moon, Thermometer, Pill, BarChart3, LineChart as LineChartIcon,
-  Printer, Mail, ChevronRight, Stethoscope, Brain, Shield
+  Printer, Mail, ChevronRight, Stethoscope, Brain, Shield,
+  CheckCircle2, Send, Bell, MessageSquare, Copy, ExternalLink
 } from "lucide-react";
 import { 
   generateMockWearableData, 
@@ -28,10 +32,18 @@ import {
 } from "recharts";
 import { format, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 const ClinicianDashboard = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('overview');
+  const [showMessageDialog, setShowMessageDialog] = useState(false);
+  const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [showAlertDialog, setShowAlertDialog] = useState(false);
+  const [messageContent, setMessageContent] = useState('');
+  const [appointmentDate, setAppointmentDate] = useState('');
   
   // Generate demo data
   const wearableData = generateMockWearableData('flare-warning');
@@ -69,6 +81,75 @@ const ClinicianDashboard = () => {
     { trigger: 'Dehydration', count: 1 },
   ];
 
+  // Action handlers
+  const handleSendMessage = () => {
+    toast({ 
+      title: "Message Sent", 
+      description: `Secure message sent to ${patient.name}` 
+    });
+    setShowMessageDialog(false);
+    setMessageContent('');
+  };
+
+  const handleScheduleFollowUp = () => {
+    toast({ 
+      title: "Appointment Scheduled", 
+      description: `Follow-up scheduled for ${appointmentDate}` 
+    });
+    setShowScheduleDialog(false);
+    setAppointmentDate('');
+  };
+
+  const handleExportReport = (format: string) => {
+    toast({ 
+      title: "Report Exported", 
+      description: `Clinical summary exported as ${format}` 
+    });
+    setShowExportDialog(false);
+  };
+
+  const handleSendAlert = () => {
+    toast({ 
+      title: "Alert Sent", 
+      description: `Proactive flare warning sent to ${patient.name}` 
+    });
+    setShowAlertDialog(false);
+  };
+
+  const handlePrintReport = () => {
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head><title>Clinical Report - ${patient.name}</title>
+          <style>body { font-family: system-ui; padding: 40px; }</style>
+          </head>
+          <body>
+            <h1>Clinical Report</h1>
+            <p>Patient: ${patient.name}</p>
+            <p>DOB: ${patient.dateOfBirth}</p>
+            <p>Generated: ${format(new Date(), 'PPpp')}</p>
+            <hr/>
+            <h2>Summary</h2>
+            <p>Health Score: 65 (Moderate Risk)</p>
+            <p>Flares (30d): 8</p>
+            <p>Current HRV: ${wearableData.heartRateVariability} ms</p>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
+  const handleShareReport = () => {
+    navigator.clipboard.writeText(`https://jvala.health/shared-report/${Date.now().toString(36)}`);
+    toast({ 
+      title: "Share Link Copied", 
+      description: "Secure 7-day access link copied to clipboard" 
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Clinical Header */}
@@ -79,7 +160,7 @@ const ClinicianDashboard = () => {
               <Button 
                 variant="ghost" 
                 size="icon" 
-                onClick={() => navigate('/demo')}
+                onClick={() => navigate('/')}
                 className="rounded-lg"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -97,11 +178,11 @@ const ClinicianDashboard = () => {
                 <Stethoscope className="w-3 h-3 mr-1" />
                 Provider View
               </Badge>
-              <Button variant="outline" size="sm" className="gap-1">
+              <Button variant="outline" size="sm" className="gap-1" onClick={() => setShowExportDialog(true)}>
                 <Download className="w-3 h-3" />
-                Export Report
+                Export
               </Button>
-              <Button variant="outline" size="sm" className="gap-1">
+              <Button variant="outline" size="sm" className="gap-1" onClick={handleShareReport}>
                 <Share2 className="w-3 h-3" />
                 Share
               </Button>
@@ -531,6 +612,105 @@ const ClinicianDashboard = () => {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Message Patient Dialog */}
+      <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-primary" />
+              Message Patient
+            </DialogTitle>
+            <DialogDescription>Send a secure message to {patient.name}</DialogDescription>
+          </DialogHeader>
+          <Textarea 
+            placeholder="Type your message..." 
+            value={messageContent}
+            onChange={(e) => setMessageContent(e.target.value)}
+            className="min-h-32"
+          />
+          <Button onClick={handleSendMessage} className="gap-2">
+            <Send className="w-4 h-4" />
+            Send Message
+          </Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* Schedule Follow-up Dialog */}
+      <Dialog open={showScheduleDialog} onOpenChange={setShowScheduleDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-primary" />
+              Schedule Follow-up
+            </DialogTitle>
+            <DialogDescription>Schedule an appointment with {patient.name}</DialogDescription>
+          </DialogHeader>
+          <Input 
+            type="datetime-local" 
+            value={appointmentDate}
+            onChange={(e) => setAppointmentDate(e.target.value)}
+          />
+          <Button onClick={handleScheduleFollowUp} className="gap-2">
+            <CheckCircle2 className="w-4 h-4" />
+            Confirm Appointment
+          </Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Dialog */}
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Download className="w-5 h-5 text-primary" />
+              Export Clinical Report
+            </DialogTitle>
+            <DialogDescription>Choose export format</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="outline" onClick={() => handleExportReport('PDF')} className="h-20 flex-col gap-2">
+              <FileText className="w-6 h-6" />
+              PDF Report
+            </Button>
+            <Button variant="outline" onClick={() => handleExportReport('FHIR JSON')} className="h-20 flex-col gap-2">
+              <FileText className="w-6 h-6" />
+              FHIR R4
+            </Button>
+            <Button variant="outline" onClick={() => handleExportReport('HL7')} className="h-20 flex-col gap-2">
+              <FileText className="w-6 h-6" />
+              HL7 v2
+            </Button>
+            <Button variant="outline" onClick={handlePrintReport} className="h-20 flex-col gap-2">
+              <Printer className="w-6 h-6" />
+              Print
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send Alert Dialog */}
+      <Dialog open={showAlertDialog} onOpenChange={setShowAlertDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bell className="w-5 h-5 text-amber-500" />
+              Send Proactive Alert
+            </DialogTitle>
+            <DialogDescription>Alert {patient.name} about elevated flare risk</DialogDescription>
+          </DialogHeader>
+          <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+            <p className="text-sm text-amber-800">
+              Based on current physiological data, there's a 72% probability of a flare within 48 hours. 
+              Sending this alert will notify the patient to take preventive measures.
+            </p>
+          </div>
+          <Button onClick={handleSendAlert} className="gap-2 bg-amber-600 hover:bg-amber-700">
+            <Send className="w-4 h-4" />
+            Send Alert to Patient
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
