@@ -16,9 +16,8 @@ export const SeveritySelector = ({ selectedSeverity, onSeveritySelect }: Severit
       description: 'Feeling good',
       icon: CheckCircle,
       colorClass: 'text-severity-none',
-      bgClass: 'bg-severity-none-bg hover:bg-severity-none-bg/80',
-      borderClass: 'border-severity-none',
-      selectedBg: 'bg-severity-none/10',
+      bgClass: 'bg-severity-none/12 hover:bg-severity-none/18',
+      borderClass: 'border-severity-none/25',
     },
     {
       value: 'mild' as const,
@@ -26,9 +25,8 @@ export const SeveritySelector = ({ selectedSeverity, onSeveritySelect }: Severit
       description: 'Slight discomfort',
       icon: AlertCircle,
       colorClass: 'text-severity-mild',
-      bgClass: 'bg-severity-mild-bg hover:bg-severity-mild-bg/80',
-      borderClass: 'border-severity-mild',
-      selectedBg: 'bg-severity-mild/10',
+      bgClass: 'bg-severity-mild/12 hover:bg-severity-mild/18',
+      borderClass: 'border-severity-mild/25',
     },
     {
       value: 'moderate' as const,
@@ -36,9 +34,8 @@ export const SeveritySelector = ({ selectedSeverity, onSeveritySelect }: Severit
       description: 'Noticeable symptoms',
       icon: AlertTriangle,
       colorClass: 'text-severity-moderate',
-      bgClass: 'bg-severity-moderate-bg hover:bg-severity-moderate-bg/80',
-      borderClass: 'border-severity-moderate',
-      selectedBg: 'bg-severity-moderate/10',
+      bgClass: 'bg-severity-moderate/12 hover:bg-severity-moderate/18',
+      borderClass: 'border-severity-moderate/25',
     },
     {
       value: 'severe' as const,
@@ -46,14 +43,13 @@ export const SeveritySelector = ({ selectedSeverity, onSeveritySelect }: Severit
       description: 'Significant impact',
       icon: XCircle,
       colorClass: 'text-severity-severe',
-      bgClass: 'bg-severity-severe-bg hover:bg-severity-severe-bg/80',
-      borderClass: 'border-severity-severe',
-      selectedBg: 'bg-severity-severe/10',
+      bgClass: 'bg-severity-severe/12 hover:bg-severity-severe/18',
+      borderClass: 'border-severity-severe/25',
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-2.5">
+    <div className="grid grid-cols-2 gap-3">
       {severityOptions.map((option) => {
         const Icon = option.icon;
         const isSelected = selectedSeverity === option.value;
@@ -64,19 +60,19 @@ export const SeveritySelector = ({ selectedSeverity, onSeveritySelect }: Severit
             variant="outline"
             onClick={() => onSeveritySelect(option.value)}
             className={cn(
-              "h-[72px] p-3 flex flex-col items-center justify-center gap-1.5",
-              "transition-all duration-200 border-2 rounded-xl",
+              "h-[76px] p-4 flex flex-col items-center justify-center gap-2",
+              "transition-all duration-300 border rounded-xl backdrop-blur-sm",
               option.bgClass,
               option.colorClass,
               isSelected 
-                ? `${option.borderClass} shadow-sm ring-1 ring-offset-1 ring-offset-background ${option.borderClass.replace('border-', 'ring-')}` 
-                : 'border-border/60 hover:border-muted-foreground/40'
+                ? `${option.borderClass} ring-2 ring-offset-2 ring-offset-transparent ${option.borderClass.replace('border-', 'ring-')}` 
+                : 'border-white/20 hover:border-white/35'
             )}
           >
             <Icon className={cn("w-5 h-5", option.colorClass)} />
             <div className="text-center">
               <div className="font-semibold text-sm">{option.label}</div>
-              <div className="text-[10px] opacity-70 font-medium">{option.description}</div>
+              <div className="text-[10px] opacity-75 font-medium">{option.description}</div>
             </div>
           </Button>
         );
