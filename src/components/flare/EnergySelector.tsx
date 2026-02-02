@@ -12,47 +12,47 @@ const energyOptions = [
     value: 'very-low' as const,
     label: 'Empty',
     description: 'Completely drained',
-    color: 'text-red-600',
-    bgColor: 'bg-red-50 hover:bg-red-100',
-    borderColor: 'border-red-200',
+    color: 'text-severity-severe',
+    bgColor: 'bg-severity-severe/12 hover:bg-severity-severe/18',
+    borderColor: 'border-severity-severe/25',
   },
   {
     value: 'low' as const,
     label: 'Low',
     description: 'Running on fumes',
-    color: 'text-orange-600',
-    bgColor: 'bg-orange-50 hover:bg-orange-100',
-    borderColor: 'border-orange-200',
+    color: 'text-severity-moderate',
+    bgColor: 'bg-severity-moderate/12 hover:bg-severity-moderate/18',
+    borderColor: 'border-severity-moderate/25',
   },
   {
     value: 'moderate' as const,
     label: 'Moderate',
     description: 'Getting by',
-    color: 'text-yellow-600',
-    bgColor: 'bg-yellow-50 hover:bg-yellow-100',
-    borderColor: 'border-yellow-200',
+    color: 'text-severity-mild',
+    bgColor: 'bg-severity-mild/12 hover:bg-severity-mild/18',
+    borderColor: 'border-severity-mild/25',
   },
   {
     value: 'good' as const,
     label: 'Good',
     description: 'Feeling capable',
-    color: 'text-green-600',
-    bgColor: 'bg-green-50 hover:bg-green-100',
-    borderColor: 'border-green-200',
+    color: 'text-severity-none',
+    bgColor: 'bg-severity-none/12 hover:bg-severity-none/18',
+    borderColor: 'border-severity-none/25',
   },
   {
     value: 'high' as const,
     label: 'High',
     description: 'Energized',
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-50 hover:bg-blue-100',
-    borderColor: 'border-blue-200',
+    color: 'text-primary',
+    bgColor: 'bg-primary/12 hover:bg-primary/18',
+    borderColor: 'border-primary/25',
   },
 ];
 
 export const EnergySelector = ({ selectedEnergy, onEnergySelect }: EnergySelectorProps) => {
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {energyOptions.map((option) => {
         const isSelected = selectedEnergy === option.value;
         const batteryPercentage = ['very-low', 'low', 'moderate', 'good', 'high'].indexOf(option.value) * 25;
@@ -63,12 +63,12 @@ export const EnergySelector = ({ selectedEnergy, onEnergySelect }: EnergySelecto
             variant="outline"
             onClick={() => onEnergySelect(option.value)}
             className={`
-              w-full h-12 p-3 flex items-center justify-between
-              transition-all duration-200 border-2
+              w-full h-14 p-4 flex items-center justify-between
+              transition-all duration-300 border rounded-xl backdrop-blur-sm
               ${option.bgColor} ${option.color}
               ${isSelected 
-                ? `${option.borderColor} shadow-sm` 
-                : 'border-border hover:border-muted-foreground'
+                ? `${option.borderColor} ring-2 ring-offset-1 ring-offset-transparent ${option.borderColor.replace('border-', 'ring-')}` 
+                : 'border-white/20 hover:border-white/35'
               }
             `}
           >
@@ -79,7 +79,7 @@ export const EnergySelector = ({ selectedEnergy, onEnergySelect }: EnergySelecto
                 <Battery className="w-5 h-5" />
               )}
               <div className="text-left">
-                <div className="font-clinical text-sm">{option.label}</div>
+                <div className="font-medium text-sm">{option.label}</div>
                 <div className="text-xs opacity-75">{option.description}</div>
               </div>
             </div>
@@ -87,7 +87,7 @@ export const EnergySelector = ({ selectedEnergy, onEnergySelect }: EnergySelecto
               {[...Array(5)].map((_, i) => (
                 <div
                   key={i}
-                  className={`w-1.5 h-6 rounded-sm ${
+                  className={`w-1.5 h-6 rounded-sm transition-colors ${
                     i < (batteryPercentage / 20) ? 'bg-current' : 'bg-current/20'
                   }`}
                 />

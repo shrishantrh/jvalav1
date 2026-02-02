@@ -40,15 +40,15 @@ export const SymptomSelector = ({ selectedSymptoms, onSymptomToggle }: SymptomSe
             onClick={() => onSymptomToggle(symptom.name)}
             className={`
               h-16 p-2 flex flex-col items-center justify-center gap-1
-              transition-all duration-200 border-2
+              transition-all duration-300 border rounded-xl backdrop-blur-sm
               ${isSelected 
-                ? 'bg-primary/10 border-primary text-primary shadow-sm' 
-                : 'border-border hover:border-muted-foreground'
+                ? 'bg-primary/15 border-primary/30 text-primary ring-2 ring-primary/20 ring-offset-1 ring-offset-transparent' 
+                : 'border-white/20 hover:border-white/35 hover:bg-white/50 text-foreground/85'
               }
             `}
           >
             <Icon className="w-4 h-4" />
-            <span className="text-xs font-clinical leading-tight text-center">
+            <span className="text-xs font-medium leading-tight text-center">
               {symptom.name}
             </span>
           </Button>
