@@ -129,7 +129,7 @@ const OrbFace = ({
       case 'severe':
         return (
           <>
-            {/* Very sad eyes - droopy with tears */}
+            {/* Very sad droopy eyes */}
             <ellipse cx="21" cy="23" rx="3.5" ry="4" fill={option.faceColor} />
             <ellipse cx="39" cy="23" rx="3.5" ry="4" fill={option.faceColor} />
             {/* Sad eyebrows - angled up in the middle */}
@@ -147,9 +147,6 @@ const OrbFace = ({
               strokeLinecap="round" 
               fill="none"
             />
-            {/* Tear drops */}
-            <ellipse cx="25" cy="30" rx="1.5" ry="2.5" fill={option.faceColor} opacity="0.5" />
-            <ellipse cx="43" cy="31" rx="1.5" ry="2.5" fill={option.faceColor} opacity="0.5" />
             {/* Deep frown - very curved */}
             <path 
               d="M20 42 Q30 32 40 42" 
