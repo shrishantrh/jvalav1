@@ -137,9 +137,14 @@ const SeverityOrb = ({ severity, type }: { severity?: string; type?: string }) =
       case 'distressed':
         return (
           <svg viewBox="0 0 32 32" className="absolute inset-0 w-full h-full">
-            <path d="M9 10 L13 14 M13 10 L9 14" stroke={config.face} strokeWidth="1.8" strokeLinecap="round" />
-            <path d="M19 10 L23 14 M23 10 L19 14" stroke={config.face} strokeWidth="1.8" strokeLinecap="round" />
-            <path d="M11 22 Q16 17 21 22" stroke={config.face} strokeWidth="1.8" strokeLinecap="round" fill="none" />
+            {/* Sad droopy eyes */}
+            <ellipse cx="11" cy="12" rx="2" ry="2.5" fill={config.face} />
+            <ellipse cx="21" cy="12" rx="2" ry="2.5" fill={config.face} />
+            {/* Sad eyebrows */}
+            <path d="M7 8 Q11 10 15 8" stroke={config.face} strokeWidth="1.5" strokeLinecap="round" fill="none" />
+            <path d="M17 8 Q21 10 25 8" stroke={config.face} strokeWidth="1.5" strokeLinecap="round" fill="none" />
+            {/* Deep frown */}
+            <path d="M10 22 Q16 17 22 22" stroke={config.face} strokeWidth="1.8" strokeLinecap="round" fill="none" />
           </svg>
         );
       default:
