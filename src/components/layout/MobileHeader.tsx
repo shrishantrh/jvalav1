@@ -39,7 +39,7 @@ export const MobileHeader = ({
   };
   
   return (
-    <div className="flex items-center justify-between px-5 py-4">
+    <div className="flex items-center justify-between px-5 py-3">
       {/* Left: Logo + Brand */}
       <div className="flex items-center gap-3">
         {showLogo && (
@@ -47,10 +47,8 @@ export const MobileHeader = ({
             <img 
               src={jvalaLogo} 
               alt="Jvala" 
-              className="w-10 h-10 rounded-2xl shadow-md"
+              className="w-9 h-9 rounded-xl"
             />
-            {/* Subtle glow behind logo */}
-            <div className="absolute inset-0 -z-10 blur-xl opacity-25 bg-primary rounded-2xl scale-150" />
           </div>
         )}
         <div className="flex flex-col">
@@ -65,27 +63,20 @@ export const MobileHeader = ({
       
       {/* Right: Actions */}
       <div className="flex items-center gap-2">
-        {/* Streak pill */}
-        {onStreakClick && (
+        {/* Streak pill - Clean design without dot */}
+        {onStreakClick && streak > 0 && (
           <button
             onClick={handleStreakClick}
             className={cn(
-              "flex items-center gap-1.5 px-3.5 py-2 rounded-2xl transition-all duration-300",
-              "bg-gradient-to-br from-primary/12 to-primary/6 border border-primary/20",
-              "hover:from-primary/18 hover:to-primary/10 hover:border-primary/30",
-              "active:scale-95 touch-manipulation shadow-sm"
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all duration-300",
+              "bg-gradient-to-r from-primary/15 to-primary/10 border border-primary/25",
+              "active:scale-95 touch-manipulation"
             )}
           >
-            <div className="relative">
-              <Flame className="w-4.5 h-4.5 text-primary" strokeWidth={2.5} />
-              {streak > 0 && (
-                <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
-              )}
-            </div>
+            <Flame className="w-4 h-4 text-primary" strokeWidth={2.5} />
             <span className="text-sm font-bold text-primary tabular-nums">
               {streak}
             </span>
-            <ChevronRight className="w-3.5 h-3.5 text-primary/50" />
           </button>
         )}
         
@@ -96,7 +87,7 @@ export const MobileHeader = ({
             variant="ghost"
             size="icon"
             onClick={handleSettingsClick}
-            className="h-10 w-10 rounded-2xl hover:bg-muted/50 active:scale-95 transition-all"
+            className="h-9 w-9 rounded-xl hover:bg-muted/50 active:scale-95 transition-all"
           >
             <Settings className="w-5 h-5 text-muted-foreground" />
           </Button>
