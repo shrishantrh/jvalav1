@@ -15,6 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ReminderSettings } from "@/components/profile/ReminderSettings";
 import { SmartMedicationReminders } from "@/components/profile/SmartMedicationReminders";
+import { ThemeColorPicker } from "@/components/settings/ThemeColorPicker";
+import { haptics } from "@/lib/haptics";
 
 interface MedicationDetails {
   name: string;
@@ -154,10 +156,24 @@ export default function Settings() {
 
   return (
     <div className="fixed inset-0 flex flex-col bg-background max-w-md mx-auto">
+      {/* Safe area spacer for Dynamic Island */}
+      <div 
+        className="flex-shrink-0 bg-background/80 backdrop-blur-xl"
+        style={{ height: 'env(safe-area-inset-top, 0px)' }}
+      />
+      
       {/* Header */}
-      <header className="flex-shrink-0 glass border-b border-white/10 safe-area-top">
+      <header className="flex-shrink-0 glass border-b border-border/30">
         <div className="flex items-center gap-3 px-4 py-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="h-9 w-9 rounded-xl">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => {
+              haptics.selection();
+              navigate('/');
+            }} 
+            className="h-9 w-9 rounded-xl active:scale-95 transition-transform"
+          >
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <h1 className="text-base font-semibold">Settings</h1>
@@ -184,7 +200,10 @@ export default function Settings() {
             </Card>
           )}
 
-          {/* Appearance */}
+          {/* Theme Color Picker */}
+          <ThemeColorPicker />
+
+          {/* Appearance - Dark Mode */}
           <Card className="glass-card">
             <CardContent className="p-3">
               <div className="flex items-center justify-between">
@@ -195,7 +214,13 @@ export default function Settings() {
                     <p className="text-[10px] text-muted-foreground">Switch theme</p>
                   </div>
                 </div>
-                <Switch checked={isDarkMode} onCheckedChange={toggleDarkMode} />
+                <Switch 
+                  checked={isDarkMode} 
+                  onCheckedChange={(checked) => {
+                    haptics.selection();
+                    toggleDarkMode(checked);
+                  }} 
+                />
               </div>
             </CardContent>
           </Card>

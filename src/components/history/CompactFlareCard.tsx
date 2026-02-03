@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { FlareEntry } from '@/types/flare';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -53,35 +52,42 @@ export const CompactFlareCard = ({
     setIsExpanded(open);
   };
 
-  const getSeverityEmoji = (severity?: string) => {
+  const getSeverityConfig = (severity?: string) => {
     switch (severity) {
-      case 'severe': return <Frown className="w-5 h-5 text-red-500" />;
-      case 'moderate': return <Meh className="w-5 h-5 text-orange-500" />;
-      case 'mild': return <AlertCircle className="w-5 h-5 text-amber-500" />;
-      case 'none': return <Smile className="w-5 h-5 text-emerald-500" />;
-      default: return <Meh className="w-5 h-5 text-muted-foreground" />;
+      case 'severe': 
+        return { 
+          icon: <Frown className="w-6 h-6 text-white" />,
+          hue: 0, sat: 75, light: 52, 
+          label: 'Severe' 
+        };
+      case 'moderate': 
+        return { 
+          icon: <Meh className="w-6 h-6 text-white" />,
+          hue: 28, sat: 90, light: 50, 
+          label: 'Moderate' 
+        };
+      case 'mild': 
+        return { 
+          icon: <AlertCircle className="w-6 h-6 text-white" />,
+          hue: 50, sat: 85, light: 52, 
+          label: 'Mild' 
+        };
+      case 'none': 
+        return { 
+          icon: <Smile className="w-6 h-6 text-white" />,
+          hue: 145, sat: 60, light: 45, 
+          label: 'Great' 
+        };
+      default: 
+        return { 
+          icon: <Meh className="w-6 h-6 text-white" />,
+          hue: 220, sat: 15, light: 60, 
+          label: 'Logged' 
+        };
     }
   };
 
-  const getSeverityBg = (severity?: string) => {
-    switch (severity) {
-      case 'severe': return 'bg-gradient-to-br from-red-100 to-red-50 dark:from-red-900/30 dark:to-red-900/10';
-      case 'moderate': return 'bg-gradient-to-br from-orange-100 to-orange-50 dark:from-orange-900/30 dark:to-orange-900/10';
-      case 'mild': return 'bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-900/30 dark:to-amber-900/10';
-      case 'none': return 'bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-900/30 dark:to-emerald-900/10';
-      default: return 'bg-gradient-to-br from-muted to-muted/50';
-    }
-  };
-
-  const getSeverityLabel = (severity?: string) => {
-    switch (severity) {
-      case 'severe': return 'Severe';
-      case 'moderate': return 'Moderate';
-      case 'mild': return 'Mild';
-      case 'none': return 'Great';
-      default: return 'Logged';
-    }
-  };
+  const severityConfig = getSeverityConfig(entry.severity);
 
   // Extract data safely
   const env = entry.environmentalData as any;
@@ -100,27 +106,50 @@ export const CompactFlareCard = ({
 
   return (
     <Collapsible open={isExpanded} onOpenChange={handleToggle}>
-      <Card className={cn(
-        "overflow-hidden transition-all duration-300 border-2",
-        isExpanded ? "shadow-md border-primary/20" : "border-transparent shadow-sm"
-      )}>
+      <div 
+        className={cn(
+          "rounded-3xl transition-all duration-300 overflow-hidden",
+          isExpanded ? "shadow-soft-lg" : "shadow-soft"
+        )}
+        style={{
+          background: 'hsl(var(--card))',
+          border: isExpanded 
+            ? `2px solid hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light}% / 0.3)` 
+            : '1px solid hsl(var(--border) / 0.4)',
+          boxShadow: isExpanded 
+            ? `0 8px 24px hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light}% / 0.15)` 
+            : undefined,
+        }}
+      >
         {/* Compact Header - Tappable */}
         <CollapsibleTrigger className="w-full text-left">
           <div className="p-4 active:bg-muted/30 transition-colors">
             <div className="flex items-center gap-4">
-              {/* Severity Emoji Circle */}
-              <div className={cn(
-                "w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm",
-                getSeverityBg(entry.severity)
-              )}>
-                {getSeverityEmoji(entry.severity)}
+              {/* Severity Icon Circle - 3D Effect */}
+              <div 
+                className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
+                style={{
+                  background: `linear-gradient(145deg, 
+                    hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light + 5}%) 0%, 
+                    hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light - 5}%) 100%
+                  )`,
+                  boxShadow: `
+                    inset 0 2px 4px hsl(0 0% 100% / 0.25),
+                    0 4px 12px hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light}% / 0.35)
+                  `,
+                }}
+              >
+                {severityConfig.icon}
               </div>
 
               {/* Main Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-base font-bold text-foreground">
-                    {getSeverityLabel(entry.severity)}
+                  <span 
+                    className="text-base font-bold"
+                    style={{ color: `hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light - 5}%)` }}
+                  >
+                    {severityConfig.label}
                   </span>
                   {entry.type !== 'flare' && (
                     <Badge variant="secondary" className="text-[10px] capitalize">
@@ -304,7 +333,7 @@ export const CompactFlareCard = ({
             </div>
           </div>
         </CollapsibleContent>
-      </Card>
+      </div>
     </Collapsible>
   );
 };

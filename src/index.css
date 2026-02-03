@@ -253,13 +253,59 @@
     transition: var(--transition-swift);
   }
   
-  /* No shadows - glass aesthetic */
-  .shadow-soft,
-  .shadow-soft-md,
-  .shadow-soft-lg,
-  .shadow-soft-xl,
+  /* 3D Shadows - Premium depth effects */
+  .shadow-soft {
+    box-shadow: var(--shadow-sm);
+  }
+  
+  .shadow-soft-md {
+    box-shadow: var(--shadow-md);
+  }
+  
+  .shadow-soft-lg {
+    box-shadow: var(--shadow-lg);
+  }
+  
+  .shadow-soft-xl {
+    box-shadow: var(--shadow-xl);
+  }
+  
   .shadow-primary {
-    box-shadow: none;
+    box-shadow: var(--shadow-primary);
+  }
+  
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+  
+  /* 3D pressed button effect */
+  .shadow-3d {
+    box-shadow: 
+      inset 0 1px 0 hsl(var(--glass-highlight) / 0.3),
+      0 2px 4px hsl(var(--foreground) / 0.08),
+      0 4px 8px hsl(var(--foreground) / 0.06);
+  }
+  
+  .shadow-3d:active {
+    box-shadow: 
+      inset 0 1px 2px hsl(var(--foreground) / 0.1),
+      0 1px 2px hsl(var(--foreground) / 0.05);
+    transform: translateY(1px);
+  }
+  
+  .shadow-3d-primary {
+    box-shadow: 
+      inset 0 1px 0 hsl(var(--primary-glow) / 0.4),
+      0 2px 4px hsl(var(--primary) / 0.25),
+      0 4px 12px hsl(var(--primary) / 0.20);
+  }
+  
+  /* Glass header style */
+  .glass-header {
+    background: hsl(var(--card) / 0.85);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid hsl(var(--border) / 0.4);
   }
   
   /* Gradient backgrounds */
