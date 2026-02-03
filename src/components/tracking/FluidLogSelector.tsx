@@ -2,7 +2,8 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
 import { Smile, Pill, X, Zap, Plus, Activity, Flame } from "lucide-react";
-import { SeveritySelector } from "@/components/flare/SeveritySelector";
+import { SeverityWheel } from "@/components/flare/SeverityWheel";
+import { EnergyOrbs } from "@/components/flare/EnergyOrbs";
 import { FlareSeverity } from "@/types/flare";
 
 interface MedicationDetails {
@@ -30,12 +31,6 @@ const COMMON_SYMPTOMS = [
 ];
 
 type ActivePanel = null | 'symptom' | 'medication' | 'energy' | 'mood';
-
-const ENERGY_LEVELS = [
-  { value: 'low' as const, emoji: '😔', label: 'Low', color: { h: 0, s: 65, l: 55 } },
-  { value: 'moderate' as const, emoji: '😐', label: 'Fair', color: { h: 35, s: 60, l: 50 } },
-  { value: 'high' as const, emoji: '🙂', label: 'Good', color: { h: 50, s: 65, l: 50 } },
-];
 
 // Frosted glass button component
 const GlassButton = ({ 
@@ -120,9 +115,8 @@ export const FluidLogSelector = ({
     setActivePanel(null);
   };
 
-  const handleEnergySelect = (index: number) => {
+  const handleEnergySelect = (level: 'low' | 'moderate' | 'high') => {
     haptics.success();
-    const level = ENERGY_LEVELS[index].value;
     if (onLogEnergy) {
       onLogEnergy(level);
     }
@@ -273,20 +267,19 @@ export const FluidLogSelector = ({
             </div>
           )}
 
-          {/* Severity selector for symptoms - compact inline */}
+          {/* Severity selector for symptoms - 3D orbs */}
           {activePanel === 'symptom' && selectedSymptom && (
             <div>
               <button 
                 onClick={() => setSelectedSymptom(null)}
-                className="flex items-center gap-1.5 text-sm text-primary font-medium mb-3"
+                className="flex items-center gap-1.5 text-sm text-primary font-medium mb-4"
               >
                 <Activity className="w-3.5 h-3.5" />
                 ← Change symptom
               </button>
-              <SeveritySelector
+              <SeverityWheel
                 selectedSeverity={null}
                 onSeveritySelect={handleSeveritySelect}
-                compact={true}
               />
             </div>
           )}
@@ -323,44 +316,16 @@ export const FluidLogSelector = ({
             </>
           )}
 
-          {/* Energy panel - compact inline */}
+          {/* Energy panel - 3D orbs */}
           {activePanel === 'energy' && (
-            <div className="grid grid-cols-3 gap-2">
-              {ENERGY_LEVELS.map((level, index) => (
-                <button
-                  key={level.value}
-                  onClick={() => handleEnergySelect(index)}
-                  className={cn(
-                    "flex flex-col items-center justify-center py-4 rounded-2xl transition-all",
-                    "backdrop-blur-sm active:scale-95"
-                  )}
-                  style={{
-                    background: `linear-gradient(145deg, 
-                      hsl(${level.color.h} ${level.color.s}% ${level.color.l + 40}% / 0.9) 0%, 
-                      hsl(${level.color.h} ${level.color.s - 10}% ${level.color.l + 35}% / 0.85) 100%
-                    )`,
-                    border: `1px solid hsl(${level.color.h} ${level.color.s}% ${level.color.l + 20}% / 0.5)`,
-                    boxShadow: `inset 0 1px 2px hsl(0 0% 100% / 0.3), 0 4px 12px hsl(${level.color.h} ${level.color.s}% ${level.color.l}% / 0.15)`,
-                  }}
-                >
-                  <span className="text-2xl mb-1">{level.emoji}</span>
-                  <span 
-                    className="text-sm font-bold"
-                    style={{ color: `hsl(${level.color.h} ${level.color.s}% ${level.color.l - 5}%)` }}
-                  >
-                    {level.label}
-                  </span>
-                </button>
-              ))}
-            </div>
+            <EnergyOrbs onSelect={handleEnergySelect} />
           )}
 
-          {/* Mood panel - compact inline */}
+          {/* Mood panel - 3D orbs */}
           {activePanel === 'mood' && (
-            <SeveritySelector
+            <SeverityWheel
               selectedSeverity={null}
               onSeveritySelect={handleMoodSelect}
-              compact={true}
             />
           )}
         </div>
