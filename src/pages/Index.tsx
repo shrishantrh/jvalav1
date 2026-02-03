@@ -625,6 +625,10 @@ const Index = () => {
                 setProtocolPrompt(rec);
                 setShowProtocolChat(true);
               }}
+              onAskAI={(prompt) => {
+                setProtocolPrompt(prompt);
+                setShowProtocolChat(true);
+              }}
             />
           </div>
         )}

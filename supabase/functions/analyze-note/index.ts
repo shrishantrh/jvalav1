@@ -12,74 +12,113 @@ serve(async (req) => {
 
   try {
     const { note } = await req.json();
-    const apiKey = Deno.env.get('GEMINI_API_KEY');
+    const apiKey = Deno.env.get('LOVABLE_API_KEY');
 
     if (!apiKey) {
-      throw new Error('GEMINI_API_KEY not configured');
+      throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    console.log('🤖 Analyzing note with Gemini API:', note);
+    console.log('🤖 Analyzing note with Lovable AI:', note);
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: `Analyze this health note and return ONLY valid JSON. Be liberal in interpreting health complaints as flares.
-
-Note: "${note}"
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a medical symptom classifier. Analyze health notes and extract structured data. Be liberal in interpreting health complaints as flares.
 
 Classification Rules:
 - Any pain, symptom, or health complaint = "flare"
 - Taking medication/pills = "medication"
 - Feeling tired/exhausted/low energy = "energy"
 - Feeling better/recovering = "recovery"
-- Potential causes (food, weather, stress) = "trigger"
-
-Return ONLY this JSON structure (no markdown, no explanation):
-{
-  "type": "flare|medication|trigger|recovery|energy|note",
-  "severity": "mild|moderate|severe",
-  "energyLevel": "very-low|low|moderate|good|high",
-  "symptoms": ["headache", "joint pain"],
-  "medications": ["medication name"],
-  "triggers": ["trigger name"]
-}
-
-Examples:
-"I have a headache" → {"type":"flare","severity":"moderate","symptoms":["headache"]}
-"Headache is bad" → {"type":"flare","severity":"severe","symptoms":["headache"]}
-"My joints hurt" → {"type":"flare","severity":"moderate","symptoms":["joint pain"]}
-"Feeling tired" → {"type":"energy","energyLevel":"low"}
-"Took ibuprofen" → {"type":"medication","medications":["ibuprofen"]}
-"Feeling better" → {"type":"recovery"}
-
-Return JSON now:`
-          }]
+- Potential causes (food, weather, stress) = "trigger"`
+          },
+          {
+            role: 'user',
+            content: `Analyze this health note: "${note}"`
+          }
+        ],
+        tools: [{
+          type: 'function',
+          function: {
+            name: 'classify_note',
+            description: 'Classify a health note into structured data',
+            parameters: {
+              type: 'object',
+              properties: {
+                type: {
+                  type: 'string',
+                  enum: ['flare', 'medication', 'trigger', 'recovery', 'energy', 'note'],
+                  description: 'The type of health entry'
+                },
+                severity: {
+                  type: 'string',
+                  enum: ['mild', 'moderate', 'severe'],
+                  description: 'Severity level if applicable'
+                },
+                energyLevel: {
+                  type: 'string',
+                  enum: ['very-low', 'low', 'moderate', 'good', 'high'],
+                  description: 'Energy level if mentioned'
+                },
+                symptoms: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'List of symptoms mentioned'
+                },
+                medications: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'List of medications mentioned'
+                },
+                triggers: {
+                  type: 'array',
+                  items: { type: 'string' },
+                  description: 'List of potential triggers mentioned'
+                }
+              },
+              required: ['type']
+            }
+          }
         }],
-        generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 1000,
-        }
+        tool_choice: { type: 'function', function: { name: 'classify_note' } }
       })
     });
 
     if (!response.ok) {
-      console.error('❌ Gemini API request failed:', response.status, response.statusText);
+      console.error('❌ Lovable AI request failed:', response.status);
+      
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: 'AI credits exhausted' }), {
+          status: 402,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
       throw new Error(`API request failed: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('📤 Gemini API response:', data);
-    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    console.log('📤 AI response:', JSON.stringify(data, null, 2));
     
-    if (content) {
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    
+    if (toolCall?.function?.arguments) {
+      try {
+        const parsed = JSON.parse(toolCall.function.arguments);
         console.log('✅ Parsed AI result:', parsed);
         
         return new Response(JSON.stringify({
@@ -95,6 +134,8 @@ Return JSON now:`
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
+      } catch (e) {
+        console.error('Failed to parse tool arguments:', e);
       }
     }
 

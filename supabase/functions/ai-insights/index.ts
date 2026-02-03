@@ -2,9 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// JVALA AI INSIGHTS ENGINE
-// ═══════════════════════════════════════════════════════════════════════════════
-// Claude-powered deep analysis of user health data
+// JVALA AI INSIGHTS ENGINE - Powered by Lovable AI (Gemini)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const corsHeaders = {
@@ -18,12 +16,12 @@ serve(async (req) => {
   }
 
   try {
-    const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY');
+    const apiKey = Deno.env.get('LOVABLE_API_KEY');
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
-    if (!anthropicKey) {
-      return new Response(JSON.stringify({ error: 'AI not configured' }), {
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: 'LOVABLE_API_KEY not configured' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -144,7 +142,7 @@ serve(async (req) => {
 
     const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-    // Build context for Claude
+    // Build context for AI
     const dataContext = `
 USER HEALTH DATA SUMMARY:
 ==========================
@@ -190,109 +188,146 @@ ${entries.filter((e: any) => e.note).slice(0, 5).map((e: any) =>
 ).join('\n') || '- No notes'}
 `;
 
-    // Call Claude for analysis
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // Call Lovable AI for analysis
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'x-api-key': anthropicKey,
-        'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
-        max_tokens: 2500,
-        system: `You are Jvala's AI Health Analyst - an expert in chronic condition pattern recognition. Analyze the user's flare tracking data and provide deeply personalized, actionable insights.
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          {
+            role: 'system',
+            content: `You are Jvala's AI Health Analyst - an expert in chronic condition pattern recognition. Analyze the user's flare tracking data and provide deeply personalized, actionable insights.
 
-Your response MUST be valid JSON with this exact structure:
-{
-  "summary": "2-3 sentence personalized overview of their current health status and patterns",
-  "healthScore": 0-100 (calculate based on: flare frequency, severity trends, logging consistency, identified triggers),
-  "trend": "improving" | "stable" | "worsening",
-  "insights": [
-    {
-      "type": "pattern" | "trigger" | "recommendation" | "warning" | "success",
-      "title": "Clear, specific insight title (max 8 words)",
-      "description": "2-3 sentence explanation with specific data points",
-      "confidence": "high" | "medium" | "low",
-      "actionable": "One specific thing they can do about this"
-    }
-  ],
-  "predictions": [
-    {
-      "title": "What might happen next",
-      "likelihood": "high" | "medium" | "low",
-      "basedOn": "The data points supporting this prediction"
-    }
-  ],
-  "recommendations": [
-    "Specific, personalized recommendation 1",
-    "Specific, personalized recommendation 2",
-    "Specific, personalized recommendation 3"
-  ]
-}
+Your response MUST use the tool to return structured data with:
+- summary: 2-3 sentence personalized overview
+- healthScore: 0-100 based on flare frequency, severity trends, logging consistency
+- trend: "improving" | "stable" | "worsening"
+- insights: Array of specific insights with type, title, description, confidence, actionable
+- predictions: What might happen next based on patterns
+- recommendations: 3 specific actionable steps
 
 CRITICAL GUIDELINES:
 - Be SPECIFIC to their data - reference actual triggers, symptoms, times, patterns
-- Calculate healthScore: Start at 75, -5 for each severe flare this week, -3 for moderate, +10 if improving trend, -10 if worsening
+- Calculate healthScore: Start at 75, -5 for each severe flare this week, -3 for moderate, +10 if improving trend
 - Don't make medical diagnoses - focus on patterns and lifestyle factors
-- If data is limited, acknowledge it and provide what insights you can
-- Highlight BOTH problems AND progress (celebrate wins!)
-- Be encouraging but honest
+- Highlight BOTH problems AND progress
 - Maximum 5 insights, 3 predictions, 3 recommendations
-- For triggers, only mention ones with 2+ occurrences
-- Time patterns are valuable - tell them WHEN to be cautious`,
-        messages: [
+- For triggers, only mention ones with 2+ occurrences`,
+          },
           {
             role: 'user',
             content: `Analyze this user's health data and provide personalized insights:\n\n${dataContext}`,
           },
         ],
+        tools: [{
+          type: 'function',
+          function: {
+            name: 'generate_insights',
+            description: 'Generate comprehensive health insights',
+            parameters: {
+              type: 'object',
+              properties: {
+                summary: { type: 'string', description: '2-3 sentence personalized overview' },
+                healthScore: { type: 'number', minimum: 0, maximum: 100 },
+                trend: { type: 'string', enum: ['improving', 'stable', 'worsening'] },
+                insights: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      type: { type: 'string', enum: ['pattern', 'trigger', 'recommendation', 'warning', 'success'] },
+                      title: { type: 'string', description: 'Clear title max 8 words' },
+                      description: { type: 'string', description: '2-3 sentence explanation with data' },
+                      confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+                      actionable: { type: 'string', description: 'One specific action they can take' }
+                    },
+                    required: ['type', 'title', 'description', 'confidence', 'actionable']
+                  }
+                },
+                predictions: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      title: { type: 'string' },
+                      likelihood: { type: 'string', enum: ['high', 'medium', 'low'] },
+                      basedOn: { type: 'string' }
+                    },
+                    required: ['title', 'likelihood', 'basedOn']
+                  }
+                },
+                recommendations: {
+                  type: 'array',
+                  items: { type: 'string' }
+                }
+              },
+              required: ['summary', 'healthScore', 'trend', 'insights', 'predictions', 'recommendations']
+            }
+          }
+        }],
+        tool_choice: { type: 'function', function: { name: 'generate_insights' } }
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Claude API error:', errorText);
+      console.error('AI gateway error:', response.status, errorText);
+      
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }), {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: 'AI credits exhausted. Please add credits.' }), {
+          status: 402,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
       throw new Error('AI analysis failed');
     }
 
     const aiResponse = await response.json();
-    const content = aiResponse.content?.[0]?.text || '';
-
-    // Parse JSON from response
-    let insights;
-    try {
-      // Find JSON in the response
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        insights = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('No JSON found');
+    const toolCall = aiResponse.choices?.[0]?.message?.tool_calls?.[0];
+    
+    if (toolCall?.function?.arguments) {
+      try {
+        const insights = JSON.parse(toolCall.function.arguments);
+        return new Response(JSON.stringify(insights), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (parseError) {
+        console.error('Failed to parse tool response:', parseError);
       }
-    } catch (parseError) {
-      console.error('Failed to parse AI response:', content);
-      // Return fallback insights
-      insights = {
-        summary: 'Analysis complete. Keep logging for more detailed insights.',
-        healthScore: 70,
-        trend: 'stable',
-        insights: [
-          {
-            type: 'pattern',
-            title: `${last7DaysFlares.length} flares this week`,
-            description: last7DaysFlares.length > last30DaysFlares.length / 4 
-              ? 'Higher than average activity this week.'
-              : 'Consistent with your usual patterns.',
-            confidence: 'high',
-            actionable: 'Continue logging to track trends.',
-          },
-        ],
-        predictions: [],
-        recommendations: ['Keep logging daily', 'Note any new triggers', 'Review your patterns weekly'],
-      };
     }
 
-    return new Response(JSON.stringify(insights), {
+    // Fallback insights
+    const fallbackInsights = {
+      summary: 'Analysis complete. Keep logging for more detailed insights.',
+      healthScore: 70,
+      trend: 'stable',
+      insights: [
+        {
+          type: 'pattern',
+          title: `${last7DaysFlares.length} flares this week`,
+          description: last7DaysFlares.length > last30DaysFlares.length / 4 
+            ? 'Higher than average activity this week.'
+            : 'Consistent with your usual patterns.',
+          confidence: 'high',
+          actionable: 'Continue logging to track trends.',
+        },
+      ],
+      predictions: [],
+      recommendations: ['Keep logging daily', 'Note any new triggers', 'Review your patterns weekly'],
+    };
+
+    return new Response(JSON.stringify(fallbackInsights), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
