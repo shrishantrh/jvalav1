@@ -542,8 +542,11 @@ const Index = () => {
                 }, 100);
               }}
               onAskAI={(prompt) => {
-                // Navigate to Log tab instead of opening separate dialog
+                // Navigate to Log tab and send the message to chat
                 setCurrentView('track');
+                setTimeout(() => {
+                  smartTrackRef.current?.sendChatMessage(prompt);
+                }, 150);
               }}
             />
           </div>

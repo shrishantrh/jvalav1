@@ -216,7 +216,7 @@ export const HealthForecast = ({ userId, currentWeather, menstrualDay, onViewDet
               </div>
               <div className="flex items-center gap-2 mt-0.5">
                 <Badge variant="outline" className={cn("text-sm capitalize font-semibold", getRiskColor(forecast.riskLevel))}>
-                  {forecast.riskLevel.replace("_", " ")} risk
+                  {forecast.riskScore}% risk
                 </Badge>
                 <span className="text-base text-muted-foreground">
                   {Math.round(forecast.confidence * 100)}% confidence
@@ -239,51 +239,63 @@ export const HealthForecast = ({ userId, currentWeather, menstrualDay, onViewDet
           </Button>
         </div>
 
-        {/* Risk Score Bar */}
-        <div className="mb-4">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-base text-muted-foreground">Flare Risk</span>
-            <span className={cn("text-2xl font-bold", getRiskColor(forecast.riskLevel))}>
-              {forecast.riskScore}%
-            </span>
+        {/* Key Risk Factors - Always visible */}
+        {riskFactors.length > 0 ? (
+          <div className="space-y-2 mb-4">
+            <p className="text-sm font-semibold text-muted-foreground mb-2">Why this risk level:</p>
+            {riskFactors.map((factor, i) => (
+              <div key={i} className={cn(
+                "flex items-start gap-3 p-3 rounded-2xl",
+                "bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm",
+                "border border-white/40 dark:border-slate-700/40"
+              )}>
+                <div className={cn(
+                  "w-8 h-8 rounded-xl flex items-center justify-center mt-0.5 shrink-0",
+                  factor.impact > 0.3 ? "bg-red-500/15 text-red-600" :
+                  factor.impact > 0.2 ? "bg-orange-500/15 text-orange-600" :
+                  "bg-yellow-500/15 text-yellow-600"
+                )}>
+                  {getCategoryIcon(factor.category)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-base font-medium">{factor.factor}</p>
+                  <p className="text-sm text-muted-foreground truncate">{factor.evidence}</p>
+                </div>
+              </div>
+            ))}
           </div>
-          <div className="h-3 bg-white/50 dark:bg-slate-800/50 rounded-full overflow-hidden backdrop-blur-sm">
-            <div 
-              className={cn(
-                "h-full transition-all duration-500 rounded-full",
-                forecast.riskLevel === "low" ? "bg-emerald-500" :
-                forecast.riskLevel === "moderate" ? "bg-yellow-500" :
-                forecast.riskLevel === "high" ? "bg-orange-500" :
-                "bg-red-500"
-              )}
-              style={{ width: `${forecast.riskScore}%` }}
-            />
+        ) : (
+          <div className={cn(
+            "p-4 rounded-2xl mb-4",
+            "bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm",
+            "border border-white/40 dark:border-slate-700/40"
+          )}>
+            <p className="text-base text-muted-foreground">
+              No major risk factors detected. Keep logging to refine predictions.
+            </p>
           </div>
-        </div>
+        )}
 
-        {/* Prediction */}
-        <p className="text-base mb-4">{forecast.prediction}</p>
-
-        {/* Risk Factors (Collapsed) */}
-        {riskFactors.length > 0 && (
+        {/* Protective Factors - if any */}
+        {protectiveCount > 0 && (
           <button 
             onClick={() => setExpanded(!expanded)}
             className={cn(
               "w-full p-3 rounded-2xl transition-all",
-              "bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm",
-              "border border-white/40 dark:border-slate-700/40",
-              "hover:bg-white/70"
+              "bg-emerald-500/10 backdrop-blur-sm",
+              "border border-emerald-500/20",
+              "hover:bg-emerald-500/15"
             )}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-base text-muted-foreground">
-                  {riskFactors.length} risk factor{riskFactors.length > 1 ? "s" : ""}
-                  {protectiveCount > 0 && ` • ${protectiveCount} protective`}
+                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                <span className="text-base text-emerald-700 dark:text-emerald-400 font-medium">
+                  {protectiveCount} thing{protectiveCount > 1 ? 's' : ''} working in your favor
                 </span>
               </div>
               <ChevronRight className={cn(
-                "w-5 h-5 text-muted-foreground transition-transform",
+                "w-5 h-5 text-emerald-500 transition-transform",
                 expanded && "rotate-90"
               )} />
             </div>
@@ -291,62 +303,31 @@ export const HealthForecast = ({ userId, currentWeather, menstrualDay, onViewDet
         )}
 
         {/* Expanded Details */}
-        {expanded && (
-          <div className="space-y-4 pt-4 animate-in fade-in-0 slide-in-from-top-2 duration-200">
-            {/* Risk Factors */}
-            {riskFactors.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-base font-semibold text-muted-foreground">Risk Factors</h4>
-                {riskFactors.map((factor, i) => (
-                  <div key={i} className={cn(
-                    "flex items-start gap-3 p-3 rounded-2xl",
-                    "bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm",
-                    "border border-white/40 dark:border-slate-700/40"
-                  )}>
-                    <div className={cn(
-                      "w-8 h-8 rounded-xl flex items-center justify-center mt-0.5",
-                      factor.impact > 0.3 ? "bg-red-500/15 text-red-600" :
-                      factor.impact > 0.2 ? "bg-orange-500/15 text-orange-600" :
-                      "bg-yellow-500/15 text-yellow-600"
-                    )}>
-                      {getCategoryIcon(factor.category)}
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-base font-medium">{factor.factor}</p>
-                      <p className="text-sm text-muted-foreground">{factor.evidence}</p>
-                    </div>
-                  </div>
-                ))}
+        {expanded && protectiveCount > 0 && (
+          <div className="space-y-2 pt-3 animate-in fade-in-0 slide-in-from-top-2 duration-200">
+            {forecast.protectiveFactors.map((factor, i) => (
+              <div key={i} className="flex items-center gap-3 text-base pl-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                <span>{factor}</span>
               </div>
-            )}
+            ))}
+          </div>
+        )}
 
-            {/* Protective Factors */}
-            {forecast.protectiveFactors.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-base font-semibold text-muted-foreground">Working in Your Favor</h4>
-                {forecast.protectiveFactors.map((factor, i) => (
-                  <div key={i} className="flex items-center gap-3 text-base">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                    <span>{factor}</span>
-                  </div>
-                ))}
+        {/* Top Recommendation */}
+        {forecast.recommendations.length > 0 && (
+          <div className={cn(
+            "mt-4 p-4 rounded-2xl",
+            "bg-gradient-to-br from-primary/10 to-primary/5",
+            "border border-primary/20"
+          )}>
+            <div className="flex items-start gap-3">
+              <Sparkles className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-primary mb-1">Recommendation</p>
+                <p className="text-base">{forecast.recommendations[0]}</p>
               </div>
-            )}
-
-            {/* Recommendations */}
-            {forecast.recommendations.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-base font-semibold text-muted-foreground">Recommendations</h4>
-                <div className="space-y-2">
-                  {forecast.recommendations.map((rec, i) => (
-                    <div key={i} className="flex items-start gap-3 text-base">
-                      <Sparkles className="w-5 h-5 text-primary mt-0.5" />
-                      <span>{rec}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            </div>
           </div>
         )}
       </div>
