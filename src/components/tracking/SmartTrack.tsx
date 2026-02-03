@@ -92,6 +92,7 @@ interface SmartTrackProps {
   userMedications?: MedicationDetails[];
   recentEntries?: any[];
   userId: string;
+  onOpenDetails?: () => void;
 }
 
 export interface SmartTrackRef {
@@ -304,7 +305,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   userTriggers = [],
   userMedications = [],
   recentEntries = [],
-  userId 
+  userId,
+  onOpenDetails
 }, ref) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -762,7 +764,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   };
 
   return (
-    <div className="flex flex-col h-[520px] bg-gradient-card rounded-xl overflow-hidden">
+    <div className="flex flex-col flex-1 bg-card/50 rounded-2xl overflow-hidden border border-border/30">
       
       {/* AI Capability buttons - show when no messages or few messages */}
       {messages.length <= 2 && (
@@ -894,6 +896,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
           onLogWellness={handleWellnessLog}
           onLogEnergy={handleEnergyLog}
           onLogRecovery={handleRecoveryLog}
+          onOpenDetails={onOpenDetails}
         />
       </div>
 
