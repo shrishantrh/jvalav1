@@ -466,11 +466,17 @@ const Index = () => {
     );
   }
 
+  const handleRefresh = async () => {
+    await loadEntries();
+    await loadEngagementData();
+  };
+
   return (
     <>
       <MobileLayout
         currentView={currentView}
         onViewChange={setCurrentView}
+        onRefresh={handleRefresh}
         header={
           <MobileHeader 
             streak={currentStreak}
@@ -480,19 +486,19 @@ const Index = () => {
       >
         {/* Track View */}
         {currentView === 'track' && user && (
-          <div className="space-y-4">
+          <div className="space-y-5">
             {/* Quick Log Card */}
-            <Card className="p-4 glass-card">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-primary flex items-center justify-center">
-                  <Activity className="w-4 h-4 text-primary-foreground" />
+            <Card className="p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shadow-sm">
+                  <Activity className="w-5 h-5 text-primary" />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-semibold text-foreground">How are you feeling?</h2>
+                    <h2 className="text-base font-bold text-foreground">How are you feeling?</h2>
                     {currentLocation?.city && (
-                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground bg-white/10 px-2 py-0.5 rounded-full">
-                        <MapPin className="w-2.5 h-2.5" />
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-full">
+                        <MapPin className="w-3 h-3" />
                         <span>{currentLocation.city}</span>
                       </div>
                     )}
@@ -513,18 +519,18 @@ const Index = () => {
               />
               
               {/* Detailed Entry Toggle */}
-              <div className="pt-3 mt-3 border-t border-white/10">
+              <div className="pt-4 mt-4 border-t border-border/30">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowDetailedEntry(!showDetailedEntry)}
-                  className="w-full text-xs text-muted-foreground hover:text-foreground font-medium"
+                  className="w-full text-sm text-muted-foreground hover:text-foreground font-semibold rounded-2xl h-11"
                 >
-                  <ChevronDown className={`w-3 h-3 mr-1.5 transition-transform ${showDetailedEntry ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-4 h-4 mr-2 transition-transform duration-300 ${showDetailedEntry ? 'rotate-180' : ''}`} />
                   {showDetailedEntry ? 'Hide details' : 'Add more details'}
                 </Button>
                 {showDetailedEntry && (
-                  <div className="mt-3 animate-fade-in">
+                  <div className="mt-4 animate-fade-in">
                     <DetailedEntry 
                       onSave={handleSaveEntry} 
                       onDetailedSave={(entry) => {

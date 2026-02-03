@@ -1,180 +1,183 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Jvala iOS Glassmorphism Design System
-   Frosted glass aesthetic with layered transparency
+/* Jvala iOS Native Design System
+   Warm organic aesthetic inspired by premium health apps
    All colors MUST be HSL for proper theming.
 */
 
 @layer base {
   :root {
-    /* Soft gradient background for glass effect */
-    --background: 280 30% 96%;
-    --foreground: 0 0% 10%;
+    /* Warm cream/beige background like Qura app */
+    --background: 35 30% 96%;
+    --foreground: 25 25% 15%;
 
-    /* Glass card surfaces - translucent frosted glass */
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 10%;
+    /* Card surfaces - warm off-white */
+    --card: 40 40% 99%;
+    --card-foreground: 25 25% 15%;
 
-    /* Popover/dropdown surfaces - slightly more opaque */
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 10%;
+    /* Popover surfaces */
+    --popover: 40 40% 99%;
+    --popover-foreground: 25 25% 15%;
 
-    /* Primary - Jvala pink/magenta */
-    --primary: 330 70% 50%;
-    --primary-foreground: 0 0% 100%;
-    --primary-hover: 330 75% 45%;
-    --primary-glow: 330 80% 60%;
+    /* Primary - Warm amber/terracotta from references */
+    --primary: 25 75% 50%;
+    --primary-foreground: 40 40% 99%;
+    --primary-hover: 25 80% 45%;
+    --primary-glow: 25 85% 60%;
     
-    /* Secondary - Very subtle for glass layers */
-    --secondary: 280 20% 98%;
-    --secondary-foreground: 280 40% 25%;
+    /* Secondary - Soft cream */
+    --secondary: 35 35% 95%;
+    --secondary-foreground: 25 35% 25%;
 
-    /* Muted - For subtle elements */
-    --muted: 280 15% 95%;
-    --muted-foreground: 0 0% 45%;
+    /* Muted - Warm gray */
+    --muted: 30 20% 93%;
+    --muted-foreground: 25 15% 45%;
 
-    /* Accent - Purple tint for highlights */
-    --accent: 280 40% 97%;
-    --accent-foreground: 280 60% 40%;
+    /* Accent - Warm sage/olive like references */
+    --accent: 80 25% 92%;
+    --accent-foreground: 80 40% 30%;
 
     /* Error/destructive states */
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 40 40% 99%;
 
-    /* Borders - very subtle for glass edges */
-    --border: 0 0% 100%;
-    --input: 0 0% 100%;
-    --ring: 330 70% 50%;
+    /* Borders - warm subtle */
+    --border: 35 25% 90%;
+    --input: 35 30% 94%;
+    --ring: 25 75% 50%;
 
-    /* Glass-specific variables */
-    --glass-bg: 0 0% 100%;
-    --glass-border: 0 0% 100%;
-    --glass-highlight: 0 0% 100%;
-    --glass-blur: 20px;
-    --glass-opacity-primary: 0.93;
-    --glass-opacity-secondary: 0.82;
-    --glass-opacity-tertiary: 0.70;
+    /* Glass-specific variables - warmer tints */
+    --glass-bg: 40 35% 99%;
+    --glass-border: 35 30% 92%;
+    --glass-highlight: 40 50% 98%;
+    --glass-blur: 24px;
+    --glass-opacity-primary: 0.96;
+    --glass-opacity-secondary: 0.88;
+    --glass-opacity-tertiary: 0.78;
 
-    /* Clinical severity system */
-    --severity-none: 152 69% 40%;
-    --severity-mild: 45 93% 47%;
-    --severity-moderate: 32 95% 52%;
-    --severity-severe: 0 84% 55%;
+    /* Clinical severity system - warmer organic colors */
+    --severity-none: 145 55% 42%;
+    --severity-mild: 50 85% 48%;
+    --severity-moderate: 28 90% 50%;
+    --severity-severe: 0 70% 52%;
 
-    --severity-none-bg: 152 50% 95%;
-    --severity-mild-bg: 45 70% 95%;
-    --severity-moderate-bg: 32 70% 95%;
-    --severity-severe-bg: 0 60% 96%;
+    --severity-none-bg: 145 45% 94%;
+    --severity-mild-bg: 50 60% 94%;
+    --severity-moderate-bg: 28 55% 94%;
+    --severity-severe-bg: 0 50% 95%;
 
     /* Typography weights */
-    --text-medical: 600;
-    --text-clinical: 500;
+    --text-medical: 700;
+    --text-clinical: 600;
     --text-body: 400;
 
-    /* Spacing scale */
-    --space-touch: 3rem;
+    /* Spacing scale - iOS generous */
+    --space-touch: 3.5rem;
     --space-comfortable: 2rem;
     --space-standard: 1.25rem;
 
-    /* Border radius - iOS-style rounded */
-    --radius: 1rem;
-    --radius-medical: 1.25rem;
+    /* Border radius - iOS 17+ style, very rounded */
+    --radius: 1.25rem;
+    --radius-medical: 1.5rem;
     --radius-full: 9999px;
-    --radius-glass: 1.5rem;
+    --radius-glass: 1.75rem;
 
-    /* Smooth iOS transitions */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-bounce: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    --transition-swift: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    /* iOS spring animations */
+    --transition-smooth: all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --transition-bounce: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    --transition-swift: all 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+    --transition-spring: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     
-    /* No shadows - per spec */
-    --shadow-sm: none;
-    --shadow-md: none;
-    --shadow-lg: none;
-    --shadow-xl: none;
-    --shadow-primary: none;
-    --shadow-glow: none;
+    /* Subtle shadows for depth */
+    --shadow-sm: 0 1px 2px hsl(25 20% 20% / 0.04);
+    --shadow-md: 0 4px 12px hsl(25 20% 20% / 0.06);
+    --shadow-lg: 0 8px 24px hsl(25 20% 20% / 0.08);
+    --shadow-xl: 0 16px 48px hsl(25 20% 20% / 0.10);
+    --shadow-primary: 0 4px 16px hsl(25 75% 50% / 0.25);
+    --shadow-glow: 0 0 24px hsl(25 75% 50% / 0.15);
     
-    /* Gradient system - soft background gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(330 70% 50%) 0%, hsl(280 60% 55%) 100%);
-    --gradient-warm: linear-gradient(135deg, hsl(330 70% 52%) 0%, hsl(350 65% 50%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(280 40% 98%) 0%, hsl(330 30% 96%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100% / 0.93) 0%, hsl(0 0% 100% / 0.88) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(330 70% 55%) 0%, hsl(280 70% 55%) 100%);
-    --gradient-background: linear-gradient(160deg, hsl(280 35% 96%) 0%, hsl(330 35% 94%) 50%, hsl(280 30% 97%) 100%);
+    /* Gradient system - warm organic gradients */
+    --gradient-primary: linear-gradient(145deg, hsl(25 75% 55%) 0%, hsl(35 70% 50%) 100%);
+    --gradient-warm: linear-gradient(145deg, hsl(30 80% 52%) 0%, hsl(20 75% 48%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(40 35% 98%) 0%, hsl(35 30% 95%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(40 40% 99%) 0%, hsl(35 35% 97%) 100%);
+    --gradient-accent: linear-gradient(145deg, hsl(80 35% 50%) 0%, hsl(100 30% 45%) 100%);
+    --gradient-background: linear-gradient(170deg, hsl(40 35% 97%) 0%, hsl(35 30% 94%) 50%, hsl(30 25% 96%) 100%);
+    --gradient-hero: linear-gradient(160deg, hsl(30 55% 55%) 0%, hsl(25 60% 48%) 50%, hsl(20 65% 42%) 100%);
 
-    /* Sidebar - glass style */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 0 0% 10%;
-    --sidebar-primary: 330 70% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 280 30% 97%;
-    --sidebar-accent-foreground: 280 50% 30%;
-    --sidebar-border: 0 0% 100%;
-    --sidebar-ring: 330 70% 50%;
+    /* Sidebar - warm style */
+    --sidebar-background: 40 35% 98%;
+    --sidebar-foreground: 25 25% 15%;
+    --sidebar-primary: 25 75% 50%;
+    --sidebar-primary-foreground: 40 40% 99%;
+    --sidebar-accent: 35 30% 95%;
+    --sidebar-accent-foreground: 25 35% 25%;
+    --sidebar-border: 35 25% 90%;
+    --sidebar-ring: 25 75% 50%;
   }
 
   .dark {
-    --background: 260 30% 8%;
-    --foreground: 0 0% 95%;
-    --card: 260 25% 12%;
-    --card-foreground: 0 0% 95%;
-    --popover: 260 25% 12%;
-    --popover-foreground: 0 0% 95%;
-    --primary: 330 65% 55%;
-    --primary-foreground: 0 0% 100%;
-    --primary-hover: 330 70% 50%;
-    --primary-glow: 330 65% 65%;
-    --secondary: 280 20% 16%;
-    --secondary-foreground: 280 30% 85%;
-    --muted: 260 20% 15%;
-    --muted-foreground: 0 0% 60%;
-    --accent: 280 30% 18%;
-    --accent-foreground: 280 50% 80%;
-    --destructive: 0 63% 45%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 100%;
-    --input: 260 25% 18%;
-    --ring: 330 65% 55%;
+    --background: 25 20% 8%;
+    --foreground: 35 20% 92%;
+    --card: 25 18% 12%;
+    --card-foreground: 35 20% 92%;
+    --popover: 25 18% 12%;
+    --popover-foreground: 35 20% 92%;
+    --primary: 25 70% 55%;
+    --primary-foreground: 40 40% 99%;
+    --primary-hover: 25 75% 50%;
+    --primary-glow: 25 70% 65%;
+    --secondary: 25 15% 16%;
+    --secondary-foreground: 30 25% 82%;
+    --muted: 25 15% 15%;
+    --muted-foreground: 25 12% 55%;
+    --accent: 80 20% 18%;
+    --accent-foreground: 80 30% 75%;
+    --destructive: 0 60% 48%;
+    --destructive-foreground: 40 40% 99%;
+    --border: 25 15% 20%;
+    --input: 25 18% 18%;
+    --ring: 25 70% 55%;
     
-    --glass-bg: 260 25% 15%;
-    --glass-border: 0 0% 100%;
-    --glass-highlight: 0 0% 100%;
-    --glass-opacity-primary: 0.88;
-    --glass-opacity-secondary: 0.75;
-    --glass-opacity-tertiary: 0.60;
+    --glass-bg: 25 18% 14%;
+    --glass-border: 25 15% 22%;
+    --glass-highlight: 35 25% 25%;
+    --glass-opacity-primary: 0.92;
+    --glass-opacity-secondary: 0.82;
+    --glass-opacity-tertiary: 0.68;
     
-    --severity-none-bg: 152 40% 15%;
-    --severity-mild-bg: 45 50% 15%;
-    --severity-moderate-bg: 32 50% 15%;
-    --severity-severe-bg: 0 40% 15%;
+    --severity-none-bg: 145 35% 15%;
+    --severity-mild-bg: 50 40% 15%;
+    --severity-moderate-bg: 28 40% 15%;
+    --severity-severe-bg: 0 35% 15%;
     
-    --shadow-sm: none;
-    --shadow-md: none;
-    --shadow-lg: none;
-    --shadow-xl: none;
-    --shadow-primary: none;
-    --shadow-glow: none;
+    --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.15);
+    --shadow-md: 0 4px 12px hsl(0 0% 0% / 0.20);
+    --shadow-lg: 0 8px 24px hsl(0 0% 0% / 0.25);
+    --shadow-xl: 0 16px 48px hsl(0 0% 0% / 0.30);
+    --shadow-primary: 0 4px 16px hsl(25 70% 55% / 0.30);
+    --shadow-glow: 0 0 24px hsl(25 70% 55% / 0.20);
     
-    --gradient-primary: linear-gradient(135deg, hsl(330 65% 55%) 0%, hsl(280 55% 50%) 100%);
-    --gradient-warm: linear-gradient(135deg, hsl(330 65% 50%) 0%, hsl(350 60% 45%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(260 30% 8%) 0%, hsl(260 25% 10%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(260 25% 12% / 0.88) 0%, hsl(260 25% 10% / 0.82) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(330 65% 50%) 0%, hsl(280 60% 50%) 100%);
-    --gradient-background: linear-gradient(160deg, hsl(260 30% 8%) 0%, hsl(280 25% 10%) 50%, hsl(330 20% 8%) 100%);
+    --gradient-primary: linear-gradient(145deg, hsl(25 70% 55%) 0%, hsl(35 65% 48%) 100%);
+    --gradient-warm: linear-gradient(145deg, hsl(30 75% 50%) 0%, hsl(20 70% 45%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(25 20% 8%) 0%, hsl(25 18% 10%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(25 18% 12%) 0%, hsl(25 16% 10%) 100%);
+    --gradient-accent: linear-gradient(145deg, hsl(80 30% 48%) 0%, hsl(100 25% 42%) 100%);
+    --gradient-background: linear-gradient(170deg, hsl(25 20% 8%) 0%, hsl(20 18% 10%) 50%, hsl(30 15% 8%) 100%);
+    --gradient-hero: linear-gradient(160deg, hsl(30 50% 48%) 0%, hsl(25 55% 42%) 50%, hsl(20 60% 38%) 100%);
     
-    --sidebar-background: 260 25% 12%;
-    --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 330 65% 55%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 280 20% 18%;
-    --sidebar-accent-foreground: 280 30% 85%;
-    --sidebar-border: 0 0% 100%;
-    --sidebar-ring: 330 65% 55%;
+    --sidebar-background: 25 18% 12%;
+    --sidebar-foreground: 35 20% 92%;
+    --sidebar-primary: 25 70% 55%;
+    --sidebar-primary-foreground: 40 40% 99%;
+    --sidebar-accent: 25 15% 18%;
+    --sidebar-accent-foreground: 30 25% 82%;
+    --sidebar-border: 25 15% 20%;
+    --sidebar-ring: 25 70% 55%;
   }
 }
 
