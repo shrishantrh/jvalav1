@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { FlareEntry } from "@/types/flare";
 import { PremiumInsightsCharts } from "@/components/insights/PremiumInsightsCharts";
 import { EnhancedMedicalExport } from "@/components/insights/EnhancedMedicalExport";
-import { AIInsightsPanel } from "@/components/insights/AIInsightsPanel";
+import { ActionableInsights } from "@/components/insights/ActionableInsights";
 import { MedicationTracker } from "@/components/medication/MedicationTracker";
 import { CommunityHotspots } from "@/components/insights/CommunityHotspots";
 import { UserFlareMap } from "@/components/insights/UserFlareMap";
@@ -44,6 +44,7 @@ interface RevampedInsightsProps {
   onLogMedication?: (log: Omit<MedicationLog, 'id' | 'takenAt'>) => void;
   userMedications?: string[];
   onStartProtocol?: (recommendation: string) => void;
+  onAskAI?: (prompt: string) => void;
 }
 
 export const RevampedInsights = ({ 
@@ -52,7 +53,8 @@ export const RevampedInsights = ({
   medicationLogs = [], 
   onLogMedication, 
   userMedications = [],
-  onStartProtocol
+  onStartProtocol,
+  onAskAI
 }: RevampedInsightsProps) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('ai');
@@ -271,10 +273,10 @@ export const RevampedInsights = ({
 
         <div className="mt-3">
           <TabsContent value="ai" className="mt-0">
-            <AIInsightsPanel 
+            <ActionableInsights 
               entries={entries} 
               userConditions={userConditions} 
-              onStartProtocol={onStartProtocol}
+              onAskAI={onAskAI || onStartProtocol}
             />
           </TabsContent>
 
