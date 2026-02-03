@@ -16,21 +16,9 @@ import {
   Edit,
   Trash2,
   MessageSquare,
-  MoreHorizontal,
-  Smile,
-  Meh,
-  Frown,
-  AlertCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 interface CompactFlareCardProps {
   entry: FlareEntry;
@@ -52,42 +40,65 @@ export const CompactFlareCard = ({
     setIsExpanded(open);
   };
 
-  const getSeverityConfig = (severity?: string) => {
+  const getSeverityConfig = (severity?: string, type?: string) => {
+    // Use appropriate emojis for different entry types
+    if (type === 'wellness' || type === 'recovery') {
+      return { 
+        emoji: '🌟',
+        hue: 145, sat: 60, light: 45, 
+        label: type === 'recovery' ? 'Recovery' : 'Feeling Good'
+      };
+    }
+    if (type === 'energy') {
+      return { 
+        emoji: '⚡',
+        hue: 45, sat: 85, light: 50, 
+        label: 'Energy'
+      };
+    }
+    if (type === 'medication') {
+      return { 
+        emoji: '💊',
+        hue: 220, sat: 70, light: 55, 
+        label: 'Medication'
+      };
+    }
+
     switch (severity) {
       case 'severe': 
         return { 
-          icon: <Frown className="w-6 h-6 text-white" />,
+          emoji: '😣',
           hue: 0, sat: 75, light: 52, 
           label: 'Severe' 
         };
       case 'moderate': 
         return { 
-          icon: <Meh className="w-6 h-6 text-white" />,
+          emoji: '😟',
           hue: 28, sat: 90, light: 50, 
           label: 'Moderate' 
         };
       case 'mild': 
         return { 
-          icon: <AlertCircle className="w-6 h-6 text-white" />,
+          emoji: '😐',
           hue: 50, sat: 85, light: 52, 
           label: 'Mild' 
         };
       case 'none': 
         return { 
-          icon: <Smile className="w-6 h-6 text-white" />,
+          emoji: '😊',
           hue: 145, sat: 60, light: 45, 
           label: 'Great' 
         };
       default: 
         return { 
-          icon: <Meh className="w-6 h-6 text-white" />,
+          emoji: '📝',
           hue: 220, sat: 15, light: 60, 
-          label: 'Logged' 
+          label: 'Note'
         };
     }
   };
 
-  const severityConfig = getSeverityConfig(entry.severity);
+  const severityConfig = getSeverityConfig(entry.severity, entry.type);
 
   // Extract data safely
   const env = entry.environmentalData as any;
@@ -96,7 +107,6 @@ export const CompactFlareCard = ({
   const city = env?.location?.city || env?.city;
   const temp = env?.weather?.temperature;
   const humidity = env?.weather?.humidity;
-  const condition = env?.weather?.condition;
   
   const heartRate = phys?.heartRate || phys?.heart_rate;
   const sleepHours = phys?.sleepHours || phys?.sleep_hours;
@@ -107,43 +117,54 @@ export const CompactFlareCard = ({
   return (
     <Collapsible open={isExpanded} onOpenChange={handleToggle}>
       <div 
-        className={cn(
-          "relative rounded-3xl transition-all duration-300 overflow-hidden",
-          // Frosted glass effect
-          "bg-white/70 dark:bg-slate-900/70",
-          "backdrop-blur-xl",
-          // Inner highlight
-          "before:absolute before:inset-0 before:rounded-3xl before:pointer-events-none",
-          "before:bg-gradient-to-br before:from-white/30 before:via-transparent before:to-transparent",
-        )}
+        className="relative rounded-3xl transition-all duration-300 overflow-hidden backdrop-blur-xl"
         style={{
+          background: isExpanded 
+            ? `linear-gradient(145deg, hsl(${severityConfig.hue} ${severityConfig.sat}% 97% / 0.95) 0%, hsl(${severityConfig.hue} ${severityConfig.sat - 10}% 95% / 0.9) 100%)`
+            : 'linear-gradient(145deg, hsl(0 0% 100% / 0.85) 0%, hsl(0 0% 98% / 0.8) 100%)',
           border: isExpanded 
-            ? `2px solid hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light}% / 0.4)` 
-            : '1px solid rgba(255,255,255,0.5)',
+            ? `2px solid hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light}% / 0.35)` 
+            : '1px solid hsl(0 0% 100% / 0.6)',
           boxShadow: isExpanded 
-            ? `0 8px 32px hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light}% / 0.2), inset 0 1px 0 rgba(255,255,255,0.3)` 
-            : '0 8px 32px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.3)',
+            ? `inset 0 1px 3px hsl(0 0% 100% / 0.4), 0 8px 24px hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light}% / 0.15)` 
+            : 'inset 0 1px 2px hsl(0 0% 100% / 0.3), 0 4px 16px hsl(0 0% 0% / 0.04)',
         }}
       >
+        {/* Glass highlight overlay */}
+        <div 
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'linear-gradient(180deg, hsl(0 0% 100% / 0.2) 0%, transparent 40%)',
+            borderRadius: 'inherit',
+          }}
+        />
+
         {/* Compact Header - Tappable */}
-        <CollapsibleTrigger className="w-full text-left">
-          <div className="p-4 active:bg-muted/30 transition-colors">
+        <CollapsibleTrigger className="w-full text-left relative z-10">
+          <div className="p-4 active:bg-muted/20 transition-colors">
             <div className="flex items-center gap-4">
-              {/* Severity Icon Circle - 3D Effect */}
+              {/* Severity Emoji Circle - 3D frosted glass */}
               <div 
-                className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
+                className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 relative overflow-hidden"
                 style={{
                   background: `linear-gradient(145deg, 
                     hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light + 5}%) 0%, 
                     hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light - 5}%) 100%
                   )`,
                   boxShadow: `
-                    inset 0 2px 4px hsl(0 0% 100% / 0.25),
+                    inset 0 2px 4px hsl(0 0% 100% / 0.3),
                     0 4px 12px hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light}% / 0.35)
                   `,
                 }}
               >
-                {severityConfig.icon}
+                {/* Glass highlight */}
+                <div 
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    background: 'linear-gradient(180deg, hsl(0 0% 100% / 0.3) 0%, transparent 50%)',
+                  }}
+                />
+                <span className="text-2xl relative z-10">{severityConfig.emoji}</span>
               </div>
 
               {/* Main Info */}
@@ -151,11 +172,11 @@ export const CompactFlareCard = ({
                 <div className="flex items-center gap-2 mb-1">
                   <span 
                     className="text-base font-bold"
-                    style={{ color: `hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light - 5}%)` }}
+                    style={{ color: `hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light - 10}%)` }}
                   >
                     {severityConfig.label}
                   </span>
-                  {entry.type !== 'flare' && (
+                  {entry.type && entry.type !== 'flare' && !['wellness', 'recovery', 'energy', 'medication'].includes(entry.type) && (
                     <Badge variant="secondary" className="text-[10px] capitalize">
                       {entry.type}
                     </Badge>
@@ -178,7 +199,15 @@ export const CompactFlareCard = ({
                 {entry.symptoms && entry.symptoms.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {entry.symptoms.slice(0, 2).map((s, i) => (
-                      <Badge key={i} variant="outline" className="text-[10px] px-2 py-0.5 bg-muted/50 font-medium">
+                      <Badge 
+                        key={i} 
+                        variant="outline" 
+                        className="text-[10px] px-2 py-0.5 font-medium"
+                        style={{
+                          background: 'hsl(0 0% 100% / 0.6)',
+                          borderColor: 'hsl(0 0% 100% / 0.8)',
+                        }}
+                      >
                         {s}
                       </Badge>
                     ))}
@@ -204,36 +233,71 @@ export const CompactFlareCard = ({
 
         {/* Expanded Content */}
         <CollapsibleContent>
-          <div className="px-4 pb-4 space-y-4 border-t border-border/30 pt-4">
+          <div className="px-4 pb-4 space-y-4 border-t border-white/30 pt-4 relative z-10">
             {/* Quick Metrics Row */}
             {(temp || heartRate || sleepHours || steps) && (
               <div className="grid grid-cols-4 gap-2">
                 {temp && (
-                  <div className="text-center p-3 rounded-2xl bg-gradient-to-br from-orange-100 to-orange-50 dark:from-orange-900/20 dark:to-orange-900/10">
+                  <div 
+                    className="text-center p-3 rounded-2xl backdrop-blur-sm"
+                    style={{
+                      background: 'linear-gradient(145deg, hsl(25 80% 95% / 0.9) 0%, hsl(25 70% 92% / 0.85) 100%)',
+                      border: '1px solid hsl(25 60% 90% / 0.5)',
+                      boxShadow: 'inset 0 1px 2px hsl(0 0% 100% / 0.3)',
+                    }}
+                  >
                     <Thermometer className="w-4 h-4 mx-auto mb-1.5 text-orange-500" />
                     <p className="text-sm font-bold">{temp}°</p>
                   </div>
                 )}
                 {humidity && (
-                  <div className="text-center p-3 rounded-2xl bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/20 dark:to-blue-900/10">
+                  <div 
+                    className="text-center p-3 rounded-2xl backdrop-blur-sm"
+                    style={{
+                      background: 'linear-gradient(145deg, hsl(210 80% 95% / 0.9) 0%, hsl(210 70% 92% / 0.85) 100%)',
+                      border: '1px solid hsl(210 60% 90% / 0.5)',
+                      boxShadow: 'inset 0 1px 2px hsl(0 0% 100% / 0.3)',
+                    }}
+                  >
                     <Droplets className="w-4 h-4 mx-auto mb-1.5 text-blue-500" />
                     <p className="text-sm font-bold">{humidity}%</p>
                   </div>
                 )}
                 {heartRate && (
-                  <div className="text-center p-3 rounded-2xl bg-gradient-to-br from-red-100 to-red-50 dark:from-red-900/20 dark:to-red-900/10">
+                  <div 
+                    className="text-center p-3 rounded-2xl backdrop-blur-sm"
+                    style={{
+                      background: 'linear-gradient(145deg, hsl(0 70% 95% / 0.9) 0%, hsl(0 60% 92% / 0.85) 100%)',
+                      border: '1px solid hsl(0 50% 90% / 0.5)',
+                      boxShadow: 'inset 0 1px 2px hsl(0 0% 100% / 0.3)',
+                    }}
+                  >
                     <Heart className="w-4 h-4 mx-auto mb-1.5 text-red-500" />
                     <p className="text-sm font-bold">{heartRate}</p>
                   </div>
                 )}
                 {sleepHours && (
-                  <div className="text-center p-3 rounded-2xl bg-gradient-to-br from-indigo-100 to-indigo-50 dark:from-indigo-900/20 dark:to-indigo-900/10">
+                  <div 
+                    className="text-center p-3 rounded-2xl backdrop-blur-sm"
+                    style={{
+                      background: 'linear-gradient(145deg, hsl(250 70% 95% / 0.9) 0%, hsl(250 60% 92% / 0.85) 100%)',
+                      border: '1px solid hsl(250 50% 90% / 0.5)',
+                      boxShadow: 'inset 0 1px 2px hsl(0 0% 100% / 0.3)',
+                    }}
+                  >
                     <Moon className="w-4 h-4 mx-auto mb-1.5 text-indigo-500" />
                     <p className="text-sm font-bold">{sleepHours}h</p>
                   </div>
                 )}
                 {steps && (
-                  <div className="text-center p-3 rounded-2xl bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-900/20 dark:to-emerald-900/10">
+                  <div 
+                    className="text-center p-3 rounded-2xl backdrop-blur-sm"
+                    style={{
+                      background: 'linear-gradient(145deg, hsl(145 60% 95% / 0.9) 0%, hsl(145 50% 92% / 0.85) 100%)',
+                      border: '1px solid hsl(145 40% 90% / 0.5)',
+                      boxShadow: 'inset 0 1px 2px hsl(0 0% 100% / 0.3)',
+                    }}
+                  >
                     <Footprints className="w-4 h-4 mx-auto mb-1.5 text-emerald-500" />
                     <p className="text-sm font-bold">{steps >= 1000 ? `${(steps/1000).toFixed(1)}k` : steps}</p>
                   </div>
@@ -247,7 +311,16 @@ export const CompactFlareCard = ({
                 <p className="text-xs font-semibold text-muted-foreground mb-2">Triggers</p>
                 <div className="flex flex-wrap gap-1.5">
                   {entry.triggers.map((t, i) => (
-                    <Badge key={i} variant="outline" className="text-xs px-2.5 py-0.5 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300">
+                    <Badge 
+                      key={i} 
+                      variant="outline" 
+                      className="text-xs px-2.5 py-0.5"
+                      style={{
+                        background: 'hsl(0 60% 97% / 0.9)',
+                        borderColor: 'hsl(0 50% 85%)',
+                        color: 'hsl(0 60% 40%)',
+                      }}
+                    >
                       {t}
                     </Badge>
                   ))}
@@ -271,14 +344,20 @@ export const CompactFlareCard = ({
 
             {/* Note */}
             {entry.note && (
-              <div className="p-3 rounded-2xl bg-muted/30">
+              <div 
+                className="p-3 rounded-2xl backdrop-blur-sm"
+                style={{
+                  background: 'hsl(0 0% 100% / 0.5)',
+                  border: '1px solid hsl(0 0% 100% / 0.6)',
+                }}
+              >
                 <p className="text-sm text-foreground/80 italic leading-relaxed">"{entry.note}"</p>
               </div>
             )}
 
             {/* Follow-ups */}
             {entry.followUps && entry.followUps.length > 0 && (
-              <div className="border-t border-border/30 pt-3">
+              <div className="border-t border-white/30 pt-3">
                 <p className="text-xs font-semibold text-primary mb-2 flex items-center gap-1.5">
                   <MessageSquare className="w-3.5 h-3.5" />
                   Follow-ups ({entry.followUps.length})
@@ -301,7 +380,11 @@ export const CompactFlareCard = ({
               <Button
                 variant="outline"
                 size="sm"
-                className="flex-1 h-10"
+                className="flex-1 h-10 backdrop-blur-sm"
+                style={{
+                  background: 'hsl(0 0% 100% / 0.7)',
+                  borderColor: 'hsl(0 0% 100% / 0.8)',
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
                   onEdit?.(entry);
@@ -313,7 +396,11 @@ export const CompactFlareCard = ({
               <Button
                 variant="outline"
                 size="sm"
-                className="flex-1 h-10"
+                className="flex-1 h-10 backdrop-blur-sm"
+                style={{
+                  background: 'hsl(0 0% 100% / 0.7)',
+                  borderColor: 'hsl(0 0% 100% / 0.8)',
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
                   onFollowUp?.(entry);

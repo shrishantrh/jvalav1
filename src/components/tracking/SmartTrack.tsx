@@ -764,11 +764,11 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   };
 
   return (
-    <div className="flex flex-col flex-1 bg-card/50 rounded-2xl overflow-hidden border border-border/30">
+    <div className="flex flex-col h-full overflow-hidden">
       
       {/* AI Capability buttons - show when no messages or few messages */}
       {messages.length <= 2 && (
-        <div className="px-3 pt-3 pb-1">
+        <div className="px-3 pt-3 pb-1 flex-shrink-0">
           <p className="text-[10px] text-muted-foreground mb-2 flex items-center gap-1">
             <Sparkles className="w-3 h-3" />
             Try asking me to...
@@ -777,7 +777,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         </div>
       )}
 
-      {/* Messages - scrollable container with hidden scrollbar */}
+      {/* Messages - scrollable container with hidden scrollbar - takes remaining space */}
       <div 
         ref={messagesContainerRef}
         className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0 scrollbar-hide"
@@ -788,13 +788,38 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             "flex flex-col",
             msg.role === 'user' ? "items-end" : "items-start"
           )}>
-            <div className={cn(
-              "max-w-[85%] rounded-2xl px-4 py-2.5",
-              msg.role === 'user' 
-                ? "bg-primary text-primary-foreground rounded-br-md" 
-                : "bg-muted/50 rounded-bl-md"
-            )}>
-              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+            {/* 3D Frosted glass chat bubble */}
+            <div 
+              className={cn(
+                "max-w-[85%] rounded-2xl px-4 py-2.5 relative overflow-hidden",
+                msg.role === 'user' ? "rounded-br-md" : "rounded-bl-md"
+              )}
+              style={{
+                background: msg.role === 'user'
+                  ? 'linear-gradient(145deg, hsl(25 75% 52%) 0%, hsl(25 70% 48%) 100%)'
+                  : 'linear-gradient(145deg, hsl(0 0% 100% / 0.9) 0%, hsl(0 0% 97% / 0.85) 100%)',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                border: msg.role === 'user'
+                  ? '1px solid hsl(25 75% 55% / 0.5)'
+                  : '1px solid hsl(0 0% 100% / 0.6)',
+                boxShadow: msg.role === 'user'
+                  ? 'inset 0 1px 2px hsl(0 0% 100% / 0.2), 0 4px 12px hsl(25 75% 50% / 0.25)'
+                  : 'inset 0 1px 2px hsl(0 0% 100% / 0.4), 0 4px 12px hsl(0 0% 0% / 0.04)',
+                color: msg.role === 'user' ? 'hsl(0 0% 100%)' : undefined,
+              }}
+            >
+              {/* Glass highlight overlay */}
+              <div 
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: msg.role === 'user'
+                    ? 'linear-gradient(180deg, hsl(0 0% 100% / 0.15) 0%, transparent 50%)'
+                    : 'linear-gradient(180deg, hsl(0 0% 100% / 0.25) 0%, transparent 50%)',
+                  borderRadius: 'inherit',
+                }}
+              />
+              <p className="text-sm whitespace-pre-wrap relative z-10">{msg.content}</p>
               {msg.visualization && <DynamicChartRenderer chart={msg.visualization} />}
             </div>
             
@@ -876,7 +901,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
 
       {/* Dynamic follow-up suggestions after AI responds */}
       {dynamicFollowUps.length > 0 && messages.length > 2 && !isProcessing && (
-        <div className="px-3 py-2 border-t bg-background/30">
+        <div className="px-3 py-2 border-t border-white/20 flex-shrink-0">
           <AIChatPrompts 
             onSendPrompt={handlePromptClick} 
             variant="followups" 
@@ -885,9 +910,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         </div>
       )}
 
-
-      {/* Quick actions - compact */}
-      <div className="px-3 py-2 border-t bg-background/50">
+      {/* Quick actions - compact - fixed at bottom */}
+      <div className="px-3 py-2 border-t border-white/20 flex-shrink-0">
         <FluidLogSelector
           userSymptoms={userSymptoms}
           userMedications={userMedications}
@@ -901,13 +925,25 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       </div>
 
       {/* Input - fixed at bottom */}
-      <div className="p-3 pt-2 border-t bg-background/80">
+      <div 
+        className="p-3 pt-2 border-t flex-shrink-0"
+        style={{
+          background: 'linear-gradient(180deg, hsl(0 0% 100% / 0.8) 0%, hsl(0 0% 98% / 0.9) 100%)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderColor: 'hsl(0 0% 100% / 0.4)',
+        }}
+      >
         <div className="flex items-center gap-2">
           <Button
             variant={isRecording ? "destructive" : "outline"}
             size="icon"
             className="shrink-0 h-9 w-9"
             onClick={toggleRecording}
+            style={{
+              background: isRecording ? undefined : 'hsl(0 0% 100% / 0.8)',
+              borderColor: isRecording ? undefined : 'hsl(0 0% 100% / 0.6)',
+            }}
           >
             {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
           </Button>
@@ -919,6 +955,10 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             placeholder={isRecording ? "Listening..." : "Ask me anything..."}
             className="flex-1 h-9"
             disabled={isProcessing}
+            style={{
+              background: 'hsl(0 0% 100% / 0.7)',
+              borderColor: 'hsl(0 0% 100% / 0.5)',
+            }}
           />
           
           <Button
