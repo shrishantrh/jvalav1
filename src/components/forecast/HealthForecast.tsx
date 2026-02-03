@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -11,7 +10,6 @@ import {
   Moon, 
   CloudRain, 
   TrendingUp, 
-  TrendingDown,
   AlertTriangle,
   CheckCircle2,
   RefreshCw,
@@ -87,66 +85,92 @@ export const HealthForecast = ({ userId, currentWeather, menstrualDay, onViewDet
 
   const getRiskColor = (level: string) => {
     switch (level) {
-      case "low": return "text-severity-none";
-      case "moderate": return "text-yellow-500";
-      case "high": return "text-severity-moderate";
-      case "very_high": return "text-severity-severe";
+      case "low": return "text-emerald-600";
+      case "moderate": return "text-yellow-600";
+      case "high": return "text-orange-600";
+      case "very_high": return "text-red-600";
       default: return "text-muted-foreground";
     }
   };
 
-  const getRiskBg = (level: string) => {
+  const getRiskGradient = (level: string) => {
     switch (level) {
-      case "low": return "bg-severity-none/10";
-      case "moderate": return "bg-yellow-500/10";
-      case "high": return "bg-severity-moderate/10";
-      case "very_high": return "bg-severity-severe/10";
-      default: return "bg-muted";
+      case "low": return "from-emerald-500/15 to-emerald-500/5";
+      case "moderate": return "from-yellow-500/15 to-yellow-500/5";
+      case "high": return "from-orange-500/15 to-orange-500/5";
+      case "very_high": return "from-red-500/15 to-red-500/5";
+      default: return "from-muted/20 to-muted/10";
+    }
+  };
+
+  const getRiskBorderColor = (level: string) => {
+    switch (level) {
+      case "low": return "border-emerald-500/20";
+      case "moderate": return "border-yellow-500/20";
+      case "high": return "border-orange-500/20";
+      case "very_high": return "border-red-500/20";
+      default: return "border-border/50";
     }
   };
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
-      case "sleep": return <Moon className="w-3 h-3" />;
-      case "activity": return <Activity className="w-3 h-3" />;
-      case "stress": return <Heart className="w-3 h-3" />;
-      case "weather": return <CloudRain className="w-3 h-3" />;
-      case "cycle": return <Zap className="w-3 h-3" />;
-      case "pattern": return <TrendingUp className="w-3 h-3" />;
-      default: return <AlertTriangle className="w-3 h-3" />;
+      case "sleep": return <Moon className="w-4 h-4" />;
+      case "activity": return <Activity className="w-4 h-4" />;
+      case "stress": return <Heart className="w-4 h-4" />;
+      case "weather": return <CloudRain className="w-4 h-4" />;
+      case "cycle": return <Zap className="w-4 h-4" />;
+      case "pattern": return <TrendingUp className="w-4 h-4" />;
+      default: return <AlertTriangle className="w-4 h-4" />;
     }
   };
 
   if (loading) {
     return (
-      <Card className="p-4 bg-gradient-card border-0 shadow-soft animate-pulse">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-muted" />
+      <div className={cn(
+        "relative p-5 rounded-3xl overflow-hidden animate-pulse",
+        "bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl",
+        "border border-white/50 dark:border-slate-700/50",
+        "shadow-[0_8px_32px_rgba(0,0,0,0.06)]"
+      )}>
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-muted" />
           <div className="flex-1 space-y-2">
-            <div className="h-4 w-32 bg-muted rounded" />
-            <div className="h-3 w-48 bg-muted rounded" />
+            <div className="h-5 w-40 bg-muted rounded" />
+            <div className="h-4 w-56 bg-muted rounded" />
           </div>
         </div>
-      </Card>
+      </div>
     );
   }
 
   if (needsMoreData) {
     return (
-      <Card className="p-4 bg-gradient-card border-0 shadow-soft">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Brain className="w-6 h-6 text-primary" />
+      <div className={cn(
+        "relative p-5 rounded-3xl overflow-hidden",
+        "bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl",
+        "border border-white/50 dark:border-slate-700/50",
+        "before:absolute before:inset-0 before:rounded-3xl before:pointer-events-none",
+        "before:bg-gradient-to-br before:from-white/30 before:via-transparent before:to-transparent",
+        "shadow-[0_8px_32px_rgba(0,0,0,0.06)]"
+      )}>
+        <div className="relative z-10 flex items-center gap-4">
+          <div className={cn(
+            "w-14 h-14 rounded-2xl flex items-center justify-center",
+            "bg-gradient-to-br from-primary/20 to-primary/10",
+            "shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]"
+          )}>
+            <Brain className="w-7 h-7 text-primary" />
           </div>
           <div className="flex-1">
-            <h3 className="text-sm font-medium">Building Your Forecast</h3>
-            <p className="text-[11px] text-muted-foreground">
+            <h3 className="text-base font-bold">Building Your Forecast</h3>
+            <p className="text-base text-muted-foreground">
               Keep logging for 1-2 weeks to unlock AI predictions
             </p>
           </div>
-          <Progress value={30} className="w-16 h-2" />
+          <Progress value={30} className="w-20 h-2" />
         </div>
-      </Card>
+      </div>
     );
   }
 
@@ -156,151 +180,176 @@ export const HealthForecast = ({ userId, currentWeather, menstrualDay, onViewDet
   const protectiveCount = forecast.factors.filter(f => f.impact < 0).length;
 
   return (
-    <Card className={cn(
-      "p-4 border-0 shadow-soft-lg transition-all duration-300",
-      getRiskBg(forecast.riskLevel)
+    <div className={cn(
+      "relative p-5 rounded-3xl overflow-hidden transition-all duration-300",
+      "backdrop-blur-xl",
+      `bg-gradient-to-br ${getRiskGradient(forecast.riskLevel)}`,
+      getRiskBorderColor(forecast.riskLevel),
+      "border",
+      "before:absolute before:inset-0 before:rounded-3xl before:pointer-events-none",
+      "before:bg-gradient-to-br before:from-white/20 before:via-transparent before:to-transparent",
+      "shadow-[0_8px_32px_rgba(0,0,0,0.06)]"
     )}>
-      {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <div className={cn(
-            "w-12 h-12 rounded-xl flex items-center justify-center",
-            forecast.riskLevel === "low" ? "bg-severity-none/20" :
-            forecast.riskLevel === "moderate" ? "bg-yellow-500/20" :
-            forecast.riskLevel === "high" ? "bg-severity-moderate/20" :
-            "bg-severity-severe/20"
-          )}>
-            {forecast.riskLevel === "low" ? (
-              <Sun className={cn("w-6 h-6", getRiskColor(forecast.riskLevel))} />
-            ) : forecast.riskLevel === "very_high" ? (
-              <AlertTriangle className={cn("w-6 h-6", getRiskColor(forecast.riskLevel))} />
-            ) : (
-              <CloudRain className={cn("w-6 h-6", getRiskColor(forecast.riskLevel))} />
-            )}
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold">Tomorrow's Forecast</h3>
-              <Badge variant="outline" className={cn("text-[10px] capitalize", getRiskColor(forecast.riskLevel))}>
-                {forecast.riskLevel.replace("_", " ")} risk
-              </Badge>
+      <div className="relative z-10">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-4">
+            <div className={cn(
+              "w-14 h-14 rounded-2xl flex items-center justify-center",
+              forecast.riskLevel === "low" ? "bg-emerald-500/20" :
+              forecast.riskLevel === "moderate" ? "bg-yellow-500/20" :
+              forecast.riskLevel === "high" ? "bg-orange-500/20" :
+              "bg-red-500/20",
+              "shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]"
+            )}>
+              {forecast.riskLevel === "low" ? (
+                <Sun className={cn("w-7 h-7", getRiskColor(forecast.riskLevel))} />
+              ) : forecast.riskLevel === "very_high" ? (
+                <AlertTriangle className={cn("w-7 h-7", getRiskColor(forecast.riskLevel))} />
+              ) : (
+                <CloudRain className={cn("w-7 h-7", getRiskColor(forecast.riskLevel))} />
+              )}
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              {Math.round(forecast.confidence * 100)}% confidence
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-bold">Tomorrow's Forecast</h3>
+              </div>
+              <div className="flex items-center gap-2 mt-0.5">
+                <Badge variant="outline" className={cn("text-sm capitalize font-semibold", getRiskColor(forecast.riskLevel))}>
+                  {forecast.riskLevel.replace("_", " ")} risk
+                </Badge>
+                <span className="text-base text-muted-foreground">
+                  {Math.round(forecast.confidence * 100)}% confidence
+                </span>
+              </div>
+            </div>
           </div>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={fetchForecast}
-        >
-          <RefreshCw className="w-4 h-4" />
-        </Button>
-      </div>
-
-      {/* Risk Score Bar */}
-      <div className="mb-3">
-        <div className="flex justify-between items-center mb-1">
-          <span className="text-xs text-muted-foreground">Flare Risk</span>
-          <span className={cn("text-lg font-bold", getRiskColor(forecast.riskLevel))}>
-            {forecast.riskScore}%
-          </span>
-        </div>
-        <div className="h-2 bg-muted rounded-full overflow-hidden">
-          <div 
+          <Button
+            variant="ghost"
+            size="icon"
             className={cn(
-              "h-full transition-all duration-500 rounded-full",
-              forecast.riskLevel === "low" ? "bg-severity-none" :
-              forecast.riskLevel === "moderate" ? "bg-yellow-500" :
-              forecast.riskLevel === "high" ? "bg-severity-moderate" :
-              "bg-severity-severe"
+              "h-10 w-10 rounded-2xl",
+              "bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm",
+              "border border-white/40 dark:border-slate-700/40",
+              "hover:bg-white/70"
             )}
-            style={{ width: `${forecast.riskScore}%` }}
-          />
+            onClick={fetchForecast}
+          >
+            <RefreshCw className="w-5 h-5" />
+          </Button>
         </div>
-      </div>
 
-      {/* Prediction */}
-      <p className="text-sm mb-3">{forecast.prediction}</p>
-
-      {/* Risk Factors (Collapsed) */}
-      {riskFactors.length > 0 && (
-        <button 
-          onClick={() => setExpanded(!expanded)}
-          className="w-full"
-        >
-          <div className="flex items-center justify-between py-2 border-t border-border/50">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">
-                {riskFactors.length} risk factor{riskFactors.length > 1 ? "s" : ""}
-                {protectiveCount > 0 && ` • ${protectiveCount} protective`}
-              </span>
-            </div>
-            <ChevronRight className={cn(
-              "w-4 h-4 text-muted-foreground transition-transform",
-              expanded && "rotate-90"
-            )} />
+        {/* Risk Score Bar */}
+        <div className="mb-4">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-base text-muted-foreground">Flare Risk</span>
+            <span className={cn("text-2xl font-bold", getRiskColor(forecast.riskLevel))}>
+              {forecast.riskScore}%
+            </span>
           </div>
-        </button>
-      )}
+          <div className="h-3 bg-white/50 dark:bg-slate-800/50 rounded-full overflow-hidden backdrop-blur-sm">
+            <div 
+              className={cn(
+                "h-full transition-all duration-500 rounded-full",
+                forecast.riskLevel === "low" ? "bg-emerald-500" :
+                forecast.riskLevel === "moderate" ? "bg-yellow-500" :
+                forecast.riskLevel === "high" ? "bg-orange-500" :
+                "bg-red-500"
+              )}
+              style={{ width: `${forecast.riskScore}%` }}
+            />
+          </div>
+        </div>
 
-      {/* Expanded Details */}
-      {expanded && (
-        <div className="space-y-3 pt-2 animate-in fade-in-0 slide-in-from-top-2 duration-200">
-          {/* Risk Factors */}
-          {riskFactors.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Risk Factors</h4>
-              {riskFactors.map((factor, i) => (
-                <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-background/50">
-                  <div className={cn(
-                    "w-6 h-6 rounded-lg flex items-center justify-center mt-0.5",
-                    factor.impact > 0.3 ? "bg-severity-severe/10 text-severity-severe" :
-                    factor.impact > 0.2 ? "bg-severity-moderate/10 text-severity-moderate" :
-                    "bg-yellow-500/10 text-yellow-600"
+        {/* Prediction */}
+        <p className="text-base mb-4">{forecast.prediction}</p>
+
+        {/* Risk Factors (Collapsed) */}
+        {riskFactors.length > 0 && (
+          <button 
+            onClick={() => setExpanded(!expanded)}
+            className={cn(
+              "w-full p-3 rounded-2xl transition-all",
+              "bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm",
+              "border border-white/40 dark:border-slate-700/40",
+              "hover:bg-white/70"
+            )}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-base text-muted-foreground">
+                  {riskFactors.length} risk factor{riskFactors.length > 1 ? "s" : ""}
+                  {protectiveCount > 0 && ` • ${protectiveCount} protective`}
+                </span>
+              </div>
+              <ChevronRight className={cn(
+                "w-5 h-5 text-muted-foreground transition-transform",
+                expanded && "rotate-90"
+              )} />
+            </div>
+          </button>
+        )}
+
+        {/* Expanded Details */}
+        {expanded && (
+          <div className="space-y-4 pt-4 animate-in fade-in-0 slide-in-from-top-2 duration-200">
+            {/* Risk Factors */}
+            {riskFactors.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-base font-semibold text-muted-foreground">Risk Factors</h4>
+                {riskFactors.map((factor, i) => (
+                  <div key={i} className={cn(
+                    "flex items-start gap-3 p-3 rounded-2xl",
+                    "bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm",
+                    "border border-white/40 dark:border-slate-700/40"
                   )}>
-                    {getCategoryIcon(factor.category)}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-xs font-medium">{factor.factor}</p>
-                    <p className="text-[10px] text-muted-foreground">{factor.evidence}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Protective Factors */}
-          {forecast.protectiveFactors.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Working in Your Favor</h4>
-              {forecast.protectiveFactors.map((factor, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs">
-                  <CheckCircle2 className="w-4 h-4 text-severity-none" />
-                  <span>{factor}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Recommendations */}
-          {forecast.recommendations.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recommendations</h4>
-              <div className="space-y-1">
-                {forecast.recommendations.map((rec, i) => (
-                  <div key={i} className="flex items-start gap-2 text-xs">
-                    <Sparkles className="w-3 h-3 text-primary mt-0.5" />
-                    <span>{rec}</span>
+                    <div className={cn(
+                      "w-8 h-8 rounded-xl flex items-center justify-center mt-0.5",
+                      factor.impact > 0.3 ? "bg-red-500/15 text-red-600" :
+                      factor.impact > 0.2 ? "bg-orange-500/15 text-orange-600" :
+                      "bg-yellow-500/15 text-yellow-600"
+                    )}>
+                      {getCategoryIcon(factor.category)}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-base font-medium">{factor.factor}</p>
+                      <p className="text-sm text-muted-foreground">{factor.evidence}</p>
+                    </div>
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-        </div>
-      )}
-    </Card>
+            )}
+
+            {/* Protective Factors */}
+            {forecast.protectiveFactors.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-base font-semibold text-muted-foreground">Working in Your Favor</h4>
+                {forecast.protectiveFactors.map((factor, i) => (
+                  <div key={i} className="flex items-center gap-3 text-base">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                    <span>{factor}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Recommendations */}
+            {forecast.recommendations.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-base font-semibold text-muted-foreground">Recommendations</h4>
+                <div className="space-y-2">
+                  {forecast.recommendations.map((rec, i) => (
+                    <div key={i} className="flex items-start gap-3 text-base">
+                      <Sparkles className="w-5 h-5 text-primary mt-0.5" />
+                      <span>{rec}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
 };

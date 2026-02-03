@@ -1,581 +1,504 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import jvalaLogo from "@/assets/jvala-logo.png";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { 
   ArrowLeft, User, Activity, FileText, Download, Share2,
-  TrendingUp, TrendingDown, AlertTriangle, Heart, Moon,
-  Pill, BarChart3, LineChart as LineChartIcon, Brain,
-  Send, Bell, MessageSquare, Stethoscope, Zap, Droplets,
-  ThermometerSun, ChevronRight, ExternalLink
+  AlertTriangle, Heart, Moon, Pill, ChevronRight, 
+  Search, Bell, Settings, ExternalLink, Plus, 
+  Stethoscope, TrendingUp, TrendingDown, Zap
 } from "lucide-react";
 import { 
   generateMockWearableData, 
-  generateMockFlareHistory,
   DEMO_PATIENT
 } from "@/services/mockWearableData";
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  AreaChart, Area, PieChart, Pie, Cell
+  LineChart, Line, XAxis, YAxis, ResponsiveContainer,
+  AreaChart, Area
 } from "recharts";
 import { format, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
+// Frosted glass card component matching reference
+const GlassCard = ({ 
+  children, 
+  className = "", 
+  onClick,
+  hasArrow = false
+}: { 
+  children: React.ReactNode; 
+  className?: string;
+  onClick?: () => void;
+  hasArrow?: boolean;
+}) => (
+  <div 
+    onClick={onClick}
+    className={cn(
+      "relative rounded-3xl p-5 overflow-hidden transition-all duration-300",
+      // Frosted glass effect
+      "bg-white/70 dark:bg-slate-900/70",
+      "backdrop-blur-xl",
+      "border border-white/50 dark:border-slate-700/50",
+      // Inner highlight
+      "before:absolute before:inset-0 before:rounded-3xl",
+      "before:bg-gradient-to-br before:from-white/40 before:to-transparent before:pointer-events-none",
+      // Subtle shadow
+      "shadow-[0_8px_32px_rgba(0,0,0,0.06)]",
+      onClick && "cursor-pointer hover:scale-[1.02] active:scale-[0.98]",
+      className
+    )}
+  >
+    <div className="relative z-10">{children}</div>
+    {hasArrow && (
+      <button className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center shadow-lg hover:scale-105 transition-transform">
+        <ExternalLink className="w-4 h-4" />
+      </button>
+    )}
+  </div>
+);
+
+// Icon button matching reference
+const IconButton = ({ icon: Icon, className = "" }: { icon: any; className?: string }) => (
+  <div className={cn(
+    "w-10 h-10 rounded-2xl flex items-center justify-center",
+    "bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm",
+    "border border-white/60 dark:border-slate-700/60",
+    "shadow-[0_4px_12px_rgba(0,0,0,0.05)]",
+    className
+  )}>
+    <Icon className="w-5 h-5 text-foreground/70" />
+  </div>
+);
+
 const ClinicianDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('overview');
-  const [showMessageDialog, setShowMessageDialog] = useState(false);
-  const [showAlertDialog, setShowAlertDialog] = useState(false);
-  const [messageContent, setMessageContent] = useState('');
+  const [activeTab, setActiveTab] = useState('Overview');
   
   const wearableData = generateMockWearableData('flare-warning');
   const patient = DEMO_PATIENT;
 
-  // Trend data
-  const trendData = Array.from({ length: 14 }, (_, i) => {
-    const date = subDays(new Date(), 13 - i);
-    const variant = i < 5 ? 'healthy' : i < 10 ? 'flare-warning' : 'flare-active';
-    const data = generateMockWearableData(variant as any);
-    return {
-      date: format(date, 'MMM d'),
-      hrv: data.heartRateVariability + Math.random() * 5 - 2.5,
-      restingHR: data.restingHeartRate + Math.random() * 3 - 1.5,
-      sleep: data.sleepHours + Math.random() * 0.5 - 0.25,
-    };
-  });
+  // Trend data for charts
+  const trendData = Array.from({ length: 14 }, (_, i) => ({
+    date: format(subDays(new Date(), 13 - i), 'MMM d'),
+    value: 30 + Math.sin(i * 0.5) * 15 + Math.random() * 5,
+  }));
 
-  const severityData = [
-    { name: 'Mild', value: 3, color: '#3b82f6' },
-    { name: 'Moderate', value: 4, color: '#f59e0b' },
-    { name: 'Severe', value: 2, color: '#ef4444' },
+  const oxygenData = Array.from({ length: 20 }, (_, i) => ({
+    x: i,
+    value: 95 + Math.sin(i * 0.3) * 3,
+  }));
+
+  const tabs = ['Overview', 'Notes', 'Documents', 'Labs', 'Imaging'];
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(`https://jvala.health/shared/${Date.now().toString(36)}`);
+    toast({ title: "Link Copied", description: "Secure access link copied" });
+  };
+
+  // Body systems data matching the reference
+  const bodySystems = [
+    {
+      name: 'Blood Circulatory',
+      instances: 2,
+      color: 'bg-blue-500',
+      conditions: ['Coronary Artery Disease', 'Nodal Tachycardia'],
+      markers: 19,
+    },
+    {
+      name: 'Nervous',
+      instances: 3,
+      color: 'bg-slate-700',
+      conditions: ['Vascular Aneurysm', 'Atherosclerosis', 'Transient Amnesia'],
+    },
+    {
+      name: 'Respiratory',
+      instances: 2,
+      color: 'bg-slate-500',
+      conditions: ['Bronchial Asthma'],
+    },
   ];
 
-  const handleSendMessage = () => {
-    toast({ title: "Message Sent", description: `Secure message sent to ${patient.name}` });
-    setShowMessageDialog(false);
-    setMessageContent('');
-  };
-
-  const handleSendAlert = () => {
-    toast({ title: "Alert Sent", description: `Proactive flare warning sent to ${patient.name}` });
-    setShowAlertDialog(false);
-  };
-
-  const handleShareReport = () => {
-    navigator.clipboard.writeText(`https://jvala.health/shared-report/${Date.now().toString(36)}`);
-    toast({ title: "Share Link Copied", description: "Secure 7-day access link copied to clipboard" });
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50">
-        <div className="container max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => navigate('/')}
-                className="rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
-                  <Stethoscope className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold">Clinician Portal</h1>
-                  <p className="text-sm text-muted-foreground">Patient Health Intelligence</p>
-                </div>
-              </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-white dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      {/* Navigation Header */}
+      <header className="sticky top-0 z-50 px-6 py-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => navigate('/')}
+              className="rounded-2xl hover:bg-white/50"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <span className="text-2xl font-bold tracking-tight">Ehr.</span>
+          </div>
+          
+          {/* Search & Tabs */}
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search" 
+                className="pl-10 w-48 rounded-2xl bg-white/60 border-white/50 backdrop-blur-sm"
+              />
             </div>
-            <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" className="gap-2 rounded-xl" onClick={handleShareReport}>
-                <Share2 className="w-4 h-4" />
-                Share
-              </Button>
-              <Button size="sm" className="gap-2 rounded-xl">
-                <Download className="w-4 h-4" />
-                Export
-              </Button>
+            
+            <div className="flex bg-white/60 backdrop-blur-sm rounded-2xl p-1 border border-white/50">
+              {tabs.map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-sm font-medium transition-all",
+                    activeTab === tab 
+                      ? "bg-slate-900 text-white" 
+                      : "text-slate-600 hover:text-slate-900"
+                  )}
+                >
+                  {tab}
+                </button>
+              ))}
             </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" className="rounded-2xl">
+              <Bell className="w-5 h-5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="rounded-2xl">
+              <Settings className="w-5 h-5" />
+            </Button>
           </div>
         </div>
       </header>
 
-      {/* Patient Card */}
-      <div className="container max-w-7xl mx-auto px-6 py-6">
-        <Card className="p-6 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border-slate-200/50 dark:border-slate-800/50 rounded-3xl mb-6">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-5">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
-                <User className="w-10 h-10 text-blue-600" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold">{patient.name}</h2>
-                <p className="text-base text-muted-foreground">
-                  {patient.age} y/o • {patient.gender} • DOB: {patient.dateOfBirth}
-                </p>
-                <div className="flex items-center gap-2 mt-2">
-                  {patient.conditions.map((condition, i) => (
-                    <Badge key={i} variant="secondary" className="rounded-lg px-3 py-1">{condition}</Badge>
-                  ))}
+      <div className="max-w-7xl mx-auto px-6 pb-12">
+        <div className="grid grid-cols-12 gap-5">
+          
+          {/* Left Column - Patient Info */}
+          <div className="col-span-3 space-y-5">
+            {/* Patient Card */}
+            <GlassCard hasArrow>
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-200 to-orange-300 flex items-center justify-center overflow-hidden">
+                  <User className="w-8 h-8 text-amber-800" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold">{patient.name}</h3>
+                  <p className="text-sm text-muted-foreground">{patient.age} years old</p>
                 </div>
               </div>
-            </div>
-            
-            {/* Key Metrics */}
-            <div className="flex items-center gap-8">
-              <div className="text-center">
-                <div className="text-4xl font-bold text-amber-600">65</div>
-                <p className="text-sm text-muted-foreground">Health Score</p>
-              </div>
-              <div className="text-center">
-                <div className="text-4xl font-bold text-red-600">8</div>
-                <p className="text-sm text-muted-foreground">Flares (30d)</p>
-              </div>
-              <div className="text-center">
-                <div className="text-4xl font-bold text-blue-600">28</div>
-                <p className="text-sm text-muted-foreground">HRV (ms)</p>
-              </div>
-            </div>
-          </div>
-        </Card>
+            </GlassCard>
 
-        {/* Risk Alert */}
-        <Card className="p-5 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-amber-500/20 rounded-2xl mb-6">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
-              <AlertTriangle className="w-6 h-6 text-amber-600" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-amber-900 dark:text-amber-200">Elevated Flare Risk Detected</h3>
-              <p className="text-base text-amber-800 dark:text-amber-300 mt-1">
-                HRV dropped 28% below baseline over 3 days. Historical patterns suggest 72% flare probability within 48 hours.
-              </p>
-              <div className="flex gap-3 mt-4">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="rounded-xl border-amber-500/30 text-amber-700 hover:bg-amber-500/10"
-                  onClick={() => setShowMessageDialog(true)}
-                >
-                  <MessageSquare className="w-4 h-4 mr-2" />
-                  Message Patient
-                </Button>
-                <Button 
-                  size="sm" 
-                  className="rounded-xl bg-amber-600 hover:bg-amber-700"
-                  onClick={() => setShowAlertDialog(true)}
-                >
-                  <Bell className="w-4 h-4 mr-2" />
-                  Send Alert
-                </Button>
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* Bento Grid Layout */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200/50 dark:border-slate-800/50 p-1.5 rounded-2xl mb-6">
-            <TabsTrigger value="overview" className="gap-2 rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800">
-              <BarChart3 className="w-4 h-4" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="vitals" className="gap-2 rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800">
-              <Activity className="w-4 h-4" />
-              Vitals
-            </TabsTrigger>
-            <TabsTrigger value="trends" className="gap-2 rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800">
-              <LineChartIcon className="w-4 h-4" />
-              Trends
-            </TabsTrigger>
-            <TabsTrigger value="ai" className="gap-2 rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-800">
-              <Brain className="w-4 h-4" />
-              AI Insights
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Overview Tab - Bento Grid */}
-          <TabsContent value="overview" className="mt-0">
-            <div className="grid grid-cols-12 gap-4">
-              {/* HRV Chart - Large */}
-              <Card className="col-span-8 p-6 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border-slate-200/50 dark:border-slate-800/50 rounded-3xl">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                      <Activity className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-semibold">HRV Trend (14 days)</h3>
-                      <p className="text-sm text-muted-foreground">Heart Rate Variability</p>
-                    </div>
+            {/* Allergies Card */}
+            <GlassCard>
+              <div className="flex items-start gap-3">
+                <IconButton icon={Settings} />
+                <div>
+                  <h4 className="font-semibold text-base">Allergies</h4>
+                  <div className="mt-2 space-y-1">
+                    <p className="text-sm text-muted-foreground">Penicillin, IV contrast</p>
+                    <p className="text-sm text-muted-foreground">Dye</p>
                   </div>
-                  <Badge variant="outline" className="text-red-600 border-red-200">
-                    <TrendingDown className="w-3 h-3 mr-1" />
-                    -28%
-                  </Badge>
                 </div>
-                <div className="h-64">
+              </div>
+            </GlassCard>
+
+            {/* Care Plan Card */}
+            <GlassCard>
+              <div className="flex items-start gap-3">
+                <IconButton icon={FileText} />
+                <div>
+                  <h4 className="font-semibold text-base">Care Plan</h4>
+                  <p className="text-sm text-muted-foreground mt-1">ED care plan</p>
+                </div>
+              </div>
+            </GlassCard>
+
+            {/* Vital Signs Card - Large */}
+            <GlassCard hasArrow className="!p-0 overflow-hidden">
+              <div className="p-5 pb-2">
+                <div className="flex items-center gap-3">
+                  <IconButton icon={Activity} />
+                  <div>
+                    <h4 className="font-semibold text-base">Vital Signs</h4>
+                    <p className="text-sm text-muted-foreground">CA Disease</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Erythrocytes Chart */}
+              <div className="px-5 pt-4">
+                <div className="flex items-end gap-3">
+                  <div>
+                    <span className="text-sm text-muted-foreground">Erythrocytes</span>
+                    <p className="text-2xl font-bold">8.20</p>
+                    <span className="text-xs text-muted-foreground">Bil/l</span>
+                  </div>
+                </div>
+                <div className="h-20 mt-2">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={trendData}>
-                      <defs>
-                        <linearGradient id="hrvGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                      <YAxis tick={{ fontSize: 12 }} domain={[20, 60]} />
-                      <Tooltip 
-                        contentStyle={{ 
-                          fontSize: 14, 
-                          borderRadius: 12,
-                          border: '1px solid #e2e8f0',
-                          boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
-                        }} 
+                    <LineChart data={trendData}>
+                      <Line 
+                        type="monotone" 
+                        dataKey="value" 
+                        stroke="#3b82f6" 
+                        strokeWidth={2}
+                        dot={false}
                       />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Oxygen Chart - with hatch pattern effect */}
+              <div className="px-5 py-4 border-t border-slate-200/50">
+                <span className="text-sm text-muted-foreground">Oxygen</span>
+                <div className="flex items-end gap-3">
+                  <p className="text-2xl font-bold">90</p>
+                  <span className="text-xs text-muted-foreground">%</span>
+                </div>
+                <div className="h-16 mt-2 relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={oxygenData}>
+                      <defs>
+                        <pattern id="hatch" patternUnits="userSpaceOnUse" width="4" height="4">
+                          <path d="M-1,1 l2,-2 M0,4 l4,-4 M3,5 l2,-2" stroke="#94a3b8" strokeWidth="1"/>
+                        </pattern>
+                      </defs>
                       <Area 
                         type="monotone" 
-                        dataKey="hrv" 
-                        stroke="#3b82f6" 
-                        fill="url(#hrvGradient)"
-                        strokeWidth={3}
+                        dataKey="value" 
+                        fill="url(#hatch)"
+                        stroke="#94a3b8"
+                        strokeWidth={2}
                       />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
-              </Card>
-
-              {/* Severity Distribution - Small */}
-              <Card className="col-span-4 p-6 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border-slate-200/50 dark:border-slate-800/50 rounded-3xl">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                    <AlertTriangle className="w-5 h-5 text-orange-600" />
-                  </div>
-                  <h3 className="text-base font-semibold">Severity Split</h3>
-                </div>
-                <div className="h-48">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={severityData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={75}
-                        dataKey="value"
-                        label={({ name, value }) => `${name}: ${value}`}
-                        labelLine={false}
-                      >
-                        {severityData.map((entry, index) => (
-                          <Cell key={index} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-
-              {/* Vital Signs Grid */}
-              <Card className="col-span-3 p-5 bg-gradient-to-br from-red-500/5 to-red-500/10 border-red-500/20 rounded-2xl">
-                <div className="flex items-center gap-2 mb-3">
-                  <Heart className="w-5 h-5 text-red-500" />
-                  <span className="text-sm text-muted-foreground">Heart Rate</span>
-                </div>
-                <p className="text-3xl font-bold">{wearableData.restingHeartRate}</p>
-                <p className="text-sm text-muted-foreground">bpm</p>
-              </Card>
-
-              <Card className="col-span-3 p-5 bg-gradient-to-br from-purple-500/5 to-purple-500/10 border-purple-500/20 rounded-2xl">
-                <div className="flex items-center gap-2 mb-3">
-                  <Moon className="w-5 h-5 text-purple-500" />
-                  <span className="text-sm text-muted-foreground">Sleep</span>
-                </div>
-                <p className="text-3xl font-bold">{wearableData.sleepHours}</p>
-                <p className="text-sm text-muted-foreground">hours</p>
-              </Card>
-
-              <Card className="col-span-3 p-5 bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 border-emerald-500/20 rounded-2xl">
-                <div className="flex items-center gap-2 mb-3">
-                  <Zap className="w-5 h-5 text-emerald-500" />
-                  <span className="text-sm text-muted-foreground">Steps</span>
-                </div>
-                <p className="text-3xl font-bold">{wearableData.steps.toLocaleString()}</p>
-                <p className="text-sm text-muted-foreground">today</p>
-              </Card>
-
-              <Card className="col-span-3 p-5 bg-gradient-to-br from-blue-500/5 to-blue-500/10 border-blue-500/20 rounded-2xl">
-                <div className="flex items-center gap-2 mb-3">
-                  <Droplets className="w-5 h-5 text-blue-500" />
-                  <span className="text-sm text-muted-foreground">SpO2</span>
-                </div>
-                <p className="text-3xl font-bold">{wearableData.spo2}%</p>
-                <p className="text-sm text-muted-foreground">oxygen</p>
-              </Card>
-
-              {/* Medications */}
-              <Card className="col-span-6 p-5 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border-slate-200/50 dark:border-slate-800/50 rounded-2xl">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-pink-500/10 flex items-center justify-center">
-                      <Pill className="w-5 h-5 text-pink-600" />
-                    </div>
-                    <h3 className="text-base font-semibold">Current Medications</h3>
-                  </div>
-                  <Button variant="ghost" size="sm" className="rounded-lg">
-                    View All <ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </div>
-                <div className="space-y-2">
-                  {[
-                    { name: 'Methotrexate', dosage: '15mg', frequency: 'Weekly' },
-                    { name: 'Hydroxychloroquine', dosage: '200mg', frequency: 'Daily' },
-                    { name: 'Folic Acid', dosage: '1mg', frequency: 'Daily' },
-                  ].map((med, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-pink-500/10 flex items-center justify-center text-lg">
-                          💊
-                        </div>
-                        <div>
-                          <p className="font-medium">{med.name}</p>
-                          <p className="text-sm text-muted-foreground">{med.dosage}</p>
-                        </div>
-                      </div>
-                      <Badge variant="outline">{med.frequency}</Badge>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-
-              {/* Top Triggers */}
-              <Card className="col-span-6 p-5 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border-slate-200/50 dark:border-slate-800/50 rounded-2xl">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                    <TrendingUp className="w-5 h-5 text-orange-600" />
-                  </div>
-                  <h3 className="text-base font-semibold">Top Triggers (30 days)</h3>
-                </div>
-                <div className="space-y-3">
-                  {[
-                    { trigger: 'Poor Sleep', count: 6, pct: 100 },
-                    { trigger: 'Weather Changes', count: 4, pct: 67 },
-                    { trigger: 'Stress', count: 4, pct: 67 },
-                    { trigger: 'Missed Medication', count: 2, pct: 33 },
-                  ].map((item, i) => (
-                    <div key={i} className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span>{item.trigger}</span>
-                        <span className="text-muted-foreground">{item.count}x</span>
-                      </div>
-                      <div className="h-2 bg-muted rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-orange-500 to-amber-500 rounded-full transition-all"
-                          style={{ width: `${item.pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Vitals Tab */}
-          <TabsContent value="vitals" className="mt-0">
-            <div className="grid grid-cols-3 gap-4">
-              <Card className="p-6 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-3xl">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center">
-                    <Heart className="w-6 h-6 text-red-500" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold">Heart Rate</h3>
-                    <p className="text-sm text-muted-foreground">Current reading</p>
-                  </div>
-                </div>
-                <p className="text-5xl font-bold mb-2">{wearableData.restingHeartRate}</p>
-                <p className="text-lg text-muted-foreground">bpm</p>
-                <div className="mt-4 pt-4 border-t">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Resting avg</span>
-                    <span className="font-medium">62 bpm</span>
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="p-6 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-3xl">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                    <Activity className="w-6 h-6 text-blue-500" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold">HRV</h3>
-                    <p className="text-sm text-muted-foreground">Heart Rate Variability</p>
-                  </div>
-                </div>
-                <p className="text-5xl font-bold mb-2">{wearableData.heartRateVariability}</p>
-                <p className="text-lg text-muted-foreground">ms</p>
-                <div className="mt-4 pt-4 border-t">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Baseline</span>
-                    <span className="font-medium text-red-500">↓ 28%</span>
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="p-6 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-3xl">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                    <Moon className="w-6 h-6 text-purple-500" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold">Sleep</h3>
-                    <p className="text-sm text-muted-foreground">Last night</p>
-                  </div>
-                </div>
-                <p className="text-5xl font-bold mb-2">{wearableData.sleepHours}</p>
-                <p className="text-lg text-muted-foreground">hours</p>
-                <div className="mt-4 pt-4 border-t">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Quality</span>
-                    <span className="font-medium">Poor (68%)</span>
-                  </div>
-                </div>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* Trends Tab */}
-          <TabsContent value="trends" className="mt-0">
-            <Card className="p-6 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-3xl">
-              <h3 className="text-lg font-semibold mb-6">14-Day Trend Analysis</h3>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={trendData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        fontSize: 14, 
-                        borderRadius: 12,
-                        border: '1px solid #e2e8f0'
-                      }} 
-                    />
-                    <Line type="monotone" dataKey="hrv" stroke="#3b82f6" strokeWidth={2} dot={false} name="HRV" />
-                    <Line type="monotone" dataKey="restingHR" stroke="#ef4444" strokeWidth={2} dot={false} name="Heart Rate" />
-                    <Line type="monotone" dataKey="sleep" stroke="#8b5cf6" strokeWidth={2} dot={false} name="Sleep Hours" />
-                  </LineChart>
-                </ResponsiveContainer>
               </div>
-            </Card>
-          </TabsContent>
+            </GlassCard>
 
-          {/* AI Insights Tab */}
-          <TabsContent value="ai" className="mt-0">
-            <div className="grid grid-cols-2 gap-4">
-              <Card className="p-6 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 rounded-3xl">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-                    <Brain className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold">AI Pattern Analysis</h3>
-                    <p className="text-sm text-muted-foreground">Based on 30-day data</p>
-                  </div>
+            {/* Records Card */}
+            <GlassCard hasArrow>
+              <div className="flex items-center gap-3 mb-4">
+                <IconButton icon={FileText} />
+                <div>
+                  <h4 className="font-semibold text-base">Records</h4>
+                  <p className="text-sm text-muted-foreground">CA Disease</p>
                 </div>
-                <div className="space-y-4">
-                  <div className="p-4 rounded-xl bg-background/50">
-                    <p className="text-sm font-medium mb-1">Primary Finding</p>
-                    <p className="text-base">Strong correlation between sleep quality drops and flare onset within 48 hours</p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-2xl bg-white/50 dark:bg-slate-800/50">
+                  <div className="flex items-center gap-2 mb-1">
+                    <FileText className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-lg font-bold">2.01</span>
                   </div>
-                  <div className="p-4 rounded-xl bg-background/50">
-                    <p className="text-sm font-medium mb-1">Risk Assessment</p>
-                    <p className="text-base">Current HRV trajectory suggests 72% probability of flare within next 48 hours</p>
-                  </div>
+                  <p className="text-xs text-muted-foreground">Acute CAD</p>
+                  <p className="text-xs text-muted-foreground">Hospitalization</p>
                 </div>
-              </Card>
+                <div className="p-3 rounded-2xl bg-white/50 dark:bg-slate-800/50">
+                  <div className="flex items-center gap-2 mb-1">
+                    <FileText className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-lg font-bold">14.01</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">MRI</p>
+                  <p className="text-xs text-muted-foreground">Cardiologist</p>
+                </div>
+              </div>
+            </GlassCard>
+          </div>
 
-              <Card className="p-6 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-3xl">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                    <ThermometerSun className="w-6 h-6 text-emerald-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold">Recommendations</h3>
-                    <p className="text-sm text-muted-foreground">Personalized suggestions</p>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  {[
-                    "Prioritize 8+ hours of sleep tonight",
-                    "Consider stress-reduction activities",
-                    "Increase hydration by 20%",
-                    "Avoid known food triggers for 48h"
-                  ].map((rec, i) => (
-                    <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-muted/50">
-                      <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                        <span className="text-xs font-bold text-emerald-600">{i + 1}</span>
-                      </div>
-                      <p className="text-sm">{rec}</p>
-                    </div>
-                  ))}
-                </div>
-              </Card>
+          {/* Center Column - Overview Patient Health */}
+          <div className="col-span-5 space-y-5">
+            <div className="pt-4">
+              <h1 className="text-4xl font-bold tracking-tight">Overview</h1>
+              <h2 className="text-4xl font-bold tracking-tight text-muted-foreground">Patient Health</h2>
             </div>
-          </TabsContent>
-        </Tabs>
+
+            {/* Main Health Card - Blue gradient like reference */}
+            <div className="relative">
+              {/* Blue gradient card */}
+              <div className="rounded-3xl p-6 bg-gradient-to-br from-blue-500 to-blue-600 text-white relative overflow-hidden">
+                {/* Decorative circles */}
+                <div className="absolute -right-10 -bottom-10 w-40 h-40 rounded-full bg-white/10" />
+                <div className="absolute right-20 bottom-5 w-20 h-20 rounded-full bg-white/10" />
+                
+                <Badge className="bg-green-400 text-green-900 mb-3 text-xs">
+                  2 instances
+                </Badge>
+                
+                <h3 className="text-3xl font-bold mb-1">Blood</h3>
+                <h3 className="text-3xl font-bold">Circulatory</h3>
+                
+                {/* 3D Heart illustration placeholder */}
+                <div className="absolute right-4 top-8 w-28 h-28 rounded-2xl bg-gradient-to-br from-pink-300 to-red-400 flex items-center justify-center shadow-2xl rotate-12">
+                  <Heart className="w-16 h-16 text-white" />
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex gap-3 mt-6">
+                  <button className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 transition-colors">
+                    <Plus className="w-5 h-5" />
+                  </button>
+                  <button className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 transition-colors">
+                    <FileText className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Overlapping dark card */}
+              <div className="absolute -right-4 top-6 w-48 rounded-2xl p-4 bg-slate-900 text-white shadow-2xl">
+                <Badge className="bg-amber-500/20 text-amber-300 mb-2 text-[10px]">
+                  Recession period
+                </Badge>
+                <h4 className="text-lg font-bold">Coronary Artery</h4>
+                <h4 className="text-lg font-bold">Disease</h4>
+                <p className="text-sm text-slate-400 mt-1">19 markers</p>
+                <button className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-white text-slate-900 flex items-center justify-center">
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Body Systems List */}
+            <div className="space-y-4 mt-16">
+              {/* Nervous System */}
+              <GlassCard className="!bg-white/50">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Badge variant="outline" className="mb-2 text-xs">3 instances</Badge>
+                    <h4 className="text-xl font-bold">Nervous</h4>
+                  </div>
+                  <div className="text-right space-y-1">
+                    <p className="text-sm text-muted-foreground">Vascular Aneurysm</p>
+                    <p className="text-sm text-muted-foreground">Atherosclerosis</p>
+                    <p className="text-sm text-muted-foreground">Transient Amnesia</p>
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-4">
+                  <button className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-md hover:scale-105 transition-transform">
+                    <Plus className="w-4 h-4" />
+                  </button>
+                  <button className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-md hover:scale-105 transition-transform">
+                    <FileText className="w-4 h-4" />
+                  </button>
+                </div>
+              </GlassCard>
+
+              {/* Respiratory System */}
+              <GlassCard className="!bg-white/50">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Badge variant="outline" className="mb-2 text-xs">2 instances</Badge>
+                    <h4 className="text-xl font-bold">Respiratory</h4>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground">Bronchial Asthma</p>
+                  </div>
+                </div>
+              </GlassCard>
+            </div>
+          </div>
+
+          {/* Right Column - Network Graph / Connections */}
+          <div className="col-span-4 relative">
+            {/* Decorative connection lines and nodes */}
+            <div className="absolute inset-0 overflow-hidden">
+              {/* SVG connection lines */}
+              <svg className="w-full h-full" viewBox="0 0 400 600" fill="none">
+                {/* Main branching lines */}
+                <path 
+                  d="M 0 150 Q 100 150 150 120 T 250 80" 
+                  stroke="#3b82f6" 
+                  strokeWidth="2" 
+                  fill="none"
+                  opacity="0.4"
+                />
+                <path 
+                  d="M 0 200 Q 80 200 120 180 T 200 150" 
+                  stroke="#3b82f6" 
+                  strokeWidth="2" 
+                  fill="none"
+                  opacity="0.3"
+                />
+                <path 
+                  d="M 0 280 Q 100 280 180 240 T 300 200" 
+                  stroke="#3b82f6" 
+                  strokeWidth="2" 
+                  fill="none"
+                  opacity="0.4"
+                />
+                <path 
+                  d="M 0 350 Q 120 350 200 320 T 350 280" 
+                  stroke="#3b82f6" 
+                  strokeWidth="2" 
+                  fill="none"
+                  opacity="0.3"
+                />
+              </svg>
+
+              {/* Blue node circles */}
+              <div className="absolute right-8 top-16 flex gap-2">
+                <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center shadow-lg">
+                  <FileText className="w-5 h-5 text-white" />
+                </div>
+                <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center shadow-lg">
+                  <Activity className="w-5 h-5 text-white" />
+                </div>
+                <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center shadow-lg">
+                  <FileText className="w-5 h-5 text-white" />
+                </div>
+              </div>
+
+              <div className="absolute right-4 top-40 flex gap-2">
+                <div className="w-10 h-10 rounded-full bg-blue-500/80 flex items-center justify-center shadow-lg">
+                  <Activity className="w-4 h-4 text-white" />
+                </div>
+                <div className="w-10 h-10 rounded-full bg-blue-500/80 flex items-center justify-center shadow-lg">
+                  <FileText className="w-4 h-4 text-white" />
+                </div>
+              </div>
+
+              <div className="absolute right-12 top-64 flex gap-2">
+                <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center shadow-lg">
+                  <FileText className="w-5 h-5 text-white" />
+                </div>
+                <div className="w-10 h-10 rounded-full bg-blue-400 flex items-center justify-center shadow-lg">
+                  <Activity className="w-4 h-4 text-white" />
+                </div>
+              </div>
+
+              <div className="absolute right-6 top-96 flex gap-2">
+                <div className="w-11 h-11 rounded-full bg-blue-500 flex items-center justify-center shadow-lg">
+                  <FileText className="w-5 h-5 text-white" />
+                </div>
+                <div className="w-11 h-11 rounded-full bg-blue-500/70 flex items-center justify-center shadow-lg">
+                  <Activity className="w-5 h-5 text-white" />
+                </div>
+              </div>
+
+              {/* Decorative dots pattern */}
+              <div className="absolute right-40 top-80 grid grid-cols-4 gap-3 opacity-20">
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <div key={i} className="w-2 h-2 rounded-full bg-slate-400" />
+                ))}
+              </div>
+            </div>
+
+            {/* "Nodal Tachycardia" floating label */}
+            <div className="absolute right-20 top-48 px-4 py-2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-full shadow-lg">
+              <span className="text-sm font-medium">Nodal Tachycardia</span>
+            </div>
+          </div>
+        </div>
       </div>
-
-      {/* Message Dialog */}
-      <Dialog open={showMessageDialog} onOpenChange={setShowMessageDialog}>
-        <DialogContent className="rounded-2xl">
-          <DialogHeader>
-            <DialogTitle>Message {patient.name}</DialogTitle>
-          </DialogHeader>
-          <Textarea
-            placeholder="Type your message..."
-            value={messageContent}
-            onChange={(e) => setMessageContent(e.target.value)}
-            className="min-h-32"
-          />
-          <Button onClick={handleSendMessage} className="w-full gap-2">
-            <Send className="w-4 h-4" />
-            Send Message
-          </Button>
-        </DialogContent>
-      </Dialog>
-
-      {/* Alert Dialog */}
-      <Dialog open={showAlertDialog} onOpenChange={setShowAlertDialog}>
-        <DialogContent className="rounded-2xl">
-          <DialogHeader>
-            <DialogTitle>Send Flare Alert</DialogTitle>
-          </DialogHeader>
-          <p className="text-muted-foreground">
-            This will send a proactive alert to {patient.name} about their elevated flare risk, along with personalized prevention recommendations.
-          </p>
-          <Button onClick={handleSendAlert} className="w-full gap-2 bg-amber-600 hover:bg-amber-700">
-            <Bell className="w-4 h-4" />
-            Send Alert
-          </Button>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
