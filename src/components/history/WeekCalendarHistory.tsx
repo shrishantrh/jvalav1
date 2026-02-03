@@ -6,11 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { 
   ChevronLeft, 
   ChevronRight, 
-  Calendar as CalendarIcon,
-  ChevronDown,
-  ChevronUp
+  Calendar as CalendarIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { haptics } from '@/lib/haptics';
 import { 
   format, 
   startOfWeek, 
@@ -27,7 +26,6 @@ import {
 import { CompactFlareCard } from './CompactFlareCard';
 import { EditFlareDialog } from '@/components/flare/EditFlareDialog';
 import { FollowUpDialog } from '@/components/flare/FollowUpDialog';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface WeekCalendarHistoryProps {
   entries: FlareEntry[];
@@ -75,11 +73,12 @@ export const WeekCalendarHistory = ({
     return entries.filter(e => isSameDay(e.timestamp, day));
   };
 
-  const getSeverityForDay = (day: Date): 'severe' | 'moderate' | 'mild' | null => {
+  const getSeverityForDay = (day: Date): 'severe' | 'moderate' | 'mild' | 'none' | null => {
     const dayEntries = getEntriesForDay(day).filter(e => e.type === 'flare');
     if (dayEntries.some(e => e.severity === 'severe')) return 'severe';
     if (dayEntries.some(e => e.severity === 'moderate')) return 'moderate';
     if (dayEntries.some(e => e.severity === 'mild')) return 'mild';
+    if (dayEntries.some(e => e.severity === 'none')) return 'none';
     if (dayEntries.length > 0) return 'mild';
     return null;
   };
@@ -91,7 +90,13 @@ export const WeekCalendarHistory = ({
       .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   }, [entries, selectedDate]);
 
+  const handleDateSelect = (day: Date) => {
+    haptics.selection();
+    setSelectedDate(day);
+  };
+
   const navigatePrev = () => {
+    haptics.light();
     if (viewMode === 'week') {
       setCurrentDate(prev => subWeeks(prev, 1));
     } else {
@@ -100,6 +105,7 @@ export const WeekCalendarHistory = ({
   };
 
   const navigateNext = () => {
+    haptics.light();
     if (viewMode === 'week') {
       setCurrentDate(prev => addWeeks(prev, 1));
     } else {
@@ -108,51 +114,59 @@ export const WeekCalendarHistory = ({
   };
 
   const goToToday = () => {
+    haptics.light();
     setCurrentDate(new Date());
     setSelectedDate(new Date());
   };
 
+  const toggleViewMode = (mode: 'week' | 'month') => {
+    haptics.selection();
+    setViewMode(mode);
+  };
+
+  const getSeverityDotColor = (severity: string | null) => {
+    switch (severity) {
+      case 'severe': return 'bg-red-500';
+      case 'moderate': return 'bg-orange-500';
+      case 'mild': return 'bg-amber-500';
+      case 'none': return 'bg-emerald-500';
+      default: return '';
+    }
+  };
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={navigatePrev}>
-            <ChevronLeft className="w-4 h-4" />
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl" onClick={navigatePrev}>
+            <ChevronLeft className="w-5 h-5" />
           </Button>
-          <h2 className="text-sm font-semibold min-w-[140px] text-center">
+          <h2 className="text-base font-bold min-w-[160px] text-center">
             {viewMode === 'week' 
-              ? `${format(days[0], 'MMM d')} - ${format(days[days.length - 1], 'MMM d')}`
+              ? `${format(days[0], 'MMM d')} – ${format(days[days.length - 1], 'MMM d')}`
               : format(currentDate, 'MMMM yyyy')
             }
           </h2>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={navigateNext}>
-            <ChevronRight className="w-4 h-4" />
+          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl" onClick={navigateNext}>
+            <ChevronRight className="w-5 h-5" />
           </Button>
         </div>
         
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 bg-muted/50 rounded-xl p-1">
           <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-7 text-xs"
-            onClick={goToToday}
-          >
-            Today
-          </Button>
-          <Button
             variant={viewMode === 'week' ? 'secondary' : 'ghost'}
-            size="sm"
-            className="h-7 text-xs"
-            onClick={() => setViewMode('week')}
+            size="sm" 
+            className="h-8 text-xs rounded-lg px-3"
+            onClick={() => toggleViewMode('week')}
           >
             Week
           </Button>
           <Button
             variant={viewMode === 'month' ? 'secondary' : 'ghost'}
             size="sm"
-            className="h-7 text-xs"
-            onClick={() => setViewMode('month')}
+            className="h-8 text-xs rounded-lg px-3"
+            onClick={() => toggleViewMode('month')}
           >
             Month
           </Button>
@@ -160,11 +174,11 @@ export const WeekCalendarHistory = ({
       </div>
 
       {/* Calendar Grid */}
-      <Card className="p-3 glass-card">
+      <Card className="p-4">
         {/* Day Headers */}
-        <div className="grid grid-cols-7 gap-1 mb-2">
-          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
-            <div key={i} className="text-center text-[10px] font-medium text-muted-foreground py-1">
+        <div className="grid grid-cols-7 gap-1 mb-3">
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, i) => (
+            <div key={i} className="text-center text-xs font-semibold text-muted-foreground py-2">
               {day}
             </div>
           ))}
@@ -172,8 +186,8 @@ export const WeekCalendarHistory = ({
 
         {/* Days Grid */}
         <div className={cn(
-          "grid grid-cols-7 gap-1",
-          viewMode === 'month' && "grid-rows-5"
+          "grid grid-cols-7 gap-1.5",
+          viewMode === 'month' && "gap-y-2"
         )}>
           {days.map((day, i) => {
             const severity = getSeverityForDay(day);
@@ -184,51 +198,77 @@ export const WeekCalendarHistory = ({
             return (
               <button
                 key={i}
-                onClick={() => setSelectedDate(day)}
+                onClick={() => handleDateSelect(day)}
                 className={cn(
-                  "relative aspect-square rounded-lg flex flex-col items-center justify-center transition-all text-xs",
-                  isSelected && "ring-2 ring-primary",
-                  isToday(day) && !isSelected && "ring-1 ring-primary/50",
-                  !isCurrentMonth && "opacity-40",
-                  severity === 'severe' && "bg-red-500/20 text-red-700 dark:text-red-400",
-                  severity === 'moderate' && "bg-amber-500/20 text-amber-700 dark:text-amber-400",
-                  severity === 'mild' && "bg-blue-500/20 text-blue-700 dark:text-blue-400",
-                  !severity && "hover:bg-muted/50"
+                  "relative aspect-square rounded-2xl flex flex-col items-center justify-center transition-all duration-200",
+                  "active:scale-95 touch-manipulation",
+                  isSelected && "bg-primary text-primary-foreground shadow-md",
+                  !isSelected && isToday(day) && "ring-2 ring-primary/50",
+                  !isSelected && !isToday(day) && "hover:bg-muted/50",
+                  !isCurrentMonth && "opacity-30"
                 )}
               >
                 <span className={cn(
-                  "font-medium",
-                  isToday(day) && "text-primary font-bold"
+                  "text-sm font-semibold",
+                  isToday(day) && !isSelected && "text-primary"
                 )}>
                   {format(day, 'd')}
                 </span>
-                {entryCount > 0 && (
-                  <span className="text-[8px] opacity-70">{entryCount}</span>
+                
+                {/* Severity dot indicator */}
+                {severity && !isSelected && (
+                  <div className={cn(
+                    "absolute bottom-1.5 w-1.5 h-1.5 rounded-full",
+                    getSeverityDotColor(severity)
+                  )} />
+                )}
+                
+                {/* Entry count for selected */}
+                {isSelected && entryCount > 0 && (
+                  <span className="text-[10px] opacity-80">{entryCount}</span>
                 )}
               </button>
             );
           })}
         </div>
+
+        {/* Today button */}
+        {!isToday(selectedDate) && (
+          <div className="mt-4 pt-3 border-t border-border/30">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-primary font-semibold"
+              onClick={goToToday}
+            >
+              Jump to Today
+            </Button>
+          </div>
+        )}
       </Card>
 
       {/* Selected Date Header */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold flex items-center gap-2">
-          <CalendarIcon className="w-4 h-4 text-primary" />
-          {isToday(selectedDate) ? 'Today' : format(selectedDate, 'EEEE, MMM d')}
+      <div className="flex items-center justify-between px-1">
+        <h3 className="text-base font-bold flex items-center gap-2">
+          <CalendarIcon className="w-5 h-5 text-primary" />
+          {isToday(selectedDate) ? 'Today' : format(selectedDate, 'EEEE, MMMM d')}
         </h3>
-        <Badge variant="outline" className="text-[10px]">
+        <Badge variant="secondary" className="text-xs font-semibold px-3 py-1">
           {selectedEntries.length} {selectedEntries.length === 1 ? 'entry' : 'entries'}
         </Badge>
       </div>
 
       {/* Entries for Selected Date */}
       {selectedEntries.length === 0 ? (
-        <Card className="p-6 text-center glass-card">
-          <p className="text-sm text-muted-foreground">No entries for this date</p>
+        <Card className="p-8 text-center">
+          <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
+            <CalendarIcon className="w-8 h-8 text-muted-foreground/50" />
+          </div>
+          <p className="text-sm text-muted-foreground font-medium">No entries for this date</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">Tap Log to add one</p>
         </Card>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {selectedEntries.map(entry => (
             <CompactFlareCard
               key={entry.id}

@@ -7,7 +7,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { format } from 'date-fns';
 import { 
   ChevronDown, 
-  ChevronUp, 
   MapPin, 
   Thermometer, 
   Droplets,
@@ -19,11 +18,13 @@ import {
   Trash2,
   MessageSquare,
   MoreHorizontal,
-  Zap,
-  Activity,
-  FileText
+  Smile,
+  Meh,
+  Frown,
+  AlertCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { haptics } from '@/lib/haptics';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,29 +48,38 @@ export const CompactFlareCard = ({
 }: CompactFlareCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const getSeverityColor = (severity?: string) => {
+  const handleToggle = (open: boolean) => {
+    haptics.light();
+    setIsExpanded(open);
+  };
+
+  const getSeverityEmoji = (severity?: string) => {
     switch (severity) {
-      case 'severe': return 'bg-red-500';
-      case 'moderate': return 'bg-amber-500';
-      case 'mild': return 'bg-blue-500';
-      default: return 'bg-muted';
+      case 'severe': return <Frown className="w-5 h-5 text-red-500" />;
+      case 'moderate': return <Meh className="w-5 h-5 text-orange-500" />;
+      case 'mild': return <AlertCircle className="w-5 h-5 text-amber-500" />;
+      case 'none': return <Smile className="w-5 h-5 text-emerald-500" />;
+      default: return <Meh className="w-5 h-5 text-muted-foreground" />;
     }
   };
 
   const getSeverityBg = (severity?: string) => {
     switch (severity) {
-      case 'severe': return 'bg-red-500/10 border-red-500/20';
-      case 'moderate': return 'bg-amber-500/10 border-amber-500/20';
-      case 'mild': return 'bg-blue-500/10 border-blue-500/20';
-      default: return 'bg-muted/50';
+      case 'severe': return 'bg-gradient-to-br from-red-100 to-red-50 dark:from-red-900/30 dark:to-red-900/10';
+      case 'moderate': return 'bg-gradient-to-br from-orange-100 to-orange-50 dark:from-orange-900/30 dark:to-orange-900/10';
+      case 'mild': return 'bg-gradient-to-br from-amber-100 to-amber-50 dark:from-amber-900/30 dark:to-amber-900/10';
+      case 'none': return 'bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-900/30 dark:to-emerald-900/10';
+      default: return 'bg-gradient-to-br from-muted to-muted/50';
     }
   };
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'flare': return <Zap className="w-3.5 h-3.5" />;
-      case 'energy': return <Activity className="w-3.5 h-3.5" />;
-      default: return <FileText className="w-3.5 h-3.5" />;
+  const getSeverityLabel = (severity?: string) => {
+    switch (severity) {
+      case 'severe': return 'Severe';
+      case 'moderate': return 'Moderate';
+      case 'mild': return 'Mild';
+      case 'none': return 'Great';
+      default: return 'Logged';
     }
   };
 
@@ -86,150 +96,113 @@ export const CompactFlareCard = ({
   const sleepHours = phys?.sleepHours || phys?.sleep_hours;
   const steps = phys?.steps;
 
-  const hasData = city || temp || heartRate || sleepHours;
+  const hasData = city || temp || heartRate || sleepHours || entry.symptoms?.length || entry.triggers?.length || entry.note;
 
   return (
-    <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+    <Collapsible open={isExpanded} onOpenChange={handleToggle}>
       <Card className={cn(
-        "overflow-hidden transition-all",
-        isExpanded && "ring-1 ring-primary/20"
+        "overflow-hidden transition-all duration-300 border-2",
+        isExpanded ? "shadow-md border-primary/20" : "border-transparent shadow-sm"
       )}>
-        {/* Compact Header */}
-        <div className="p-3">
-          <div className="flex items-center gap-2.5">
-            {/* Severity Indicator */}
-            <div className={cn(
-              "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
-              entry.type === 'flare' ? getSeverityColor(entry.severity) : 'bg-primary'
-            )}>
-              <span className="text-white">{getTypeIcon(entry.type)}</span>
-            </div>
-
-            {/* Main Info */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="text-sm font-semibold capitalize">{entry.type}</span>
-                {entry.severity && (
-                  <Badge 
-                    variant="outline" 
-                    className={cn(
-                      "text-[9px] capitalize px-1.5 py-0",
-                      entry.severity === 'severe' && "text-red-600 border-red-500/30",
-                      entry.severity === 'moderate' && "text-amber-600 border-amber-500/30",
-                      entry.severity === 'mild' && "text-blue-600 border-blue-500/30"
-                    )}
-                  >
-                    {entry.severity}
-                  </Badge>
-                )}
+        {/* Compact Header - Tappable */}
+        <CollapsibleTrigger className="w-full text-left">
+          <div className="p-4 active:bg-muted/30 transition-colors">
+            <div className="flex items-center gap-4">
+              {/* Severity Emoji Circle */}
+              <div className={cn(
+                "w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm",
+                getSeverityBg(entry.severity)
+              )}>
+                {getSeverityEmoji(entry.severity)}
               </div>
-              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  {format(entry.timestamp, 'h:mm a')}
-                </span>
-                {city && (
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-3 h-3" />
-                    {city}
+
+              {/* Main Info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-base font-bold text-foreground">
+                    {getSeverityLabel(entry.severity)}
                   </span>
+                  {entry.type !== 'flare' && (
+                    <Badge variant="secondary" className="text-[10px] capitalize">
+                      {entry.type}
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5" />
+                    {format(entry.timestamp, 'h:mm a')}
+                  </span>
+                  {city && (
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5" />
+                      {city}
+                    </span>
+                  )}
+                </div>
+                
+                {/* Symptoms Preview */}
+                {entry.symptoms && entry.symptoms.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {entry.symptoms.slice(0, 2).map((s, i) => (
+                      <Badge key={i} variant="outline" className="text-[10px] px-2 py-0.5 bg-muted/50 font-medium">
+                        {s}
+                      </Badge>
+                    ))}
+                    {entry.symptoms.length > 2 && (
+                      <Badge variant="outline" className="text-[10px] px-2 py-0.5 font-medium">
+                        +{entry.symptoms.length - 2}
+                      </Badge>
+                    )}
+                  </div>
                 )}
               </div>
-            </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-0.5">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <MoreHorizontal className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40">
-                  <DropdownMenuItem onClick={() => onEdit?.(entry)} className="text-xs gap-2">
-                    <Edit className="w-3.5 h-3.5" /> Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onFollowUp?.(entry)} className="text-xs gap-2">
-                    <MessageSquare className="w-3.5 h-3.5" /> Follow-up
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    onClick={() => onDelete?.(entry.id)} 
-                    className="text-xs gap-2 text-red-600 focus:text-red-600"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" /> Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              
+              {/* Expand Arrow */}
               {hasData && (
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </Button>
-                </CollapsibleTrigger>
+                <ChevronDown className={cn(
+                  "w-5 h-5 text-muted-foreground transition-transform duration-300 flex-shrink-0",
+                  isExpanded && "rotate-180"
+                )} />
               )}
             </div>
           </div>
-
-          {/* Symptoms Preview */}
-          {entry.symptoms && entry.symptoms.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2 ml-12">
-              {entry.symptoms.slice(0, 3).map((s, i) => (
-                <Badge key={i} variant="secondary" className="text-[9px] px-1.5 py-0 bg-muted/60">
-                  {s}
-                </Badge>
-              ))}
-              {entry.symptoms.length > 3 && (
-                <Badge variant="outline" className="text-[9px] px-1.5 py-0">
-                  +{entry.symptoms.length - 3}
-                </Badge>
-              )}
-            </div>
-          )}
-
-          {/* Note Preview */}
-          {entry.note && !isExpanded && (
-            <p className="text-[10px] text-muted-foreground mt-2 ml-12 line-clamp-1 italic">
-              "{entry.note}"
-            </p>
-          )}
-        </div>
+        </CollapsibleTrigger>
 
         {/* Expanded Content */}
         <CollapsibleContent>
-          <div className="px-3 pb-3 space-y-3 border-t border-border/50 pt-3 bg-muted/5">
+          <div className="px-4 pb-4 space-y-4 border-t border-border/30 pt-4">
             {/* Quick Metrics Row */}
             {(temp || heartRate || sleepHours || steps) && (
               <div className="grid grid-cols-4 gap-2">
                 {temp && (
-                  <div className="text-center p-2 rounded-lg bg-orange-500/10">
-                    <Thermometer className="w-3.5 h-3.5 mx-auto mb-1 text-orange-500" />
-                    <p className="text-sm font-semibold">{temp}°</p>
+                  <div className="text-center p-3 rounded-2xl bg-gradient-to-br from-orange-100 to-orange-50 dark:from-orange-900/20 dark:to-orange-900/10">
+                    <Thermometer className="w-4 h-4 mx-auto mb-1.5 text-orange-500" />
+                    <p className="text-sm font-bold">{temp}°</p>
                   </div>
                 )}
                 {humidity && (
-                  <div className="text-center p-2 rounded-lg bg-blue-500/10">
-                    <Droplets className="w-3.5 h-3.5 mx-auto mb-1 text-blue-500" />
-                    <p className="text-sm font-semibold">{humidity}%</p>
+                  <div className="text-center p-3 rounded-2xl bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/20 dark:to-blue-900/10">
+                    <Droplets className="w-4 h-4 mx-auto mb-1.5 text-blue-500" />
+                    <p className="text-sm font-bold">{humidity}%</p>
                   </div>
                 )}
                 {heartRate && (
-                  <div className="text-center p-2 rounded-lg bg-red-500/10">
-                    <Heart className="w-3.5 h-3.5 mx-auto mb-1 text-red-500" />
-                    <p className="text-sm font-semibold">{heartRate}</p>
+                  <div className="text-center p-3 rounded-2xl bg-gradient-to-br from-red-100 to-red-50 dark:from-red-900/20 dark:to-red-900/10">
+                    <Heart className="w-4 h-4 mx-auto mb-1.5 text-red-500" />
+                    <p className="text-sm font-bold">{heartRate}</p>
                   </div>
                 )}
                 {sleepHours && (
-                  <div className="text-center p-2 rounded-lg bg-indigo-500/10">
-                    <Moon className="w-3.5 h-3.5 mx-auto mb-1 text-indigo-500" />
-                    <p className="text-sm font-semibold">{sleepHours}h</p>
+                  <div className="text-center p-3 rounded-2xl bg-gradient-to-br from-indigo-100 to-indigo-50 dark:from-indigo-900/20 dark:to-indigo-900/10">
+                    <Moon className="w-4 h-4 mx-auto mb-1.5 text-indigo-500" />
+                    <p className="text-sm font-bold">{sleepHours}h</p>
                   </div>
                 )}
                 {steps && (
-                  <div className="text-center p-2 rounded-lg bg-emerald-500/10">
-                    <Footprints className="w-3.5 h-3.5 mx-auto mb-1 text-emerald-500" />
-                    <p className="text-sm font-semibold">{steps >= 1000 ? `${(steps/1000).toFixed(1)}k` : steps}</p>
+                  <div className="text-center p-3 rounded-2xl bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-900/20 dark:to-emerald-900/10">
+                    <Footprints className="w-4 h-4 mx-auto mb-1.5 text-emerald-500" />
+                    <p className="text-sm font-bold">{steps >= 1000 ? `${(steps/1000).toFixed(1)}k` : steps}</p>
                   </div>
                 )}
               </div>
@@ -238,10 +211,10 @@ export const CompactFlareCard = ({
             {/* Triggers */}
             {entry.triggers && entry.triggers.length > 0 && (
               <div>
-                <p className="text-[10px] font-medium text-muted-foreground mb-1.5">Triggers</p>
-                <div className="flex flex-wrap gap-1">
+                <p className="text-xs font-semibold text-muted-foreground mb-2">Triggers</p>
+                <div className="flex flex-wrap gap-1.5">
                   {entry.triggers.map((t, i) => (
-                    <Badge key={i} variant="outline" className="text-[9px] px-1.5 py-0 bg-red-500/5 border-red-500/20 text-red-600">
+                    <Badge key={i} variant="outline" className="text-xs px-2.5 py-0.5 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300">
                       {t}
                     </Badge>
                   ))}
@@ -252,10 +225,10 @@ export const CompactFlareCard = ({
             {/* Medications */}
             {entry.medications && entry.medications.length > 0 && (
               <div>
-                <p className="text-[10px] font-medium text-muted-foreground mb-1.5">Medications</p>
-                <div className="flex flex-wrap gap-1">
+                <p className="text-xs font-semibold text-muted-foreground mb-2">Medications</p>
+                <div className="flex flex-wrap gap-1.5">
                   {entry.medications.map((m, i) => (
-                    <Badge key={i} variant="secondary" className="text-[9px] px-1.5 py-0">
+                    <Badge key={i} variant="secondary" className="text-xs px-2.5 py-0.5">
                       {m}
                     </Badge>
                   ))}
@@ -265,24 +238,23 @@ export const CompactFlareCard = ({
 
             {/* Note */}
             {entry.note && (
-              <div>
-                <p className="text-[10px] font-medium text-muted-foreground mb-1">Note</p>
-                <p className="text-xs text-foreground/80 italic">"{entry.note}"</p>
+              <div className="p-3 rounded-2xl bg-muted/30">
+                <p className="text-sm text-foreground/80 italic leading-relaxed">"{entry.note}"</p>
               </div>
             )}
 
             {/* Follow-ups */}
             {entry.followUps && entry.followUps.length > 0 && (
-              <div className="border-t border-border/50 pt-2">
-                <p className="text-[10px] font-medium text-primary mb-1.5 flex items-center gap-1">
-                  <MessageSquare className="w-3 h-3" />
+              <div className="border-t border-border/30 pt-3">
+                <p className="text-xs font-semibold text-primary mb-2 flex items-center gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5" />
                   Follow-ups ({entry.followUps.length})
                 </p>
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   {entry.followUps.map((fu, i) => (
-                    <div key={i} className="text-[10px] pl-3 border-l-2 border-primary/30">
-                      <p>{fu.note}</p>
-                      <p className="text-muted-foreground text-[9px]">
+                    <div key={i} className="text-sm pl-4 border-l-2 border-primary/30">
+                      <p className="text-foreground/80">{fu.note}</p>
+                      <p className="text-muted-foreground text-xs mt-0.5">
                         {format(new Date(fu.timestamp), "MMM d 'at' h:mm a")}
                       </p>
                     </div>
@@ -291,12 +263,45 @@ export const CompactFlareCard = ({
               </div>
             )}
 
-            {/* Weather Details */}
-            {condition && (
-              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                <span>Weather: {condition}</span>
-              </div>
-            )}
+            {/* Action Buttons */}
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 h-10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit?.(entry);
+                }}
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                Edit
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 h-10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onFollowUp?.(entry);
+                }}
+              >
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Follow-up
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-10 px-3 text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  haptics.warning();
+                  onDelete?.(entry.id);
+                }}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </CollapsibleContent>
       </Card>
