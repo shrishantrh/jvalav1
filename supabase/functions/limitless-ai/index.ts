@@ -13,9 +13,9 @@ serve(async (req) => {
 
   try {
     const { query, userId } = await req.json();
-    const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
+    const apiKey = Deno.env.get("LOVABLE_API_KEY");
     
-    if (!anthropicKey) throw new Error("ANTHROPIC_API_KEY not configured");
+    if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -436,119 +436,129 @@ Give a helpful, confident response. Include navigation for "how to" questions. C
 
     const tools = [
       {
-        name: "respond_with_visualization",
-        description: "Respond with insight and a dynamic chart",
-        input_schema: {
-          type: "object",
-          required: ["response", "chart"],
-          properties: {
-            response: { 
-              type: "string", 
-              description: "Brief conversational insight (1-3 sentences). Let the chart do the heavy lifting." 
-            },
-            chart: {
-              type: "object",
-              description: "The visualization to display",
-              required: ["type", "title", "data"],
-              properties: {
-                type: { 
-                  type: "string", 
-                  enum: [
-                    "bar_chart", "horizontal_bar", "stacked_bar",
-                    "pie_chart", "donut_chart",
-                    "line_chart", "area_chart", "stacked_area",
-                    "scatter_plot", "histogram",
-                    "comparison", "heatmap", "pattern_summary", "gauge",
-                    "location_map", "weather_chart"
-                  ],
-                  description: "Chart type - pick the best one for the question. Use location_map for geographic/where questions, weather_chart for weather questions."
-                },
-                title: { 
-                  type: "string", 
-                  description: "Short chart title (3-5 words)" 
-                },
-                data: { 
-                  type: "array", 
-                  description: "Chart data points. For location_map: include latitude, longitude. For weather_chart: include weather conditions.",
-                  items: { 
-                    type: "object", 
-                    properties: { 
-                      label: { type: "string" }, 
-                      value: { type: "number" },
-                      x: { type: "number" },
-                      y: { type: "number" },
-                      latitude: { type: "number" },
-                      longitude: { type: "number" },
-                      extra: { type: "string" },
-                      color: { type: "string" }
-                    } 
-                  } 
-                },
-                config: {
-                  type: "object",
-                  description: "Optional chart configuration",
-                  properties: {
-                    xAxis: { type: "string" },
-                    yAxis: { type: "string" },
-                  }
-                }
+        type: "function",
+        function: {
+          name: "respond_with_visualization",
+          description: "Respond with insight and a dynamic chart",
+          parameters: {
+            type: "object",
+            required: ["response", "chart"],
+            properties: {
+              response: { 
+                type: "string", 
+                description: "Brief conversational insight (1-3 sentences). Let the chart do the heavy lifting." 
               },
-            },
-            dynamicFollowUps: {
-              type: "array",
-              items: { type: "string" },
-              description: "2-3 short follow-up questions the user might ask next",
+              chart: {
+                type: "object",
+                description: "The visualization to display",
+                required: ["type", "title", "data"],
+                properties: {
+                  type: { 
+                    type: "string", 
+                    enum: [
+                      "bar_chart", "horizontal_bar", "stacked_bar",
+                      "pie_chart", "donut_chart",
+                      "line_chart", "area_chart", "stacked_area",
+                      "scatter_plot", "histogram",
+                      "comparison", "heatmap", "pattern_summary", "gauge",
+                      "location_map", "weather_chart"
+                    ],
+                    description: "Chart type - pick the best one for the question. Use location_map for geographic/where questions, weather_chart for weather questions."
+                  },
+                  title: { 
+                    type: "string", 
+                    description: "Short chart title (3-5 words)" 
+                  },
+                  data: { 
+                    type: "array", 
+                    description: "Chart data points. For location_map: include latitude, longitude. For weather_chart: include weather conditions.",
+                    items: { 
+                      type: "object", 
+                      properties: { 
+                        label: { type: "string" }, 
+                        value: { type: "number" },
+                        x: { type: "number" },
+                        y: { type: "number" },
+                        latitude: { type: "number" },
+                        longitude: { type: "number" },
+                        extra: { type: "string" },
+                        color: { type: "string" }
+                      } 
+                    } 
+                  },
+                  config: {
+                    type: "object",
+                    description: "Optional chart configuration",
+                    properties: {
+                      xAxis: { type: "string" },
+                      yAxis: { type: "string" },
+                    }
+                  }
+                },
+              },
+              dynamicFollowUps: {
+                type: "array",
+                items: { type: "string" },
+                description: "2-3 short follow-up questions the user might ask next",
+              },
             },
           },
         },
       },
     ];
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        "x-api-key": anthropicKey,
-        "anthropic-version": "2023-06-01",
+        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages: [{ role: "user", content: query }],
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: query }
+        ],
         tools,
-        tool_choice: { type: "tool", name: "respond_with_visualization" },
+        tool_choice: { type: "function", function: { name: "respond_with_visualization" } },
       }),
     });
 
     if (!response.ok) {
       const text = await response.text();
-      console.error("Claude error:", response.status, text);
+      console.error("AI gateway error:", response.status, text);
       if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limited" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: "Rate limited. Please try again in a moment." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      throw new Error(`Claude error: ${response.status}`);
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      throw new Error(`AI gateway error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log("Claude response:", JSON.stringify(data, null, 2));
+    console.log("AI response:", JSON.stringify(data, null, 2));
     
-    // Extract tool use from Claude's response
-    const toolUse = data.content?.find((c: any) => c.type === "tool_use");
+    // Extract tool call from Lovable AI response
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     
-    if (toolUse?.input) {
-      // Map chart to visualization for compatibility
-      const result = {
-        response: toolUse.input.response,
-        visualization: toolUse.input.chart,
-        dynamicFollowUps: toolUse.input.dynamicFollowUps,
-      };
-      return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (toolCall?.function?.arguments) {
+      try {
+        const parsed = JSON.parse(toolCall.function.arguments);
+        const result = {
+          response: parsed.response,
+          visualization: parsed.chart,
+          dynamicFollowUps: parsed.dynamicFollowUps,
+        };
+        return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      } catch (e) {
+        console.error("Failed to parse tool arguments:", e);
+      }
     }
 
-    // Fallback
-    const textContent = data.content?.find((c: any) => c.type === "text");
-    return new Response(JSON.stringify({ response: textContent?.text || "I'm here to help analyze your health patterns." }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // Fallback to direct content
+    const content = data.choices?.[0]?.message?.content;
+    return new Response(JSON.stringify({ response: content || "I'm here to help analyze your health patterns." }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error) {
     console.error("AI error:", error);
