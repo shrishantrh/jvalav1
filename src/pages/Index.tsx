@@ -10,7 +10,7 @@ import { RevampedInsights } from "@/components/insights/RevampedInsights";
 import { WeekCalendarHistory } from "@/components/history/WeekCalendarHistory";
 import { ClinicalRecordGenerator } from "@/components/history/ClinicalRecordGenerator";
 import { ProfileManager } from "@/components/profile/ProfileManager";
-import { ProgressDashboard } from "@/components/engagement/ProgressDashboard";
+import { TimelineProgress } from "@/components/engagement/TimelineProgress";
 import { RevolutionaryOnboarding } from "@/components/onboarding/RevolutionaryOnboarding";
 import { HealthForecast } from "@/components/forecast/HealthForecast";
 import { CycleTracker } from "@/components/tracking/CycleTracker";
@@ -457,7 +457,7 @@ const Index = () => {
   if (showProgress && user) {
     return (
       <MobileLayout showNav={false}>
-        <ProgressDashboard 
+        <TimelineProgress 
           userId={user.id}
           entries={entries}
           onBack={() => setShowProgress(false)}
