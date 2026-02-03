@@ -16,6 +16,8 @@ import {
   Edit,
   Trash2,
   MessageSquare,
+  Zap,
+  Pill,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
@@ -26,6 +28,155 @@ interface CompactFlareCardProps {
   onDelete?: (entryId: string) => void;
   onFollowUp?: (entry: FlareEntry) => void;
 }
+
+// 3D orb face component - matches SeverityWheel style
+const SeverityOrb = ({ severity, type }: { severity?: string; type?: string }) => {
+  const getConfig = () => {
+    // Special entry types
+    if (type === 'wellness' || type === 'recovery') {
+      return { 
+        gradient: 'from-emerald-200 via-emerald-100 to-teal-50',
+        glow: 'rgba(52, 211, 153, 0.35)',
+        face: '#059669',
+        faceType: 'happy' as const
+      };
+    }
+    if (type === 'energy') {
+      return { 
+        gradient: 'from-amber-200 via-yellow-100 to-orange-50',
+        glow: 'rgba(251, 191, 36, 0.35)',
+        face: '#d97706',
+        faceType: 'icon' as const,
+        icon: <Zap className="w-5 h-5 text-amber-600" />
+      };
+    }
+    if (type === 'medication') {
+      return { 
+        gradient: 'from-blue-200 via-indigo-100 to-violet-50',
+        glow: 'rgba(99, 102, 241, 0.35)',
+        face: '#6366f1',
+        faceType: 'icon' as const,
+        icon: <Pill className="w-5 h-5 text-indigo-600" />
+      };
+    }
+
+    // Severity-based
+    switch (severity) {
+      case 'none':
+        return { 
+          gradient: 'from-emerald-200 via-emerald-100 to-teal-50',
+          glow: 'rgba(52, 211, 153, 0.35)',
+          face: '#059669',
+          faceType: 'happy' as const
+        };
+      case 'mild':
+        return { 
+          gradient: 'from-amber-200 via-yellow-100 to-orange-50',
+          glow: 'rgba(251, 191, 36, 0.35)',
+          face: '#d97706',
+          faceType: 'neutral' as const
+        };
+      case 'moderate':
+        return { 
+          gradient: 'from-orange-300 via-orange-200 to-amber-100',
+          glow: 'rgba(251, 146, 60, 0.35)',
+          face: '#ea580c',
+          faceType: 'worried' as const
+        };
+      case 'severe':
+        return { 
+          gradient: 'from-rose-300 via-pink-200 to-red-100',
+          glow: 'rgba(244, 63, 94, 0.35)',
+          face: '#dc2626',
+          faceType: 'distressed' as const
+        };
+      default:
+        return { 
+          gradient: 'from-slate-200 via-gray-100 to-slate-50',
+          glow: 'rgba(148, 163, 184, 0.35)',
+          face: '#64748b',
+          faceType: 'neutral' as const
+        };
+    }
+  };
+
+  const config = getConfig();
+
+  const renderFace = () => {
+    if (config.icon) {
+      return <div className="absolute inset-0 flex items-center justify-center">{config.icon}</div>;
+    }
+
+    switch (config.faceType) {
+      case 'happy':
+        return (
+          <svg viewBox="0 0 32 32" className="absolute inset-0 w-full h-full">
+            <path d="M9 11 Q11 9 13 11" stroke={config.face} strokeWidth="1.8" strokeLinecap="round" fill="none" />
+            <path d="M19 11 Q21 9 23 11" stroke={config.face} strokeWidth="1.8" strokeLinecap="round" fill="none" />
+            <path d="M10 19 Q16 25 22 19" stroke={config.face} strokeWidth="1.8" strokeLinecap="round" fill="none" />
+          </svg>
+        );
+      case 'neutral':
+        return (
+          <svg viewBox="0 0 32 32" className="absolute inset-0 w-full h-full">
+            <circle cx="11" cy="12" r="2" fill={config.face} />
+            <circle cx="21" cy="12" r="2" fill={config.face} />
+            <path d="M11 20 L21 20" stroke={config.face} strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        );
+      case 'worried':
+        return (
+          <svg viewBox="0 0 32 32" className="absolute inset-0 w-full h-full">
+            <circle cx="11" cy="12" r="2" fill={config.face} />
+            <circle cx="21" cy="12" r="2" fill={config.face} />
+            <path d="M8 9 Q11 7 14 9" stroke={config.face} strokeWidth="1.2" strokeLinecap="round" fill="none" />
+            <path d="M18 9 Q21 7 24 9" stroke={config.face} strokeWidth="1.2" strokeLinecap="round" fill="none" />
+            <path d="M11 21 Q16 17 21 21" stroke={config.face} strokeWidth="1.8" strokeLinecap="round" fill="none" />
+          </svg>
+        );
+      case 'distressed':
+        return (
+          <svg viewBox="0 0 32 32" className="absolute inset-0 w-full h-full">
+            <path d="M9 10 L13 14 M13 10 L9 14" stroke={config.face} strokeWidth="1.8" strokeLinecap="round" />
+            <path d="M19 10 L23 14 M23 10 L19 14" stroke={config.face} strokeWidth="1.8" strokeLinecap="round" />
+            <path d="M11 22 Q16 17 21 22" stroke={config.face} strokeWidth="1.8" strokeLinecap="round" fill="none" />
+          </svg>
+        );
+      default:
+        return (
+          <svg viewBox="0 0 32 32" className="absolute inset-0 w-full h-full">
+            <circle cx="11" cy="12" r="2" fill={config.face} />
+            <circle cx="21" cy="12" r="2" fill={config.face} />
+            <path d="M11 20 L21 20" stroke={config.face} strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        );
+    }
+  };
+
+  return (
+    <div 
+      className="w-12 h-12 rounded-full overflow-hidden relative flex-shrink-0"
+      style={{
+        boxShadow: `0 4px 16px ${config.glow}, inset 0 -6px 16px rgba(0,0,0,0.08)`,
+      }}
+    >
+      <div className={cn("absolute inset-0 bg-gradient-to-br", config.gradient)} />
+      <div 
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(145deg, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0.2) 30%, transparent 60%)',
+        }}
+      />
+      <div 
+        className="absolute inset-0 rounded-full"
+        style={{
+          boxShadow: 'inset 0 2px 6px rgba(255,255,255,0.4)',
+        }}
+      />
+      {renderFace()}
+    </div>
+  );
+};
 
 export const CompactFlareCard = ({ 
   entry, 
@@ -40,65 +191,20 @@ export const CompactFlareCard = ({
     setIsExpanded(open);
   };
 
-  const getSeverityConfig = (severity?: string, type?: string) => {
-    // Use appropriate emojis for different entry types
-    if (type === 'wellness' || type === 'recovery') {
-      return { 
-        emoji: '🌟',
-        hue: 145, sat: 60, light: 45, 
-        label: type === 'recovery' ? 'Recovery' : 'Feeling Good'
-      };
+  const getLabel = () => {
+    if (entry.type === 'wellness' || entry.type === 'recovery') {
+      return entry.type === 'recovery' ? 'Recovery' : 'Feeling Good';
     }
-    if (type === 'energy') {
-      return { 
-        emoji: '⚡',
-        hue: 45, sat: 85, light: 50, 
-        label: 'Energy'
-      };
-    }
-    if (type === 'medication') {
-      return { 
-        emoji: '💊',
-        hue: 220, sat: 70, light: 55, 
-        label: 'Medication'
-      };
-    }
-
-    switch (severity) {
-      case 'severe': 
-        return { 
-          emoji: '😣',
-          hue: 0, sat: 75, light: 52, 
-          label: 'Severe' 
-        };
-      case 'moderate': 
-        return { 
-          emoji: '😟',
-          hue: 28, sat: 90, light: 50, 
-          label: 'Moderate' 
-        };
-      case 'mild': 
-        return { 
-          emoji: '😐',
-          hue: 50, sat: 85, light: 52, 
-          label: 'Mild' 
-        };
-      case 'none': 
-        return { 
-          emoji: '😊',
-          hue: 145, sat: 60, light: 45, 
-          label: 'Great' 
-        };
-      default: 
-        return { 
-          emoji: '📝',
-          hue: 220, sat: 15, light: 60, 
-          label: 'Note'
-        };
+    if (entry.type === 'energy') return 'Energy';
+    if (entry.type === 'medication') return 'Medication';
+    switch (entry.severity) {
+      case 'none': return 'Great';
+      case 'mild': return 'Mild';
+      case 'moderate': return 'Moderate';
+      case 'severe': return 'Severe';
+      default: return 'Note';
     }
   };
-
-  const severityConfig = getSeverityConfig(entry.severity, entry.type);
 
   // Extract data safely
   const env = entry.environmentalData as any;
@@ -119,62 +225,34 @@ export const CompactFlareCard = ({
       <div 
         className="relative rounded-3xl transition-all duration-300 overflow-hidden backdrop-blur-xl"
         style={{
-          background: isExpanded 
-            ? `linear-gradient(145deg, hsl(${severityConfig.hue} ${severityConfig.sat}% 97% / 0.95) 0%, hsl(${severityConfig.hue} ${severityConfig.sat - 10}% 95% / 0.9) 100%)`
-            : 'linear-gradient(145deg, hsl(0 0% 100% / 0.85) 0%, hsl(0 0% 98% / 0.8) 100%)',
-          border: isExpanded 
-            ? `2px solid hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light}% / 0.35)` 
-            : '1px solid hsl(0 0% 100% / 0.6)',
+          background: 'linear-gradient(145deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.75) 100%)',
+          border: '1px solid rgba(255,255,255,0.6)',
           boxShadow: isExpanded 
-            ? `inset 0 1px 3px hsl(0 0% 100% / 0.4), 0 8px 24px hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light}% / 0.15)` 
-            : 'inset 0 1px 2px hsl(0 0% 100% / 0.3), 0 4px 16px hsl(0 0% 0% / 0.04)',
+            ? 'inset 0 1px 3px rgba(255,255,255,0.4), 0 8px 24px rgba(0,0,0,0.08)' 
+            : 'inset 0 1px 2px rgba(255,255,255,0.3), 0 4px 16px rgba(0,0,0,0.04)',
         }}
       >
         {/* Glass highlight overlay */}
         <div 
           className="absolute inset-0 pointer-events-none"
           style={{
-            background: 'linear-gradient(180deg, hsl(0 0% 100% / 0.2) 0%, transparent 40%)',
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 40%)',
             borderRadius: 'inherit',
           }}
         />
 
         {/* Compact Header - Tappable */}
         <CollapsibleTrigger className="w-full text-left relative z-10">
-          <div className="p-4 active:bg-muted/20 transition-colors">
-            <div className="flex items-center gap-4">
-              {/* Severity Emoji Circle - 3D frosted glass */}
-              <div 
-                className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 relative overflow-hidden"
-                style={{
-                  background: `linear-gradient(145deg, 
-                    hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light + 5}%) 0%, 
-                    hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light - 5}%) 100%
-                  )`,
-                  boxShadow: `
-                    inset 0 2px 4px hsl(0 0% 100% / 0.3),
-                    0 4px 12px hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light}% / 0.35)
-                  `,
-                }}
-              >
-                {/* Glass highlight */}
-                <div 
-                  className="absolute inset-0 pointer-events-none"
-                  style={{
-                    background: 'linear-gradient(180deg, hsl(0 0% 100% / 0.3) 0%, transparent 50%)',
-                  }}
-                />
-                <span className="text-2xl relative z-10">{severityConfig.emoji}</span>
-              </div>
+          <div className="p-4 active:bg-muted/10 transition-colors">
+            <div className="flex items-center gap-3">
+              {/* 3D Orb */}
+              <SeverityOrb severity={entry.severity} type={entry.type} />
 
               {/* Main Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span 
-                    className="text-base font-bold"
-                    style={{ color: `hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light - 10}%)` }}
-                  >
-                    {severityConfig.label}
+                  <span className="text-base font-bold text-foreground">
+                    {getLabel()}
                   </span>
                   {entry.type && entry.type !== 'flare' && !['wellness', 'recovery', 'energy', 'medication'].includes(entry.type) && (
                     <Badge variant="secondary" className="text-[10px] capitalize">
@@ -204,8 +282,8 @@ export const CompactFlareCard = ({
                         variant="outline" 
                         className="text-[10px] px-2 py-0.5 font-medium"
                         style={{
-                          background: 'hsl(0 0% 100% / 0.6)',
-                          borderColor: 'hsl(0 0% 100% / 0.8)',
+                          background: 'rgba(255,255,255,0.6)',
+                          borderColor: 'rgba(255,255,255,0.8)',
                         }}
                       >
                         {s}
@@ -241,9 +319,9 @@ export const CompactFlareCard = ({
                   <div 
                     className="text-center p-3 rounded-2xl backdrop-blur-sm"
                     style={{
-                      background: 'linear-gradient(145deg, hsl(25 80% 95% / 0.9) 0%, hsl(25 70% 92% / 0.85) 100%)',
-                      border: '1px solid hsl(25 60% 90% / 0.5)',
-                      boxShadow: 'inset 0 1px 2px hsl(0 0% 100% / 0.3)',
+                      background: 'linear-gradient(145deg, rgba(255,237,213,0.9) 0%, rgba(254,215,170,0.85) 100%)',
+                      border: '1px solid rgba(251,191,36,0.3)',
+                      boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.3)',
                     }}
                   >
                     <Thermometer className="w-4 h-4 mx-auto mb-1.5 text-orange-500" />
@@ -254,9 +332,9 @@ export const CompactFlareCard = ({
                   <div 
                     className="text-center p-3 rounded-2xl backdrop-blur-sm"
                     style={{
-                      background: 'linear-gradient(145deg, hsl(210 80% 95% / 0.9) 0%, hsl(210 70% 92% / 0.85) 100%)',
-                      border: '1px solid hsl(210 60% 90% / 0.5)',
-                      boxShadow: 'inset 0 1px 2px hsl(0 0% 100% / 0.3)',
+                      background: 'linear-gradient(145deg, rgba(219,234,254,0.9) 0%, rgba(191,219,254,0.85) 100%)',
+                      border: '1px solid rgba(59,130,246,0.3)',
+                      boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.3)',
                     }}
                   >
                     <Droplets className="w-4 h-4 mx-auto mb-1.5 text-blue-500" />
@@ -267,9 +345,9 @@ export const CompactFlareCard = ({
                   <div 
                     className="text-center p-3 rounded-2xl backdrop-blur-sm"
                     style={{
-                      background: 'linear-gradient(145deg, hsl(0 70% 95% / 0.9) 0%, hsl(0 60% 92% / 0.85) 100%)',
-                      border: '1px solid hsl(0 50% 90% / 0.5)',
-                      boxShadow: 'inset 0 1px 2px hsl(0 0% 100% / 0.3)',
+                      background: 'linear-gradient(145deg, rgba(254,226,226,0.9) 0%, rgba(254,202,202,0.85) 100%)',
+                      border: '1px solid rgba(239,68,68,0.3)',
+                      boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.3)',
                     }}
                   >
                     <Heart className="w-4 h-4 mx-auto mb-1.5 text-red-500" />
@@ -280,9 +358,9 @@ export const CompactFlareCard = ({
                   <div 
                     className="text-center p-3 rounded-2xl backdrop-blur-sm"
                     style={{
-                      background: 'linear-gradient(145deg, hsl(250 70% 95% / 0.9) 0%, hsl(250 60% 92% / 0.85) 100%)',
-                      border: '1px solid hsl(250 50% 90% / 0.5)',
-                      boxShadow: 'inset 0 1px 2px hsl(0 0% 100% / 0.3)',
+                      background: 'linear-gradient(145deg, rgba(224,231,255,0.9) 0%, rgba(199,210,254,0.85) 100%)',
+                      border: '1px solid rgba(99,102,241,0.3)',
+                      boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.3)',
                     }}
                   >
                     <Moon className="w-4 h-4 mx-auto mb-1.5 text-indigo-500" />
@@ -293,9 +371,9 @@ export const CompactFlareCard = ({
                   <div 
                     className="text-center p-3 rounded-2xl backdrop-blur-sm"
                     style={{
-                      background: 'linear-gradient(145deg, hsl(145 60% 95% / 0.9) 0%, hsl(145 50% 92% / 0.85) 100%)',
-                      border: '1px solid hsl(145 40% 90% / 0.5)',
-                      boxShadow: 'inset 0 1px 2px hsl(0 0% 100% / 0.3)',
+                      background: 'linear-gradient(145deg, rgba(209,250,229,0.9) 0%, rgba(167,243,208,0.85) 100%)',
+                      border: '1px solid rgba(16,185,129,0.3)',
+                      boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.3)',
                     }}
                   >
                     <Footprints className="w-4 h-4 mx-auto mb-1.5 text-emerald-500" />
@@ -316,9 +394,9 @@ export const CompactFlareCard = ({
                       variant="outline" 
                       className="text-xs px-2.5 py-0.5"
                       style={{
-                        background: 'hsl(0 60% 97% / 0.9)',
-                        borderColor: 'hsl(0 50% 85%)',
-                        color: 'hsl(0 60% 40%)',
+                        background: 'rgba(254,226,226,0.9)',
+                        borderColor: 'rgba(239,68,68,0.3)',
+                        color: '#b91c1c',
                       }}
                     >
                       {t}
@@ -347,8 +425,8 @@ export const CompactFlareCard = ({
               <div 
                 className="p-3 rounded-2xl backdrop-blur-sm"
                 style={{
-                  background: 'hsl(0 0% 100% / 0.5)',
-                  border: '1px solid hsl(0 0% 100% / 0.6)',
+                  background: 'rgba(255,255,255,0.5)',
+                  border: '1px solid rgba(255,255,255,0.6)',
                 }}
               >
                 <p className="text-sm text-foreground/80 italic leading-relaxed">"{entry.note}"</p>
@@ -382,8 +460,8 @@ export const CompactFlareCard = ({
                 size="sm"
                 className="flex-1 h-10 backdrop-blur-sm"
                 style={{
-                  background: 'hsl(0 0% 100% / 0.7)',
-                  borderColor: 'hsl(0 0% 100% / 0.8)',
+                  background: 'rgba(255,255,255,0.7)',
+                  borderColor: 'rgba(255,255,255,0.8)',
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -398,8 +476,8 @@ export const CompactFlareCard = ({
                 size="sm"
                 className="flex-1 h-10 backdrop-blur-sm"
                 style={{
-                  background: 'hsl(0 0% 100% / 0.7)',
-                  borderColor: 'hsl(0 0% 100% / 0.8)',
+                  background: 'rgba(255,255,255,0.7)',
+                  borderColor: 'rgba(255,255,255,0.8)',
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
