@@ -129,15 +129,32 @@ const OrbFace = ({
       case 'severe':
         return (
           <>
-            {/* Distressed eyes - X shapes */}
-            <path d="M17 19 L25 25 M25 19 L17 25" stroke={option.faceColor} strokeWidth="2.5" strokeLinecap="round" />
-            <path d="M35 19 L43 25 M43 19 L35 25" stroke={option.faceColor} strokeWidth="2.5" strokeLinecap="round" />
-            {/* Open frown */}
-            <ellipse cx="30" cy="40" rx="8" ry="5" fill={option.faceColor} opacity="0.3" />
+            {/* Very sad eyes - droopy with tears */}
+            <ellipse cx="21" cy="23" rx="3.5" ry="4" fill={option.faceColor} />
+            <ellipse cx="39" cy="23" rx="3.5" ry="4" fill={option.faceColor} />
+            {/* Sad eyebrows - angled up in the middle */}
             <path 
-              d="M22 40 Q30 34 38 40" 
+              d="M15 14 Q21 18 27 15" 
               stroke={option.faceColor} 
               strokeWidth="2.5" 
+              strokeLinecap="round" 
+              fill="none"
+            />
+            <path 
+              d="M33 15 Q39 18 45 14" 
+              stroke={option.faceColor} 
+              strokeWidth="2.5" 
+              strokeLinecap="round" 
+              fill="none"
+            />
+            {/* Tear drops */}
+            <ellipse cx="25" cy="30" rx="1.5" ry="2.5" fill={option.faceColor} opacity="0.5" />
+            <ellipse cx="43" cy="31" rx="1.5" ry="2.5" fill={option.faceColor} opacity="0.5" />
+            {/* Deep frown - very curved */}
+            <path 
+              d="M20 42 Q30 32 40 42" 
+              stroke={option.faceColor} 
+              strokeWidth="3" 
               strokeLinecap="round" 
               fill="none"
             />
