@@ -100,76 +100,76 @@ export const ProgressDashboard = ({ userId, entries, onBack }: ProgressDashboard
   const nextBadge = getNextBadgeProgress();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8">
+      <div className="flex items-center gap-3 mb-4">
+        <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8 rounded-xl">
           <ArrowLeft className="w-4 h-4" />
         </Button>
-        <h2 className="text-lg font-clinical">Your Progress</h2>
+        <h2 className="text-base font-semibold">Your Progress</h2>
       </div>
 
       {/* Streak Card */}
-      <Card className="p-5 bg-gradient-primary text-white">
+      <Card className="p-4 bg-gradient-primary text-white">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-white/80 text-sm mb-1">Current Streak</p>
-            <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-bold">{engagement.current_streak}</span>
-              <span className="text-white/80">days</span>
+            <p className="text-white/80 text-xs mb-0.5">Current Streak</p>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-3xl font-bold">{engagement.current_streak}</span>
+              <span className="text-white/80 text-sm">days</span>
             </div>
           </div>
-          <div className="text-5xl">
+          <div className="text-4xl">
             {engagement.current_streak >= 7 ? '🔥' : engagement.current_streak >= 3 ? '✨' : '💫'}
           </div>
         </div>
         
-        <div className="mt-4 pt-4 border-t border-white/20 grid grid-cols-2 gap-4">
+        <div className="mt-3 pt-3 border-t border-white/20 grid grid-cols-2 gap-3">
           <div>
-            <p className="text-white/60 text-xs">Longest Streak</p>
-            <p className="text-xl font-bold">{engagement.longest_streak} days</p>
+            <p className="text-white/60 text-[10px]">Longest Streak</p>
+            <p className="text-lg font-bold">{engagement.longest_streak} days</p>
           </div>
           <div>
-            <p className="text-white/60 text-xs">Total Logs</p>
-            <p className="text-xl font-bold">{engagement.total_logs}</p>
+            <p className="text-white/60 text-[10px]">Total Logs</p>
+            <p className="text-lg font-bold">{engagement.total_logs}</p>
           </div>
         </div>
       </Card>
 
       {/* Monthly Activity */}
-      <Card className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-clinical text-sm">This Month</h3>
-          <span className="text-xs text-muted-foreground">
-            {format(currentMonth, 'MMMM yyyy')}
+      <Card className="p-3 glass-card">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-medium text-xs">This Month</h3>
+          <span className="text-[10px] text-muted-foreground">
+            {format(currentMonth, 'MMM yyyy')}
           </span>
         </div>
         
-        <div className="flex items-center gap-3 mb-2">
-          <Calendar className="w-5 h-5 text-primary" />
+        <div className="flex items-center gap-2.5">
+          <Calendar className="w-4 h-4 text-primary" />
           <div className="flex-1">
-            <div className="flex justify-between text-sm mb-1">
+            <div className="flex justify-between text-xs mb-1">
               <span>{daysLoggedThisMonth} days logged</span>
               <span className="text-muted-foreground">{daysInMonth.length} days</span>
             </div>
-            <Progress value={(daysLoggedThisMonth / daysInMonth.length) * 100} className="h-2" />
+            <Progress value={(daysLoggedThisMonth / daysInMonth.length) * 100} className="h-1.5" />
           </div>
         </div>
       </Card>
 
       {/* Next Badge Progress */}
       {nextBadge && (
-        <Card className="p-4">
-          <h3 className="font-clinical text-sm mb-3">Next Badge</h3>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-              <Target className="w-5 h-5 text-primary" />
+        <Card className="p-3 glass-card">
+          <h3 className="font-medium text-xs mb-2">Next Badge</h3>
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center">
+              <Target className="w-4 h-4 text-primary" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium">{nextBadge.name}</p>
-              <Progress value={nextBadge.progress} className="h-1.5 mt-1" />
+              <p className="text-xs font-medium">{nextBadge.name}</p>
+              <Progress value={nextBadge.progress} className="h-1 mt-1" />
             </div>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-[10px] text-muted-foreground">
               {Math.round(nextBadge.progress)}%
             </span>
           </div>
@@ -177,15 +177,14 @@ export const ProgressDashboard = ({ userId, entries, onBack }: ProgressDashboard
       )}
 
       {/* Badges Section */}
-      <Card className="p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-clinical text-sm">Badges</h3>
-          <span className="text-xs text-muted-foreground">
+      <Card className="p-3 glass-card">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-medium text-xs">Badges</h3>
+          <span className="text-[10px] text-muted-foreground">
             {earnedBadges.length}/{BADGES.length} earned
           </span>
         </div>
 
-        {/* Badge Categories */}
         {['milestone', 'streak', 'consistency', 'feature', 'tracking', 'insight', 'engagement'].map(category => {
           const categoryBadges = BADGES.filter(b => b.category === category);
           const earnedInCategory = categoryBadges.filter(b => engagement.badges?.includes(b.id));
@@ -204,32 +203,27 @@ export const ProgressDashboard = ({ userId, entries, onBack }: ProgressDashboard
           };
 
           return (
-            <div key={category} className="mb-4 last:mb-0">
-              <p className="text-xs font-medium text-muted-foreground mb-2">
+            <div key={category} className="mb-3 last:mb-0">
+              <p className="text-[10px] font-medium text-muted-foreground mb-1.5">
                 {categoryNames[category]} ({earnedInCategory.length}/{categoryBadges.length})
               </p>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-5 gap-1.5">
                 {earnedInCategory.map(badge => (
                   <div 
                     key={badge.id}
-                    className="aspect-square rounded-xl bg-gradient-primary/10 flex flex-col items-center justify-center p-2 group relative"
+                    className="aspect-square rounded-xl bg-gradient-primary/10 flex flex-col items-center justify-center p-1.5"
                   >
-                    <span className="text-2xl mb-0.5">{badge.icon}</span>
-                    <span className="text-[9px] text-center leading-tight">{badge.name}</span>
-                    
-                    {/* Tooltip */}
-                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-foreground text-background text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                      {badge.description}
-                    </div>
+                    <span className="text-lg">{badge.icon}</span>
+                    <span className="text-[7px] text-center leading-tight truncate w-full">{badge.name}</span>
                   </div>
                 ))}
                 {lockedInCategory.map(badge => (
                   <div 
                     key={badge.id}
-                    className="aspect-square rounded-xl bg-muted/50 flex flex-col items-center justify-center p-2 opacity-40"
+                    className="aspect-square rounded-xl bg-muted/30 flex flex-col items-center justify-center p-1.5 opacity-40"
                   >
-                    <Lock className="w-4 h-4 mb-1 text-muted-foreground" />
-                    <span className="text-[9px] text-center leading-tight text-muted-foreground">
+                    <Lock className="w-3 h-3 mb-0.5 text-muted-foreground" />
+                    <span className="text-[7px] text-center leading-tight text-muted-foreground truncate w-full">
                       {badge.name}
                     </span>
                   </div>

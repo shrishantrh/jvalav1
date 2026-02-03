@@ -170,17 +170,17 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
   // Analyzing screen
   if (isAnalyzing) {
     return (
-      <div className="min-h-screen bg-gradient-subtle flex flex-col items-center justify-center px-4">
+      <div className="fixed inset-0 flex flex-col items-center justify-center px-6 bg-background max-w-md mx-auto">
         <div className="text-center space-y-8 animate-in fade-in-0 zoom-in-95 duration-500">
-          <div className="relative w-28 h-28 mx-auto">
+          <div className="relative w-24 h-24 mx-auto">
             <div className="absolute inset-0 bg-gradient-primary rounded-3xl animate-pulse" />
-            <div className="absolute inset-3 bg-background rounded-2xl flex items-center justify-center">
-              <Brain className="w-12 h-12 text-primary animate-pulse" />
+            <div className="absolute inset-3 bg-card rounded-2xl flex items-center justify-center glass-card">
+              <Brain className="w-10 h-10 text-primary animate-pulse" />
             </div>
           </div>
           
           <div className="space-y-3">
-            <h2 className="text-2xl font-bold">Building Your Health AI...</h2>
+            <h2 className="text-xl font-bold">Building Your Health AI...</h2>
             <div className="text-sm text-muted-foreground space-y-2 max-w-xs mx-auto">
               <p className="animate-in fade-in-0 duration-500" style={{ animationDelay: "300ms" }}>
                 ✓ Setting up {data.trackingItems.length} tracking categories
@@ -541,43 +541,43 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
   };
 
   return (
-    <div className="min-h-screen bg-gradient-subtle flex flex-col">
+    <div className="fixed inset-0 flex flex-col bg-background max-w-md mx-auto">
       {/* Progress bar */}
       {step > 0 && (
-        <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b">
-          <div className="container max-w-md mx-auto px-4 py-3">
-            <div className="flex items-center gap-3">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={handleBack}
-                className="h-8 w-8 rounded-full"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <div className="flex-1">
-                <Progress value={progress} className="h-1.5" />
-              </div>
-              <span className="text-[10px] text-muted-foreground w-10 text-right">
-                {step + 1}/{totalSteps}
-              </span>
+        <div className="flex-shrink-0 z-10 glass border-b border-white/10 safe-area-top">
+          <div className="flex items-center gap-3 px-4 py-3">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleBack}
+              className="h-8 w-8 rounded-xl"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <div className="flex-1">
+              <Progress value={progress} className="h-1.5" />
             </div>
+            <span className="text-[10px] text-muted-foreground w-10 text-right">
+              {step + 1}/{totalSteps}
+            </span>
           </div>
         </div>
       )}
 
       {/* Content */}
-      <div className="flex-1 container max-w-md mx-auto px-4 py-4 overflow-y-auto">
-        {renderStep()}
+      <div className="flex-1 overflow-y-auto scrollbar-hide">
+        <div className="px-4 py-4">
+          {renderStep()}
+        </div>
       </div>
 
       {/* Navigation */}
-      <div className="sticky bottom-0 bg-background/80 backdrop-blur-sm border-t">
-        <div className="container max-w-md mx-auto px-4 py-4">
+      <div className="flex-shrink-0 glass border-t border-white/10 safe-area-bottom">
+        <div className="px-4 py-4">
           <Button 
             onClick={handleNext}
             disabled={step === 0 && data.trackingItems.length === 0}
-            className="w-full h-12 text-base shadow-primary"
+            className="w-full h-12 text-base"
           >
             {step === totalSteps - 1 ? (
               <>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import jvalaLogo from "@/assets/jvala-logo.png";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,28 +10,26 @@ import { RevampedInsights } from "@/components/insights/RevampedInsights";
 import { CalendarHistory } from "@/components/history/CalendarHistory";
 import { EnhancedFlareHistory } from "@/components/history/EnhancedFlareHistory";
 import { ClinicalRecordGenerator } from "@/components/history/ClinicalRecordGenerator";
-import { FlareTimeline } from "@/components/flare/FlareTimeline";
 import { ProfileManager } from "@/components/profile/ProfileManager";
 import { ProgressDashboard } from "@/components/engagement/ProgressDashboard";
 import { RevolutionaryOnboarding } from "@/components/onboarding/RevolutionaryOnboarding";
 import { HealthForecast } from "@/components/forecast/HealthForecast";
 import { CycleTracker } from "@/components/tracking/CycleTracker";
 import { StreakBadge } from "@/components/engagement/StreakBadge";
+import { MobileLayout } from "@/components/layout/MobileLayout";
+import { MobileHeader } from "@/components/layout/MobileHeader";
 import { CONDITIONS } from "@/data/conditions";
 import { useEngagement } from "@/hooks/useEngagement";
 import { useCorrelations } from "@/hooks/useCorrelations";
 import { CorrelationInsights } from "@/components/insights/CorrelationInsights";
 import { WeeklyReportCard } from "@/components/insights/WeeklyReportCard";
-import { Activity, Calendar, BarChart3, User as UserIcon, ChevronDown, Settings, MapPin } from "lucide-react";
+import { Activity, ChevronDown, MapPin, Sparkles } from "lucide-react";
 import { MedicationTracker } from "@/components/medication/MedicationTracker";
 import { useMedicationLogs } from "@/hooks/useMedicationLogs";
 import { useToast } from "@/hooks/use-toast";
 import { format, isSameDay } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { InstallPrompt } from "@/components/pwa/InstallPrompt";
-import { OfflineIndicator } from "@/components/pwa/OfflineIndicator";
-import { AIHealthCoach } from "@/components/ai/AIHealthCoach";
 import { LimitlessAIChat } from "@/components/ai/LimitlessAIChat";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
@@ -55,7 +53,7 @@ interface UserProfile {
 }
 
 const Index = () => {
-  const [currentView, setCurrentView] = useState<'track' | 'history' | 'insights' | 'profile' | 'progress'>('track');
+  const [currentView, setCurrentView] = useState<'track' | 'history' | 'insights' | 'profile'>('track');
   const [entries, setEntries] = useState<FlareEntry[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -69,16 +67,15 @@ const Index = () => {
   const [protocolPrompt, setProtocolPrompt] = useState<string | null>(null);
   const [clinicalRecordEntry, setClinicalRecordEntry] = useState<FlareEntry | null>(null);
   const [showClinicalRecord, setShowClinicalRecord] = useState(false);
+  const [showProgress, setShowProgress] = useState(false);
   const smartTrackRef = useRef<SmartTrackRef>(null);
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const { updateEngagementOnLog, getEngagement, syncEngagementTotals, checkCorrelationBadges, checkTrackingBadges, awardBadge } = useEngagement();
   
-  // Use correlations hook
   const { topCorrelations, recentActivities } = useCorrelations(user?.id || null);
-  
-  // Medication logs hook
   const { logs: medicationLogs, addLog: addMedicationLog } = useMedicationLogs(user?.id);
 
   // Check for special badges when correlations change
@@ -116,9 +113,9 @@ const Index = () => {
     const getLocation = async () => {
       try {
         const { getCurrentLocation, fetchWeatherData } = await import("@/services/weatherService");
-        const location = await getCurrentLocation();
-        if (location) {
-          const weatherData = await fetchWeatherData(location.latitude, location.longitude);
+        const loc = await getCurrentLocation();
+        if (loc) {
+          const weatherData = await fetchWeatherData(loc.latitude, loc.longitude);
           if (weatherData?.location?.city) {
             setCurrentLocation({ city: weatherData.location.city });
           }
@@ -129,6 +126,16 @@ const Index = () => {
     };
     getLocation();
   }, []);
+
+  // Handle protocol prompt from navigation state
+  useEffect(() => {
+    const state = location.state as { protocolPrompt?: string } | null;
+    if (state?.protocolPrompt) {
+      setProtocolPrompt(state.protocolPrompt);
+      setShowProtocolChat(true);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state]);
 
   const loadEngagementData = async () => {
     if (!user) return;
@@ -316,16 +323,13 @@ const Index = () => {
 
         setEntries(prev => [newEntry, ...prev]);
 
-        // Update engagement
         const isDetailed = !!(entryData.symptoms?.length || entryData.triggers?.length || entryData.note || entryData.medications?.length);
         const { newBadges, streakIncreased, currentStreak: newStreak } = await updateEngagementOnLog(user.id, isDetailed);
         setCurrentStreak(newStreak);
         
-        // Check for tracking variety badges
         const trackingBadges = await checkTrackingBadges(user.id);
         const allNewBadges = [...newBadges, ...trackingBadges];
         
-        // Award photo/voice badges if applicable
         if (entryData.photos?.length && await awardBadge(user.id, 'photo_first')) {
           allNewBadges.push('photo_first');
         }
@@ -433,17 +437,11 @@ const Index = () => {
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/auth');
-  };
-
-  // Filter entries for selected date in history view
   const selectedDateEntries = useMemo(() => {
     return entries.filter(e => isSameDay(e.timestamp, selectedDate));
   }, [entries, selectedDate]);
 
-  // Show onboarding if needed - now using SmartOnboarding (3 steps instead of 7)
+  // Show onboarding if needed
   if (showOnboarding && !isLoadingProfile) {
     return <RevolutionaryOnboarding onComplete={(data) => {
       handleOnboardingComplete({
@@ -456,112 +454,45 @@ const Index = () => {
     }} />;
   }
 
-  // Get condition names for display
-  const userConditionNames = userProfile?.conditions
-    .map(id => CONDITIONS.find(c => c.id === id)?.name)
-    .filter(Boolean) || [];
+  // Show progress dashboard in a dialog
+  if (showProgress && user) {
+    return (
+      <MobileLayout showNav={false}>
+        <ProgressDashboard 
+          userId={user.id}
+          entries={entries}
+          onBack={() => setShowProgress(false)}
+        />
+      </MobileLayout>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header - Clean clinical style */}
-      <header className="sticky top-0 z-50 bg-card/95 backdrop-blur-sm border-b border-border">
-        <div className="container max-w-md mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <img src={jvalaLogo} alt="jvala" className="w-8 h-8" />
-              <div>
-                <h1 className="text-base font-semibold text-foreground tracking-tight">Jvala</h1>
-                <p className="text-[11px] text-muted-foreground font-medium">{format(new Date(), 'EEEE, MMM d')}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5">
-              {/* Streak Badge */}
-              {currentStreak > 0 && (
-                <StreakBadge 
-                  streak={currentStreak} 
-                  onClick={() => setCurrentView('progress')}
-                />
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setCurrentView('profile')}
-                className="h-9 w-9 rounded-lg hover:bg-muted"
-              >
-                <UserIcon className="w-4 h-4 text-muted-foreground" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate('/settings')}
-                className="h-9 w-9 rounded-lg hover:bg-muted"
-              >
-                <Settings className="w-4 h-4 text-muted-foreground" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Navigation - Professional tab bar */}
-      <div className="container max-w-md mx-auto px-4 py-3">
-        <div className="flex bg-muted/60 rounded-xl p-1 border border-border/50">
-          <Button
-            variant={currentView === 'track' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setCurrentView('track')}
-            className={`flex-1 text-xs h-9 rounded-lg font-medium ${currentView === 'track' ? 'shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            <Activity className="w-3.5 h-3.5 mr-1.5" />
-            Log
-          </Button>
-          <Button
-            variant={currentView === 'history' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setCurrentView('history')}
-            className={`flex-1 text-xs h-9 rounded-lg font-medium ${currentView === 'history' ? 'shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            <Calendar className="w-3.5 h-3.5 mr-1.5" />
-            History
-          </Button>
-          <Button
-            variant={currentView === 'insights' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={async () => {
-              setCurrentView('insights');
-              const newCount = insightViewCount + 1;
-              setInsightViewCount(newCount);
-              if (newCount === 5 && user?.id) {
-                const awarded = await awardBadge(user.id, 'insight_seeker');
-                if (awarded) {
-                  toast({ title: "🏆 Badge Earned!", description: "Insight Seeker" });
-                }
-              }
-            }}
-            className={`flex-1 text-xs h-9 rounded-lg font-medium ${currentView === 'insights' ? 'shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            <BarChart3 className="w-3.5 h-3.5 mr-1.5" />
-            Insights
-          </Button>
-        </div>
-      </div>
-
-      {/* Content */}
-      <main className="container max-w-md mx-auto px-4 pb-8">
-        {/* Track View - Clean and focused */}
+    <>
+      <MobileLayout
+        currentView={currentView}
+        onViewChange={setCurrentView}
+        header={
+          <MobileHeader 
+            streak={currentStreak}
+            onStreakClick={() => setShowProgress(true)}
+          />
+        }
+      >
+        {/* Track View */}
         {currentView === 'track' && user && (
           <div className="space-y-4">
-            {/* Quick Log Card - Primary Action */}
-            <Card className="p-5 shadow-soft-md bg-card border border-border/80 animate-fade-in">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center shadow-sm">
+            {/* Quick Log Card */}
+            <Card className="p-4 glass-card">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-9 h-9 rounded-xl bg-gradient-primary flex items-center justify-center">
                   <Activity className="w-4 h-4 text-primary-foreground" />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
                     <h2 className="text-sm font-semibold text-foreground">How are you feeling?</h2>
                     {currentLocation?.city && (
-                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full">
+                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground bg-white/10 px-2 py-0.5 rounded-full">
                         <MapPin className="w-2.5 h-2.5" />
                         <span>{currentLocation.city}</span>
                       </div>
@@ -583,7 +514,7 @@ const Index = () => {
               />
               
               {/* Detailed Entry Toggle */}
-              <div className="pt-4 mt-4 border-t border-border/60">
+              <div className="pt-3 mt-3 border-t border-white/10">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -594,7 +525,7 @@ const Index = () => {
                   {showDetailedEntry ? 'Hide details' : 'Add more details'}
                 </Button>
                 {showDetailedEntry && (
-                  <div className="mt-4 animate-fade-in">
+                  <div className="mt-3 animate-fade-in">
                     <DetailedEntry 
                       onSave={handleSaveEntry} 
                       onDetailedSave={(entry) => {
@@ -607,8 +538,8 @@ const Index = () => {
               </div>
             </Card>
 
-            {/* Health Forecast - AI Prediction */}
-            {user && entries.length >= 5 && (
+            {/* Health Forecast */}
+            {entries.length >= 5 && (
               <HealthForecast 
                 userId={user.id}
                 currentWeather={currentLocation ? undefined : undefined}
@@ -616,28 +547,27 @@ const Index = () => {
               />
             )}
 
-            {/* Cycle Tracker - Only show if user has menstrual-related condition */}
-            {user && userProfile?.conditions?.some(c => 
+            {/* Cycle Tracker */}
+            {userProfile?.conditions?.some(c => 
               ['menstrual-disorders', 'endometriosis', 'pcos', 'pmdd', 'pms'].includes(c)
             ) && (
               <CycleTracker userId={user.id} />
             )}
             
-            {/* Discovered Patterns - Compact teaser */}
+            {/* Discovered Patterns */}
             {topCorrelations.length > 0 && (
               <CorrelationInsights 
                 correlations={topCorrelations}
                 onViewDetails={() => setCurrentView('insights')}
               />
             )}
-            
           </div>
         )}
 
         {/* History View */}
         {currentView === 'history' && (
           <div className="space-y-4">
-            <Card className="p-4 shadow-soft-md bg-card border border-border/80">
+            <Card className="p-3 glass-card">
               <CalendarHistory 
                 entries={entries}
                 selectedDate={selectedDate}
@@ -645,14 +575,13 @@ const Index = () => {
               />
             </Card>
 
-            {/* Timeline for selected date - Enhanced */}
             {selectedDateEntries.length > 0 ? (
               <div className="animate-fade-in">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-semibold text-foreground">
-                    {format(selectedDate, 'EEEE, MMMM d')}
+                    {format(selectedDate, 'EEE, MMM d')}
                   </h3>
-                  <span className="text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] text-muted-foreground bg-white/10 px-2 py-0.5 rounded-full">
                     {selectedDateEntries.length} {selectedDateEntries.length === 1 ? 'entry' : 'entries'}
                   </span>
                 </div>
@@ -666,31 +595,26 @@ const Index = () => {
                     setShowClinicalRecord(true);
                   }}
                   onGenerateBulkClinicalRecord={(entries) => {
-                    // For bulk, set first entry and pass all entries
                     setClinicalRecordEntry(entries[0]);
                     setShowClinicalRecord(true);
                   }}
                 />
               </div>
             ) : (
-              <Card className="p-6 text-center bg-card border border-border/80">
+              <Card className="p-6 text-center glass-card">
                 <p className="text-sm text-muted-foreground">
-                  No entries on {format(selectedDate, 'MMMM d')}
+                  No entries on {format(selectedDate, 'MMM d')}
                 </p>
               </Card>
             )}
           </div>
         )}
 
-        {/* Insights View - Analytics */}
+        {/* Insights View */}
         {currentView === 'insights' && user && (
           <div className="space-y-4">
-            {/* Weekly Report */}
-            <WeeklyReportCard 
-              userId={user.id}
-            />
+            <WeeklyReportCard userId={user.id} />
             
-            {/* Main Insights - AI-Powered */}
             <RevampedInsights 
               entries={entries} 
               userConditions={userProfile?.conditions}
@@ -711,20 +635,11 @@ const Index = () => {
             onRequireOnboarding={() => setShowOnboarding(true)}
           />
         )}
-
-        {/* Progress Dashboard */}
-        {currentView === 'progress' && user && (
-          <ProgressDashboard 
-            userId={user.id}
-            entries={entries}
-            onBack={() => setCurrentView('track')}
-          />
-        )}
-      </main>
+      </MobileLayout>
 
       {/* Protocol Builder Chat Dialog */}
       <Dialog open={showProtocolChat} onOpenChange={setShowProtocolChat}>
-        <DialogContent className="max-w-md p-0 overflow-hidden">
+        <DialogContent className="max-w-md p-0 overflow-hidden max-h-[90vh]">
           {user && (
             <LimitlessAIChat 
               userId={user.id}
@@ -745,7 +660,7 @@ const Index = () => {
         open={showClinicalRecord}
         onOpenChange={setShowClinicalRecord}
       />
-    </div>
+    </>
   );
 };
 

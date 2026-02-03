@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Moon, Sun, LogOut, Shield, FileText, Bell, AlertTriangle, Activity, User as UserIcon } from "lucide-react";
+import { ArrowLeft, Moon, Sun, LogOut, Shield, FileText, Bell, AlertTriangle, Activity, User as UserIcon, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,13 +35,10 @@ export default function Settings() {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
 
-  // Initialize dark mode state by reading actual DOM state - never change theme on mount
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    // Read from DOM to get current state - this is read-only on init
     return document.documentElement.classList.contains('dark');
   });
 
-  // Load user settings
   useEffect(() => {
     if (user) {
       loadUserSettings();
@@ -156,349 +153,228 @@ export default function Settings() {
   const needsAcceptance = !termsAccepted || !privacyAccepted;
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
-      <header className="sticky top-0 z-50 glass border-b shadow-soft">
-        <div className="container max-w-md mx-auto px-4 py-3">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="h-9 w-9">
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-            <h1 className="text-base font-medical">Settings</h1>
-          </div>
+    <div className="fixed inset-0 flex flex-col bg-background max-w-md mx-auto">
+      {/* Header */}
+      <header className="flex-shrink-0 glass border-b border-white/10 safe-area-top">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="h-9 w-9 rounded-xl">
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <h1 className="text-base font-semibold">Settings</h1>
         </div>
       </header>
 
-      <main className="container max-w-md mx-auto px-4 py-6 space-y-4">
-        {/* Consent Warning */}
-        {needsAcceptance && (
-          <Card className="border-severity-moderate bg-severity-moderate-bg/30">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-severity-moderate flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium">Action Required</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Please review and accept our Terms of Service and Privacy Policy to continue using Jvala.
-                  </p>
+      {/* Content */}
+      <main className="flex-1 overflow-y-auto px-4 py-4 pb-8 scrollbar-hide">
+        <div className="space-y-3">
+          {/* Consent Warning */}
+          {needsAcceptance && (
+            <Card className="border-severity-moderate glass-card">
+              <CardContent className="p-3">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-severity-moderate flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-medium">Action Required</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      Please review and accept our Terms and Privacy Policy.
+                    </p>
+                  </div>
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Appearance */}
+          <Card className="glass-card">
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  {isDarkMode ? <Moon className="w-4 h-4 text-primary" /> : <Sun className="w-4 h-4 text-primary" />}
+                  <div>
+                    <p className="text-sm font-medium">Dark Mode</p>
+                    <p className="text-[10px] text-muted-foreground">Switch theme</p>
+                  </div>
+                </div>
+                <Switch checked={isDarkMode} onCheckedChange={toggleDarkMode} />
               </div>
             </CardContent>
           </Card>
-        )}
 
-        {/* Appearance */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              {isDarkMode ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-              Appearance
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label>Dark Mode</Label>
-                <p className="text-xs text-muted-foreground">Switch between light and dark themes</p>
-              </div>
-              <Switch checked={isDarkMode} onCheckedChange={toggleDarkMode} />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Clinician Portal for VCs */}
-        <Card className="border-primary/30 bg-primary/5">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Activity className="w-4 h-4 text-primary" />
-              Clinician Portal
-              <Badge variant="secondary" className="text-[10px]">Demo</Badge>
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Access the clinician dashboard for investor demos
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button 
-              variant="outline" 
-              className="w-full justify-start gap-2 h-10"
-              onClick={() => navigate('/clinician')}
-            >
-              <UserIcon className="w-4 h-4" />
-              Open Clinician Dashboard
-              <span className="ml-auto text-xs text-muted-foreground">→</span>
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Reminders - only in Settings */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Bell className="w-4 h-4" />
-              Reminders
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Configure logging reminders and medication alerts
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <SmartMedicationReminders medications={userMedications} />
-            <ReminderSettings userEmail={userEmail} />
-          </CardContent>
-        </Card>
-
-        {/* Legal */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Shield className="w-4 h-4" />
-              Legal
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Terms of Service */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-muted-foreground" />
-                <div>
-                  <Label>Terms of Service</Label>
-                  {termsAccepted && (
-                    <p className="text-xs text-severity-none">✓ Accepted</p>
-                  )}
+          {/* Clinician Portal */}
+          <Card className="glass-card border-primary/20">
+            <CardContent className="p-3">
+              <button
+                onClick={() => navigate('/clinician')}
+                className="flex items-center justify-between w-full"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Activity className="w-4 h-4 text-primary" />
+                  <div className="text-left">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium">Clinician Portal</p>
+                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0">Demo</Badge>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">View clinician dashboard</p>
+                  </div>
                 </div>
-              </div>
-              <Dialog open={showTerms} onOpenChange={setShowTerms}>
-                <DialogTrigger asChild>
-                  <Button variant={termsAccepted ? "ghost" : "outline"} size="sm">
-                    {termsAccepted ? "View" : "Review & Accept"}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md max-h-[80vh]">
-                  <DialogHeader>
-                    <DialogTitle>Terms of Service</DialogTitle>
-                    <DialogDescription>Last updated: December 2024</DialogDescription>
-                  </DialogHeader>
-                  <ScrollArea className="h-[50vh] pr-4">
-                    <div className="text-sm space-y-4">
-                      <section>
-                        <h3 className="font-semibold mb-2">1. Acceptance of Terms</h3>
-                        <p className="text-muted-foreground">
-                          By accessing or using Jvala ("the App"), you agree to be bound by these Terms of Service. 
-                          If you do not agree, do not use the App.
-                        </p>
-                      </section>
-                      <section>
-                        <h3 className="font-semibold mb-2">2. Description of Service</h3>
-                        <p className="text-muted-foreground">
-                          Jvala is a personal health tracking application designed to help users monitor symptoms, 
-                          triggers, and health patterns. The App is NOT a medical device and should NOT be used 
-                          for medical diagnosis or treatment decisions.
-                        </p>
-                      </section>
-                      <section>
-                        <h3 className="font-semibold mb-2">3. Medical Disclaimer</h3>
-                        <p className="text-muted-foreground">
-                          <strong>IMPORTANT:</strong> Jvala does not provide medical advice. The information and 
-                          insights generated by the App are for informational purposes only. Always consult with 
-                          qualified healthcare professionals for medical decisions. Never disregard professional 
-                          medical advice or delay seeking it because of information from the App.
-                        </p>
-                      </section>
-                      <section>
-                        <h3 className="font-semibold mb-2">4. AI-Generated Content</h3>
-                        <p className="text-muted-foreground">
-                          The App uses artificial intelligence to generate insights and suggestions. AI-generated 
-                          content may contain errors or inaccuracies. Users should verify any AI-generated information 
-                          before acting on it, especially regarding health decisions.
-                        </p>
-                      </section>
-                      <section>
-                        <h3 className="font-semibold mb-2">5. User Responsibilities</h3>
-                        <p className="text-muted-foreground">
-                          You are responsible for maintaining the confidentiality of your account and for all 
-                          activities that occur under your account. You agree to provide accurate information 
-                          and to use the App in compliance with all applicable laws.
-                        </p>
-                      </section>
-                      <section>
-                        <h3 className="font-semibold mb-2">6. Data Accuracy</h3>
-                        <p className="text-muted-foreground">
-                          The accuracy of insights depends on the data you provide. Jvala is not responsible 
-                          for conclusions drawn from incomplete or inaccurate data entry.
-                        </p>
-                      </section>
-                      <section>
-                        <h3 className="font-semibold mb-2">7. Limitation of Liability</h3>
-                        <p className="text-muted-foreground">
-                          To the maximum extent permitted by law, Jvala shall not be liable for any indirect, 
-                          incidental, special, consequential, or punitive damages, including but not limited to 
-                          loss of health, well-being, or any other damages arising from use of the App.
-                        </p>
-                      </section>
-                      <section>
-                        <h3 className="font-semibold mb-2">8. Changes to Terms</h3>
-                        <p className="text-muted-foreground">
-                          We reserve the right to modify these terms at any time. Continued use of the App 
-                          after changes constitutes acceptance of the modified terms.
-                        </p>
-                      </section>
-                      <section>
-                        <h3 className="font-semibold mb-2">9. Contact</h3>
-                        <p className="text-muted-foreground">
-                          For questions about these Terms, contact us at support@jvala.tech
-                        </p>
-                      </section>
-                    </div>
-                  </ScrollArea>
-                  {!termsAccepted && (
-                    <div className="pt-4 border-t">
-                      <div className="flex items-center space-x-2 mb-4">
-                        <Checkbox id="accept-terms" />
-                        <label htmlFor="accept-terms" className="text-sm">
-                          I have read and agree to the Terms of Service
-                        </label>
-                      </div>
-                      <Button onClick={handleAcceptTerms} className="w-full">
-                        Accept Terms of Service
-                      </Button>
-                    </div>
-                  )}
-                </DialogContent>
-              </Dialog>
-            </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </CardContent>
+          </Card>
 
-            <Separator />
+          {/* Reminders */}
+          <Card className="glass-card">
+            <CardHeader className="p-3 pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Bell className="w-4 h-4 text-primary" />
+                Reminders
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 pt-0 space-y-3">
+              <SmartMedicationReminders medications={userMedications} />
+              <ReminderSettings userEmail={userEmail} />
+            </CardContent>
+          </Card>
 
-            {/* Privacy Policy */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Shield className="w-4 h-4 text-muted-foreground" />
-                <div>
-                  <Label>Privacy Policy</Label>
-                  {privacyAccepted && (
-                    <p className="text-xs text-severity-none">✓ Accepted</p>
-                  )}
+          {/* Legal */}
+          <Card className="glass-card">
+            <CardHeader className="p-3 pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Shield className="w-4 h-4 text-primary" />
+                Legal
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 pt-0 space-y-2">
+              {/* Terms */}
+              <button
+                onClick={() => setShowTerms(true)}
+                className="flex items-center justify-between w-full p-2 rounded-xl hover:bg-white/5 transition-all"
+              >
+                <div className="flex items-center gap-2.5">
+                  <FileText className="w-4 h-4 text-muted-foreground" />
+                  <div className="text-left">
+                    <p className="text-sm font-medium">Terms of Service</p>
+                    {termsAccepted && (
+                      <p className="text-[10px] text-severity-none">✓ Accepted</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <Dialog open={showPrivacy} onOpenChange={setShowPrivacy}>
-                <DialogTrigger asChild>
-                  <Button variant={privacyAccepted ? "ghost" : "outline"} size="sm">
-                    {privacyAccepted ? "View" : "Review & Accept"}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md max-h-[80vh]">
-                  <DialogHeader>
-                    <DialogTitle>Privacy Policy</DialogTitle>
-                    <DialogDescription>Last updated: December 2024</DialogDescription>
-                  </DialogHeader>
-                  <ScrollArea className="h-[50vh] pr-4">
-                    <div className="text-sm space-y-4">
-                      <section>
-                        <h3 className="font-semibold mb-2">1. Information We Collect</h3>
-                        <p className="text-muted-foreground">
-                          <strong>Account Information:</strong> Email address, name (optional), and profile preferences.
-                        </p>
-                        <p className="text-muted-foreground mt-2">
-                          <strong>Health Data:</strong> Symptom logs, severity ratings, triggers, medications, 
-                          and any notes you enter. This data is encrypted and stored securely.
-                        </p>
-                        <p className="text-muted-foreground mt-2">
-                          <strong>Location Data:</strong> City-level location (optional) for environmental 
-                          correlation analysis. We do NOT collect precise GPS coordinates.
-                        </p>
-                        <p className="text-muted-foreground mt-2">
-                          <strong>Environmental Data:</strong> Weather and air quality information based on 
-                          your approximate location.
-                        </p>
-                      </section>
-                      <section>
-                        <h3 className="font-semibold mb-2">2. How We Use Your Data</h3>
-                        <p className="text-muted-foreground">
-                          • To provide personalized health tracking and insights<br/>
-                          • To generate AI-powered pattern analysis<br/>
-                          • To enable data export for healthcare providers<br/>
-                          • To improve our services and algorithms (anonymized data only)<br/>
-                          • To send reminders if you've opted in
-                        </p>
-                      </section>
-                      <section>
-                        <h3 className="font-semibold mb-2">3. Data Security</h3>
-                        <p className="text-muted-foreground">
-                          Your health data is encrypted at rest and in transit. We use industry-standard 
-                          security measures including:
-                        </p>
-                        <p className="text-muted-foreground mt-2">
-                          • AES-256 encryption for stored data<br/>
-                          • TLS 1.3 for data in transit<br/>
-                          • Row-level security policies<br/>
-                          • Regular security audits
-                        </p>
-                      </section>
-                      <section>
-                        <h3 className="font-semibold mb-2">4. Data Sharing</h3>
-                        <p className="text-muted-foreground">
-                          We never sell your personal health data. We may share data only when:
-                        </p>
-                        <p className="text-muted-foreground mt-2">
-                          • You explicitly request it (e.g., exporting to your doctor)<br/>
-                          • Required by law<br/>
-                          • Necessary for service providers under confidentiality agreements
-                        </p>
-                      </section>
-                      <section>
-                        <h3 className="font-semibold mb-2">5. Your Rights</h3>
-                        <p className="text-muted-foreground">
-                          You have the right to:<br/>
-                          • Access all your data<br/>
-                          • Export your data in standard formats<br/>
-                          • Correct any inaccuracies<br/>
-                          • Delete your account and all associated data<br/>
-                          • Opt out of non-essential data processing
-                        </p>
-                      </section>
-                      <section>
-                        <h3 className="font-semibold mb-2">6. Contact</h3>
-                        <p className="text-muted-foreground">
-                          For privacy concerns, contact us at privacy@jvala.tech
-                        </p>
-                      </section>
-                    </div>
-                  </ScrollArea>
-                  {!privacyAccepted && (
-                    <div className="pt-4 border-t">
-                      <div className="flex items-center space-x-2 mb-4">
-                        <Checkbox id="accept-privacy" />
-                        <label htmlFor="accept-privacy" className="text-sm">
-                          I have read and agree to the Privacy Policy
-                        </label>
-                      </div>
-                      <Button onClick={handleAcceptPrivacy} className="w-full">
-                        Accept Privacy Policy
-                      </Button>
-                    </div>
-                  )}
-                </DialogContent>
-              </Dialog>
-            </div>
-          </CardContent>
-        </Card>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </button>
 
-        {/* Account */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Account</CardTitle>
-            {userEmail && (
-              <CardDescription className="text-xs">{userEmail}</CardDescription>
-            )}
-          </CardHeader>
-          <CardContent>
-            <Button variant="destructive" onClick={handleSignOut} className="w-full">
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
-            </Button>
-          </CardContent>
-        </Card>
+              <Separator className="bg-white/10" />
+
+              {/* Privacy */}
+              <button
+                onClick={() => setShowPrivacy(true)}
+                className="flex items-center justify-between w-full p-2 rounded-xl hover:bg-white/5 transition-all"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Shield className="w-4 h-4 text-muted-foreground" />
+                  <div className="text-left">
+                    <p className="text-sm font-medium">Privacy Policy</p>
+                    {privacyAccepted && (
+                      <p className="text-[10px] text-severity-none">✓ Accepted</p>
+                    )}
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </CardContent>
+          </Card>
+
+          {/* Account */}
+          <Card className="glass-card">
+            <CardContent className="p-3">
+              <div className="space-y-2">
+                {userEmail && (
+                  <div className="flex items-center gap-2.5 p-2">
+                    <UserIcon className="w-4 h-4 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
+                  </div>
+                )}
+                
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="w-full h-10"
+                  onClick={handleSignOut}
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* App version */}
+          <p className="text-[10px] text-center text-muted-foreground pt-2">
+            Jvala v1.0.0 • Made with 💜
+          </p>
+        </div>
       </main>
+
+      {/* Terms Dialog */}
+      <Dialog open={showTerms} onOpenChange={setShowTerms}>
+        <DialogContent className="max-w-md max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Terms of Service</DialogTitle>
+            <DialogDescription>Last updated: December 2024</DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="h-[50vh] pr-4">
+            <div className="text-sm space-y-4">
+              <section>
+                <h3 className="font-semibold mb-2">1. Medical Disclaimer</h3>
+                <p className="text-muted-foreground">
+                  Jvala does not provide medical advice. Always consult qualified healthcare professionals.
+                </p>
+              </section>
+              <section>
+                <h3 className="font-semibold mb-2">2. AI-Generated Content</h3>
+                <p className="text-muted-foreground">
+                  AI insights may contain errors. Verify before acting on any AI-generated information.
+                </p>
+              </section>
+            </div>
+          </ScrollArea>
+          {!termsAccepted && (
+            <Button onClick={handleAcceptTerms} className="w-full">
+              Accept Terms of Service
+            </Button>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Privacy Dialog */}
+      <Dialog open={showPrivacy} onOpenChange={setShowPrivacy}>
+        <DialogContent className="max-w-md max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Privacy Policy</DialogTitle>
+            <DialogDescription>Last updated: December 2024</DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="h-[50vh] pr-4">
+            <div className="text-sm space-y-4">
+              <section>
+                <h3 className="font-semibold mb-2">1. Data Collection</h3>
+                <p className="text-muted-foreground">
+                  We collect health data you enter and city-level location for environmental correlation.
+                </p>
+              </section>
+              <section>
+                <h3 className="font-semibold mb-2">2. Data Security</h3>
+                <p className="text-muted-foreground">
+                  Your data is encrypted at rest and in transit using industry-standard measures.
+                </p>
+              </section>
+            </div>
+          </ScrollArea>
+          {!privacyAccepted && (
+            <Button onClick={handleAcceptPrivacy} className="w-full">
+              Accept Privacy Policy
+            </Button>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
