@@ -1,7 +1,6 @@
 import { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { Settings, Flame, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Settings, Flame } from "lucide-react";
 import { format } from "date-fns";
 import jvalaLogo from "@/assets/jvala-logo.png";
 import { cn } from "@/lib/utils";
@@ -47,7 +46,7 @@ export const MobileHeader = ({
             <img 
               src={jvalaLogo} 
               alt="Jvala" 
-              className="w-9 h-9 rounded-xl"
+              className="w-10 h-10 rounded-2xl"
             />
           </div>
         )}
@@ -63,18 +62,25 @@ export const MobileHeader = ({
       
       {/* Right: Actions */}
       <div className="flex items-center gap-2">
-        {/* Streak pill - Clean design without dot */}
+        {/* Streak pill - Frosted glass style */}
         {onStreakClick && streak > 0 && (
           <button
             onClick={handleStreakClick}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all duration-300",
-              "bg-gradient-to-r from-primary/15 to-primary/10 border border-primary/25",
+              "relative flex items-center gap-1.5 px-4 py-2 rounded-2xl transition-all duration-300 overflow-hidden",
+              // Frosted glass
+              "bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl",
+              "border border-white/50 dark:border-slate-700/50",
+              // Inner highlight
+              "before:absolute before:inset-0 before:rounded-2xl before:pointer-events-none",
+              "before:bg-gradient-to-b before:from-white/40 before:to-transparent",
+              // Shadow
+              "shadow-[0_4px_16px_rgba(0,0,0,0.06)]",
               "active:scale-95 touch-manipulation"
             )}
           >
-            <Flame className="w-4 h-4 text-primary" strokeWidth={2.5} />
-            <span className="text-sm font-bold text-primary tabular-nums">
+            <Flame className="w-4 h-4 text-primary relative z-10" strokeWidth={2.5} />
+            <span className="text-sm font-bold text-primary tabular-nums relative z-10">
               {streak}
             </span>
           </button>
@@ -82,15 +88,25 @@ export const MobileHeader = ({
         
         {rightAction}
         
+        {/* Settings - Frosted glass button */}
         {showSettings && (
-          <Button
-            variant="ghost"
-            size="icon"
+          <button
             onClick={handleSettingsClick}
-            className="h-9 w-9 rounded-xl hover:bg-muted/50 active:scale-95 transition-all"
+            className={cn(
+              "relative h-10 w-10 rounded-2xl flex items-center justify-center transition-all overflow-hidden",
+              // Frosted glass
+              "bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl",
+              "border border-white/50 dark:border-slate-700/50",
+              // Inner highlight
+              "before:absolute before:inset-0 before:rounded-2xl before:pointer-events-none",
+              "before:bg-gradient-to-b before:from-white/40 before:to-transparent",
+              // Shadow
+              "shadow-[0_4px_16px_rgba(0,0,0,0.06)]",
+              "active:scale-95 touch-manipulation"
+            )}
           >
-            <Settings className="w-5 h-5 text-muted-foreground" />
-          </Button>
+            <Settings className="w-5 h-5 text-muted-foreground relative z-10" />
+          </button>
         )}
       </div>
     </div>

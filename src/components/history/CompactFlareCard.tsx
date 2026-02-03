@@ -108,17 +108,21 @@ export const CompactFlareCard = ({
     <Collapsible open={isExpanded} onOpenChange={handleToggle}>
       <div 
         className={cn(
-          "rounded-3xl transition-all duration-300 overflow-hidden",
-          isExpanded ? "shadow-soft-lg" : "shadow-soft"
+          "relative rounded-3xl transition-all duration-300 overflow-hidden",
+          // Frosted glass effect
+          "bg-white/70 dark:bg-slate-900/70",
+          "backdrop-blur-xl",
+          // Inner highlight
+          "before:absolute before:inset-0 before:rounded-3xl before:pointer-events-none",
+          "before:bg-gradient-to-br before:from-white/30 before:via-transparent before:to-transparent",
         )}
         style={{
-          background: 'hsl(var(--card))',
           border: isExpanded 
-            ? `2px solid hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light}% / 0.3)` 
-            : '1px solid hsl(var(--border) / 0.4)',
+            ? `2px solid hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light}% / 0.4)` 
+            : '1px solid rgba(255,255,255,0.5)',
           boxShadow: isExpanded 
-            ? `0 8px 24px hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light}% / 0.15)` 
-            : undefined,
+            ? `0 8px 32px hsl(${severityConfig.hue} ${severityConfig.sat}% ${severityConfig.light}% / 0.2), inset 0 1px 0 rgba(255,255,255,0.3)` 
+            : '0 8px 32px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.3)',
         }}
       >
         {/* Compact Header - Tappable */}

@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
-import { Smile, Pill, X, Zap, Plus, Activity, Flame, Heart } from "lucide-react";
+import { Smile, Pill, X, Zap, Plus, Activity, Flame, Clock } from "lucide-react";
+import { SeverityWheel } from "@/components/flare/SeverityWheel";
+import { FlareSeverity } from "@/types/flare";
 
 interface MedicationDetails {
   name: string;
@@ -30,17 +31,141 @@ const COMMON_SYMPTOMS = [
 
 type ActivePanel = null | 'symptom' | 'medication' | 'energy' | 'mood';
 
-const MOODS = [
-  { value: 'good', emoji: '😊', label: 'Good', bgColor: 'bg-emerald-500/15 hover:bg-emerald-500/25' },
-  { value: 'okay', emoji: '😐', label: 'Okay', bgColor: 'bg-muted hover:bg-muted/80' },
-  { value: 'bad', emoji: '😔', label: 'Not great', bgColor: 'bg-orange-500/15 hover:bg-orange-500/25' },
+const ENERGY_LEVELS = [
+  { value: 'low' as const, emoji: '😔', label: 'Poor', hours: '3-4 HOURS', color: { h: 0, s: 65, l: 55 } },
+  { value: 'moderate' as const, emoji: '😐', label: 'Fair', hours: '5 HOURS', color: { h: 35, s: 60, l: 50 } },
+  { value: 'high' as const, emoji: '🙂', label: 'Good', hours: '6-7 HOURS', color: { h: 50, s: 65, l: 50 } },
 ];
 
-const SEVERITIES = [
-  { value: 'mild', label: 'Mild', emoji: '🟡', bgColor: 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300' },
-  { value: 'moderate', label: 'Moderate', emoji: '🟠', bgColor: 'bg-orange-500/15 hover:bg-orange-500/25 text-orange-700 dark:text-orange-300' },
-  { value: 'severe', label: 'Severe', emoji: '🔴', bgColor: 'bg-red-500/15 hover:bg-red-500/25 text-red-700 dark:text-red-300' },
-];
+// Frosted glass button component
+const GlassButton = ({ 
+  children, 
+  onClick, 
+  active, 
+  disabled,
+  className = "" 
+}: { 
+  children: React.ReactNode;
+  onClick: () => void;
+  active?: boolean;
+  disabled?: boolean;
+  className?: string;
+}) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className={cn(
+      "relative flex items-center justify-center gap-2 h-12 px-4 rounded-2xl text-base font-medium",
+      "transition-all duration-300 touch-manipulation overflow-hidden",
+      // Frosted glass effect
+      "bg-white/60 dark:bg-slate-900/60",
+      "backdrop-blur-xl",
+      "border border-white/50 dark:border-slate-700/50",
+      // Inner highlight
+      "before:absolute before:inset-0 before:rounded-2xl",
+      "before:bg-gradient-to-b before:from-white/40 before:to-transparent before:pointer-events-none",
+      // Shadow
+      "shadow-[0_4px_16px_rgba(0,0,0,0.06)]",
+      // States
+      active && "bg-primary/20 border-primary/40 dark:bg-primary/30",
+      "active:scale-95 hover:bg-white/80 dark:hover:bg-slate-800/80",
+      disabled && "opacity-50 cursor-not-allowed",
+      className
+    )}
+  >
+    <span className="relative z-10 flex items-center gap-2">{children}</span>
+  </button>
+);
+
+// Vertical slider for energy/sleep like reference image
+const VerticalSlider = ({ 
+  levels, 
+  activeIndex, 
+  onSelect 
+}: { 
+  levels: typeof ENERGY_LEVELS;
+  activeIndex: number;
+  onSelect: (index: number) => void;
+}) => {
+  const activeLevel = levels[activeIndex];
+  
+  return (
+    <div className="flex items-center gap-6 p-4">
+      {/* Labels on left */}
+      <div className="flex flex-col gap-6">
+        {levels.slice().reverse().map((level, i) => {
+          const actualIndex = levels.length - 1 - i;
+          const isActive = actualIndex === activeIndex;
+          
+          return (
+            <button
+              key={level.value}
+              onClick={() => onSelect(actualIndex)}
+              className={cn(
+                "text-left transition-all duration-200",
+                isActive ? "opacity-100" : "opacity-50"
+              )}
+            >
+              <p className={cn(
+                "text-base font-semibold",
+                isActive && "text-foreground"
+              )}>{level.label}</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                {level.hours}
+              </p>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Vertical track */}
+      <div className="relative h-48 w-3 bg-muted rounded-full">
+        {/* Filled portion */}
+        <div 
+          className="absolute bottom-0 left-0 right-0 rounded-full transition-all duration-300"
+          style={{
+            height: `${((activeIndex + 1) / levels.length) * 100}%`,
+            background: `linear-gradient(to top, hsl(${activeLevel.color.h} ${activeLevel.color.s}% ${activeLevel.color.l}%), hsl(${activeLevel.color.h} ${activeLevel.color.s}% ${activeLevel.color.l + 15}%))`,
+          }}
+        />
+        
+        {/* Thumb/knob */}
+        <div 
+          className="absolute left-1/2 -translate-x-1/2 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300"
+          style={{
+            bottom: `calc(${((activeIndex + 0.5) / levels.length) * 100}% - 20px)`,
+            background: `linear-gradient(145deg, hsl(${activeLevel.color.h} ${activeLevel.color.s}% ${activeLevel.color.l + 10}%), hsl(${activeLevel.color.h} ${activeLevel.color.s}% ${activeLevel.color.l}%))`,
+            boxShadow: `0 4px 16px hsl(${activeLevel.color.h} ${activeLevel.color.s}% ${activeLevel.color.l}% / 0.4), inset 0 2px 4px hsl(0 0% 100% / 0.3)`,
+          }}
+        >
+          <span className="text-lg">{activeLevel.emoji}</span>
+        </div>
+      </div>
+
+      {/* Emojis on right */}
+      <div className="flex flex-col gap-6">
+        {levels.slice().reverse().map((level, i) => {
+          const actualIndex = levels.length - 1 - i;
+          const isActive = actualIndex === activeIndex;
+          
+          return (
+            <button
+              key={level.value}
+              onClick={() => onSelect(actualIndex)}
+              className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200",
+                isActive ? "opacity-100 scale-110" : "opacity-40"
+              )}
+            >
+              <span className="text-2xl">{level.emoji}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 export const FluidLogSelector = ({
   userSymptoms,
@@ -55,6 +180,7 @@ export const FluidLogSelector = ({
 }: FluidLogSelectorProps) => {
   const [selectedSymptom, setSelectedSymptom] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
+  const [energyIndex, setEnergyIndex] = useState(1);
   
   const allSymptoms = [...new Set([...userSymptoms, ...COMMON_SYMPTOMS])].slice(0, 12);
 
@@ -63,9 +189,9 @@ export const FluidLogSelector = ({
     setSelectedSymptom(symptom);
   };
 
-  const handleSeverityClick = (severity: string) => {
+  const handleSeveritySelect = (severity: FlareSeverity) => {
     if (selectedSymptom) {
-      haptics.medium();
+      haptics.success();
       onLogSymptom(selectedSymptom, severity);
       setSelectedSymptom(null);
       setActivePanel(null);
@@ -78,19 +204,20 @@ export const FluidLogSelector = ({
     setActivePanel(null);
   };
 
-  const handleEnergyClick = (level: 'low' | 'moderate' | 'high') => {
-    haptics.light();
+  const handleEnergyConfirm = () => {
+    haptics.success();
+    const level = ENERGY_LEVELS[energyIndex].value;
     if (onLogEnergy) {
       onLogEnergy(level);
     }
     setActivePanel(null);
   };
 
-  const handleMoodClick = (mood: string) => {
+  const handleMoodSelect = (severity: FlareSeverity) => {
     haptics.success();
-    if (mood === 'good') {
+    if (severity === 'none' || severity === 'mild') {
       onLogWellness();
-    } else if (mood === 'bad' && onLogRecovery) {
+    } else if (onLogRecovery) {
       onLogRecovery();
     }
     setActivePanel(null);
@@ -107,79 +234,49 @@ export const FluidLogSelector = ({
     setSelectedSymptom(null);
   };
 
-  // Uniform button style - all same size
-  const buttonBaseStyle = cn(
-    "flex items-center justify-center gap-1.5 h-10 px-3 rounded-xl text-sm font-medium transition-all",
-    "active:scale-95 touch-manipulation border border-border/50"
-  );
-
   return (
-    <div className="space-y-2">
-      {/* Main action buttons - uniform size */}
+    <div className="space-y-3">
+      {/* Main action buttons - uniform frosted glass */}
       <div className="flex items-center gap-2">
-        {/* Flare button */}
-        <button
+        <GlassButton
           onClick={() => togglePanel('symptom')}
           disabled={disabled}
-          className={cn(
-            buttonBaseStyle,
-            "flex-1",
-            activePanel === 'symptom' 
-              ? "bg-primary text-primary-foreground border-primary" 
-              : "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20"
-          )}
+          active={activePanel === 'symptom'}
+          className="flex-1"
         >
-          <Flame className="w-4 h-4" />
+          <Flame className="w-5 h-5 text-red-500" />
           <span>Flare</span>
-        </button>
+        </GlassButton>
 
-        {/* Mood button */}
-        <button
+        <GlassButton
           onClick={() => togglePanel('mood')}
           disabled={disabled}
-          className={cn(
-            buttonBaseStyle,
-            "flex-1",
-            activePanel === 'mood' 
-              ? "bg-primary text-primary-foreground border-primary" 
-              : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-          )}
+          active={activePanel === 'mood'}
+          className="flex-1"
         >
-          <Smile className="w-4 h-4" />
+          <Smile className="w-5 h-5 text-emerald-500" />
           <span>Mood</span>
-        </button>
+        </GlassButton>
 
-        {/* Meds button */}
-        <button
+        <GlassButton
           onClick={() => togglePanel('medication')}
           disabled={disabled}
-          className={cn(
-            buttonBaseStyle,
-            "flex-1",
-            activePanel === 'medication' 
-              ? "bg-primary text-primary-foreground border-primary" 
-              : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
-          )}
+          active={activePanel === 'medication'}
+          className="flex-1"
         >
-          <Pill className="w-4 h-4" />
+          <Pill className="w-5 h-5 text-blue-500" />
           <span>Meds</span>
-        </button>
+        </GlassButton>
 
-        {/* Energy button */}
-        <button
+        <GlassButton
           onClick={() => togglePanel('energy')}
           disabled={disabled}
-          className={cn(
-            buttonBaseStyle,
-            "flex-1",
-            activePanel === 'energy' 
-              ? "bg-primary text-primary-foreground border-primary" 
-              : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
-          )}
+          active={activePanel === 'energy'}
+          className="flex-1"
         >
-          <Zap className="w-4 h-4" />
+          <Zap className="w-5 h-5 text-amber-500" />
           <span>Energy</span>
-        </button>
+        </GlassButton>
 
         {/* Plus button for details */}
         {onOpenDetails && (
@@ -190,43 +287,59 @@ export const FluidLogSelector = ({
             }}
             disabled={disabled}
             className={cn(
-              "h-10 w-10 rounded-xl flex items-center justify-center transition-all",
-              "active:scale-95 touch-manipulation border border-border/50",
-              "bg-muted/50 text-muted-foreground hover:bg-muted"
+              "relative h-12 w-12 rounded-2xl flex items-center justify-center",
+              "transition-all duration-300 touch-manipulation overflow-hidden",
+              "bg-white/60 dark:bg-slate-900/60",
+              "backdrop-blur-xl",
+              "border border-white/50 dark:border-slate-700/50",
+              "before:absolute before:inset-0 before:rounded-2xl",
+              "before:bg-gradient-to-b before:from-white/40 before:to-transparent",
+              "shadow-[0_4px_16px_rgba(0,0,0,0.06)]",
+              "active:scale-95"
             )}
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-5 h-5 text-muted-foreground relative z-10" />
           </button>
         )}
       </div>
 
-      {/* Expandable panels */}
+      {/* Expandable panels - frosted glass */}
       {activePanel && (
-        <div className="animate-in fade-in slide-in-from-top-2 duration-200 bg-card/80 backdrop-blur-sm rounded-2xl p-3 border border-border/50">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-foreground">
-              {activePanel === 'symptom' && (selectedSymptom ? `${selectedSymptom} — severity?` : 'What symptom?')}
+        <div className={cn(
+          "animate-in fade-in slide-in-from-top-2 duration-300 rounded-3xl p-4 overflow-hidden",
+          "bg-white/70 dark:bg-slate-900/70",
+          "backdrop-blur-xl",
+          "border border-white/50 dark:border-slate-700/50",
+          "shadow-[0_8px_32px_rgba(0,0,0,0.08)]"
+        )}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-base font-semibold text-foreground">
+              {activePanel === 'symptom' && (selectedSymptom ? `${selectedSymptom} — how severe?` : 'What symptom?')}
               {activePanel === 'medication' && 'Which medication?'}
               {activePanel === 'energy' && "How's your energy?"}
               {activePanel === 'mood' && 'How are you feeling?'}
             </span>
             <button 
               onClick={closeAll}
-              className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted active:scale-95"
+              className="w-8 h-8 rounded-xl flex items-center justify-center bg-muted/50 hover:bg-muted active:scale-95 transition-all"
             >
               <X className="w-4 h-4 text-muted-foreground" />
             </button>
           </div>
 
-          {/* Symptom panel */}
+          {/* Symptom selection */}
           {activePanel === 'symptom' && !selectedSymptom && (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-2">
               {allSymptoms.map((symptom) => (
                 <button
                   key={symptom}
                   onClick={() => handleSymptomClick(symptom)}
-                  className="px-3 py-1.5 rounded-lg bg-muted/50 text-sm font-medium border border-border/30 
-                    hover:bg-primary/10 hover:border-primary/30 active:scale-95 transition-all"
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-base font-medium transition-all",
+                    "bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm",
+                    "border border-white/40 dark:border-slate-700/40",
+                    "hover:bg-primary/10 hover:border-primary/30 active:scale-95"
+                  )}
                 >
                   {symptom}
                 </button>
@@ -234,33 +347,21 @@ export const FluidLogSelector = ({
             </div>
           )}
 
-          {/* Severity selector */}
+          {/* Severity wheel for symptoms */}
           {activePanel === 'symptom' && selectedSymptom && (
-            <div className="space-y-2">
+            <div>
               <button 
                 onClick={() => setSelectedSymptom(null)}
-                className="flex items-center gap-1.5 text-xs text-primary font-medium"
+                className="flex items-center gap-1.5 text-sm text-primary font-medium mb-2"
               >
-                <Activity className="w-3 h-3" />
+                <Activity className="w-3.5 h-3.5" />
                 ← Change symptom
               </button>
-              <div className="grid grid-cols-3 gap-2">
-                {SEVERITIES.map((sev) => (
-                  <button
-                    key={sev.value}
-                    onClick={() => handleSeverityClick(sev.value)}
-                    disabled={disabled}
-                    className={cn(
-                      "flex flex-col items-center gap-0.5 p-3 rounded-xl font-medium transition-all",
-                      "active:scale-95 touch-manipulation",
-                      sev.bgColor
-                    )}
-                  >
-                    <span className="text-xl">{sev.emoji}</span>
-                    <span className="text-xs">{sev.label}</span>
-                  </button>
-                ))}
-              </div>
+              <SeverityWheel
+                selectedSeverity={null}
+                onSeveritySelect={handleSeveritySelect}
+                question={`How severe is your ${selectedSymptom.toLowerCase()}?`}
+              />
             </div>
           )}
 
@@ -268,78 +369,63 @@ export const FluidLogSelector = ({
           {activePanel === 'medication' && (
             <>
               {userMedications && userMedications.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-2">
                   {userMedications.map((med, i) => (
                     <button
                       key={i}
                       onClick={() => handleMedicationClick(med.name)}
-                      className="px-3 py-1.5 rounded-lg bg-muted/50 text-sm font-medium border border-border/30 
-                        hover:bg-primary/10 hover:border-primary/30 active:scale-95 transition-all"
+                      className={cn(
+                        "px-4 py-2 rounded-xl text-base font-medium transition-all",
+                        "bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm",
+                        "border border-white/40 dark:border-slate-700/40",
+                        "hover:bg-primary/10 hover:border-primary/30 active:scale-95"
+                      )}
                     >
                       💊 {med.name}
                     </button>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-base text-muted-foreground">
                   Add medications in Profile → Health
                 </p>
               )}
             </>
           )}
 
-          {/* Energy panel */}
+          {/* Energy panel - vertical slider */}
           {activePanel === 'energy' && (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="flex flex-col items-center">
+              <h3 className="text-xl font-bold mb-1">How would you rate</h3>
+              <h3 className="text-xl font-bold mb-4">your sleep quality?</h3>
+              
+              <VerticalSlider
+                levels={ENERGY_LEVELS}
+                activeIndex={energyIndex}
+                onSelect={setEnergyIndex}
+              />
+              
               <button
-                onClick={() => handleEnergyClick('low')}
-                disabled={disabled}
-                className="flex flex-col items-center gap-0.5 p-3 rounded-xl bg-orange-500/15 
-                  text-orange-700 dark:text-orange-300 font-medium active:scale-95 transition-all"
+                onClick={handleEnergyConfirm}
+                className={cn(
+                  "mt-4 px-8 py-3 rounded-2xl font-semibold text-white transition-all",
+                  "bg-gradient-to-r from-primary to-primary/80",
+                  "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
+                  "active:scale-95"
+                )}
               >
-                <span className="text-xl">😔</span>
-                <span className="text-xs">Low</span>
-              </button>
-              <button
-                onClick={() => handleEnergyClick('moderate')}
-                disabled={disabled}
-                className="flex flex-col items-center gap-0.5 p-3 rounded-xl bg-muted 
-                  text-foreground font-medium active:scale-95 transition-all"
-              >
-                <span className="text-xl">😐</span>
-                <span className="text-xs">Okay</span>
-              </button>
-              <button
-                onClick={() => handleEnergyClick('high')}
-                disabled={disabled}
-                className="flex flex-col items-center gap-0.5 p-3 rounded-xl bg-emerald-500/15 
-                  text-emerald-700 dark:text-emerald-300 font-medium active:scale-95 transition-all"
-              >
-                <span className="text-xl">😊</span>
-                <span className="text-xs">High</span>
+                Log Energy
               </button>
             </div>
           )}
 
-          {/* Mood panel */}
+          {/* Mood panel - wheel picker */}
           {activePanel === 'mood' && (
-            <div className="grid grid-cols-3 gap-2">
-              {MOODS.map((mood) => (
-                <button
-                  key={mood.value}
-                  onClick={() => handleMoodClick(mood.value)}
-                  disabled={disabled}
-                  className={cn(
-                    "flex flex-col items-center gap-0.5 p-3 rounded-xl font-medium transition-all",
-                    "active:scale-95 touch-manipulation",
-                    mood.bgColor
-                  )}
-                >
-                  <span className="text-xl">{mood.emoji}</span>
-                  <span className="text-xs">{mood.label}</span>
-                </button>
-              ))}
-            </div>
+            <SeverityWheel
+              selectedSeverity={null}
+              onSeveritySelect={handleMoodSelect}
+              question="How would you describe your mood?"
+            />
           )}
         </div>
       )}

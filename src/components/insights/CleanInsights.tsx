@@ -209,199 +209,297 @@ export const CleanInsights = ({ entries, userConditions = [], medicationLogs = [
         <HealthForecast userId={user.id} />
       )}
 
-      {/* Quick Stats Row */}
+      {/* Quick Stats Row - Frosted Glass */}
       <div className="grid grid-cols-2 gap-3">
         {/* This Week */}
-        <Card className="p-4 bg-card/80 backdrop-blur-sm border-border/50">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">This Week</span>
-            {getTrendIcon()}
+        <div className={cn(
+          "relative p-5 rounded-3xl overflow-hidden",
+          "bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl",
+          "border border-white/50 dark:border-slate-700/50",
+          "before:absolute before:inset-0 before:rounded-3xl before:pointer-events-none",
+          "before:bg-gradient-to-br before:from-white/30 before:via-transparent before:to-transparent",
+          "shadow-[0_8px_32px_rgba(0,0,0,0.06)]"
+        )}>
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-base text-muted-foreground">This Week</span>
+              {getTrendIcon()}
+            </div>
+            <p className="text-5xl font-bold">{analytics.flares7d}</p>
+            <p className={cn("text-base font-medium mt-1", getTrendColor())}>
+              {analytics.trend === 'improving' ? '↓ Improving' : 
+               analytics.trend === 'worsening' ? `↑ +${Math.abs(analytics.frequencyChange)}` : 
+               'Stable'}
+            </p>
           </div>
-          <p className="text-4xl font-bold">{analytics.flares7d}</p>
-          <p className={cn("text-sm font-medium mt-1", getTrendColor())}>
-            {analytics.trend === 'improving' ? '↓ Improving' : 
-             analytics.trend === 'worsening' ? `↑ +${Math.abs(analytics.frequencyChange)}` : 
-             'Stable'}
-          </p>
-        </Card>
+        </div>
         
         {/* Peak Time */}
-        <Card className="p-4 bg-card/80 backdrop-blur-sm border-border/50">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">Peak Time</span>
-            <Clock className="w-5 h-5 text-muted-foreground" />
+        <div className={cn(
+          "relative p-5 rounded-3xl overflow-hidden",
+          "bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl",
+          "border border-white/50 dark:border-slate-700/50",
+          "before:absolute before:inset-0 before:rounded-3xl before:pointer-events-none",
+          "before:bg-gradient-to-br before:from-white/30 before:via-transparent before:to-transparent",
+          "shadow-[0_8px_32px_rgba(0,0,0,0.06)]"
+        )}>
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-base text-muted-foreground">Peak Time</span>
+              <Clock className="w-5 h-5 text-muted-foreground" />
+            </div>
+            <p className="text-3xl font-bold capitalize">{analytics.peakTime}</p>
+            <p className="text-base text-muted-foreground mt-1">
+              {analytics.peakTimePercent}% of flares
+            </p>
           </div>
-          <p className="text-2xl font-bold capitalize">{analytics.peakTime}</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            {analytics.peakTimePercent}% of flares
-          </p>
-        </Card>
+        </div>
       </div>
 
-      {/* Flare-free streak */}
+      {/* Flare-free streak - Frosted Glass */}
       {analytics.daysSinceLastFlare !== null && analytics.daysSinceLastFlare >= 2 && (
-        <Card className="p-4 bg-emerald-500/10 border-emerald-500/20">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 flex items-center justify-center">
-              <Target className="w-6 h-6 text-emerald-600" />
+        <div className={cn(
+          "relative p-5 rounded-3xl overflow-hidden",
+          "bg-gradient-to-br from-emerald-500/15 to-emerald-500/5",
+          "backdrop-blur-xl",
+          "border border-emerald-500/20",
+          "before:absolute before:inset-0 before:rounded-3xl before:pointer-events-none",
+          "before:bg-gradient-to-br before:from-white/20 before:via-transparent before:to-transparent",
+          "shadow-[0_8px_32px_rgba(0,0,0,0.06)]"
+        )}>
+          <div className="relative z-10 flex items-center gap-4">
+            <div className={cn(
+              "w-14 h-14 rounded-2xl flex items-center justify-center",
+              "bg-gradient-to-br from-emerald-500/30 to-emerald-500/20",
+              "shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]"
+            )}>
+              <Target className="w-7 h-7 text-emerald-600" />
             </div>
             <div>
-              <p className="text-xl font-bold text-emerald-700 dark:text-emerald-400">
+              <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
                 {analytics.daysSinceLastFlare} days flare-free
               </p>
-              <p className="text-sm text-muted-foreground">Keep up the great work!</p>
+              <p className="text-base text-muted-foreground">Keep up the great work!</p>
             </div>
           </div>
-        </Card>
+        </div>
       )}
 
-      {/* What's Affecting You */}
+      {/* What's Affecting You - Frosted Glass */}
       {(analytics.topTriggers.length > 0 || analytics.topSymptoms.length > 0) && (
-        <Card className="p-4 bg-card/80 backdrop-blur-sm border-border/50">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Brain className="w-5 h-5 text-primary" />
+        <div className={cn(
+          "relative p-5 rounded-3xl overflow-hidden",
+          "bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl",
+          "border border-white/50 dark:border-slate-700/50",
+          "before:absolute before:inset-0 before:rounded-3xl before:pointer-events-none",
+          "before:bg-gradient-to-br before:from-white/30 before:via-transparent before:to-transparent",
+          "shadow-[0_8px_32px_rgba(0,0,0,0.06)]"
+        )}>
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-4">
+              <div className={cn(
+                "w-12 h-12 rounded-2xl flex items-center justify-center",
+                "bg-gradient-to-br from-primary/20 to-primary/10",
+                "shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]"
+              )}>
+                <Brain className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="text-lg font-bold">What's Affecting You</h3>
             </div>
-            <h3 className="text-base font-semibold">What's Affecting You</h3>
-          </div>
-          
-          {/* Top Triggers */}
-          {analytics.topTriggers.length > 0 && (
-            <div className="mb-4">
-              <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-orange-500" />
-                Top Triggers
-              </p>
-              <div className="space-y-2">
-                {analytics.topTriggers.slice(0, 3).map((t) => (
-                  <div 
-                    key={t.name} 
-                    className="flex items-center justify-between p-3 rounded-xl bg-muted/50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`w-3 h-3 rounded-full ${
-                        t.avgSeverity >= 2.5 ? 'bg-red-500' : 
-                        t.avgSeverity >= 1.5 ? 'bg-orange-500' : 'bg-amber-500'
-                      }`} />
-                      <span className="text-base font-medium">{t.name}</span>
+            
+            {/* Top Triggers */}
+            {analytics.topTriggers.length > 0 && (
+              <div className="mb-4">
+                <p className="text-base font-medium text-muted-foreground mb-3 flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-orange-500" />
+                  Top Triggers
+                </p>
+                <div className="space-y-2">
+                  {analytics.topTriggers.slice(0, 3).map((t) => (
+                    <div 
+                      key={t.name} 
+                      className={cn(
+                        "flex items-center justify-between p-4 rounded-2xl",
+                        "bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm",
+                        "border border-white/40 dark:border-slate-700/40"
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={cn(
+                          "w-3 h-3 rounded-full",
+                          t.avgSeverity >= 2.5 ? 'bg-red-500' : 
+                          t.avgSeverity >= 1.5 ? 'bg-orange-500' : 'bg-amber-500'
+                        )} />
+                        <span className="text-base font-semibold">{t.name}</span>
+                      </div>
+                      <Badge variant="outline" className="text-base font-bold">
+                        {t.count}×
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className="text-sm">
-                      {t.count}x
-                    </Badge>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Top Symptoms */}
-          {analytics.topSymptoms.length > 0 && (
-            <div>
-              <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
-                <Activity className="w-4 h-4 text-blue-500" />
-                Top Symptoms
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {analytics.topSymptoms.slice(0, 4).map((s) => (
-                  <Badge 
-                    key={s.name} 
-                    variant="secondary"
-                    className="text-sm py-1.5 px-3"
-                  >
-                    {s.name} ({s.count})
-                  </Badge>
-                ))}
+            {/* Top Symptoms */}
+            {analytics.topSymptoms.length > 0 && (
+              <div>
+                <p className="text-base font-medium text-muted-foreground mb-3 flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-blue-500" />
+                  Top Symptoms
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {analytics.topSymptoms.slice(0, 4).map((s) => (
+                    <Badge 
+                      key={s.name} 
+                      variant="secondary"
+                      className="text-base py-2 px-4 font-medium"
+                    >
+                      {s.name} ({s.count})
+                    </Badge>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </Card>
+            )}
+          </div>
+        </div>
       )}
 
-      {/* Environmental Factors */}
+      {/* Environmental Factors - Frosted Glass */}
       {(analytics.topWeather.length > 0 || analytics.avgSleep) && (
-        <Card className="p-4 bg-card/80 backdrop-blur-sm border-border/50">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-              <ThermometerSun className="w-5 h-5 text-blue-500" />
+        <div className={cn(
+          "relative p-5 rounded-3xl overflow-hidden",
+          "bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl",
+          "border border-white/50 dark:border-slate-700/50",
+          "before:absolute before:inset-0 before:rounded-3xl before:pointer-events-none",
+          "before:bg-gradient-to-br before:from-white/30 before:via-transparent before:to-transparent",
+          "shadow-[0_8px_32px_rgba(0,0,0,0.06)]"
+        )}>
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-4">
+              <div className={cn(
+                "w-12 h-12 rounded-2xl flex items-center justify-center",
+                "bg-gradient-to-br from-blue-500/20 to-blue-500/10",
+                "shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]"
+              )}>
+                <ThermometerSun className="w-6 h-6 text-blue-500" />
+              </div>
+              <h3 className="text-lg font-bold">Environmental Factors</h3>
             </div>
-            <h3 className="text-base font-semibold">Environmental Factors</h3>
+            
+            <div className="grid grid-cols-2 gap-3">
+              {analytics.topWeather.length > 0 && (
+                <div className={cn(
+                  "p-4 rounded-2xl",
+                  "bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm",
+                  "border border-white/40 dark:border-slate-700/40"
+                )}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Wind className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-base text-muted-foreground">Weather</span>
+                  </div>
+                  <p className="text-lg font-bold">{analytics.topWeather[0].name}</p>
+                  <p className="text-base text-muted-foreground">{analytics.topWeather[0].count} flares</p>
+                </div>
+              )}
+              
+              {analytics.avgSleep && (
+                <div className={cn(
+                  "p-4 rounded-2xl",
+                  "bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm",
+                  "border border-white/40 dark:border-slate-700/40"
+                )}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Moon className="w-5 h-5 text-muted-foreground" />
+                    <span className="text-base text-muted-foreground">Avg Sleep</span>
+                  </div>
+                  <p className="text-lg font-bold">{analytics.avgSleep}h</p>
+                  <p className="text-base text-muted-foreground">during flares</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* What To Do Next - Frosted Glass with gradient */}
+      <div className={cn(
+        "relative p-5 rounded-3xl overflow-hidden",
+        "bg-gradient-to-br from-primary/10 to-primary/5",
+        "backdrop-blur-xl",
+        "border border-primary/20",
+        "before:absolute before:inset-0 before:rounded-3xl before:pointer-events-none",
+        "before:bg-gradient-to-br before:from-white/20 before:via-transparent before:to-transparent",
+        "shadow-[0_8px_32px_rgba(0,0,0,0.06)]"
+      )}>
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-4">
+            <div className={cn(
+              "w-12 h-12 rounded-2xl flex items-center justify-center",
+              "bg-gradient-to-br from-primary/30 to-primary/20",
+              "shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]"
+            )}>
+              <Lightbulb className="w-6 h-6 text-primary" />
+            </div>
+            <h3 className="text-lg font-bold">What To Do Next</h3>
           </div>
           
-          <div className="grid grid-cols-2 gap-3">
-            {analytics.topWeather.length > 0 && (
-              <div className="p-3 rounded-xl bg-muted/50">
-                <div className="flex items-center gap-2 mb-1">
-                  <Wind className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Weather</span>
+          <div className="space-y-2">
+            {analytics.topTriggers.length > 0 && (
+              <Button 
+                variant="ghost" 
+                className={cn(
+                  "w-full justify-between h-auto py-4 px-4 rounded-2xl",
+                  "bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm",
+                  "border border-white/40 dark:border-slate-700/40",
+                  "hover:bg-white/80 dark:hover:bg-slate-800/80"
+                )}
+                onClick={() => onAskAI?.(`How can I avoid ${analytics.topTriggers[0].name}?`)}
+              >
+                <div className="flex items-center gap-3 text-left">
+                  <Sparkles className="w-5 h-5 text-primary shrink-0" />
+                  <span className="text-base font-medium">How to avoid {analytics.topTriggers[0].name}</span>
                 </div>
-                <p className="text-base font-medium">{analytics.topWeather[0].name}</p>
-                <p className="text-sm text-muted-foreground">{analytics.topWeather[0].count} flares</p>
-              </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground" />
+              </Button>
             )}
             
-            {analytics.avgSleep && (
-              <div className="p-3 rounded-xl bg-muted/50">
-                <div className="flex items-center gap-2 mb-1">
-                  <Moon className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Avg Sleep</span>
-                </div>
-                <p className="text-base font-medium">{analytics.avgSleep}h</p>
-                <p className="text-sm text-muted-foreground">during flares</p>
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
-
-      {/* What To Do Next */}
-      <Card className="p-4 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
-            <Lightbulb className="w-5 h-5 text-primary" />
-          </div>
-          <h3 className="text-base font-semibold">What To Do Next</h3>
-        </div>
-        
-        <div className="space-y-2">
-          {analytics.topTriggers.length > 0 && (
             <Button 
               variant="ghost" 
-              className="w-full justify-between h-auto py-3 px-3 bg-background/50 hover:bg-background/80"
-              onClick={() => onAskAI?.(`How can I avoid ${analytics.topTriggers[0].name}?`)}
+              className={cn(
+                "w-full justify-between h-auto py-4 px-4 rounded-2xl",
+                "bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm",
+                "border border-white/40 dark:border-slate-700/40",
+                "hover:bg-white/80 dark:hover:bg-slate-800/80"
+              )}
+              onClick={() => onAskAI?.("What patterns do you see in my data?")}
             >
-              <div className="flex items-center gap-2 text-left">
-                <Sparkles className="w-4 h-4 text-primary shrink-0" />
-                <span className="text-sm">How to avoid {analytics.topTriggers[0].name}</span>
+              <div className="flex items-center gap-3 text-left">
+                <Brain className="w-5 h-5 text-primary shrink-0" />
+                <span className="text-base font-medium">Analyze my patterns</span>
               </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
             </Button>
-          )}
-          
-          <Button 
-            variant="ghost" 
-            className="w-full justify-between h-auto py-3 px-3 bg-background/50 hover:bg-background/80"
-            onClick={() => onAskAI?.("What patterns do you see in my data?")}
-          >
-            <div className="flex items-center gap-2 text-left">
-              <Brain className="w-4 h-4 text-primary shrink-0" />
-              <span className="text-sm">Analyze my patterns</span>
-            </div>
-            <ChevronRight className="w-4 h-4 text-muted-foreground" />
-          </Button>
-          
-          <Button 
-            variant="ghost" 
-            className="w-full justify-between h-auto py-3 px-3 bg-background/50 hover:bg-background/80"
-            onClick={() => onAskAI?.("What's my flare risk today?")}
-          >
-            <div className="flex items-center gap-2 text-left">
-              <Target className="w-4 h-4 text-primary shrink-0" />
-              <span className="text-sm">Predict today's risk</span>
-            </div>
-            <ChevronRight className="w-4 h-4 text-muted-foreground" />
-          </Button>
+            
+            <Button 
+              variant="ghost" 
+              className={cn(
+                "w-full justify-between h-auto py-4 px-4 rounded-2xl",
+                "bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm",
+                "border border-white/40 dark:border-slate-700/40",
+                "hover:bg-white/80 dark:hover:bg-slate-800/80"
+              )}
+              onClick={() => onAskAI?.("What's my flare risk today?")}
+            >
+              <div className="flex items-center gap-3 text-left">
+                <Target className="w-5 h-5 text-primary shrink-0" />
+                <span className="text-base font-medium">Predict today's risk</span>
+              </div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            </Button>
+          </div>
         </div>
-      </Card>
+      </div>
 
       {/* Export Section */}
       <EnhancedMedicalExport entries={entries} conditions={userConditions} />
