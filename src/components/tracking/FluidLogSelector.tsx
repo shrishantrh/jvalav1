@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
-import { Smile, Pill, X, Zap, Plus, Activity, Flame, Clock } from "lucide-react";
-import { SeverityWheel } from "@/components/flare/SeverityWheel";
+import { Smile, Pill, X, Zap, Plus, Activity, Flame } from "lucide-react";
+import { SeveritySelector } from "@/components/flare/SeveritySelector";
 import { FlareSeverity } from "@/types/flare";
 
 interface MedicationDetails {
@@ -32,9 +32,9 @@ const COMMON_SYMPTOMS = [
 type ActivePanel = null | 'symptom' | 'medication' | 'energy' | 'mood';
 
 const ENERGY_LEVELS = [
-  { value: 'low' as const, emoji: '😔', label: 'Poor', hours: '3-4 HOURS', color: { h: 0, s: 65, l: 55 } },
-  { value: 'moderate' as const, emoji: '😐', label: 'Fair', hours: '5 HOURS', color: { h: 35, s: 60, l: 50 } },
-  { value: 'high' as const, emoji: '🙂', label: 'Good', hours: '6-7 HOURS', color: { h: 50, s: 65, l: 50 } },
+  { value: 'low' as const, emoji: '😔', label: 'Low', color: { h: 0, s: 65, l: 55 } },
+  { value: 'moderate' as const, emoji: '😐', label: 'Fair', color: { h: 35, s: 60, l: 50 } },
+  { value: 'high' as const, emoji: '🙂', label: 'Good', color: { h: 50, s: 65, l: 50 } },
 ];
 
 // Frosted glass button component
@@ -55,117 +55,33 @@ const GlassButton = ({
     onClick={onClick}
     disabled={disabled}
     className={cn(
-      "relative flex items-center justify-center gap-2 h-12 px-4 rounded-2xl text-base font-medium",
+      "relative flex items-center justify-center gap-1.5 h-11 px-3 rounded-2xl text-sm font-medium",
       "transition-all duration-300 touch-manipulation overflow-hidden",
       // Frosted glass effect
-      "bg-white/60 dark:bg-slate-900/60",
       "backdrop-blur-xl",
-      "border border-white/50 dark:border-slate-700/50",
       // Inner highlight
       "before:absolute before:inset-0 before:rounded-2xl",
-      "before:bg-gradient-to-b before:from-white/40 before:to-transparent before:pointer-events-none",
-      // Shadow
-      "shadow-[0_4px_16px_rgba(0,0,0,0.06)]",
+      "before:bg-gradient-to-b before:from-white/50 before:to-transparent before:pointer-events-none",
       // States
-      active && "bg-primary/20 border-primary/40 dark:bg-primary/30",
-      "active:scale-95 hover:bg-white/80 dark:hover:bg-slate-800/80",
+      "active:scale-95",
       disabled && "opacity-50 cursor-not-allowed",
       className
     )}
+    style={{
+      background: active 
+        ? 'linear-gradient(145deg, hsl(25 75% 95% / 0.95) 0%, hsl(25 70% 92% / 0.9) 100%)'
+        : 'linear-gradient(145deg, hsl(0 0% 100% / 0.85) 0%, hsl(0 0% 98% / 0.8) 100%)',
+      border: active 
+        ? '2px solid hsl(25 75% 50% / 0.4)'
+        : '1px solid hsl(0 0% 100% / 0.6)',
+      boxShadow: active
+        ? 'inset 0 1px 2px hsl(0 0% 100% / 0.5), 0 4px 12px hsl(25 75% 50% / 0.15)'
+        : 'inset 0 1px 2px hsl(0 0% 100% / 0.4), 0 2px 8px hsl(0 0% 0% / 0.04)',
+    }}
   >
-    <span className="relative z-10 flex items-center gap-2">{children}</span>
+    <span className="relative z-10 flex items-center gap-1.5">{children}</span>
   </button>
 );
-
-// Vertical slider for energy/sleep like reference image
-const VerticalSlider = ({ 
-  levels, 
-  activeIndex, 
-  onSelect 
-}: { 
-  levels: typeof ENERGY_LEVELS;
-  activeIndex: number;
-  onSelect: (index: number) => void;
-}) => {
-  const activeLevel = levels[activeIndex];
-  
-  return (
-    <div className="flex items-center gap-6 p-4">
-      {/* Labels on left */}
-      <div className="flex flex-col gap-6">
-        {levels.slice().reverse().map((level, i) => {
-          const actualIndex = levels.length - 1 - i;
-          const isActive = actualIndex === activeIndex;
-          
-          return (
-            <button
-              key={level.value}
-              onClick={() => onSelect(actualIndex)}
-              className={cn(
-                "text-left transition-all duration-200",
-                isActive ? "opacity-100" : "opacity-50"
-              )}
-            >
-              <p className={cn(
-                "text-base font-semibold",
-                isActive && "text-foreground"
-              )}>{level.label}</p>
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                {level.hours}
-              </p>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Vertical track */}
-      <div className="relative h-48 w-3 bg-muted rounded-full">
-        {/* Filled portion */}
-        <div 
-          className="absolute bottom-0 left-0 right-0 rounded-full transition-all duration-300"
-          style={{
-            height: `${((activeIndex + 1) / levels.length) * 100}%`,
-            background: `linear-gradient(to top, hsl(${activeLevel.color.h} ${activeLevel.color.s}% ${activeLevel.color.l}%), hsl(${activeLevel.color.h} ${activeLevel.color.s}% ${activeLevel.color.l + 15}%))`,
-          }}
-        />
-        
-        {/* Thumb/knob */}
-        <div 
-          className="absolute left-1/2 -translate-x-1/2 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300"
-          style={{
-            bottom: `calc(${((activeIndex + 0.5) / levels.length) * 100}% - 20px)`,
-            background: `linear-gradient(145deg, hsl(${activeLevel.color.h} ${activeLevel.color.s}% ${activeLevel.color.l + 10}%), hsl(${activeLevel.color.h} ${activeLevel.color.s}% ${activeLevel.color.l}%))`,
-            boxShadow: `0 4px 16px hsl(${activeLevel.color.h} ${activeLevel.color.s}% ${activeLevel.color.l}% / 0.4), inset 0 2px 4px hsl(0 0% 100% / 0.3)`,
-          }}
-        >
-          <span className="text-lg">{activeLevel.emoji}</span>
-        </div>
-      </div>
-
-      {/* Emojis on right */}
-      <div className="flex flex-col gap-6">
-        {levels.slice().reverse().map((level, i) => {
-          const actualIndex = levels.length - 1 - i;
-          const isActive = actualIndex === activeIndex;
-          
-          return (
-            <button
-              key={level.value}
-              onClick={() => onSelect(actualIndex)}
-              className={cn(
-                "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200",
-                isActive ? "opacity-100 scale-110" : "opacity-40"
-              )}
-            >
-              <span className="text-2xl">{level.emoji}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
 
 export const FluidLogSelector = ({
   userSymptoms,
@@ -204,9 +120,9 @@ export const FluidLogSelector = ({
     setActivePanel(null);
   };
 
-  const handleEnergyConfirm = () => {
+  const handleEnergySelect = (index: number) => {
     haptics.success();
-    const level = ENERGY_LEVELS[energyIndex].value;
+    const level = ENERGY_LEVELS[index].value;
     if (onLogEnergy) {
       onLogEnergy(level);
     }
@@ -235,7 +151,7 @@ export const FluidLogSelector = ({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {/* Main action buttons - uniform frosted glass */}
       <div className="flex items-center gap-2">
         <GlassButton
@@ -244,7 +160,7 @@ export const FluidLogSelector = ({
           active={activePanel === 'symptom'}
           className="flex-1"
         >
-          <Flame className="w-5 h-5 text-red-500" />
+          <Flame className="w-4 h-4 text-red-500" />
           <span>Flare</span>
         </GlassButton>
 
@@ -254,7 +170,7 @@ export const FluidLogSelector = ({
           active={activePanel === 'mood'}
           className="flex-1"
         >
-          <Smile className="w-5 h-5 text-emerald-500" />
+          <Smile className="w-4 h-4 text-emerald-500" />
           <span>Mood</span>
         </GlassButton>
 
@@ -264,7 +180,7 @@ export const FluidLogSelector = ({
           active={activePanel === 'medication'}
           className="flex-1"
         >
-          <Pill className="w-5 h-5 text-blue-500" />
+          <Pill className="w-4 h-4 text-blue-500" />
           <span>Meds</span>
         </GlassButton>
 
@@ -274,7 +190,7 @@ export const FluidLogSelector = ({
           active={activePanel === 'energy'}
           className="flex-1"
         >
-          <Zap className="w-5 h-5 text-amber-500" />
+          <Zap className="w-4 h-4 text-amber-500" />
           <span>Energy</span>
         </GlassButton>
 
@@ -287,16 +203,18 @@ export const FluidLogSelector = ({
             }}
             disabled={disabled}
             className={cn(
-              "relative h-12 w-12 rounded-2xl flex items-center justify-center",
+              "relative h-11 w-11 rounded-2xl flex items-center justify-center flex-shrink-0",
               "transition-all duration-300 touch-manipulation overflow-hidden",
-              "bg-white/60 dark:bg-slate-900/60",
               "backdrop-blur-xl",
-              "border border-white/50 dark:border-slate-700/50",
               "before:absolute before:inset-0 before:rounded-2xl",
               "before:bg-gradient-to-b before:from-white/40 before:to-transparent",
-              "shadow-[0_4px_16px_rgba(0,0,0,0.06)]",
               "active:scale-95"
             )}
+            style={{
+              background: 'linear-gradient(145deg, hsl(0 0% 100% / 0.8) 0%, hsl(0 0% 96% / 0.75) 100%)',
+              border: '1px solid hsl(0 0% 100% / 0.5)',
+              boxShadow: 'inset 0 1px 2px hsl(0 0% 100% / 0.3), 0 2px 8px hsl(0 0% 0% / 0.04)',
+            }}
           >
             <Plus className="w-5 h-5 text-muted-foreground relative z-10" />
           </button>
@@ -305,13 +223,17 @@ export const FluidLogSelector = ({
 
       {/* Expandable panels - frosted glass */}
       {activePanel && (
-        <div className={cn(
-          "animate-in fade-in slide-in-from-top-2 duration-300 rounded-3xl p-4 overflow-hidden",
-          "bg-white/70 dark:bg-slate-900/70",
-          "backdrop-blur-xl",
-          "border border-white/50 dark:border-slate-700/50",
-          "shadow-[0_8px_32px_rgba(0,0,0,0.08)]"
-        )}>
+        <div 
+          className={cn(
+            "animate-in fade-in slide-in-from-top-2 duration-300 rounded-2xl p-4 overflow-hidden",
+            "backdrop-blur-xl"
+          )}
+          style={{
+            background: 'linear-gradient(145deg, hsl(0 0% 100% / 0.9) 0%, hsl(0 0% 98% / 0.85) 100%)',
+            border: '1px solid hsl(0 0% 100% / 0.6)',
+            boxShadow: 'inset 0 1px 2px hsl(0 0% 100% / 0.4), 0 8px 24px hsl(0 0% 0% / 0.06)',
+          }}
+        >
           <div className="flex items-center justify-between mb-3">
             <span className="text-base font-semibold text-foreground">
               {activePanel === 'symptom' && (selectedSymptom ? `${selectedSymptom} — how severe?` : 'What symptom?')}
@@ -335,11 +257,15 @@ export const FluidLogSelector = ({
                   key={symptom}
                   onClick={() => handleSymptomClick(symptom)}
                   className={cn(
-                    "px-4 py-2 rounded-xl text-base font-medium transition-all",
-                    "bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm",
-                    "border border-white/40 dark:border-slate-700/40",
-                    "hover:bg-primary/10 hover:border-primary/30 active:scale-95"
+                    "px-4 py-2 rounded-xl text-sm font-medium transition-all",
+                    "backdrop-blur-sm",
+                    "hover:scale-[1.02] active:scale-95"
                   )}
+                  style={{
+                    background: 'linear-gradient(145deg, hsl(0 0% 100% / 0.8) 0%, hsl(0 0% 96% / 0.7) 100%)',
+                    border: '1px solid hsl(0 0% 100% / 0.5)',
+                    boxShadow: 'inset 0 1px 2px hsl(0 0% 100% / 0.3), 0 2px 6px hsl(0 0% 0% / 0.03)',
+                  }}
                 >
                   {symptom}
                 </button>
@@ -347,20 +273,20 @@ export const FluidLogSelector = ({
             </div>
           )}
 
-          {/* Severity wheel for symptoms */}
+          {/* Severity selector for symptoms - compact inline */}
           {activePanel === 'symptom' && selectedSymptom && (
             <div>
               <button 
                 onClick={() => setSelectedSymptom(null)}
-                className="flex items-center gap-1.5 text-sm text-primary font-medium mb-2"
+                className="flex items-center gap-1.5 text-sm text-primary font-medium mb-3"
               >
                 <Activity className="w-3.5 h-3.5" />
                 ← Change symptom
               </button>
-              <SeverityWheel
+              <SeveritySelector
                 selectedSeverity={null}
                 onSeveritySelect={handleSeveritySelect}
-                question={`How severe is your ${selectedSymptom.toLowerCase()}?`}
+                compact={true}
               />
             </div>
           )}
@@ -375,56 +301,66 @@ export const FluidLogSelector = ({
                       key={i}
                       onClick={() => handleMedicationClick(med.name)}
                       className={cn(
-                        "px-4 py-2 rounded-xl text-base font-medium transition-all",
-                        "bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm",
-                        "border border-white/40 dark:border-slate-700/40",
-                        "hover:bg-primary/10 hover:border-primary/30 active:scale-95"
+                        "px-4 py-2 rounded-xl text-sm font-medium transition-all",
+                        "backdrop-blur-sm",
+                        "hover:scale-[1.02] active:scale-95"
                       )}
+                      style={{
+                        background: 'linear-gradient(145deg, hsl(0 0% 100% / 0.8) 0%, hsl(0 0% 96% / 0.7) 100%)',
+                        border: '1px solid hsl(0 0% 100% / 0.5)',
+                        boxShadow: 'inset 0 1px 2px hsl(0 0% 100% / 0.3), 0 2px 6px hsl(0 0% 0% / 0.03)',
+                      }}
                     >
                       💊 {med.name}
                     </button>
                   ))}
                 </div>
               ) : (
-                <p className="text-base text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Add medications in Profile → Health
                 </p>
               )}
             </>
           )}
 
-          {/* Energy panel - vertical slider */}
+          {/* Energy panel - compact inline */}
           {activePanel === 'energy' && (
-            <div className="flex flex-col items-center">
-              <h3 className="text-xl font-bold mb-1">How would you rate</h3>
-              <h3 className="text-xl font-bold mb-4">your sleep quality?</h3>
-              
-              <VerticalSlider
-                levels={ENERGY_LEVELS}
-                activeIndex={energyIndex}
-                onSelect={setEnergyIndex}
-              />
-              
-              <button
-                onClick={handleEnergyConfirm}
-                className={cn(
-                  "mt-4 px-8 py-3 rounded-2xl font-semibold text-white transition-all",
-                  "bg-gradient-to-r from-primary to-primary/80",
-                  "shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30",
-                  "active:scale-95"
-                )}
-              >
-                Log Energy
-              </button>
+            <div className="grid grid-cols-3 gap-2">
+              {ENERGY_LEVELS.map((level, index) => (
+                <button
+                  key={level.value}
+                  onClick={() => handleEnergySelect(index)}
+                  className={cn(
+                    "flex flex-col items-center justify-center py-4 rounded-2xl transition-all",
+                    "backdrop-blur-sm active:scale-95"
+                  )}
+                  style={{
+                    background: `linear-gradient(145deg, 
+                      hsl(${level.color.h} ${level.color.s}% ${level.color.l + 40}% / 0.9) 0%, 
+                      hsl(${level.color.h} ${level.color.s - 10}% ${level.color.l + 35}% / 0.85) 100%
+                    )`,
+                    border: `1px solid hsl(${level.color.h} ${level.color.s}% ${level.color.l + 20}% / 0.5)`,
+                    boxShadow: `inset 0 1px 2px hsl(0 0% 100% / 0.3), 0 4px 12px hsl(${level.color.h} ${level.color.s}% ${level.color.l}% / 0.15)`,
+                  }}
+                >
+                  <span className="text-2xl mb-1">{level.emoji}</span>
+                  <span 
+                    className="text-sm font-bold"
+                    style={{ color: `hsl(${level.color.h} ${level.color.s}% ${level.color.l - 5}%)` }}
+                  >
+                    {level.label}
+                  </span>
+                </button>
+              ))}
             </div>
           )}
 
-          {/* Mood panel - wheel picker */}
+          {/* Mood panel - compact inline */}
           {activePanel === 'mood' && (
-            <SeverityWheel
+            <SeveritySelector
               selectedSeverity={null}
               onSeveritySelect={handleMoodSelect}
-              question="How would you describe your mood?"
+              compact={true}
             />
           )}
         </div>
