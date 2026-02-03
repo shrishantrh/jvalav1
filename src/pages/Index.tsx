@@ -486,86 +486,32 @@ const Index = () => {
       >
         {/* Track View */}
         {currentView === 'track' && user && (
-          <div className="space-y-5">
-            {/* Quick Log Card */}
-            <Card className="p-5">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center shadow-sm">
-                  <Activity className="w-5 h-5 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-base font-bold text-foreground">How are you feeling?</h2>
-                    {currentLocation?.city && (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-full">
-                        <MapPin className="w-3 h-3" />
-                        <span>{currentLocation.city}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
-              <SmartTrack
-                ref={smartTrackRef}
-                onSave={handleSaveEntry}
-                onUpdateEntry={handleUpdateEntry}
-                userSymptoms={userProfile?.known_symptoms || []}
-                userConditions={userProfile?.conditions || []}
-                userTriggers={userProfile?.known_triggers || []}
-                userMedications={userProfile?.medications || []}
-                recentEntries={entries}
-                userId={user.id}
-              />
-              
-              {/* Detailed Entry Toggle */}
-              <div className="pt-4 mt-4 border-t border-border/30">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowDetailedEntry(!showDetailedEntry)}
-                  className="w-full text-sm text-muted-foreground hover:text-foreground font-semibold rounded-2xl h-11"
-                >
-                  <ChevronDown className={`w-4 h-4 mr-2 transition-transform duration-300 ${showDetailedEntry ? 'rotate-180' : ''}`} />
-                  {showDetailedEntry ? 'Hide details' : 'Add more details'}
-                </Button>
-                {showDetailedEntry && (
-                  <div className="mt-4 animate-fade-in">
-                    <DetailedEntry 
-                      onSave={handleSaveEntry} 
-                      onDetailedSave={(entry) => {
-                        smartTrackRef.current?.addDetailedEntry(entry);
-                        setShowDetailedEntry(false);
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-            </Card>
-
-            {/* Health Forecast */}
-            {entries.length >= 5 && (
-              <HealthForecast 
-                userId={user.id}
-                currentWeather={currentLocation ? undefined : undefined}
-                onViewDetails={() => setCurrentView('insights')}
-              />
-            )}
-
-            {/* Cycle Tracker */}
-            {userProfile?.conditions?.some(c => 
-              ['menstrual-disorders', 'endometriosis', 'pcos', 'pmdd', 'pms'].includes(c)
-            ) && (
-              <CycleTracker userId={user.id} />
-            )}
+          <div className="flex flex-col h-[calc(100vh-180px)]">
+            <SmartTrack
+              ref={smartTrackRef}
+              onSave={handleSaveEntry}
+              onUpdateEntry={handleUpdateEntry}
+              userSymptoms={userProfile?.known_symptoms || []}
+              userConditions={userProfile?.conditions || []}
+              userTriggers={userProfile?.known_triggers || []}
+              userMedications={userProfile?.medications || []}
+              recentEntries={entries}
+              userId={user.id}
+              onOpenDetails={() => setShowDetailedEntry(true)}
+            />
             
-            {/* Discovered Patterns */}
-            {topCorrelations.length > 0 && (
-              <CorrelationInsights 
-                correlations={topCorrelations}
-                onViewDetails={() => setCurrentView('insights')}
-              />
-            )}
+            {/* Detailed Entry Dialog */}
+            <Dialog open={showDetailedEntry} onOpenChange={setShowDetailedEntry}>
+              <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
+                <DetailedEntry 
+                  onSave={handleSaveEntry} 
+                  onDetailedSave={(entry) => {
+                    smartTrackRef.current?.addDetailedEntry(entry);
+                    setShowDetailedEntry(false);
+                  }}
+                />
+              </DialogContent>
+            </Dialog>
           </div>
         )}
 

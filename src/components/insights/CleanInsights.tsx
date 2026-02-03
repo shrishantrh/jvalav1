@@ -1,34 +1,28 @@
-import React, { useMemo, useCallback, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { FlareEntry } from "@/types/flare";
-import { InsightsCharts } from "@/components/insights/InsightsCharts";
+import { HealthForecast } from "@/components/forecast/HealthForecast";
 import { EnhancedMedicalExport } from "@/components/insights/EnhancedMedicalExport";
-import { FlareLocationMap } from "@/components/history/FlareLocationMap";
-import { CommunityHotspots } from "@/components/insights/CommunityHotspots";
-import { SmartPredictions } from "@/components/insights/SmartPredictions";
-import { HealthScoreDashboard } from "@/components/insights/HealthScoreDashboard";
-import { TriggerFrequencyChart } from "@/components/insights/TriggerFrequencyChart";
-import { AdvancedAnalyticsDashboard } from "@/components/insights/AdvancedAnalyticsDashboard";
-import { PhysiologicalAnalytics } from "@/components/insights/PhysiologicalAnalytics";
-import { MedicationTracker } from "@/components/medication/MedicationTracker";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   Brain, 
   TrendingUp, 
   TrendingDown,
-  Lightbulb,
   AlertTriangle,
-  BarChart3,
-  Download,
-  MapPin,
   Minus,
   Clock,
   Target,
   ThermometerSun,
   Activity,
-  Pill,
   Heart,
+  Moon,
+  Droplets,
+  Wind,
+  Sparkles,
+  ChevronRight,
+  Lightbulb
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { format, subDays, isWithinInterval, differenceInDays } from 'date-fns';
@@ -47,6 +41,7 @@ interface CleanInsightsProps {
   medicationLogs?: MedicationLog[];
   onLogMedication?: (log: Omit<MedicationLog, 'id' | 'takenAt'>) => void;
   userMedications?: string[];
+  onAskAI?: (prompt: string) => void;
 }
 
 // Stop words for trigger extraction
@@ -54,14 +49,11 @@ const STOP_WORDS = new Set([
   'the', 'and', 'some', 'lot', 'bit', 'too', 'much', 'very', 'really', 
   'today', 'yesterday', 'just', 'like', 'been', 'have', 'had', 'was', 'were', 
   'that', 'this', 'with', 'good', 'great', 'bad', 'well', 'feeling', 'feel',
-  'before', 'after', 'during', 'while', 'when', 'then', 'now', 'later',
-  'morning', 'afternoon', 'evening', 'night', 'day', 'week', 'month',
-  'went', 'going', 'doing', 'done', 'did', 'does', 'made', 'making',
-  'got', 'get', 'getting', 'started', 'start', 'starting',
 ]);
 
-export const CleanInsights = ({ entries, userConditions = [], medicationLogs = [], onLogMedication, userMedications = [] }: CleanInsightsProps) => {
-  const chartRef = React.useRef<HTMLDivElement>(null);
+export const CleanInsights = ({ entries, userConditions = [], medicationLogs = [], onLogMedication, userMedications = [], onAskAI }: CleanInsightsProps) => {
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'patterns' | 'export'>('patterns');
 
   const analytics = useMemo(() => {
     const now = new Date();
@@ -77,16 +69,8 @@ export const CleanInsights = ({ entries, userConditions = [], medicationLogs = [
 
     const flares7d = last7Days.filter(e => e.type === 'flare');
     const flares30d = last30Days.filter(e => e.type === 'flare');
-    const flaresPrev30d = prev30Days.filter(e => e.type === 'flare');
 
     const getSeverityScore = (s: string) => s === 'severe' ? 3 : s === 'moderate' ? 2 : 1;
-    const calcAvg = (flares: FlareEntry[]) => {
-      if (flares.length === 0) return 0;
-      return flares.reduce((sum, e) => sum + getSeverityScore(e.severity || 'mild'), 0) / flares.length;
-    };
-
-    const avgSeverity7d = calcAvg(flares7d);
-    const avgSeverityPrev = calcAvg(flaresPrev30d);
 
     const weeklyAvgFlares = flares30d.length / 4;
     const frequencyChange = flares7d.length - weeklyAvgFlares;
@@ -95,6 +79,7 @@ export const CleanInsights = ({ entries, userConditions = [], medicationLogs = [
     if (frequencyChange > 1.5) trend = 'worsening';
     else if (frequencyChange < -1.5) trend = 'improving';
 
+    // Time of day analysis
     const timeSlots: Record<string, number> = { morning: 0, afternoon: 0, evening: 0, night: 0 };
     flares30d.forEach(f => {
       const hour = f.timestamp.getHours();
@@ -105,27 +90,6 @@ export const CleanInsights = ({ entries, userConditions = [], medicationLogs = [
     });
     const peakTime = Object.entries(timeSlots).sort((a, b) => b[1] - a[1])[0];
     const peakTimePercent = flares30d.length > 0 ? Math.round((peakTime[1] / flares30d.length) * 100) : 0;
-
-    // Extract triggers from notes - filter out stop words
-    const extractTriggersFromNotes = (note: string): string[] => {
-      const triggers: string[] = [];
-      const patterns = [
-        /(?:ate|eaten|eat|eating|had|consumed)\s+(?:some\s+)?(?:a\s+)?(\w+(?:\s+\w+)?)/gi,
-        /(?:drank|drunk|drink|drinking)\s+(?:some\s+)?(?:a\s+)?(\w+(?:\s+\w+)?)/gi,
-        /(\w+)\s+(?:for\s+)?(?:breakfast|lunch|dinner|snack)/gi,
-      ];
-      
-      patterns.forEach(pattern => {
-        const matches = note.toLowerCase().matchAll(pattern);
-        for (const match of matches) {
-          const trigger = match[1].trim();
-          if (trigger.length > 2 && !STOP_WORDS.has(trigger)) {
-            triggers.push(trigger);
-          }
-        }
-      });
-      return triggers;
-    };
 
     // Symptom analysis
     const symptomData: Record<string, { count: number; severities: number[] }> = {};
@@ -147,7 +111,7 @@ export const CleanInsights = ({ entries, userConditions = [], medicationLogs = [
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
 
-    // Trigger analysis - combine explicit triggers with note-extracted ones
+    // Trigger analysis
     const triggerData: Record<string, { count: number; severities: number[] }> = {};
     flares30d.forEach(f => {
       f.triggers?.forEach(t => {
@@ -158,14 +122,6 @@ export const CleanInsights = ({ entries, userConditions = [], medicationLogs = [
           triggerData[key].severities.push(getSeverityScore(f.severity || 'mild'));
         }
       });
-      if (f.note) {
-        const noteTriggers = extractTriggersFromNotes(f.note);
-        noteTriggers.forEach(t => {
-          if (!triggerData[t]) triggerData[t] = { count: 0, severities: [] };
-          triggerData[t].count++;
-          triggerData[t].severities.push(getSeverityScore(f.severity || 'mild'));
-        });
-      }
     });
 
     const topTriggers = Object.entries(triggerData)
@@ -173,109 +129,31 @@ export const CleanInsights = ({ entries, userConditions = [], medicationLogs = [
       .map(([name, data]) => ({
         name: name.charAt(0).toUpperCase() + name.slice(1),
         count: data.count,
-        percentage: Math.round((data.count / flares30d.length) * 100),
         avgSeverity: data.severities.reduce((a, b) => a + b, 0) / data.severities.length
       }))
       .sort((a, b) => b.avgSeverity - a.avgSeverity)
       .slice(0, 5);
 
     // Weather correlation
-    const weatherData: Record<string, { count: number; conditions: string[] }> = {};
+    const weatherData: Record<string, number> = {};
     flares30d.forEach(f => {
       if (f.environmentalData?.weather?.condition) {
         const cond = f.environmentalData.weather.condition;
-        if (!weatherData[cond]) weatherData[cond] = { count: 0, conditions: [] };
-        weatherData[cond].count++;
+        weatherData[cond] = (weatherData[cond] || 0) + 1;
       }
     });
     const topWeather = Object.entries(weatherData)
-      .map(([name, data]) => ({ name, count: data.count }))
+      .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 3);
 
-    // Physiological data correlation analysis - comprehensive Fitbit metrics
-    const physioCorrelations: { metric: string; avgDuringFlare: number; unit: string; trend?: string }[] = [];
-    
-    // HRV analysis (using hrv_rmssd or heart_rate_variability)
-    const hrvValues = flares30d
-      .filter(f => f.physiologicalData?.hrv_rmssd || f.physiologicalData?.hrvRmssd || f.physiologicalData?.heart_rate_variability || f.physiologicalData?.heartRateVariability)
-      .map(f => (f.physiologicalData?.hrv_rmssd || f.physiologicalData?.hrvRmssd || f.physiologicalData?.heart_rate_variability || f.physiologicalData?.heartRateVariability) as number);
-    if (hrvValues.length > 0) {
-      const avgHRV = hrvValues.reduce((a, b) => a + b, 0) / hrvValues.length;
-      physioCorrelations.push({ metric: 'HRV', avgDuringFlare: Math.round(avgHRV), unit: 'ms', trend: avgHRV < 30 ? 'low' : avgHRV > 50 ? 'high' : 'normal' });
-    }
-    
-    // Heart rate analysis
-    const hrValues = flares30d
-      .filter(f => f.physiologicalData?.heart_rate || f.physiologicalData?.heartRate)
-      .map(f => (f.physiologicalData?.heart_rate || f.physiologicalData?.heartRate) as number);
-    if (hrValues.length > 0) {
-      const avgHR = hrValues.reduce((a, b) => a + b, 0) / hrValues.length;
-      physioCorrelations.push({ metric: 'Resting HR', avgDuringFlare: Math.round(avgHR), unit: 'bpm', trend: avgHR > 80 ? 'elevated' : 'normal' });
-    }
-    
-    // SpO2 analysis
-    const spo2Values = flares30d
-      .filter(f => f.physiologicalData?.spo2)
-      .map(f => f.physiologicalData?.spo2 as number);
-    if (spo2Values.length > 0) {
-      const avgSpO2 = spo2Values.reduce((a, b) => a + b, 0) / spo2Values.length;
-      physioCorrelations.push({ metric: 'SpO2', avgDuringFlare: Math.round(avgSpO2 * 10) / 10, unit: '%', trend: avgSpO2 < 95 ? 'low' : 'normal' });
-    }
-    
-    // Breathing rate analysis
-    const breathingValues = flares30d
-      .filter(f => f.physiologicalData?.breathing_rate || f.physiologicalData?.breathingRate)
-      .map(f => (f.physiologicalData?.breathing_rate || f.physiologicalData?.breathingRate) as number);
-    if (breathingValues.length > 0) {
-      const avgBreathing = breathingValues.reduce((a, b) => a + b, 0) / breathingValues.length;
-      physioCorrelations.push({ metric: 'Breathing', avgDuringFlare: Math.round(avgBreathing * 10) / 10, unit: 'br/min', trend: avgBreathing > 18 ? 'elevated' : 'normal' });
-    }
-    
-    // Skin temperature variation
-    const tempValues = flares30d
-      .filter(f => f.physiologicalData?.skin_temperature || f.physiologicalData?.skinTemperature)
-      .map(f => (f.physiologicalData?.skin_temperature || f.physiologicalData?.skinTemperature) as number);
-    if (tempValues.length > 0) {
-      const avgTemp = tempValues.reduce((a, b) => a + b, 0) / tempValues.length;
-      physioCorrelations.push({ metric: 'Skin Temp', avgDuringFlare: Math.round(avgTemp * 10) / 10, unit: '°', trend: Math.abs(avgTemp) > 1 ? 'elevated' : 'normal' });
-    }
-    
     // Sleep analysis
     const sleepValues = flares30d
-      .filter(f => f.physiologicalData?.sleep_hours || f.physiologicalData?.sleepHours)
-      .map(f => (f.physiologicalData?.sleep_hours || f.physiologicalData?.sleepHours) as number);
-    if (sleepValues.length > 0) {
-      const avgSleep = sleepValues.reduce((a, b) => a + b, 0) / sleepValues.length;
-      physioCorrelations.push({ metric: 'Sleep', avgDuringFlare: Math.round(avgSleep * 10) / 10, unit: 'hrs', trend: avgSleep < 6 ? 'low' : avgSleep > 8 ? 'good' : 'moderate' });
-    }
-    
-    // Sleep efficiency
-    const efficiencyValues = flares30d
-      .filter(f => f.physiologicalData?.sleep_efficiency || f.physiologicalData?.sleepEfficiency)
-      .map(f => (f.physiologicalData?.sleep_efficiency || f.physiologicalData?.sleepEfficiency) as number);
-    if (efficiencyValues.length > 0) {
-      const avgEfficiency = efficiencyValues.reduce((a, b) => a + b, 0) / efficiencyValues.length;
-      physioCorrelations.push({ metric: 'Sleep Efficiency', avgDuringFlare: Math.round(avgEfficiency), unit: '%', trend: avgEfficiency < 85 ? 'low' : 'good' });
-    }
-    
-    // Steps/activity analysis
-    const stepsValues = flares30d
-      .filter(f => f.physiologicalData?.steps)
-      .map(f => f.physiologicalData?.steps as number);
-    if (stepsValues.length > 0) {
-      const avgSteps = stepsValues.reduce((a, b) => a + b, 0) / stepsValues.length;
-      physioCorrelations.push({ metric: 'Steps', avgDuringFlare: Math.round(avgSteps), unit: '', trend: avgSteps < 3000 ? 'low' : avgSteps > 8000 ? 'high' : 'normal' });
-    }
-    
-    // Active Zone Minutes
-    const azmValues = flares30d
-      .filter(f => f.physiologicalData?.active_zone_minutes_total || f.physiologicalData?.activeZoneMinutesTotal)
-      .map(f => (f.physiologicalData?.active_zone_minutes_total || f.physiologicalData?.activeZoneMinutesTotal) as number);
-    if (azmValues.length > 0) {
-      const avgAZM = azmValues.reduce((a, b) => a + b, 0) / azmValues.length;
-      physioCorrelations.push({ metric: 'Active Zone', avgDuringFlare: Math.round(avgAZM), unit: 'min', trend: avgAZM < 22 ? 'low' : 'good' });
-    }
+      .filter(f => f.physiologicalData?.sleepHours || f.physiologicalData?.sleep_hours)
+      .map(f => (f.physiologicalData?.sleepHours || f.physiologicalData?.sleep_hours) as number);
+    const avgSleep = sleepValues.length > 0 
+      ? Math.round((sleepValues.reduce((a, b) => a + b, 0) / sleepValues.length) * 10) / 10 
+      : null;
 
     const sortedFlares = [...flares30d].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
     const daysSinceLastFlare = sortedFlares.length > 0 
@@ -285,7 +163,6 @@ export const CleanInsights = ({ entries, userConditions = [], medicationLogs = [
     return {
       flares7d: flares7d.length,
       flares30d: flares30d.length,
-      avgSeverity7d,
       trend,
       frequencyChange: Math.round(frequencyChange * 10) / 10,
       peakTime: peakTime[0],
@@ -293,171 +170,146 @@ export const CleanInsights = ({ entries, userConditions = [], medicationLogs = [
       topSymptoms,
       topTriggers,
       topWeather,
-      physioCorrelations,
+      avgSleep,
       daysSinceLastFlare,
       totalEntries: entries.length
     };
   }, [entries]);
 
-  const getSeverityColor = (score: number) => {
-    if (score >= 2.5) return 'text-severity-severe';
-    if (score >= 1.5) return 'text-severity-moderate';
-    return 'text-severity-mild';
-  };
-
   const getTrendIcon = () => {
-    if (analytics.trend === 'improving') return <TrendingDown className="w-4 h-4 text-severity-none" />;
-    if (analytics.trend === 'worsening') return <TrendingUp className="w-4 h-4 text-severity-severe" />;
-    return <Minus className="w-4 h-4 text-muted-foreground" />;
+    if (analytics.trend === 'improving') return <TrendingDown className="w-5 h-5 text-emerald-500" />;
+    if (analytics.trend === 'worsening') return <TrendingUp className="w-5 h-5 text-red-500" />;
+    return <Minus className="w-5 h-5 text-muted-foreground" />;
   };
 
-  const getTrendLabel = () => {
-    if (analytics.trend === 'improving') return 'Improving';
-    if (analytics.trend === 'worsening') return `+${analytics.frequencyChange > 0 ? analytics.frequencyChange : 0} this week`;
-    return 'Stable';
+  const getTrendColor = () => {
+    if (analytics.trend === 'improving') return 'text-emerald-600';
+    if (analytics.trend === 'worsening') return 'text-red-600';
+    return 'text-muted-foreground';
   };
+
+  if (entries.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+        <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center mb-4">
+          <Brain className="w-10 h-10 text-primary" />
+        </div>
+        <h3 className="text-lg font-semibold mb-2">No data yet</h3>
+        <p className="text-base text-muted-foreground max-w-xs">
+          Start logging to unlock personalized insights and predictions
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4 stagger-fade-in">
-      {/* Primary Stats */}
+    <div className="space-y-4 pb-6">
+      {/* Tomorrow's Forecast - moved from log page */}
+      {user && (
+        <HealthForecast userId={user.id} />
+      )}
+
+      {/* Quick Stats Row */}
       <div className="grid grid-cols-2 gap-3">
-        <Card className="p-4 bg-gradient-card border shadow-soft hover-lift">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-muted-foreground">This Week</span>
+        {/* This Week */}
+        <Card className="p-4 bg-card/80 backdrop-blur-sm border-border/50">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-muted-foreground">This Week</span>
             {getTrendIcon()}
           </div>
-          <p className="text-3xl font-bold gradient-text-animated">{analytics.flares7d}</p>
-          <p className="text-xs text-muted-foreground">{getTrendLabel()}</p>
+          <p className="text-4xl font-bold">{analytics.flares7d}</p>
+          <p className={cn("text-sm font-medium mt-1", getTrendColor())}>
+            {analytics.trend === 'improving' ? '↓ Improving' : 
+             analytics.trend === 'worsening' ? `↑ +${Math.abs(analytics.frequencyChange)}` : 
+             'Stable'}
+          </p>
         </Card>
         
-        <Card className="p-4 bg-gradient-card border shadow-soft hover-lift">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-muted-foreground">Peak Time</span>
-            <Clock className="w-4 h-4 text-muted-foreground" />
+        {/* Peak Time */}
+        <Card className="p-4 bg-card/80 backdrop-blur-sm border-border/50">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-muted-foreground">Peak Time</span>
+            <Clock className="w-5 h-5 text-muted-foreground" />
           </div>
-          <p className="text-lg font-bold capitalize">{analytics.peakTime}</p>
-          <p className="text-xs text-muted-foreground">{analytics.peakTimePercent}% of flares</p>
+          <p className="text-2xl font-bold capitalize">{analytics.peakTime}</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {analytics.peakTimePercent}% of flares
+          </p>
         </Card>
       </div>
 
-      {/* Flare-free streak if applicable */}
+      {/* Flare-free streak */}
       {analytics.daysSinceLastFlare !== null && analytics.daysSinceLastFlare >= 2 && (
-        <Card className="p-3 bg-severity-none/10 border-severity-none/20 border animate-fade-in card-enter">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-severity-none/20 flex items-center justify-center animate-float">
-              <Target className="w-4 h-4 text-severity-none" />
+        <Card className="p-4 bg-emerald-500/10 border-emerald-500/20">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 flex items-center justify-center">
+              <Target className="w-6 h-6 text-emerald-600" />
             </div>
             <div>
-              <span className="text-sm font-medium">
+              <p className="text-xl font-bold text-emerald-700 dark:text-emerald-400">
                 {analytics.daysSinceLastFlare} days flare-free
-              </span>
-              <p className="text-[10px] text-muted-foreground">Keep it up!</p>
+              </p>
+              <p className="text-sm text-muted-foreground">Keep up the great work!</p>
             </div>
           </div>
         </Card>
       )}
 
-      {/* What's Affecting You - Main actionable section */}
+      {/* What's Affecting You */}
       {(analytics.topTriggers.length > 0 || analytics.topSymptoms.length > 0) && (
-        <Card className="p-4 bg-gradient-card border shadow-soft">
-          <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-gradient-primary">
-              <Brain className="w-4 h-4 text-primary-foreground" />
+        <Card className="p-4 bg-card/80 backdrop-blur-sm border-border/50">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Brain className="w-5 h-5 text-primary" />
             </div>
-            What's Affecting You
-          </h3>
+            <h3 className="text-base font-semibold">What's Affecting You</h3>
+          </div>
           
-          {/* High-impact triggers */}
+          {/* Top Triggers */}
           {analytics.topTriggers.length > 0 && (
             <div className="mb-4">
-              <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3" />
-                Triggers (by severity impact)
+              <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-orange-500" />
+                Top Triggers
               </p>
               <div className="space-y-2">
-                {analytics.topTriggers.slice(0, 3).map((t, idx) => (
+                {analytics.topTriggers.slice(0, 3).map((t) => (
                   <div 
                     key={t.name} 
-                    className="flex items-center justify-between p-2 rounded-lg bg-background/50 hover:bg-background/80 transition-colors animate-fade-in"
-                    style={{ animationDelay: `${idx * 75}ms` }}
+                    className="flex items-center justify-between p-3 rounded-xl bg-muted/50"
                   >
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full animate-pulse-soft ${
-                        t.avgSeverity >= 2.5 ? 'bg-severity-severe' : 
-                        t.avgSeverity >= 1.5 ? 'bg-severity-moderate' : 'bg-severity-mild'
+                    <div className="flex items-center gap-3">
+                      <span className={`w-3 h-3 rounded-full ${
+                        t.avgSeverity >= 2.5 ? 'bg-red-500' : 
+                        t.avgSeverity >= 1.5 ? 'bg-orange-500' : 'bg-amber-500'
                       }`} />
-                      <span className="text-sm">{t.name}</span>
+                      <span className="text-base font-medium">{t.name}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {t.count}× • {t.avgSeverity >= 2.5 ? 'often severe' : t.avgSeverity >= 1.5 ? 'moderate' : 'usually mild'}
-                    </span>
+                    <Badge variant="outline" className="text-sm">
+                      {t.count}x
+                    </Badge>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Common symptoms */}
+          {/* Top Symptoms */}
           {analytics.topSymptoms.length > 0 && (
             <div>
-              <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-                <Lightbulb className="w-3 h-3" />
-                Most common symptoms
+              <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+                <Activity className="w-4 h-4 text-blue-500" />
+                Top Symptoms
               </p>
-              <div className="flex flex-wrap gap-1.5">
-                {analytics.topSymptoms.map((s, idx) => (
+              <div className="flex flex-wrap gap-2">
+                {analytics.topSymptoms.slice(0, 4).map((s) => (
                   <Badge 
                     key={s.name} 
                     variant="secondary"
-                    className="text-xs animate-scale-in press-effect"
-                    style={{ animationDelay: `${idx * 50}ms` }}
+                    className="text-sm py-1.5 px-3"
                   >
-                    {s.name} <span className="ml-1 opacity-60">{s.percentage}%</span>
+                    {s.name} ({s.count})
                   </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Weather patterns */}
-          {analytics.topWeather.length > 0 && (
-            <div className="mt-4 pt-3 border-t border-border/50">
-              <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-                <ThermometerSun className="w-3 h-3" />
-                Weather during flares
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {analytics.topWeather.map(w => (
-                  <Badge key={w.name} variant="outline" className="text-xs">
-                    {w.name} ({w.count})
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Physiological correlations */}
-          {analytics.physioCorrelations.length > 0 && (
-            <div className="mt-4 pt-3 border-t border-border/50">
-              <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-                <Activity className="w-3 h-3" />
-                Body metrics during flares
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {analytics.physioCorrelations.map(p => (
-                  <div key={p.metric} className="p-2 rounded-lg bg-background/50 border border-border/30">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium">{p.metric}</span>
-                      {p.trend && p.trend !== 'normal' && (
-                        <Badge variant="outline" className={cn("text-[10px] h-4", 
-                          p.trend === 'low' || p.trend === 'elevated' ? 'border-amber-500/50 text-amber-600' : 'border-green-500/50 text-green-600'
-                        )}>
-                          {p.trend}
-                        </Badge>
-                      )}
-                    </div>
-                    <span className="text-sm font-bold">{p.avgDuringFlare} <span className="text-[10px] font-normal text-muted-foreground">{p.unit}</span></span>
-                  </div>
                 ))}
               </div>
             </div>
@@ -465,74 +317,94 @@ export const CleanInsights = ({ entries, userConditions = [], medicationLogs = [
         </Card>
       )}
 
-      {/* AI Predictions - compact, below main insights */}
-      <SmartPredictions entries={entries} userConditions={userConditions} />
-
-      {/* Detailed Views */}
-      <Tabs defaultValue="analytics" className="w-full">
-        <TabsList className="grid w-full grid-cols-6 h-10 p-1 bg-muted/50">
-          <TabsTrigger value="analytics" className="text-xs px-1 data-[state=active]:shadow-primary data-[state=active]:animate-scale-in">
-            📊
-          </TabsTrigger>
-          <TabsTrigger value="body" className="text-xs px-1 data-[state=active]:shadow-primary">
-            <Heart className="w-3 h-3" />
-          </TabsTrigger>
-          <TabsTrigger value="meds" className="text-xs px-1 data-[state=active]:shadow-primary">
-            <Pill className="w-3 h-3" />
-          </TabsTrigger>
-          <TabsTrigger value="map" className="text-xs px-1 data-[state=active]:shadow-primary">
-            <MapPin className="w-3 h-3" />
-          </TabsTrigger>
-          <TabsTrigger value="community" className="text-xs px-1 data-[state=active]:shadow-primary">
-            🌍
-          </TabsTrigger>
-          <TabsTrigger value="export" className="text-xs px-1 data-[state=active]:shadow-primary">
-            <Download className="w-3 h-3" />
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="analytics" className="mt-4 animate-fade-in">
-          <div className="space-y-4">
-            <AdvancedAnalyticsDashboard entries={entries} />
-            <HealthScoreDashboard entries={entries} />
-            <TriggerFrequencyChart entries={entries} />
-            <div ref={chartRef}>
-              <InsightsCharts entries={entries} />
+      {/* Environmental Factors */}
+      {(analytics.topWeather.length > 0 || analytics.avgSleep) && (
+        <Card className="p-4 bg-card/80 backdrop-blur-sm border-border/50">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+              <ThermometerSun className="w-5 h-5 text-blue-500" />
             </div>
+            <h3 className="text-base font-semibold">Environmental Factors</h3>
           </div>
-        </TabsContent>
+          
+          <div className="grid grid-cols-2 gap-3">
+            {analytics.topWeather.length > 0 && (
+              <div className="p-3 rounded-xl bg-muted/50">
+                <div className="flex items-center gap-2 mb-1">
+                  <Wind className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Weather</span>
+                </div>
+                <p className="text-base font-medium">{analytics.topWeather[0].name}</p>
+                <p className="text-sm text-muted-foreground">{analytics.topWeather[0].count} flares</p>
+              </div>
+            )}
+            
+            {analytics.avgSleep && (
+              <div className="p-3 rounded-xl bg-muted/50">
+                <div className="flex items-center gap-2 mb-1">
+                  <Moon className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Avg Sleep</span>
+                </div>
+                <p className="text-base font-medium">{analytics.avgSleep}h</p>
+                <p className="text-sm text-muted-foreground">during flares</p>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
 
-        <TabsContent value="body" className="mt-4 animate-fade-in">
-          <PhysiologicalAnalytics entries={entries} />
-        </TabsContent>
-
-        <TabsContent value="meds" className="mt-4 animate-fade-in">
-          {onLogMedication ? (
-            <MedicationTracker
-              logs={medicationLogs}
-              onLogMedication={onLogMedication}
-              userMedications={userMedications}
-            />
-          ) : (
-            <Card className="p-6 text-center">
-              <Pill className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-              <p className="text-sm text-muted-foreground">Medication tracking not available</p>
-            </Card>
+      {/* What To Do Next */}
+      <Card className="p-4 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+            <Lightbulb className="w-5 h-5 text-primary" />
+          </div>
+          <h3 className="text-base font-semibold">What To Do Next</h3>
+        </div>
+        
+        <div className="space-y-2">
+          {analytics.topTriggers.length > 0 && (
+            <Button 
+              variant="ghost" 
+              className="w-full justify-between h-auto py-3 px-3 bg-background/50 hover:bg-background/80"
+              onClick={() => onAskAI?.(`How can I avoid ${analytics.topTriggers[0].name}?`)}
+            >
+              <div className="flex items-center gap-2 text-left">
+                <Sparkles className="w-4 h-4 text-primary shrink-0" />
+                <span className="text-sm">How to avoid {analytics.topTriggers[0].name}</span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </Button>
           )}
-        </TabsContent>
+          
+          <Button 
+            variant="ghost" 
+            className="w-full justify-between h-auto py-3 px-3 bg-background/50 hover:bg-background/80"
+            onClick={() => onAskAI?.("What patterns do you see in my data?")}
+          >
+            <div className="flex items-center gap-2 text-left">
+              <Brain className="w-4 h-4 text-primary shrink-0" />
+              <span className="text-sm">Analyze my patterns</span>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          </Button>
+          
+          <Button 
+            variant="ghost" 
+            className="w-full justify-between h-auto py-3 px-3 bg-background/50 hover:bg-background/80"
+            onClick={() => onAskAI?.("What's my flare risk today?")}
+          >
+            <div className="flex items-center gap-2 text-left">
+              <Target className="w-4 h-4 text-primary shrink-0" />
+              <span className="text-sm">Predict today's risk</span>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          </Button>
+        </div>
+      </Card>
 
-        <TabsContent value="map" className="mt-4 animate-fade-in">
-          <FlareLocationMap entries={entries} />
-        </TabsContent>
-
-        <TabsContent value="community" className="mt-4 animate-fade-in">
-          <CommunityHotspots entries={entries} userConditions={userConditions} />
-        </TabsContent>
-
-        <TabsContent value="export" className="mt-4 animate-fade-in">
-          <EnhancedMedicalExport entries={entries} conditions={userConditions} />
-        </TabsContent>
-      </Tabs>
+      {/* Export Section */}
+      <EnhancedMedicalExport entries={entries} conditions={userConditions} />
     </div>
   );
 };

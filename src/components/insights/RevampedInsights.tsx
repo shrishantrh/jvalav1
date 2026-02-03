@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FlareEntry } from "@/types/flare";
 import { PremiumInsightsCharts } from "@/components/insights/PremiumInsightsCharts";
 import { EnhancedMedicalExport } from "@/components/insights/EnhancedMedicalExport";
-import { UsefulInsights } from "@/components/insights/UsefulInsights";
+import { CleanInsights } from "@/components/insights/CleanInsights";
 import { CommunityHotspots } from "@/components/insights/CommunityHotspots";
 import { UserFlareMap } from "@/components/insights/UserFlareMap";
 import {
@@ -48,10 +48,10 @@ export const RevampedInsights = ({
 
   if (entries.length === 0) {
     return (
-      <Card className="p-6 text-center glass-card">
+      <Card className="p-6 text-center bg-card/80 backdrop-blur-sm border-border/50">
         <Sparkles className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
         <h3 className="text-base font-medium mb-1">No data yet</h3>
-        <p className="text-xs text-muted-foreground">Start logging to see your insights</p>
+        <p className="text-sm text-muted-foreground">Start logging to see your insights</p>
       </Card>
     );
   }
@@ -60,30 +60,30 @@ export const RevampedInsights = ({
     <div className="space-y-3">
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 h-9">
-          <TabsTrigger value="ai" className="text-[10px] gap-1">
-            <Brain className="w-3 h-3" />
+        <TabsList className="grid w-full grid-cols-4 h-10 bg-card/80 backdrop-blur-sm">
+          <TabsTrigger value="ai" className="text-xs gap-1.5">
+            <Brain className="w-4 h-4" />
             Insights
           </TabsTrigger>
-          <TabsTrigger value="charts" className="text-[10px] gap-1">
-            <BarChart3 className="w-3 h-3" />
+          <TabsTrigger value="charts" className="text-xs gap-1.5">
+            <BarChart3 className="w-4 h-4" />
             Charts
           </TabsTrigger>
-          <TabsTrigger value="local" className="text-[10px] gap-1">
-            <MapPin className="w-3 h-3" />
+          <TabsTrigger value="local" className="text-xs gap-1.5">
+            <MapPin className="w-4 h-4" />
             Map
           </TabsTrigger>
-          <TabsTrigger value="export" className="text-[10px] gap-1">
-            <Download className="w-3 h-3" />
+          <TabsTrigger value="export" className="text-xs gap-1.5">
+            <Download className="w-4 h-4" />
             Export
           </TabsTrigger>
         </TabsList>
 
         <div className="mt-3">
           <TabsContent value="ai" className="mt-0">
-            <UsefulInsights 
+            <CleanInsights 
               entries={entries} 
-              userConditions={userConditions} 
+              userConditions={userConditions}
               onAskAI={onAskAI || onStartProtocol}
             />
           </TabsContent>
