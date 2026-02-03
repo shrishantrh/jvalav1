@@ -97,6 +97,7 @@ interface SmartTrackProps {
 
 export interface SmartTrackRef {
   addDetailedEntry: (entry: Partial<FlareEntry>) => void;
+  sendChatMessage: (message: string) => void;
 }
 
 const STORAGE_KEY = 'jvala_smart_chat';
@@ -396,6 +397,10 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       };
 
       setMessages(prev => [...prev, userMessage, confirmMessage]);
+    },
+    sendChatMessage: (message: string) => {
+      // Trigger handleSend with the provided message
+      handleSend(message);
     }
   }));
 
