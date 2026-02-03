@@ -18,99 +18,143 @@ export const SeveritySelector = ({ selectedSeverity, onSeveritySelect }: Severit
       value: 'none' as const,
       label: 'Great',
       emoji: '😊',
-      description: 'Feeling good today',
-      gradient: 'from-emerald-400/20 to-emerald-500/10',
-      borderColor: 'border-emerald-400/30',
-      ringColor: 'ring-emerald-400/40',
-      textColor: 'text-emerald-600 dark:text-emerald-400',
-      bgHover: 'hover:from-emerald-400/25 hover:to-emerald-500/15',
+      description: 'Feeling good',
+      hue: 145,
+      saturation: 60,
+      lightness: 50,
     },
     {
       value: 'mild' as const,
       label: 'Mild',
       emoji: '😐',
       description: 'Slight discomfort',
-      gradient: 'from-amber-400/20 to-amber-500/10',
-      borderColor: 'border-amber-400/30',
-      ringColor: 'ring-amber-400/40',
-      textColor: 'text-amber-600 dark:text-amber-400',
-      bgHover: 'hover:from-amber-400/25 hover:to-amber-500/15',
+      hue: 50,
+      saturation: 85,
+      lightness: 52,
     },
     {
       value: 'moderate' as const,
       label: 'Moderate',
       emoji: '😟',
-      description: 'Noticeable symptoms',
-      gradient: 'from-orange-400/20 to-orange-500/10',
-      borderColor: 'border-orange-400/30',
-      ringColor: 'ring-orange-400/40',
-      textColor: 'text-orange-600 dark:text-orange-400',
-      bgHover: 'hover:from-orange-400/25 hover:to-orange-500/15',
+      description: 'Noticeable',
+      hue: 28,
+      saturation: 90,
+      lightness: 50,
     },
     {
       value: 'severe' as const,
       label: 'Severe',
       emoji: '😣',
-      description: 'Significant impact',
-      gradient: 'from-red-400/20 to-red-500/10',
-      borderColor: 'border-red-400/30',
-      ringColor: 'ring-red-400/40',
-      textColor: 'text-red-600 dark:text-red-400',
-      bgHover: 'hover:from-red-400/25 hover:to-red-500/15',
+      description: 'Significant',
+      hue: 0,
+      saturation: 75,
+      lightness: 52,
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-2 gap-3">
       {severityOptions.map((option) => {
         const isSelected = selectedSeverity === option.value;
+        const { hue, saturation, lightness } = option;
         
         return (
           <button
             key={option.value}
             onClick={() => handleSelect(option.value)}
             className={cn(
-              "relative flex flex-col items-center justify-center py-6 px-4 rounded-3xl",
-              "bg-gradient-to-br transition-all duration-300 touch-manipulation",
-              "border-2 backdrop-blur-sm",
-              option.gradient,
-              option.bgHover,
-              isSelected 
-                ? `${option.borderColor} ring-2 ring-offset-2 ring-offset-background ${option.ringColor} scale-[1.02] shadow-lg` 
-                : "border-transparent hover:border-border/50",
+              "relative flex flex-col items-center justify-center py-5 px-3 rounded-3xl",
+              "transition-all duration-300 touch-manipulation no-select",
               "active:scale-95"
             )}
+            style={{
+              background: isSelected
+                ? `linear-gradient(145deg, 
+                    hsl(${hue} ${saturation}% ${lightness + 42}%) 0%, 
+                    hsl(${hue} ${saturation - 10}% ${lightness + 38}%) 100%
+                  )`
+                : `linear-gradient(145deg, 
+                    hsl(${hue} ${saturation}% ${lightness + 45}%) 0%, 
+                    hsl(${hue} ${saturation - 15}% ${lightness + 42}%) 100%
+                  )`,
+              border: isSelected 
+                ? `2px solid hsl(${hue} ${saturation}% ${lightness}%)`
+                : `1px solid hsl(${hue} ${saturation}% ${lightness + 25}%)`,
+              boxShadow: isSelected
+                ? `
+                    inset 0 2px 4px hsl(${hue} ${saturation}% ${lightness + 30}% / 0.5),
+                    0 4px 16px hsl(${hue} ${saturation}% ${lightness}% / 0.25),
+                    0 8px 24px hsl(${hue} ${saturation}% ${lightness}% / 0.15)
+                  `
+                : `
+                    inset 0 1px 2px hsl(0 0% 100% / 0.5),
+                    0 2px 8px hsl(${hue} ${saturation}% ${lightness}% / 0.08)
+                  `,
+              transform: isSelected ? 'scale(1.03)' : undefined,
+            }}
           >
-            {/* Emoji with subtle bounce on select */}
+            {/* Glossy overlay */}
+            <div 
+              className="absolute inset-0 rounded-3xl pointer-events-none"
+              style={{
+                background: `linear-gradient(180deg, 
+                  hsl(0 0% 100% / ${isSelected ? 0.2 : 0.15}) 0%, 
+                  transparent 50%
+                )`,
+              }}
+            />
+            
+            {/* Emoji with 3D shadow */}
             <span 
               className={cn(
-                "text-4xl mb-2 transition-transform duration-500",
-                isSelected && "animate-bounce-soft"
+                "relative text-4xl mb-1.5 transition-transform duration-500",
+                isSelected && "animate-bounce-soft scale-110"
               )}
+              style={{
+                filter: isSelected ? 'drop-shadow(0 4px 6px hsl(0 0% 0% / 0.15))' : undefined,
+              }}
             >
               {option.emoji}
             </span>
             
             {/* Label */}
-            <span className={cn(
-              "font-bold text-base mb-0.5 transition-colors",
-              isSelected ? option.textColor : "text-foreground"
-            )}>
+            <span 
+              className="relative font-bold text-sm mb-0.5 transition-colors"
+              style={{ 
+                color: `hsl(${hue} ${saturation}% ${isSelected ? lightness - 5 : lightness + 5}%)` 
+              }}
+            >
               {option.label}
             </span>
             
             {/* Description */}
-            <span className="text-[11px] text-muted-foreground font-medium text-center leading-tight">
+            <span 
+              className="relative text-[10px] font-medium text-center leading-tight"
+              style={{ 
+                color: `hsl(${hue} ${saturation - 20}% ${lightness + 15}%)` 
+              }}
+            >
               {option.description}
             </span>
 
-            {/* Selected indicator */}
+            {/* Selected check indicator */}
             {isSelected && (
-              <div className={cn(
-                "absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center",
-                "bg-card shadow-md border border-border/50"
-              )}>
-                <div className={cn("w-2.5 h-2.5 rounded-full", option.textColor.replace('text-', 'bg-'))} />
+              <div 
+                className="absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center"
+                style={{
+                  background: `linear-gradient(145deg, 
+                    hsl(${hue} ${saturation}% ${lightness + 5}%) 0%, 
+                    hsl(${hue} ${saturation}% ${lightness - 5}%) 100%
+                  )`,
+                  boxShadow: `
+                    inset 0 1px 2px hsl(0 0% 100% / 0.3),
+                    0 2px 6px hsl(${hue} ${saturation}% ${lightness}% / 0.4)
+                  `,
+                }}
+              >
+                <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
               </div>
             )}
           </button>

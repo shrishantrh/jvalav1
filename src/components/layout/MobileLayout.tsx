@@ -1,9 +1,10 @@
-import { ReactNode, useCallback } from 'react';
+import { ReactNode, useCallback, useEffect } from 'react';
 import { Activity, Calendar, BarChart3, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { PullToRefreshContainer, PullToRefreshIndicator } from '@/components/ui/PullToRefresh';
+import { initializeThemeColor } from '@/hooks/useThemeColor';
 
 interface MobileLayoutProps {
   children: ReactNode;
@@ -29,9 +30,16 @@ export const MobileLayout = ({
   header,
   onRefresh
 }: MobileLayoutProps) => {
+  // Initialize theme color on mount
+  useEffect(() => {
+    initializeThemeColor();
+  }, []);
+
   const handleRefresh = useCallback(async () => {
     if (onRefresh) {
+      haptics.light();
       await onRefresh();
+      haptics.success();
     }
   }, [onRefresh]);
 
@@ -48,17 +56,27 @@ export const MobileLayout = ({
 
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden max-w-md mx-auto bg-background">
-      {/* Warm gradient overlay */}
+      {/* Dynamic Island / Notch safe area spacer */}
       <div 
-        className="absolute inset-0 pointer-events-none opacity-40"
+        className="flex-shrink-0 bg-background/80 backdrop-blur-xl"
+        style={{ height: 'env(safe-area-inset-top, 0px)' }}
+      />
+      
+      {/* Warm gradient overlay - 3D depth effect */}
+      <div 
+        className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'radial-gradient(ellipse 80% 50% at 50% -20%, hsl(25 70% 85% / 0.3), transparent)',
+          background: `
+            radial-gradient(ellipse 100% 60% at 50% -10%, hsl(var(--primary) / 0.08), transparent 50%),
+            radial-gradient(ellipse 80% 40% at 80% 0%, hsl(var(--primary) / 0.05), transparent 40%),
+            radial-gradient(ellipse 60% 30% at 20% 10%, hsl(var(--primary) / 0.04), transparent 35%)
+          `,
         }}
       />
       
       {/* Header area */}
       {header && (
-        <header className="relative flex-shrink-0 z-50 bg-card/80 backdrop-blur-xl border-b border-border/50">
+        <header className="relative flex-shrink-0 z-50 glass-header">
           {header}
         </header>
       )}
@@ -77,19 +95,29 @@ export const MobileLayout = ({
             transition: pullDistance === 0 ? 'transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : undefined,
           }}
         >
-          <div className="px-5 py-5 pb-28">
+          <div className="px-5 py-4 pb-28">
             {children}
           </div>
         </div>
       </main>
       
-      {/* Bottom Navigation - Premium iOS tab bar */}
+      {/* Bottom Navigation - Premium iOS tab bar with 3D effect */}
       {showNav && onViewChange && (
-        <nav className="relative flex-shrink-0 z-50 bg-card/90 backdrop-blur-2xl border-t border-border/40 safe-area-bottom">
+        <nav 
+          className="relative flex-shrink-0 z-50"
+          style={{
+            background: 'hsl(var(--glass-bg) / 0.92)',
+            backdropFilter: 'blur(30px) saturate(200%)',
+            WebkitBackdropFilter: 'blur(30px) saturate(200%)',
+            borderTop: '1px solid hsl(var(--border) / 0.3)',
+            boxShadow: '0 -8px 32px hsl(var(--foreground) / 0.03)',
+            paddingBottom: 'env(safe-area-inset-bottom, 8px)',
+          }}
+        >
           {/* Glossy highlight line */}
-          <div className="absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+          <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-primary/25 to-transparent" />
           
-          <div className="flex items-center justify-around h-20 px-4">
+          <div className="flex items-center justify-around h-[72px] px-2">
             {navItems.map((item) => {
               const isActive = currentView === item.id;
               return (
@@ -97,36 +125,47 @@ export const MobileLayout = ({
                   key={item.id}
                   onClick={() => handleNavClick(item.id)}
                   className={cn(
-                    "relative flex flex-col items-center justify-center gap-1 px-5 py-2.5 rounded-2xl transition-all duration-300",
-                    "active:scale-95 touch-manipulation",
+                    "relative flex flex-col items-center justify-center gap-0.5 px-4 py-2 rounded-2xl transition-all duration-300",
+                    "active:scale-90 touch-manipulation no-select",
                     isActive 
                       ? "text-primary" 
-                      : "text-muted-foreground/70 hover:text-foreground"
+                      : "text-muted-foreground/60 hover:text-foreground"
                   )}
                 >
-                  {/* Active indicator glow */}
+                  {/* Active background with 3D effect */}
                   {isActive && (
-                    <div 
-                      className="absolute inset-0 rounded-2xl opacity-15"
-                      style={{
-                        background: 'radial-gradient(circle at center, hsl(var(--primary)), transparent 70%)',
-                      }}
-                    />
+                    <>
+                      <div 
+                        className="absolute inset-0 rounded-2xl"
+                        style={{
+                          background: 'linear-gradient(180deg, hsl(var(--primary) / 0.15) 0%, hsl(var(--primary) / 0.08) 100%)',
+                          boxShadow: `
+                            inset 0 1px 0 hsl(var(--primary) / 0.2),
+                            0 2px 8px hsl(var(--primary) / 0.15)
+                          `,
+                        }}
+                      />
+                      {/* Glow underneath */}
+                      <div 
+                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 h-3 rounded-full blur-md"
+                        style={{ background: 'hsl(var(--primary) / 0.4)' }}
+                      />
+                    </>
                   )}
                   
                   <div className={cn(
-                    "relative p-2 rounded-2xl transition-all duration-300",
-                    isActive && "bg-primary/12 shadow-sm"
+                    "relative z-10 transition-all duration-300",
+                    isActive && "scale-110"
                   )}>
-                    <item.icon className={cn(
-                      "w-6 h-6 transition-all duration-300",
-                      isActive ? "scale-110" : "scale-100"
-                    )} strokeWidth={isActive ? 2.5 : 2} />
+                    <item.icon 
+                      className="w-6 h-6 transition-all duration-300" 
+                      strokeWidth={isActive ? 2.5 : 1.8} 
+                    />
                   </div>
                   
                   <span className={cn(
-                    "text-[11px] font-semibold tracking-wide transition-all duration-300",
-                    isActive ? "opacity-100" : "opacity-70"
+                    "relative z-10 text-[10px] font-semibold tracking-wide transition-all duration-300",
+                    isActive ? "opacity-100" : "opacity-60"
                   )}>
                     {item.label}
                   </span>

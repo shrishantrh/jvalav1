@@ -330,17 +330,62 @@ export const UsefulInsights = ({
 
   return (
     <div className="space-y-4">
-      {/* AI Summary Header */}
+      {/* AI Summary Header - 3D Card */}
       {aiInsights?.summary && (
-        <Card className="p-4 glass-card bg-gradient-to-br from-primary/10 via-transparent to-primary/5">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center flex-shrink-0">
+        <div 
+          className="relative p-4 rounded-3xl overflow-hidden"
+          style={{
+            background: 'linear-gradient(145deg, hsl(var(--primary) / 0.12) 0%, hsl(var(--primary) / 0.05) 100%)',
+            boxShadow: `
+              inset 0 1px 0 hsl(var(--primary) / 0.15),
+              0 4px 16px hsl(var(--primary) / 0.10)
+            `,
+            border: '1px solid hsl(var(--primary) / 0.15)',
+          }}
+        >
+          {/* Decorative gradient orb */}
+          <div 
+            className="absolute -top-8 -right-8 w-24 h-24 rounded-full blur-2xl opacity-40"
+            style={{ background: 'hsl(var(--primary))' }}
+          />
+          
+          <div className="relative flex items-start gap-3">
+            <div 
+              className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+              style={{
+                background: 'var(--gradient-primary)',
+                boxShadow: `
+                  inset 0 2px 4px hsl(var(--primary-glow) / 0.3),
+                  0 4px 12px hsl(var(--primary) / 0.35)
+                `,
+              }}
+            >
               <Brain className="w-5 h-5 text-primary-foreground" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <h3 className="text-sm font-semibold">AI Analysis</h3>
-                <Badge variant="outline" className="text-[9px] px-1.5 py-0">
+              <div className="flex items-center gap-2 mb-1.5">
+                <h3 className="text-sm font-bold">AI Analysis</h3>
+                <Badge 
+                  variant="outline" 
+                  className="text-[9px] px-1.5 py-0 font-semibold"
+                  style={{
+                    background: aiInsights.trend === 'improving' 
+                      ? 'hsl(var(--severity-none) / 0.15)' 
+                      : aiInsights.trend === 'worsening'
+                      ? 'hsl(var(--severity-severe) / 0.15)'
+                      : 'hsl(var(--muted))',
+                    borderColor: aiInsights.trend === 'improving' 
+                      ? 'hsl(var(--severity-none) / 0.3)' 
+                      : aiInsights.trend === 'worsening'
+                      ? 'hsl(var(--severity-severe) / 0.3)'
+                      : 'hsl(var(--border))',
+                    color: aiInsights.trend === 'improving' 
+                      ? 'hsl(var(--severity-none))' 
+                      : aiInsights.trend === 'worsening'
+                      ? 'hsl(var(--severity-severe))'
+                      : undefined,
+                  }}
+                >
                   {aiInsights.trend === 'improving' && '↑ Improving'}
                   {aiInsights.trend === 'worsening' && '↓ Watch out'}
                   {aiInsights.trend === 'stable' && '→ Stable'}
@@ -351,20 +396,26 @@ export const UsefulInsights = ({
               </p>
             </div>
           </div>
-        </Card>
+        </div>
       )}
 
-      {/* Loading State */}
+      {/* Loading State - Skeleton */}
       {isLoadingAI && (
-        <Card className="p-4 glass-card">
+        <div 
+          className="p-4 rounded-3xl"
+          style={{
+            background: 'hsl(var(--muted) / 0.5)',
+            border: '1px solid hsl(var(--border) / 0.3)',
+          }}
+        >
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary/20 animate-pulse" />
+            <div className="w-10 h-10 rounded-xl bg-muted animate-pulse" />
             <div className="flex-1">
-              <div className="h-4 w-32 bg-muted rounded animate-pulse mb-2" />
-              <div className="h-3 w-48 bg-muted rounded animate-pulse" />
+              <div className="h-4 w-28 bg-muted rounded-lg animate-pulse mb-2" />
+              <div className="h-3 w-44 bg-muted rounded-lg animate-pulse" />
             </div>
           </div>
-        </Card>
+        </div>
       )}
 
       {/* AI Insights - Key Findings */}
@@ -438,36 +489,73 @@ export const UsefulInsights = ({
         </Card>
       )}
 
-      {/* Data-Driven Correlations */}
+      {/* Data-Driven Correlations - Premium Cards */}
       {localInsights.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+        <div className="space-y-2.5">
+          <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2 px-1">
             <Activity className="w-3.5 h-3.5" />
             Your Data Patterns
           </h3>
           
           {localInsights.slice(0, 4).map((insight, idx) => (
-            <Card 
+            <div 
               key={idx} 
-              className={cn("p-3 border", getInsightStyle(insight.type))}
+              className={cn(
+                "relative p-3.5 rounded-2xl transition-all duration-300",
+                "active:scale-[0.98]"
+              )}
+              style={{
+                background: insight.type === 'warning' 
+                  ? 'linear-gradient(145deg, hsl(45 85% 95%) 0%, hsl(40 70% 97%) 100%)'
+                  : insight.type === 'success'
+                  ? 'linear-gradient(145deg, hsl(145 50% 95%) 0%, hsl(140 40% 97%) 100%)'
+                  : 'linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--muted) / 0.5) 100%)',
+                boxShadow: `
+                  inset 0 1px 0 hsl(0 0% 100% / 0.5),
+                  0 2px 8px hsl(var(--foreground) / 0.04)
+                `,
+                border: `1px solid ${
+                  insight.type === 'warning' 
+                    ? 'hsl(45 60% 85%)'
+                    : insight.type === 'success'
+                    ? 'hsl(145 40% 85%)'
+                    : 'hsl(var(--border) / 0.4)'
+                }`,
+              }}
             >
               <div className="flex items-start gap-3">
-                <div className={cn(
-                  "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
-                  insight.type === 'warning' && "bg-amber-500/20",
-                  insight.type === 'success' && "bg-emerald-500/20",
-                  insight.type === 'info' && "bg-primary/10"
-                )}>
-                  {insight.icon}
+                <div 
+                  className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{
+                    background: insight.type === 'warning' 
+                      ? 'linear-gradient(145deg, hsl(45 90% 60%) 0%, hsl(40 85% 50%) 100%)'
+                      : insight.type === 'success'
+                      ? 'linear-gradient(145deg, hsl(145 60% 50%) 0%, hsl(140 55% 42%) 100%)'
+                      : 'var(--gradient-primary)',
+                    boxShadow: `
+                      inset 0 1px 2px hsl(0 0% 100% / 0.3),
+                      0 2px 6px ${
+                        insight.type === 'warning' 
+                          ? 'hsl(45 85% 50% / 0.3)'
+                          : insight.type === 'success'
+                          ? 'hsl(145 55% 45% / 0.3)'
+                          : 'hsl(var(--primary) / 0.3)'
+                      }
+                    `,
+                  }}
+                >
+                  <div className="text-white">
+                    {insight.icon}
+                  </div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-medium mb-0.5">{insight.title}</h4>
+                  <h4 className="text-sm font-semibold mb-0.5">{insight.title}</h4>
                   <p className="text-[11px] text-muted-foreground leading-relaxed">
                     {insight.detail}
                   </p>
                 </div>
               </div>
-            </Card>
+            </div>
           ))}
         </div>
       )}
