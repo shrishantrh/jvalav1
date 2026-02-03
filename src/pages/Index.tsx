@@ -15,25 +15,23 @@ import { ProgressDashboard } from "@/components/engagement/ProgressDashboard";
 import { RevolutionaryOnboarding } from "@/components/onboarding/RevolutionaryOnboarding";
 import { HealthForecast } from "@/components/forecast/HealthForecast";
 import { CycleTracker } from "@/components/tracking/CycleTracker";
+import { StreakBadge } from "@/components/engagement/StreakBadge";
 import { MobileLayout } from "@/components/layout/MobileLayout";
 import { MobileHeader } from "@/components/layout/MobileHeader";
-import { ColorfulStatCard, ProgressCard } from "@/components/cards/ColorfulStatCard";
-import { ActionCard, QuickAction, WeekDaySelector } from "@/components/cards/ActionCard";
 import { CONDITIONS } from "@/data/conditions";
 import { useEngagement } from "@/hooks/useEngagement";
 import { useCorrelations } from "@/hooks/useCorrelations";
 import { CorrelationInsights } from "@/components/insights/CorrelationInsights";
 import { WeeklyReportCard } from "@/components/insights/WeeklyReportCard";
-import { Activity, ChevronDown, ChevronRight, MapPin, Sparkles, Heart, Zap, Moon, TrendingUp, Smile, Frown, Meh, Calendar as CalendarIcon } from "lucide-react";
+import { Activity, ChevronDown, MapPin, Sparkles } from "lucide-react";
 import { MedicationTracker } from "@/components/medication/MedicationTracker";
 import { useMedicationLogs } from "@/hooks/useMedicationLogs";
 import { useToast } from "@/hooks/use-toast";
-import { format, isSameDay, subDays, startOfWeek, addDays } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { LimitlessAIChat } from "@/components/ai/LimitlessAIChat";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
 
 interface MedicationDetails {
   name: string;
@@ -52,7 +50,6 @@ interface UserProfile {
   physician_phone: string | null;
   physician_practice: string | null;
   onboarding_completed: boolean;
-  full_name?: string;
 }
 
 const Index = () => {
@@ -65,6 +62,7 @@ const Index = () => {
   const [showDetailedEntry, setShowDetailedEntry] = useState(false);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [currentLocation, setCurrentLocation] = useState<{ city?: string } | null>(null);
+  const [insightViewCount, setInsightViewCount] = useState(0);
   const [showProtocolChat, setShowProtocolChat] = useState(false);
   const [protocolPrompt, setProtocolPrompt] = useState<string | null>(null);
   const [clinicalRecordEntry, setClinicalRecordEntry] = useState<FlareEntry | null>(null);
@@ -79,38 +77,6 @@ const Index = () => {
   
   const { topCorrelations, recentActivities } = useCorrelations(user?.id || null);
   const { logs: medicationLogs, addLog: addMedicationLog } = useMedicationLogs(user?.id);
-
-  // Calculate week days for selector
-  const weekDays = useMemo(() => {
-    const start = startOfWeek(new Date(), { weekStartsOn: 1 });
-    return Array.from({ length: 7 }, (_, i) => {
-      const date = addDays(start, i);
-      const dayEntries = entries.filter(e => isSameDay(e.timestamp, date));
-      const hasEntry = dayEntries.length > 0;
-      const severity = dayEntries.find(e => e.severity)?.severity;
-      return { date, hasEntry, severity: severity as any };
-    });
-  }, [entries]);
-
-  // Calculate stats
-  const stats = useMemo(() => {
-    const last7Days = entries.filter(e => {
-      const daysDiff = (new Date().getTime() - e.timestamp.getTime()) / (1000 * 60 * 60 * 24);
-      return daysDiff <= 7;
-    });
-    
-    const flares = last7Days.filter(e => e.type === 'flare');
-    const avgSeverity = flares.length > 0 
-      ? flares.reduce((acc, e) => acc + (e.severity === 'severe' ? 3 : e.severity === 'moderate' ? 2 : 1), 0) / flares.length 
-      : 0;
-    
-    return {
-      totalLogs: entries.length,
-      weeklyFlares: flares.length,
-      avgSeverity: avgSeverity.toFixed(1),
-      streak: currentStreak,
-    };
-  }, [entries, currentStreak]);
 
   // Check for special badges when correlations change
   useEffect(() => {
@@ -187,7 +153,7 @@ const Index = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('conditions, known_symptoms, known_triggers, physician_name, physician_email, physician_phone, physician_practice, onboarding_completed, metadata, full_name')
+        .select('conditions, known_symptoms, known_triggers, physician_name, physician_email, physician_phone, physician_practice, onboarding_completed, metadata')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -207,7 +173,6 @@ const Index = () => {
           physician_phone: data.physician_phone,
           physician_practice: data.physician_practice,
           onboarding_completed: data.onboarding_completed || false,
-          full_name: data.full_name || undefined,
         });
 
         if (!data.onboarding_completed) {
@@ -472,18 +437,6 @@ const Index = () => {
     }
   };
 
-  const handleQuickLog = (severity: 'mild' | 'moderate' | 'severe') => {
-    handleSaveEntry({
-      type: 'flare',
-      severity,
-      timestamp: new Date(),
-    });
-    toast({ 
-      title: `${severity.charAt(0).toUpperCase() + severity.slice(1)} flare logged`,
-      description: "Tap to add more details"
-    });
-  };
-
   const selectedDateEntries = useMemo(() => {
     return entries.filter(e => isSameDay(e.timestamp, selectedDate));
   }, [entries, selectedDate]);
@@ -523,96 +476,67 @@ const Index = () => {
           <MobileHeader 
             streak={currentStreak}
             onStreakClick={() => setShowProgress(true)}
-            userName={userProfile?.full_name}
           />
         }
       >
         {/* Track View */}
         {currentView === 'track' && user && (
-          <div className="space-y-5 stagger-fade-in">
-            {/* Progress Card */}
-            {entries.length >= 3 && (
-              <ProgressCard
-                title="Your Progress"
-                value={Math.min(100, Math.round((currentStreak / 7) * 100))}
-                label={`${currentStreak}d`}
-                sublabel={format(new Date(), 'd MMMM')}
-                onClick={() => setShowProgress(true)}
-              />
-            )}
-            
-            {/* How are you feeling */}
-            <Card className="p-5">
-              <h2 className="text-base font-bold mb-1">How are you feeling?</h2>
-              <p className="text-xs text-muted-foreground mb-4">
-                {currentLocation?.city && `📍 ${currentLocation.city} • `}
-                Tap to log
-              </p>
-              
-              <div className="grid grid-cols-3 gap-3">
-                <QuickAction
-                  icon={Smile}
-                  label="Mild"
-                  onClick={() => handleQuickLog('mild')}
-                  variant="mild"
-                />
-                <QuickAction
-                  icon={Meh}
-                  label="Moderate"
-                  onClick={() => handleQuickLog('moderate')}
-                  variant="moderate"
-                />
-                <QuickAction
-                  icon={Frown}
-                  label="Severe"
-                  onClick={() => handleQuickLog('severe')}
-                  variant="severe"
-                />
+          <div className="space-y-4">
+            {/* Quick Log Card */}
+            <Card className="p-4 glass-card">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-9 h-9 rounded-xl bg-gradient-primary flex items-center justify-center">
+                  <Activity className="w-4 h-4 text-primary-foreground" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-sm font-semibold text-foreground">How are you feeling?</h2>
+                    {currentLocation?.city && (
+                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground bg-white/10 px-2 py-0.5 rounded-full">
+                        <MapPin className="w-2.5 h-2.5" />
+                        <span>{currentLocation.city}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
               
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowDetailedEntry(!showDetailedEntry)}
-                className="w-full mt-4 text-xs text-muted-foreground"
-              >
-                <ChevronDown className={cn(
-                  "w-4 h-4 mr-1 transition-transform",
-                  showDetailedEntry && "rotate-180"
-                )} />
-                Add more details
-              </Button>
+              <SmartTrack
+                ref={smartTrackRef}
+                onSave={handleSaveEntry}
+                onUpdateEntry={handleUpdateEntry}
+                userSymptoms={userProfile?.known_symptoms || []}
+                userConditions={userProfile?.conditions || []}
+                userTriggers={userProfile?.known_triggers || []}
+                userMedications={userProfile?.medications || []}
+                recentEntries={entries}
+                userId={user.id}
+              />
               
-              {showDetailedEntry && (
-                <div className="mt-4 pt-4 border-t animate-fade-in">
-                  <DetailedEntry 
-                    onSave={handleSaveEntry} 
-                    onDetailedSave={(entry) => {
-                      smartTrackRef.current?.addDetailedEntry(entry);
-                      setShowDetailedEntry(false);
-                    }}
-                  />
-                </div>
-              )}
+              {/* Detailed Entry Toggle */}
+              <div className="pt-3 mt-3 border-t border-white/10">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowDetailedEntry(!showDetailedEntry)}
+                  className="w-full text-xs text-muted-foreground hover:text-foreground font-medium"
+                >
+                  <ChevronDown className={`w-3 h-3 mr-1.5 transition-transform ${showDetailedEntry ? 'rotate-180' : ''}`} />
+                  {showDetailedEntry ? 'Hide details' : 'Add more details'}
+                </Button>
+                {showDetailedEntry && (
+                  <div className="mt-3 animate-fade-in">
+                    <DetailedEntry 
+                      onSave={handleSaveEntry} 
+                      onDetailedSave={(entry) => {
+                        smartTrackRef.current?.addDetailedEntry(entry);
+                        setShowDetailedEntry(false);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
             </Card>
-            
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 gap-3">
-              <ColorfulStatCard
-                icon={Activity}
-                label="This Week"
-                value={stats.weeklyFlares}
-                sublabel="flares logged"
-                color="coral"
-              />
-              <ColorfulStatCard
-                icon={TrendingUp}
-                label="Total Logs"
-                value={stats.totalLogs}
-                sublabel="all time"
-                color="teal"
-              />
-            </div>
 
             {/* Health Forecast */}
             {entries.length >= 5 && (
@@ -642,24 +566,8 @@ const Index = () => {
 
         {/* History View */}
         {currentView === 'history' && (
-          <div className="space-y-5 stagger-fade-in">
-            {/* Week selector */}
-            <Card className="p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-bold">Week Days</h2>
-                <button className="text-xs text-primary font-semibold flex items-center gap-1">
-                  <CalendarIcon className="w-4 h-4" />
-                </button>
-              </div>
-              <WeekDaySelector
-                days={weekDays}
-                selectedDate={selectedDate}
-                onSelectDate={setSelectedDate}
-              />
-            </Card>
-            
-            {/* Full Calendar */}
-            <Card className="p-4">
+          <div className="space-y-4">
+            <Card className="p-3 glass-card">
               <CalendarHistory 
                 entries={entries}
                 selectedDate={selectedDate}
@@ -669,11 +577,11 @@ const Index = () => {
 
             {selectedDateEntries.length > 0 ? (
               <div className="animate-fade-in">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-bold">
-                    {format(selectedDate, 'EEEE, MMM d')}
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    {format(selectedDate, 'EEE, MMM d')}
                   </h3>
-                  <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                  <span className="text-[10px] text-muted-foreground bg-white/10 px-2 py-0.5 rounded-full">
                     {selectedDateEntries.length} {selectedDateEntries.length === 1 ? 'entry' : 'entries'}
                   </span>
                 </div>
@@ -693,13 +601,9 @@ const Index = () => {
                 />
               </div>
             ) : (
-              <Card className="p-8 text-center">
-                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
-                  <CalendarIcon className="w-6 h-6 text-muted-foreground" />
-                </div>
-                <p className="text-sm font-medium text-foreground mb-1">No entries</p>
-                <p className="text-xs text-muted-foreground">
-                  {format(selectedDate, 'MMM d, yyyy')}
+              <Card className="p-6 text-center glass-card">
+                <p className="text-sm text-muted-foreground">
+                  No entries on {format(selectedDate, 'MMM d')}
                 </p>
               </Card>
             )}
@@ -708,7 +612,7 @@ const Index = () => {
 
         {/* Insights View */}
         {currentView === 'insights' && user && (
-          <div className="space-y-5 stagger-fade-in">
+          <div className="space-y-4">
             <WeeklyReportCard userId={user.id} />
             
             <RevampedInsights 

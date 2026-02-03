@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Moon, Sun, LogOut, Shield, FileText, Bell, AlertTriangle, Activity, User as UserIcon, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,7 +15,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ReminderSettings } from "@/components/profile/ReminderSettings";
 import { SmartMedicationReminders } from "@/components/profile/SmartMedicationReminders";
-import { cn } from "@/lib/utils";
 
 interface MedicationDetails {
   name: string;
@@ -151,81 +152,30 @@ export default function Settings() {
 
   const needsAcceptance = !termsAccepted || !privacyAccepted;
 
-  const SettingsRow = ({ 
-    icon: Icon, 
-    label, 
-    sublabel, 
-    onClick, 
-    rightElement,
-    variant = 'default'
-  }: {
-    icon: any;
-    label: string;
-    sublabel?: string;
-    onClick?: () => void;
-    rightElement?: React.ReactNode;
-    variant?: 'default' | 'primary' | 'danger';
-  }) => (
-    <button
-      onClick={onClick}
-      disabled={!onClick}
-      className={cn(
-        "flex items-center justify-between w-full p-3 rounded-xl transition-all",
-        onClick && "hover:bg-muted press-effect",
-        !onClick && "cursor-default"
-      )}
-    >
-      <div className="flex items-center gap-3">
-        <div className={cn(
-          "w-9 h-9 rounded-xl flex items-center justify-center",
-          variant === 'primary' && "bg-primary/10",
-          variant === 'danger' && "bg-destructive/10",
-          variant === 'default' && "bg-muted"
-        )}>
-          <Icon className={cn(
-            "w-4.5 h-4.5",
-            variant === 'primary' && "text-primary",
-            variant === 'danger' && "text-destructive",
-            variant === 'default' && "text-muted-foreground"
-          )} />
-        </div>
-        <div className="text-left">
-          <p className="text-sm font-semibold">{label}</p>
-          {sublabel && (
-            <p className="text-xs text-muted-foreground">{sublabel}</p>
-          )}
-        </div>
-      </div>
-      {rightElement || (onClick && <ChevronRight className="w-4 h-4 text-muted-foreground" />)}
-    </button>
-  );
-
   return (
     <div className="fixed inset-0 flex flex-col bg-background max-w-md mx-auto">
       {/* Header */}
-      <header className="flex-shrink-0 bg-background safe-area-top border-b border-border">
-        <div className="flex items-center gap-3 px-4 py-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="h-10 w-10 rounded-xl">
-            <ArrowLeft className="w-5 h-5" />
+      <header className="flex-shrink-0 glass border-b border-white/10 safe-area-top">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="h-9 w-9 rounded-xl">
+            <ArrowLeft className="w-4 h-4" />
           </Button>
-          <h1 className="text-lg font-bold">Settings</h1>
+          <h1 className="text-base font-semibold">Settings</h1>
         </div>
       </header>
 
       {/* Content */}
-      <main className="flex-1 overflow-y-auto px-4 py-5 pb-10 scrollbar-hide">
-        <div className="space-y-4 stagger-fade-in">
+      <main className="flex-1 overflow-y-auto px-4 py-4 pb-8 scrollbar-hide">
+        <div className="space-y-3">
           {/* Consent Warning */}
           {needsAcceptance && (
-            <Card className="bg-coral-light border-0">
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-coral/20 flex items-center justify-center flex-shrink-0">
-                    <AlertTriangle className="w-5 h-5 text-coral" />
-                  </div>
+            <Card className="border-severity-moderate glass-card">
+              <CardContent className="p-3">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-severity-moderate flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-bold text-coral-dark">Action Required</p>
-                    <p className="text-xs text-coral-dark/70 mt-0.5">
+                    <p className="text-xs font-medium">Action Required</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
                       Please review and accept our Terms and Privacy Policy.
                     </p>
                   </div>
@@ -235,104 +185,130 @@ export default function Settings() {
           )}
 
           {/* Appearance */}
-          <Card>
-            <CardContent className="p-2">
-              <SettingsRow
-                icon={isDarkMode ? Moon : Sun}
-                label="Dark Mode"
-                sublabel="Switch app theme"
-                variant="primary"
-                rightElement={
-                  <Switch checked={isDarkMode} onCheckedChange={toggleDarkMode} />
-                }
-              />
+          <Card className="glass-card">
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  {isDarkMode ? <Moon className="w-4 h-4 text-primary" /> : <Sun className="w-4 h-4 text-primary" />}
+                  <div>
+                    <p className="text-sm font-medium">Dark Mode</p>
+                    <p className="text-[10px] text-muted-foreground">Switch theme</p>
+                  </div>
+                </div>
+                <Switch checked={isDarkMode} onCheckedChange={toggleDarkMode} />
+              </div>
             </CardContent>
           </Card>
 
           {/* Clinician Portal */}
-          <Card>
-            <CardContent className="p-2">
-              <SettingsRow
-                icon={Activity}
-                label="Clinician Portal"
-                sublabel="View clinician dashboard"
-                variant="primary"
+          <Card className="glass-card border-primary/20">
+            <CardContent className="p-3">
+              <button
                 onClick={() => navigate('/clinician')}
-                rightElement={
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="text-[10px]">Demo</Badge>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                className="flex items-center justify-between w-full"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Activity className="w-4 h-4 text-primary" />
+                  <div className="text-left">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium">Clinician Portal</p>
+                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0">Demo</Badge>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">View clinician dashboard</p>
                   </div>
-                }
-              />
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </button>
             </CardContent>
           </Card>
 
           {/* Reminders */}
-          <Card>
-            <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-bold flex items-center gap-2">
+          <Card className="glass-card">
+            <CardHeader className="p-3 pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
                 <Bell className="w-4 h-4 text-primary" />
                 Reminders
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-4 pt-2 space-y-3">
+            <CardContent className="p-3 pt-0 space-y-3">
               <SmartMedicationReminders medications={userMedications} />
               <ReminderSettings userEmail={userEmail} />
             </CardContent>
           </Card>
 
           {/* Legal */}
-          <Card>
-            <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-bold flex items-center gap-2">
+          <Card className="glass-card">
+            <CardHeader className="p-3 pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
                 <Shield className="w-4 h-4 text-primary" />
                 Legal
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-2 pt-0">
-              <SettingsRow
-                icon={FileText}
-                label="Terms of Service"
-                sublabel={termsAccepted ? "✓ Accepted" : undefined}
+            <CardContent className="p-3 pt-0 space-y-2">
+              {/* Terms */}
+              <button
                 onClick={() => setShowTerms(true)}
-              />
-              <Separator className="my-1" />
-              <SettingsRow
-                icon={Shield}
-                label="Privacy Policy"
-                sublabel={privacyAccepted ? "✓ Accepted" : undefined}
+                className="flex items-center justify-between w-full p-2 rounded-xl hover:bg-white/5 transition-all"
+              >
+                <div className="flex items-center gap-2.5">
+                  <FileText className="w-4 h-4 text-muted-foreground" />
+                  <div className="text-left">
+                    <p className="text-sm font-medium">Terms of Service</p>
+                    {termsAccepted && (
+                      <p className="text-[10px] text-severity-none">✓ Accepted</p>
+                    )}
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </button>
+
+              <Separator className="bg-white/10" />
+
+              {/* Privacy */}
+              <button
                 onClick={() => setShowPrivacy(true)}
-              />
+                className="flex items-center justify-between w-full p-2 rounded-xl hover:bg-white/5 transition-all"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Shield className="w-4 h-4 text-muted-foreground" />
+                  <div className="text-left">
+                    <p className="text-sm font-medium">Privacy Policy</p>
+                    {privacyAccepted && (
+                      <p className="text-[10px] text-severity-none">✓ Accepted</p>
+                    )}
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </button>
             </CardContent>
           </Card>
 
           {/* Account */}
-          <Card>
-            <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <UserIcon className="w-4 h-4 text-primary" />
-                Account
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 pt-2">
-              {userEmail && (
-                <p className="text-xs text-muted-foreground mb-3 truncate">{userEmail}</p>
-              )}
-              
-              <Button
-                variant="destructive"
-                className="w-full h-11 rounded-xl"
-                onClick={handleSignOut}
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Sign Out
-              </Button>
+          <Card className="glass-card">
+            <CardContent className="p-3">
+              <div className="space-y-2">
+                {userEmail && (
+                  <div className="flex items-center gap-2.5 p-2">
+                    <UserIcon className="w-4 h-4 text-muted-foreground" />
+                    <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
+                  </div>
+                )}
+                
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="w-full h-10"
+                  onClick={handleSignOut}
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
           {/* App version */}
-          <p className="text-xs text-center text-muted-foreground pt-4">
+          <p className="text-[10px] text-center text-muted-foreground pt-2">
             Jvala v1.0.0 • Made with 💜
           </p>
         </div>
@@ -340,29 +316,29 @@ export default function Settings() {
 
       {/* Terms Dialog */}
       <Dialog open={showTerms} onOpenChange={setShowTerms}>
-        <DialogContent className="max-w-md max-h-[85vh] rounded-2xl">
+        <DialogContent className="max-w-md max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Terms of Service</DialogTitle>
+            <DialogTitle>Terms of Service</DialogTitle>
             <DialogDescription>Last updated: December 2024</DialogDescription>
           </DialogHeader>
           <ScrollArea className="h-[50vh] pr-4">
-            <div className="text-sm space-y-5">
+            <div className="text-sm space-y-4">
               <section>
-                <h3 className="font-bold mb-2">1. Medical Disclaimer</h3>
-                <p className="text-muted-foreground leading-relaxed">
+                <h3 className="font-semibold mb-2">1. Medical Disclaimer</h3>
+                <p className="text-muted-foreground">
                   Jvala does not provide medical advice. Always consult qualified healthcare professionals.
                 </p>
               </section>
               <section>
-                <h3 className="font-bold mb-2">2. AI-Generated Content</h3>
-                <p className="text-muted-foreground leading-relaxed">
+                <h3 className="font-semibold mb-2">2. AI-Generated Content</h3>
+                <p className="text-muted-foreground">
                   AI insights may contain errors. Verify before acting on any AI-generated information.
                 </p>
               </section>
             </div>
           </ScrollArea>
           {!termsAccepted && (
-            <Button onClick={handleAcceptTerms} className="w-full h-12 rounded-xl">
+            <Button onClick={handleAcceptTerms} className="w-full">
               Accept Terms of Service
             </Button>
           )}
@@ -371,29 +347,29 @@ export default function Settings() {
 
       {/* Privacy Dialog */}
       <Dialog open={showPrivacy} onOpenChange={setShowPrivacy}>
-        <DialogContent className="max-w-md max-h-[85vh] rounded-2xl">
+        <DialogContent className="max-w-md max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Privacy Policy</DialogTitle>
+            <DialogTitle>Privacy Policy</DialogTitle>
             <DialogDescription>Last updated: December 2024</DialogDescription>
           </DialogHeader>
           <ScrollArea className="h-[50vh] pr-4">
-            <div className="text-sm space-y-5">
+            <div className="text-sm space-y-4">
               <section>
-                <h3 className="font-bold mb-2">1. Data Collection</h3>
-                <p className="text-muted-foreground leading-relaxed">
+                <h3 className="font-semibold mb-2">1. Data Collection</h3>
+                <p className="text-muted-foreground">
                   We collect health data you enter and city-level location for environmental correlation.
                 </p>
               </section>
               <section>
-                <h3 className="font-bold mb-2">2. Data Security</h3>
-                <p className="text-muted-foreground leading-relaxed">
+                <h3 className="font-semibold mb-2">2. Data Security</h3>
+                <p className="text-muted-foreground">
                   Your data is encrypted at rest and in transit using industry-standard measures.
                 </p>
               </section>
             </div>
           </ScrollArea>
           {!privacyAccepted && (
-            <Button onClick={handleAcceptPrivacy} className="w-full h-12 rounded-xl">
+            <Button onClick={handleAcceptPrivacy} className="w-full">
               Accept Privacy Policy
             </Button>
           )}

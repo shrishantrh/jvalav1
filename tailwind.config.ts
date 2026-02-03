@@ -47,41 +47,6 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Modern accent colors
-        teal: {
-          DEFAULT: "hsl(var(--teal))",
-          light: "hsl(var(--teal-light))",
-          dark: "hsl(var(--teal-dark))",
-        },
-        mint: {
-          DEFAULT: "hsl(var(--mint))",
-          light: "hsl(var(--mint-light))",
-          dark: "hsl(var(--mint-dark))",
-        },
-        "purple-accent": {
-          DEFAULT: "hsl(var(--purple))",
-          light: "hsl(var(--purple-light))",
-          dark: "hsl(var(--purple-dark))",
-        },
-        coral: {
-          DEFAULT: "hsl(var(--coral))",
-          light: "hsl(var(--coral-light))",
-          dark: "hsl(var(--coral-dark))",
-        },
-        "blue-accent": {
-          DEFAULT: "hsl(var(--blue))",
-          light: "hsl(var(--blue-light))",
-          dark: "hsl(var(--blue-dark))",
-        },
-        "yellow-accent": {
-          DEFAULT: "hsl(var(--yellow))",
-          light: "hsl(var(--yellow-light))",
-          dark: "hsl(var(--yellow-dark))",
-        },
-        navy: {
-          DEFAULT: "hsl(var(--navy))",
-          light: "hsl(var(--navy-light))",
-        },
         severity: {
           none: "hsl(var(--severity-none))",
           mild: "hsl(var(--severity-mild))",
@@ -91,6 +56,11 @@ export default {
           "mild-bg": "hsl(var(--severity-mild-bg))",
           "moderate-bg": "hsl(var(--severity-moderate-bg))",
           "severe-bg": "hsl(var(--severity-severe-bg))",
+        },
+        glass: {
+          bg: "hsl(var(--glass-bg))",
+          border: "hsl(var(--glass-border))",
+          highlight: "hsl(var(--glass-highlight))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
@@ -107,8 +77,8 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
-        xl: "var(--radius-xl)",
-        "2xl": "var(--radius-2xl)",
+        medical: "var(--radius-medical)",
+        glass: "var(--radius-glass)",
       },
       spacing: {
         touch: "var(--space-touch)",
@@ -116,15 +86,12 @@ export default {
         standard: "var(--space-standard)",
       },
       fontWeight: {
-        medical: "700",
-        clinical: "600",
-        body: "400",
+        medical: "var(--text-medical)",
+        clinical: "var(--text-clinical)",
+        body: "var(--text-body)",
       },
-      boxShadow: {
-        sm: "var(--shadow-sm)",
-        md: "var(--shadow-md)",
-        lg: "var(--shadow-lg)",
-        xl: "var(--shadow-xl)",
+      backdropBlur: {
+        glass: "var(--glass-blur)",
       },
       keyframes: {
         "accordion-down": {
@@ -179,6 +146,10 @@ export default {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-2px)" },
         },
+        "glass-shimmer": {
+          "0%": { backgroundPosition: "-100% 0" },
+          "100%": { backgroundPosition: "100% 0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.35s ease-out",
@@ -194,6 +165,7 @@ export default {
         "glow-pulse": "glow-pulse 2.5s ease-in-out infinite",
         "slide-up": "slide-up 0.5s ease-out forwards",
         "bounce-soft": "bounce-soft 1.5s ease-in-out infinite",
+        "glass-shimmer": "glass-shimmer 3s ease-in-out infinite",
       },
     },
   },

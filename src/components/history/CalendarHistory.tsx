@@ -59,24 +59,40 @@ export const CalendarHistory = ({ entries, onSelectDate, selectedDate }: Calenda
   const days = getDaysToShow();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="icon" onClick={navigatePrev} className="h-9 w-9 rounded-xl">
-          <ChevronLeft className="w-5 h-5" />
+        <Button variant="ghost" size="icon" onClick={navigatePrev} className="h-8 w-8 rounded-xl">
+          <ChevronLeft className="w-4 h-4" />
         </Button>
-        <h3 className="font-bold text-base">
+        <h3 className="font-semibold text-sm">
           {format(currentDate, 'MMMM yyyy')}
         </h3>
-        <Button variant="ghost" size="icon" onClick={navigateNext} className="h-9 w-9 rounded-xl">
-          <ChevronRight className="w-5 h-5" />
+        <Button variant="ghost" size="icon" onClick={navigateNext} className="h-8 w-8 rounded-xl">
+          <ChevronRight className="w-4 h-4" />
         </Button>
       </div>
 
+      {/* Legend - more compact */}
+      <div className="flex items-center justify-center gap-3 text-[9px] text-muted-foreground">
+        <div className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-severity-mild" />
+          <span>Mild</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-severity-moderate" />
+          <span>Mod</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-severity-severe" />
+          <span>Severe</span>
+        </div>
+      </div>
+
       {/* Weekday headers */}
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-0.5">
         {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
-          <div key={i} className="text-center text-xs text-muted-foreground font-semibold py-2">
+          <div key={i} className="text-center text-xs text-muted-foreground font-medium py-1">
             {day}
           </div>
         ))}

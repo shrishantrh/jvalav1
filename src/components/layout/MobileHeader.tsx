@@ -4,6 +4,7 @@ import { Settings, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import jvalaLogo from "@/assets/jvala-logo.png";
+import { StreakBadge } from "@/components/engagement/StreakBadge";
 
 interface MobileHeaderProps {
   title?: string;
@@ -13,57 +14,41 @@ interface MobileHeaderProps {
   onStreakClick?: () => void;
   rightAction?: ReactNode;
   showSettings?: boolean;
-  userName?: string;
 }
 
 export const MobileHeader = ({
-  title,
+  title = "Jvala",
   subtitle,
   showLogo = true,
   streak = 0,
   onStreakClick,
   rightAction,
   showSettings = true,
-  userName,
 }: MobileHeaderProps) => {
   const navigate = useNavigate();
   
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 17) return "Good afternoon";
-    return "Good evening";
-  };
-
-  const displayTitle = userName ? `${getGreeting()}, ${userName.split(' ')[0]}` : title || getGreeting();
-  
   return (
-    <div className="flex items-center justify-between px-4 py-4 safe-area-top">
-      <div className="flex items-center gap-3">
+    <div className="flex items-center justify-between px-4 py-3">
+      <div className="flex items-center gap-2.5">
         {showLogo && (
-          <div className="w-10 h-10 rounded-xl overflow-hidden shadow-sm">
-            <img src={jvalaLogo} alt="Jvala" className="w-full h-full object-cover" />
-          </div>
+          <img src={jvalaLogo} alt="Jvala" className="w-8 h-8 rounded-xl" />
         )}
         <div>
-          <h1 className="text-lg font-bold text-foreground">
-            {displayTitle}
+          <h1 className="text-base font-semibold text-foreground tracking-tight">
+            {title}
           </h1>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[10px] text-muted-foreground font-medium">
             {subtitle || format(new Date(), 'EEEE, MMM d')}
           </p>
         </div>
       </div>
       
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         {streak > 0 && (
-          <button 
+          <StreakBadge 
+            streak={streak} 
             onClick={onStreakClick}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-accent/10 rounded-full press-effect"
-          >
-            <span className="text-lg">🔥</span>
-            <span className="text-sm font-bold text-yellow-accent">{streak}</span>
-          </button>
+          />
         )}
         
         {rightAction}
@@ -73,9 +58,9 @@ export const MobileHeader = ({
             variant="ghost"
             size="icon"
             onClick={() => navigate('/settings')}
-            className="h-10 w-10 rounded-xl"
+            className="h-9 w-9 rounded-xl hover:bg-white/10"
           >
-            <Settings className="w-5 h-5 text-muted-foreground" />
+            <Settings className="w-4 h-4 text-muted-foreground" />
           </Button>
         )}
       </div>
