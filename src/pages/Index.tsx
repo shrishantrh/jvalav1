@@ -7,8 +7,7 @@ import { FlareEntry } from "@/types/flare";
 import { SmartTrack, SmartTrackRef } from "@/components/tracking/SmartTrack";
 import { DetailedEntry } from "@/components/DetailedEntry";
 import { RevampedInsights } from "@/components/insights/RevampedInsights";
-import { CalendarHistory } from "@/components/history/CalendarHistory";
-import { EnhancedFlareHistory } from "@/components/history/EnhancedFlareHistory";
+import { WeekCalendarHistory } from "@/components/history/WeekCalendarHistory";
 import { ClinicalRecordGenerator } from "@/components/history/ClinicalRecordGenerator";
 import { ProfileManager } from "@/components/profile/ProfileManager";
 import { ProgressDashboard } from "@/components/engagement/ProgressDashboard";
@@ -566,48 +565,12 @@ const Index = () => {
 
         {/* History View */}
         {currentView === 'history' && (
-          <div className="space-y-4">
-            <Card className="p-3 glass-card">
-              <CalendarHistory 
-                entries={entries}
-                selectedDate={selectedDate}
-                onSelectDate={setSelectedDate}
-              />
-            </Card>
-
-            {selectedDateEntries.length > 0 ? (
-              <div className="animate-fade-in">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-foreground">
-                    {format(selectedDate, 'EEE, MMM d')}
-                  </h3>
-                  <span className="text-[10px] text-muted-foreground bg-white/10 px-2 py-0.5 rounded-full">
-                    {selectedDateEntries.length} {selectedDateEntries.length === 1 ? 'entry' : 'entries'}
-                  </span>
-                </div>
-                <EnhancedFlareHistory 
-                  entries={selectedDateEntries} 
-                  onUpdate={handleUpdateEntry}
-                  onDelete={handleDeleteEntry}
-                  onAddFollowUp={handleAddFollowUp}
-                  onGenerateClinicalRecord={(entry) => {
-                    setClinicalRecordEntry(entry);
-                    setShowClinicalRecord(true);
-                  }}
-                  onGenerateBulkClinicalRecord={(entries) => {
-                    setClinicalRecordEntry(entries[0]);
-                    setShowClinicalRecord(true);
-                  }}
-                />
-              </div>
-            ) : (
-              <Card className="p-6 text-center glass-card">
-                <p className="text-sm text-muted-foreground">
-                  No entries on {format(selectedDate, 'MMM d')}
-                </p>
-              </Card>
-            )}
-          </div>
+          <WeekCalendarHistory 
+            entries={entries}
+            onUpdate={handleUpdateEntry}
+            onDelete={handleDeleteEntry}
+            onAddFollowUp={handleAddFollowUp}
+          />
         )}
 
         {/* Insights View */}

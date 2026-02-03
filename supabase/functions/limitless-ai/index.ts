@@ -218,7 +218,7 @@ serve(async (req) => {
       medStats[name].flaresAfter += flaresAfter;
     });
 
-    // Build rich data context for Claude
+    // Build rich data context for AI
     const dataContext = {
       overview: {
         totalFlares: stats.total,

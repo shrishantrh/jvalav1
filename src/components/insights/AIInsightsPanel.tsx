@@ -184,7 +184,7 @@ export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol,
           </div>
           <div>
             <h3 className="font-semibold text-sm">AI Health Analysis</h3>
-            <p className="text-[10px] text-muted-foreground">Powered by Claude</p>
+            <p className="text-[10px] text-muted-foreground">Powered by Gemini</p>
           </div>
         </div>
         <div className="text-center py-6">
@@ -207,7 +207,7 @@ export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol,
           </div>
           <div>
             <h3 className="font-semibold text-sm">Analyzing...</h3>
-            <p className="text-[10px] text-muted-foreground">Claude is reviewing your patterns</p>
+            <p className="text-[10px] text-muted-foreground">AI is reviewing your patterns</p>
           </div>
         </div>
         <div className="space-y-3">
@@ -228,7 +228,7 @@ export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol,
           </div>
           <div>
             <h3 className="font-semibold text-sm">AI Health Analysis</h3>
-            <p className="text-[10px] text-muted-foreground">Powered by Claude</p>
+            <p className="text-[10px] text-muted-foreground">Powered by Gemini</p>
           </div>
         </div>
         <Button onClick={generateAIInsights} className="w-full bg-gradient-primary hover:opacity-90" size="sm">
