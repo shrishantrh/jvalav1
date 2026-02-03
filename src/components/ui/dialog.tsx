@@ -36,14 +36,21 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 p-6 duration-300",
-        "bg-white/[0.93] backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/25 rounded-2xl",
-        "relative overflow-hidden",
+        // Centered positioning - critical fix for mobile
+        "fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2",
+        "grid w-[calc(100%-2rem)] max-w-lg gap-4 p-6 duration-300",
+        // Constrain height and make scrollable
+        "max-h-[calc(100vh-4rem)] overflow-y-auto",
+        // Frosted glass styling
+        "bg-white/[0.93] dark:bg-slate-900/[0.93] backdrop-blur-[20px] backdrop-saturate-[180%]",
+        "border border-white/25 dark:border-slate-700/25 rounded-2xl",
+        "relative",
         // Top edge highlight
         "before:absolute before:top-0 before:left-0 before:right-1/2 before:h-px before:bg-gradient-to-r before:from-white/50 before:to-transparent before:pointer-events-none",
-        // Bottom-right highlight
+        // Bottom-right highlight  
         "after:absolute after:bottom-0 after:right-0 after:w-2/5 after:h-px after:bg-gradient-to-r after:from-transparent after:to-white/30 after:pointer-events-none",
-        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
+        // Animations
+        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
         className,
       )}
       {...props}

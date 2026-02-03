@@ -788,36 +788,24 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             "flex flex-col",
             msg.role === 'user' ? "items-end" : "items-start"
           )}>
-            {/* 3D Frosted glass chat bubble */}
+            {/* 3D Frosted glass chat bubble using accent color */}
             <div 
               className={cn(
                 "max-w-[85%] rounded-2xl px-4 py-2.5 relative overflow-hidden",
-                msg.role === 'user' ? "rounded-br-md" : "rounded-bl-md"
+                msg.role === 'user' ? "rounded-br-md" : "rounded-bl-md",
+                msg.role === 'user' 
+                  ? "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground border border-primary/50 shadow-[inset_0_1px_2px_rgba(255,255,255,0.2),0_4px_12px_hsl(var(--primary)/0.25)]"
+                  : "bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-white/60 dark:border-slate-700/60 shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_12px_rgba(0,0,0,0.04)]"
               )}
-              style={{
-                background: msg.role === 'user'
-                  ? 'linear-gradient(145deg, hsl(25 75% 52%) 0%, hsl(25 70% 48%) 100%)'
-                  : 'linear-gradient(145deg, hsl(0 0% 100% / 0.9) 0%, hsl(0 0% 97% / 0.85) 100%)',
-                backdropFilter: 'blur(16px)',
-                WebkitBackdropFilter: 'blur(16px)',
-                border: msg.role === 'user'
-                  ? '1px solid hsl(25 75% 55% / 0.5)'
-                  : '1px solid hsl(0 0% 100% / 0.6)',
-                boxShadow: msg.role === 'user'
-                  ? 'inset 0 1px 2px hsl(0 0% 100% / 0.2), 0 4px 12px hsl(25 75% 50% / 0.25)'
-                  : 'inset 0 1px 2px hsl(0 0% 100% / 0.4), 0 4px 12px hsl(0 0% 0% / 0.04)',
-                color: msg.role === 'user' ? 'hsl(0 0% 100%)' : undefined,
-              }}
             >
               {/* Glass highlight overlay */}
               <div 
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                  background: msg.role === 'user'
-                    ? 'linear-gradient(180deg, hsl(0 0% 100% / 0.15) 0%, transparent 50%)'
-                    : 'linear-gradient(180deg, hsl(0 0% 100% / 0.25) 0%, transparent 50%)',
-                  borderRadius: 'inherit',
-                }}
+                className={cn(
+                  "absolute inset-0 pointer-events-none rounded-inherit",
+                  msg.role === 'user'
+                    ? "bg-gradient-to-b from-white/15 to-transparent"
+                    : "bg-gradient-to-b from-white/25 to-transparent"
+                )}
               />
               <p className="text-sm whitespace-pre-wrap relative z-10">{msg.content}</p>
               {msg.visualization && <DynamicChartRenderer chart={msg.visualization} />}

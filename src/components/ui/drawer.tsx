@@ -31,15 +31,20 @@ const DrawerContent = React.forwardRef<
     <DrawerPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[1.5rem] border-t border-white/25 bg-white/[0.93] backdrop-blur-[20px] backdrop-saturate-[180%]",
+        "fixed inset-x-0 bottom-0 z-50 flex flex-col rounded-t-[1.5rem]",
+        "max-h-[85vh] overflow-hidden",
+        "border-t border-white/25 dark:border-slate-700/25",
+        "bg-white/[0.93] dark:bg-slate-900/[0.93] backdrop-blur-[20px] backdrop-saturate-[180%]",
         // Top edge highlight
-        "before:absolute before:top-0 before:left-0 before:right-0 before:h-px before:bg-gradient-to-r before:from-white/50 before:via-white/30 before:to-white/50",
+        "before:absolute before:top-0 before:left-0 before:right-0 before:h-px before:bg-gradient-to-r before:from-white/50 before:via-white/30 before:to-white/50 before:pointer-events-none",
         className,
       )}
       {...props}
     >
-      <div className="mx-auto mt-4 h-1.5 w-12 rounded-full bg-foreground/20" />
-      {children}
+      <div className="mx-auto mt-4 h-1.5 w-12 rounded-full bg-foreground/20 shrink-0" />
+      <div className="flex-1 overflow-y-auto">
+        {children}
+      </div>
     </DrawerPrimitive.Content>
   </DrawerPortal>
 ));

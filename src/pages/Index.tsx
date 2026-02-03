@@ -62,8 +62,6 @@ const Index = () => {
   const [currentStreak, setCurrentStreak] = useState(0);
   const [currentLocation, setCurrentLocation] = useState<{ city?: string } | null>(null);
   const [insightViewCount, setInsightViewCount] = useState(0);
-  const [showProtocolChat, setShowProtocolChat] = useState(false);
-  const [protocolPrompt, setProtocolPrompt] = useState<string | null>(null);
   const [clinicalRecordEntry, setClinicalRecordEntry] = useState<FlareEntry | null>(null);
   const [showClinicalRecord, setShowClinicalRecord] = useState(false);
   const [showProgress, setShowProgress] = useState(false);
@@ -125,16 +123,6 @@ const Index = () => {
     };
     getLocation();
   }, []);
-
-  // Handle protocol prompt from navigation state
-  useEffect(() => {
-    const state = location.state as { protocolPrompt?: string } | null;
-    if (state?.protocolPrompt) {
-      setProtocolPrompt(state.protocolPrompt);
-      setShowProtocolChat(true);
-      navigate(location.pathname, { replace: true, state: {} });
-    }
-  }, [location.state]);
 
   const loadEngagementData = async () => {
     if (!user) return;
@@ -543,12 +531,19 @@ const Index = () => {
               onLogMedication={addMedicationLog}
               userMedications={userProfile?.medications?.map(m => m.name) || []}
               onStartProtocol={(rec) => {
-                setProtocolPrompt(rec);
-                setShowProtocolChat(true);
+                // Navigate to Log tab and set prompt for chat
+                setCurrentView('track');
+                // Use a slight delay to let the view switch, then trigger the chat
+                setTimeout(() => {
+                  smartTrackRef.current?.addDetailedEntry({ 
+                    type: 'note', 
+                    note: rec 
+                  });
+                }, 100);
               }}
               onAskAI={(prompt) => {
-                setProtocolPrompt(prompt);
-                setShowProtocolChat(true);
+                // Navigate to Log tab instead of opening separate dialog
+                setCurrentView('track');
               }}
             />
           </div>
@@ -562,22 +557,6 @@ const Index = () => {
         )}
       </MobileLayout>
 
-      {/* Protocol Builder Chat Dialog */}
-      <Dialog open={showProtocolChat} onOpenChange={setShowProtocolChat}>
-        <DialogContent className="max-w-md p-0 overflow-hidden max-h-[90vh]">
-          {user && (
-            <LimitlessAIChat 
-              userId={user.id}
-              initialPrompt={protocolPrompt || undefined}
-              isProtocolMode={true}
-              onClose={() => {
-                setShowProtocolChat(false);
-                setProtocolPrompt(null);
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* Clinical Record Generator */}
       <ClinicalRecordGenerator 

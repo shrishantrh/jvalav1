@@ -454,11 +454,11 @@ export const CleanInsights = ({ entries, userConditions = [], medicationLogs = [
                   "border border-white/40 dark:border-slate-700/40",
                   "hover:bg-white/80 dark:hover:bg-slate-800/80"
                 )}
-                onClick={() => onAskAI?.(`How can I avoid ${analytics.topTriggers[0].name}?`)}
+                onClick={() => onAskAI?.(`Help me avoid ${analytics.topTriggers[0].name}`)}
               >
                 <div className="flex items-center gap-3 text-left">
                   <Sparkles className="w-5 h-5 text-primary shrink-0" />
-                  <span className="text-base font-medium">How to avoid {analytics.topTriggers[0].name}</span>
+                  <span className="text-base font-medium">Tips for avoiding {analytics.topTriggers[0].name}</span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground" />
               </Button>
@@ -472,11 +472,11 @@ export const CleanInsights = ({ entries, userConditions = [], medicationLogs = [
                 "border border-white/40 dark:border-slate-700/40",
                 "hover:bg-white/80 dark:hover:bg-slate-800/80"
               )}
-              onClick={() => onAskAI?.("What patterns do you see in my data?")}
+              onClick={() => onAskAI?.("Analyze my health patterns")}
             >
               <div className="flex items-center gap-3 text-left">
                 <Brain className="w-5 h-5 text-primary shrink-0" />
-                <span className="text-base font-medium">Analyze my patterns</span>
+                <span className="text-base font-medium">Ask AI about my patterns</span>
               </div>
               <ChevronRight className="w-5 h-5 text-muted-foreground" />
             </Button>
@@ -489,11 +489,11 @@ export const CleanInsights = ({ entries, userConditions = [], medicationLogs = [
                 "border border-white/40 dark:border-slate-700/40",
                 "hover:bg-white/80 dark:hover:bg-slate-800/80"
               )}
-              onClick={() => onAskAI?.("What's my flare risk today?")}
+              onClick={() => onAskAI?.("What's my risk today?")}
             >
               <div className="flex items-center gap-3 text-left">
                 <Target className="w-5 h-5 text-primary shrink-0" />
-                <span className="text-base font-medium">Predict today's risk</span>
+                <span className="text-base font-medium">Check today's risk level</span>
               </div>
               <ChevronRight className="w-5 h-5 text-muted-foreground" />
             </Button>
