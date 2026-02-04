@@ -4,11 +4,7 @@ const config: CapacitorConfig = {
   appId: 'app.jvala.health',
   appName: 'Jvala',
   webDir: 'dist',
-  server: {
-    // Development: Hot reload from Lovable preview
-    url: 'https://7319d3cd-d538-457c-8551-4e2c9224cf96.lovableproject.com?forceHideBadge=true',
-    cleartext: true
-  },
+  // No server.url = loads local bundled assets from dist/
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,
