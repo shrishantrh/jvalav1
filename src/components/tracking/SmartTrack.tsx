@@ -769,25 +769,32 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden relative">
       
-      {/* AI Capability buttons - show when no messages or few messages */}
-      {messages.length <= 2 && (
-        <div className="px-3 pt-3 pb-1 flex-shrink-0">
-          <p className="text-[10px] text-muted-foreground mb-2 flex items-center gap-1">
-            <Sparkles className="w-3 h-3" />
-            Try asking me to...
-          </p>
-          <AIChatPrompts onSendPrompt={handlePromptClick} variant="capabilities" />
-        </div>
-      )}
-
-      {/* Messages - scrollable container with hidden scrollbar - takes remaining space */}
+      {/* Scrollable content area - everything except input */}
       <div 
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0 scrollbar-hide"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        className="flex-1 overflow-y-auto min-h-0 scrollbar-hide"
+        style={{ 
+          scrollbarWidth: 'none', 
+          msOverflowStyle: 'none',
+          // Add bottom padding to prevent content hiding behind fixed input
+          paddingBottom: '180px' 
+        }}
       >
+        {/* AI Capability buttons - show when no messages or few messages */}
+        {messages.length <= 2 && (
+          <div className="px-3 pt-3 pb-1">
+            <p className="text-[10px] text-muted-foreground mb-2 flex items-center gap-1">
+              <Sparkles className="w-3 h-3" />
+              Try asking me to...
+            </p>
+            <AIChatPrompts onSendPrompt={handlePromptClick} variant="capabilities" />
+          </div>
+        )}
+
+        {/* Messages */}
+        <div className="p-4 space-y-3">
         {messages.map((msg, index) => (
           <div key={msg.id} className={cn(
             "flex flex-col",
@@ -890,78 +897,83 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         )}
         
         <div ref={messagesEndRef} />
-      </div>
-
-      {/* Dynamic follow-up suggestions after AI responds */}
-      {dynamicFollowUps.length > 0 && messages.length > 2 && !isProcessing && (
-        <div className="px-3 py-2 border-t border-white/20 flex-shrink-0">
-          <AIChatPrompts 
-            onSendPrompt={handlePromptClick} 
-            variant="followups" 
-            followUps={dynamicFollowUps} 
-          />
         </div>
-      )}
-
-      {/* Quick actions - compact - fixed at bottom */}
-      <div className="px-3 py-2 border-t border-white/20 flex-shrink-0">
-        <FluidLogSelector
-          userSymptoms={userSymptoms}
-          userMedications={userMedications}
-          onLogSymptom={handleFluidLog}
-          onLogMedication={handleMedicationLog}
-          onLogWellness={handleWellnessLog}
-          onLogEnergy={handleEnergyLog}
-          onLogRecovery={handleRecoveryLog}
-          onOpenDetails={onOpenDetails}
-        />
       </div>
 
-      {/* Input - fixed at bottom */}
+      {/* Fixed bottom section - contains follow-ups, quick actions, and input */}
       <div 
-        className="p-3 pt-2 border-t flex-shrink-0"
+        className="absolute bottom-0 left-0 right-0 flex-shrink-0"
         style={{
-          background: 'linear-gradient(180deg, hsl(0 0% 100% / 0.8) 0%, hsl(0 0% 98% / 0.9) 100%)',
+          background: 'linear-gradient(180deg, hsl(0 0% 100% / 0.92) 0%, hsl(0 0% 98% / 0.98) 100%)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          borderColor: 'hsl(0 0% 100% / 0.4)',
+          borderTop: '1px solid hsl(0 0% 100% / 0.5)',
+          boxShadow: '0 -4px 20px rgba(0,0,0,0.03)',
         }}
       >
-        <div className="flex items-center gap-2">
-          <Button
-            variant={isRecording ? "destructive" : "outline"}
-            size="icon"
-            className="shrink-0 h-9 w-9"
-            onClick={toggleRecording}
-            style={{
-              background: isRecording ? undefined : 'hsl(0 0% 100% / 0.8)',
-              borderColor: isRecording ? undefined : 'hsl(0 0% 100% / 0.6)',
-            }}
-          >
-            {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-          </Button>
-          
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder={isRecording ? "Listening..." : "Ask me anything..."}
-            className="flex-1 h-9"
-            disabled={isProcessing}
-            style={{
-              background: 'hsl(0 0% 100% / 0.7)',
-              borderColor: 'hsl(0 0% 100% / 0.5)',
-            }}
+        {/* Dynamic follow-up suggestions after AI responds */}
+        {dynamicFollowUps.length > 0 && messages.length > 2 && !isProcessing && (
+          <div className="px-3 py-2 border-b border-white/20">
+            <AIChatPrompts 
+              onSendPrompt={handlePromptClick} 
+              variant="followups" 
+              followUps={dynamicFollowUps} 
+            />
+          </div>
+        )}
+
+        {/* Quick actions - compact */}
+        <div className="px-3 py-2 border-b border-white/20">
+          <FluidLogSelector
+            userSymptoms={userSymptoms}
+            userMedications={userMedications}
+            onLogSymptom={handleFluidLog}
+            onLogMedication={handleMedicationLog}
+            onLogWellness={handleWellnessLog}
+            onLogEnergy={handleEnergyLog}
+            onLogRecovery={handleRecoveryLog}
+            onOpenDetails={onOpenDetails}
           />
-          
-          <Button
-            onClick={() => handleSend()}
-            disabled={!input.trim() || isProcessing}
-            size="icon"
-            className="shrink-0 h-9 w-9"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
+        </div>
+
+        {/* Input */}
+        <div className="p-3 pt-2">
+          <div className="flex items-center gap-2">
+            <Button
+              variant={isRecording ? "destructive" : "outline"}
+              size="icon"
+              className="shrink-0 h-9 w-9"
+              onClick={toggleRecording}
+              style={{
+                background: isRecording ? undefined : 'hsl(0 0% 100% / 0.8)',
+                borderColor: isRecording ? undefined : 'hsl(0 0% 100% / 0.6)',
+              }}
+            >
+              {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </Button>
+            
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder={isRecording ? "Listening..." : "Ask me anything..."}
+              className="flex-1 h-9"
+              disabled={isProcessing}
+              style={{
+                background: 'hsl(0 0% 100% / 0.7)',
+                borderColor: 'hsl(0 0% 100% / 0.5)',
+              }}
+            />
+            
+            <Button
+              onClick={() => handleSend()}
+              disabled={!input.trim() || isProcessing}
+              size="icon"
+              className="shrink-0 h-9 w-9"
+            >
+              <Send className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
