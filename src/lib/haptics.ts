@@ -1,9 +1,15 @@
 // Haptic feedback utilities for iOS/Android native feel
-// Uses multiple fallback strategies for maximum compatibility
+// Uses Capacitor for native apps, web fallbacks otherwise
+
+import { Capacitor } from '@capacitor/core';
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 
 type HapticType = 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' | 'selection' | 'impact';
 
-// AudioContext for iOS fallback (creates subtle click sounds)
+// Check if running in native Capacitor app
+const isNative = Capacitor.isNativePlatform();
+
+// AudioContext for web fallback (creates subtle click sounds)
 let audioContext: AudioContext | null = null;
 
 function getAudioContext(): AudioContext | null {
@@ -17,13 +23,12 @@ function getAudioContext(): AudioContext | null {
   return audioContext;
 }
 
-// Generate a subtle click sound as haptic fallback for iOS
+// Generate a subtle click sound as haptic fallback for web
 function playHapticSound(type: HapticType) {
   const ctx = getAudioContext();
   if (!ctx) return;
 
   try {
-    // Resume context if suspended (iOS requires user interaction)
     if (ctx.state === 'suspended') {
       ctx.resume();
     }
@@ -34,7 +39,6 @@ function playHapticSound(type: HapticType) {
     oscillator.connect(gainNode);
     gainNode.connect(ctx.destination);
 
-    // Different frequencies and durations for different haptic types
     const settings: Record<HapticType, { freq: number; duration: number; volume: number }> = {
       light: { freq: 1200, duration: 0.008, volume: 0.03 },
       selection: { freq: 1400, duration: 0.006, volume: 0.02 },
@@ -61,18 +65,51 @@ function playHapticSound(type: HapticType) {
   }
 }
 
-// Check if we're on iOS
 function isIOS(): boolean {
   return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
-// Check if we're on Android
 function isAndroid(): boolean {
   return /Android/.test(navigator.userAgent);
 }
 
-export function haptic(type: HapticType = 'light') {
+// Native Capacitor haptic feedback
+async function nativeHaptic(type: HapticType): Promise<void> {
+  try {
+    switch (type) {
+      case 'light':
+        await Haptics.impact({ style: ImpactStyle.Light });
+        break;
+      case 'medium':
+      case 'impact':
+        await Haptics.impact({ style: ImpactStyle.Medium });
+        break;
+      case 'heavy':
+        await Haptics.impact({ style: ImpactStyle.Heavy });
+        break;
+      case 'success':
+        await Haptics.notification({ type: NotificationType.Success });
+        break;
+      case 'warning':
+        await Haptics.notification({ type: NotificationType.Warning });
+        break;
+      case 'error':
+        await Haptics.notification({ type: NotificationType.Error });
+        break;
+      case 'selection':
+        await Haptics.selectionStart();
+        await Haptics.selectionEnd();
+        break;
+    }
+  } catch (e) {
+    // Fallback to web haptics
+    webHaptic(type);
+  }
+}
+
+// Web fallback haptic feedback
+function webHaptic(type: HapticType) {
   // Try Vibration API first (works on Android)
   if ('vibrate' in navigator && !isIOS()) {
     const patterns: Record<HapticType, number | number[]> = {
@@ -95,13 +132,20 @@ export function haptic(type: HapticType = 'light') {
   }
 
   // For iOS or when vibration fails, use audio feedback
-  // This creates a subtle click that mimics haptic sensation
   if (isIOS() || isAndroid()) {
     playHapticSound(type);
   }
 }
 
-// Convenience methods
+export function haptic(type: HapticType = 'light') {
+  if (isNative) {
+    nativeHaptic(type);
+  } else {
+    webHaptic(type);
+  }
+}
+
+// Convenience methods - work in both native and web
 export const haptics = {
   light: () => haptic('light'),
   medium: () => haptic('medium'),
@@ -112,8 +156,13 @@ export const haptics = {
   selection: () => haptic('selection'),
   impact: () => haptic('impact'),
   
-  // Custom pattern (Android only)
+  // Custom pattern (Android/web vibration only)
   custom: (pattern: number | number[]) => {
+    if (isNative) {
+      // Native doesn't support custom patterns, use medium
+      nativeHaptic('medium');
+      return;
+    }
     if (!('vibrate' in navigator) || isIOS()) {
       playHapticSound('medium');
       return;
