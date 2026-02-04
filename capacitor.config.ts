@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.7319d3cdd538457c85514e2c9224cf96',
-  appName: 'jvalav1',
+  appId: 'app.jvala.health',
+  appName: 'Jvala',
   webDir: 'dist',
   server: {
     // Development: Hot reload from Lovable preview
