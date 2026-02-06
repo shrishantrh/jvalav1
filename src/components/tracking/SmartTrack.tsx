@@ -840,12 +840,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
               </div>
             )}
             
-            {msg.isAIGenerated && msg.dataUsed && msg.dataUsed.length > 0 && (
-              <div className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                <Sparkles className="w-3 h-3" />
-                <span className="opacity-75">{msg.dataUsed.join(', ')}</span>
-              </div>
-            )}
+            {/* Removed: dataUsed display - internal function names should not be shown to users */}
             
             {msg.activityDetected && (
               <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-blue-600">
