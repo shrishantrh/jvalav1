@@ -1,5 +1,5 @@
 import { ReactNode, useCallback, useEffect } from 'react';
-import { Activity, Calendar, BarChart3, User } from 'lucide-react';
+import { Activity, Calendar, BarChart3, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
@@ -8,8 +8,8 @@ import { initializeThemeColor } from '@/hooks/useThemeColor';
 
 interface MobileLayoutProps {
   children: ReactNode;
-  currentView?: 'track' | 'history' | 'insights' | 'profile';
-  onViewChange?: (view: 'track' | 'history' | 'insights' | 'profile') => void;
+  currentView?: 'track' | 'history' | 'insights' | 'exports';
+  onViewChange?: (view: 'track' | 'history' | 'insights' | 'exports') => void;
   showNav?: boolean;
   header?: ReactNode;
   onRefresh?: () => Promise<void> | void;
@@ -18,8 +18,8 @@ interface MobileLayoutProps {
 const navItems = [
   { id: 'track', label: 'Log', icon: Activity },
   { id: 'history', label: 'History', icon: Calendar },
-  { id: 'insights', label: 'Insights', icon: BarChart3 },
-  { id: 'profile', label: 'Profile', icon: User },
+  { id: 'insights', label: 'Trends', icon: BarChart3 },
+  { id: 'exports', label: 'Exports', icon: Download },
 ] as const;
 
 export const MobileLayout = ({ 

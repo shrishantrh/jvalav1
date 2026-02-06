@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirm Email - Jvala</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #EC4899 0%, #8B5CF6 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 24px;
+      padding: 48px 40px;
+      max-width: 440px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+      text-align: center;
+    }
+
+    .logo {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 24px;
+      display: block;
+    }
+
+    .spinner-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid #F3F4F6;
+      border-top-color: #EC4899;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 800;
+      color: #1F2937;
+      margin-bottom: 12px;
+    }
+
+    .subtitle {
+      font-size: 15px;
+      color: #6B7280;
+      margin-bottom: 32px;
+      line-height: 1.5;
+    }
+
+    .success-icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 24px;
+      background: linear-gradient(135deg, #EC4899 0%, #8B5CF6 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+    }
+
+    .error-icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 24px;
+      background: #FEF2F2;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      color: #991B1B;
+    }
+
+    .success-title {
+      font-size: 24px;
+      font-weight: 800;
+      color: #1F2937;
+      margin-bottom: 12px;
+    }
+
+    .success-message {
+      font-size: 15px;
+      color: #6B7280;
+      margin-bottom: 32px;
+      line-height: 1.6;
+    }
+
+    button {
+      width: 100%;
+      padding: 16px;
+      font-size: 16px;
+      font-weight: 700;
+      font-family: 'Manrope', sans-serif;
+      color: white;
+      background: linear-gradient(135deg, #EC4899 0%, #8B5CF6 100%);
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 8px;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px rgba(236, 72, 153, 0.3);
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .button-secondary {
+      background: white;
+      color: #EC4899;
+      border: 2px solid #EC4899;
+      margin-top: 12px;
+    }
+
+    .button-secondary:hover:not(:disabled) {
+      background: #FDF2F8;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 480px) {
+      .container {
+        padding: 32px 24px;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Loading State -->
+    <div id="loadingState">
+      <svg class="logo" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#EC4899" />
+            <stop offset="100%" style="stop-color:#8B5CF6" />
+          </linearGradient>
+        </defs>
+        <circle cx="50" cy="50" r="45" fill="url(#logoGradient)" />
+        <path d="M35 40 L50 60 L65 40" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+      </svg>
+
+      <h1>Confirming Your Email</h1>
+      <p class="subtitle">Please wait while we verify your email address...</p>
+
+      <div class="spinner-container">
+        <div class="spinner"></div>
+      </div>
+    </div>
+
+    <!-- Success State -->
+    <div id="successState" class="hidden">
+      <div class="success-icon">✓</div>
+      <h2 class="success-title">Email Confirmed!</h2>
+      <p class="success-message">
+        Your email has been successfully verified. You can now sign in to the Jvala app with your account.
+      </p>
+      <button onclick="window.location.href='jvalaapp://auth/login'">
+        Open Jvala App
+      </button>
+      <button class="button-secondary" onclick="window.close()">
+        Close This Window
+      </button>
+    </div>
+
+    <!-- Error State -->
+    <div id="errorState" class="hidden">
+      <div class="error-icon">✕</div>
+      <h2 class="success-title">Verification Failed</h2>
+      <p class="success-message" id="errorMessage">
+        This verification link is invalid or has expired. Please request a new verification email from the app.
+      </p>
+      <button class="button-secondary" onclick="window.location.href='jvalaapp://auth/login'">
+        Open Jvala App
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // ===== EMAIL CONFIRMATION HANDLER =====
+    function confirmEmail() {
+      try {
+        // Log the full URL for debugging
+        console.log('Full URL:', window.location.href);
+        console.log('Hash:', window.location.hash);
+        console.log('Search:', window.location.search);
+
+        // Check both hash and query parameters
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const queryParams = new URLSearchParams(window.location.search);
+
+        // Try to get access_token from either location
+        const accessToken = hashParams.get('access_token') || queryParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token') || queryParams.get('refresh_token');
+        const error = hashParams.get('error') || queryParams.get('error');
+        const errorDescription = hashParams.get('error_description') || queryParams.get('error_description');
+
+        console.log('Parsed params:', {
+          hasAccessToken: !!accessToken,
+          hasRefreshToken: !!refreshToken,
+          error: error,
+          errorDescription: errorDescription
+        });
+
+        // Check if there was an error from Supabase
+        if (error) {
+          showError(errorDescription || 'Verification failed. Please try again or request a new verification email.');
+          return;
+        }
+
+        // If we have an access_token, the email is confirmed!
+        // Supabase only redirects with a token if verification succeeded
+        if (accessToken) {
+          showSuccess();
+          return;
+        }
+
+        // No token found - show error
+        showError('No confirmation token found. Please click the verification link from your email.');
+
+      } catch (err) {
+        console.error('Confirmation error:', err);
+        showError('An unexpected error occurred. Please try again.');
+      }
+    }
+
+    function showSuccess() {
+      document.getElementById('loadingState').classList.add('hidden');
+      document.getElementById('errorState').classList.add('hidden');
+      document.getElementById('successState').classList.remove('hidden');
+    }
+
+    function showError(message) {
+      document.getElementById('loadingState').classList.add('hidden');
+      document.getElementById('successState').classList.add('hidden');
+      document.getElementById('errorMessage').textContent = message;
+      document.getElementById('errorState').classList.remove('hidden');
+    }
+
+    // ===== INITIALIZATION =====
+    window.addEventListener('DOMContentLoaded', () => {
+      // Small delay to ensure URL is fully loaded
+      setTimeout(confirmEmail, 100);
+    });
+  </script>
+</body>
+</html>

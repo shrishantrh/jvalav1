@@ -237,7 +237,7 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
   return (
     <div className="space-y-4">
       <Tabs defaultValue="personal" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 h-9">
+        <TabsList className="grid w-full grid-cols-3 h-9">
           <TabsTrigger value="personal" className="text-xs">
             <User className="w-3 h-3 mr-1" />
             Personal
@@ -249,10 +249,6 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
           <TabsTrigger value="integrations" className="text-xs">
             <Settings2 className="w-3 h-3 mr-1" />
             Connect
-          </TabsTrigger>
-          <TabsTrigger value="share" className="text-xs">
-            <Share2 className="w-3 h-3 mr-1" />
-            Share
           </TabsTrigger>
         </TabsList>
 
@@ -559,98 +555,6 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
               userName={profile.full_name || undefined}
             />
           )}
-        </TabsContent>
-
-        <TabsContent value="share" className="mt-4 space-y-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Share with Healthcare Provider</CardTitle>
-              <CardDescription className="text-xs">
-                Allow your physician to view your health data
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                <div>
-                  <Label className="font-medium">Enable Sharing</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Generate a secure link for your provider
-                  </p>
-                </div>
-                <Switch
-                  checked={profile.share_enabled}
-                  onCheckedChange={handleToggleShare}
-                  disabled={saving}
-                />
-              </div>
-
-              {profile.share_enabled && shareUrl && (
-                <div className="space-y-2 animate-fade-in">
-                  <Label className="text-xs">Share Link</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={shareUrl}
-                      readOnly
-                      className="text-xs font-mono"
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => copyToClipboard(shareUrl)}
-                    >
-                      {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Share this link with your healthcare provider. They'll be able to view your logged data and insights.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Conditions Summary for sharing context */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Shared Information</CardTitle>
-              <CardDescription className="text-xs">
-                What your provider will see
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Conditions:</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {conditionNames.length > 0 ? (
-                      conditionNames.map(c => (
-                        <Badge key={c} variant="secondary" className="text-xs">{c}</Badge>
-                      ))
-                    ) : (
-                      <span className="text-xs text-muted-foreground">None specified</span>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Medications:</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {currentMedications.length > 0 ? (
-                      currentMedications.map(m => (
-                        <Badge key={m.name} variant="outline" className="text-xs">
-                          {m.name} {m.dosage && `(${m.dosage})`}
-                        </Badge>
-                      ))
-                    ) : (
-                      <span className="text-xs text-muted-foreground">None specified</span>
-                    )}
-                  </div>
-                </div>
-                <div className="pt-2 border-t text-xs text-muted-foreground">
-                  Your flare logs, symptoms, triggers, and insights will also be visible.
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
     </div>
