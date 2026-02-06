@@ -293,64 +293,11 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Label className="text-xs">Height (cm)</Label>
-                  <Input
-                    type="number"
-                    value={profile.height_cm || ''}
-                    onChange={(e) => updateField('height_cm', parseInt(e.target.value) || null)}
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Weight (kg)</Label>
-                  <Input
-                    type="number"
-                    value={profile.weight_kg || ''}
-                    onChange={(e) => updateField('weight_kg', parseFloat(e.target.value) || null)}
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Blood Type</Label>
-                  <Select value={profile.blood_type || ''} onValueChange={(v) => updateField('blood_type', v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bt => (
-                        <SelectItem key={bt} value={bt}>{bt}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              {/* Removed: Height, Weight, Blood Type per document - keeping profile simple */}
             </CardContent>
           </Card>
 
-          {/* Emergency Contact */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Emergency Contact</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <Label className="text-xs">Contact Name</Label>
-                <Input
-                  value={profile.emergency_contact_name || ''}
-                  onChange={(e) => updateField('emergency_contact_name', e.target.value)}
-                  placeholder="Emergency contact name"
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Phone Number</Label>
-                <Input
-                  value={profile.emergency_contact_phone || ''}
-                  onChange={(e) => updateField('emergency_contact_phone', e.target.value)}
-                  placeholder="+1 (555) 000-0000"
-                />
-              </div>
-            </CardContent>
-          </Card>
+          {/* Removed: Emergency Contact section per document - keeping profile simple */}
 
           <Button onClick={handleSave} disabled={saving} className="w-full">
             {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
