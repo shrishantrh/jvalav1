@@ -34,16 +34,22 @@ import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
 
 // What users can track - condition-agnostic
-const TRACKABLE_ITEMS = [
-  { id: 'symptoms', name: 'Symptoms & Flares', icon: Activity, desc: 'Pain, fatigue, flare-ups', recommended: true },
-  { id: 'sleep', name: 'Sleep Quality', icon: Moon, desc: 'Duration, quality, patterns', recommended: true },
-  { id: 'energy', name: 'Energy Levels', icon: Zap, desc: 'Daily energy tracking', recommended: true },
-  { id: 'medications', name: 'Medications', icon: Pill, desc: 'Doses, timing, effects', recommended: false },
-  { id: 'menstrual', name: 'Menstrual Cycle', icon: Droplet, desc: 'Period, symptoms, predictions', recommended: false },
-  { id: 'food', name: 'Food & Diet', icon: Utensils, desc: 'Meals, triggers, reactions', recommended: false },
-  { id: 'weather', name: 'Weather Impact', icon: ThermometerSun, desc: 'Auto-captured environmental data', recommended: true },
-  { id: 'activity', name: 'Physical Activity', icon: Activity, desc: 'Steps, exercise, rest days', recommended: false },
-  { id: 'stress', name: 'Stress & Mood', icon: Brain, desc: 'Mental health tracking', recommended: false },
+// Simplified to 2 main tracking options per document requirements
+const TRACKING_OPTIONS = [
+  { 
+    id: 'symptoms_flares', 
+    name: 'Symptoms & Flares', 
+    icon: Activity, 
+    desc: 'Track flares, symptoms, triggers, medications. Best for chronic conditions.',
+    default: true 
+  },
+  { 
+    id: 'health_tracking', 
+    name: 'General Health Tracking', 
+    icon: Heart, 
+    desc: 'Track sleep, energy, activity, mood. For overall wellness monitoring.',
+    default: false 
+  },
 ];
 
 // Data sources we can auto-capture from
@@ -82,7 +88,7 @@ interface RevolutionaryOnboardingProps {
 export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingProps) => {
   const [step, setStep] = useState(0);
   const [data, setData] = useState<OnboardingData>({
-    trackingItems: ['symptoms', 'sleep', 'energy', 'weather'],
+    trackingItems: ['symptoms_flares'], // Default to symptoms & flares
     dataSources: [],
     menstrualApp: null,
     conditions: [],
@@ -94,17 +100,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [conditionSearch, setConditionSearch] = useState("");
 
-  // Dynamic recommendations based on demographics
-  const recommendations = (() => {
-    const recs: string[] = [];
-    if (data.biologicalSex === 'female' && (data.age || 0) >= 12 && (data.age || 0) <= 55) {
-      recs.push('menstrual');
-    }
-    if ((data.age || 0) >= 40) {
-      recs.push('medications');
-    }
-    return recs;
-  })();
+  // No longer needed with simplified 2-option tracking
 
   const totalSteps = 3;
   const progress = ((step + 1) / totalSteps) * 100;
@@ -130,15 +126,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
     onComplete(data);
   };
 
-  const toggleTracking = (itemId: string) => {
-    haptics.selection();
-    setData(prev => ({
-      ...prev,
-      trackingItems: prev.trackingItems.includes(itemId)
-        ? prev.trackingItems.filter(i => i !== itemId)
-        : [...prev.trackingItems, itemId]
-    }));
-  };
+  // Removed toggleTracking - now using single selection with two options
 
   const toggleDataSource = (sourceId: string) => {
     haptics.selection();
@@ -226,46 +214,48 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               </div>
             </div>
 
-            {/* Trackable items */}
-            <div className="space-y-2">
-              {TRACKABLE_ITEMS.map((item, idx) => {
-                const isSelected = data.trackingItems.includes(item.id);
-                const isRecommended = item.recommended || recommendations.includes(item.id);
+            {/* Simplified to 2 options */}
+            <div className="space-y-3">
+              {TRACKING_OPTIONS.map((option, idx) => {
+                const isSelected = data.trackingItems.includes(option.id);
                 return (
                   <button
-                    key={item.id}
-                    onClick={() => toggleTracking(item.id)}
+                    key={option.id}
+                    onClick={() => {
+                      haptics.selection();
+                      setData(prev => ({ ...prev, trackingItems: [option.id] }));
+                    }}
                     className={cn(
-                      "w-full p-3 rounded-xl border text-left transition-all press-effect",
-                      "flex items-center gap-3 animate-in fade-in-0",
+                      "w-full p-4 rounded-2xl border text-left transition-all press-effect",
+                      "flex items-center gap-4 animate-in fade-in-0",
                       isSelected
-                        ? 'bg-primary/10 border-primary shadow-primary'
+                        ? 'bg-primary/10 border-primary shadow-lg'
                         : 'bg-card hover:bg-muted/50 border-border'
                     )}
-                    style={{ animationDelay: `${idx * 50}ms` }}
+                    style={{ animationDelay: `${idx * 100}ms` }}
                   >
                     <div className={cn(
-                      "w-10 h-10 rounded-xl flex items-center justify-center",
+                      "w-14 h-14 rounded-2xl flex items-center justify-center shrink-0",
                       isSelected ? 'bg-gradient-primary' : 'bg-muted'
                     )}>
-                      <item.icon className={cn("w-5 h-5", isSelected ? 'text-primary-foreground' : 'text-foreground')} />
+                      <option.icon className={cn("w-7 h-7", isSelected ? 'text-primary-foreground' : 'text-foreground')} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{item.name}</span>
-                        {isRecommended && !isSelected && (
+                        <span className="text-base font-semibold">{option.name}</span>
+                        {option.default && (
                           <Badge variant="secondary" className="text-[9px] px-1.5 py-0">Recommended</Badge>
                         )}
                       </div>
-                      <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{option.desc}</p>
                     </div>
-                    {isSelected && <Check className="w-5 h-5 text-primary flex-shrink-0" />}
+                    {isSelected && <Check className="w-6 h-6 text-primary flex-shrink-0" />}
                   </button>
                 );
               })}
             </div>
 
-            <p className="text-[10px] text-center text-muted-foreground">
+            <p className="text-xs text-center text-muted-foreground">
               You can always change this later in settings
             </p>
           </div>
@@ -518,8 +508,8 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Your Jvala Will:</p>
                   <ul className="text-[11px] text-muted-foreground space-y-1">
-                    <li>• Track: {data.trackingItems.slice(0, 4).map(id => 
-                      TRACKABLE_ITEMS.find(i => i.id === id)?.name
+                    <li>• Track: {data.trackingItems.map(id => 
+                      TRACKING_OPTIONS.find(i => i.id === id)?.name
                     ).join(', ')}</li>
                     {data.dataSources.length > 0 && (
                       <li>• Auto-sync from: {data.dataSources.map(id => 
