@@ -3,13 +3,11 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FlareEntry } from "@/types/flare";
 import { PremiumInsightsCharts } from "@/components/insights/PremiumInsightsCharts";
-import { EnhancedMedicalExport } from "@/components/insights/EnhancedMedicalExport";
 import { CleanInsights } from "@/components/insights/CleanInsights";
 import { CommunityHotspots } from "@/components/insights/CommunityHotspots";
 import { UserFlareMap } from "@/components/insights/UserFlareMap";
 import {
   BarChart3,
-  Download,
   Brain,
   MapPin,
   Sparkles
@@ -58,9 +56,9 @@ export const RevampedInsights = ({
 
   return (
     <div className="space-y-3">
-      {/* Tabs */}
+      {/* Tabs - now 3 tabs without Export */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4 h-10 bg-card/80 backdrop-blur-sm">
+        <TabsList className="grid w-full grid-cols-3 h-10 bg-card/80 backdrop-blur-sm">
           <TabsTrigger value="ai" className="text-xs gap-1.5">
             <Brain className="w-4 h-4" />
             Insights
@@ -72,10 +70,6 @@ export const RevampedInsights = ({
           <TabsTrigger value="local" className="text-xs gap-1.5">
             <MapPin className="w-4 h-4" />
             Map
-          </TabsTrigger>
-          <TabsTrigger value="export" className="text-xs gap-1.5">
-            <Download className="w-4 h-4" />
-            Export
           </TabsTrigger>
         </TabsList>
 
@@ -97,10 +91,6 @@ export const RevampedInsights = ({
               <UserFlareMap entries={entries} />
               <CommunityHotspots entries={entries} userConditions={userConditions} />
             </div>
-          </TabsContent>
-
-          <TabsContent value="export" className="mt-0">
-            <EnhancedMedicalExport entries={entries} conditions={userConditions} />
           </TabsContent>
         </div>
       </Tabs>

@@ -7,6 +7,7 @@ import { FlareEntry } from "@/types/flare";
 import { SmartTrack, SmartTrackRef } from "@/components/tracking/SmartTrack";
 import { DetailedEntry } from "@/components/DetailedEntry";
 import { RevampedInsights } from "@/components/insights/RevampedInsights";
+import { EnhancedMedicalExport } from "@/components/insights/EnhancedMedicalExport";
 import { WeekCalendarHistory } from "@/components/history/WeekCalendarHistory";
 import { ClinicalRecordGenerator } from "@/components/history/ClinicalRecordGenerator";
 import { ProfileManager } from "@/components/profile/ProfileManager";
@@ -52,7 +53,7 @@ interface UserProfile {
 }
 
 const Index = () => {
-  const [currentView, setCurrentView] = useState<'track' | 'history' | 'insights' | 'profile'>('track');
+  const [currentView, setCurrentView] = useState<'track' | 'history' | 'insights' | 'exports'>('track');
   const [entries, setEntries] = useState<FlareEntry[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -65,6 +66,7 @@ const Index = () => {
   const [clinicalRecordEntry, setClinicalRecordEntry] = useState<FlareEntry | null>(null);
   const [showClinicalRecord, setShowClinicalRecord] = useState(false);
   const [showProgress, setShowProgress] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const smartTrackRef = useRef<SmartTrackRef>(null);
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
@@ -469,6 +471,7 @@ const Index = () => {
           <MobileHeader 
             streak={currentStreak}
             onStreakClick={() => setShowProgress(true)}
+            onProfileClick={() => setShowProfile(true)}
           />
         }
       >
@@ -519,7 +522,7 @@ const Index = () => {
           />
         )}
 
-        {/* Insights View */}
+        {/* Insights/Trends View */}
         {currentView === 'insights' && user && (
           <div className="space-y-4">
             <WeeklyReportCard userId={user.id} />
@@ -531,9 +534,7 @@ const Index = () => {
               onLogMedication={addMedicationLog}
               userMedications={userProfile?.medications?.map(m => m.name) || []}
               onStartProtocol={(rec) => {
-                // Navigate to Log tab and set prompt for chat
                 setCurrentView('track');
-                // Use a slight delay to let the view switch, then trigger the chat
                 setTimeout(() => {
                   smartTrackRef.current?.addDetailedEntry({ 
                     type: 'note', 
@@ -542,7 +543,6 @@ const Index = () => {
                 }, 100);
               }}
               onAskAI={(prompt) => {
-                // Navigate to Log tab and send the message to chat
                 setCurrentView('track');
                 setTimeout(() => {
                   smartTrackRef.current?.sendChatMessage(prompt);
@@ -552,14 +552,26 @@ const Index = () => {
           </div>
         )}
 
-        {/* Profile View */}
-        {currentView === 'profile' && (
-          <ProfileManager 
-            onRequireOnboarding={() => setShowOnboarding(true)}
+        {/* Exports View */}
+        {currentView === 'exports' && (
+          <EnhancedMedicalExport 
+            entries={entries} 
+            conditions={userProfile?.conditions || []} 
           />
         )}
       </MobileLayout>
 
+      {/* Profile Dialog */}
+      <Dialog open={showProfile} onOpenChange={setShowProfile}>
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto p-0">
+          <ProfileManager 
+            onRequireOnboarding={() => {
+              setShowProfile(false);
+              setShowOnboarding(true);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Clinical Record Generator */}
       <ClinicalRecordGenerator 

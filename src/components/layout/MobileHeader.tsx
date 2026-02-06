@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { Settings, Flame } from "lucide-react";
+import { Settings, Flame, User } from "lucide-react";
 import { format } from "date-fns";
 import jvalaLogo from "@/assets/jvala-logo.png";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ interface MobileHeaderProps {
   showLogo?: boolean;
   streak?: number;
   onStreakClick?: () => void;
+  onProfileClick?: () => void;
   rightAction?: ReactNode;
   showSettings?: boolean;
 }
@@ -22,6 +23,7 @@ export const MobileHeader = ({
   showLogo = true,
   streak = 0,
   onStreakClick,
+  onProfileClick,
   rightAction,
   showSettings = true,
 }: MobileHeaderProps) => {
@@ -30,6 +32,11 @@ export const MobileHeader = ({
   const handleStreakClick = () => {
     haptics.light();
     onStreakClick?.();
+  };
+
+  const handleProfileClick = () => {
+    haptics.selection();
+    onProfileClick?.();
   };
 
   const handleSettingsClick = () => {
@@ -83,6 +90,27 @@ export const MobileHeader = ({
             <span className="text-sm font-bold text-primary tabular-nums relative z-10">
               {streak}
             </span>
+          </button>
+        )}
+        
+        {/* Profile button - Frosted glass button */}
+        {onProfileClick && (
+          <button
+            onClick={handleProfileClick}
+            className={cn(
+              "relative h-10 w-10 rounded-2xl flex items-center justify-center transition-all overflow-hidden",
+              // Frosted glass
+              "bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl",
+              "border border-white/50 dark:border-slate-700/50",
+              // Inner highlight
+              "before:absolute before:inset-0 before:rounded-2xl before:pointer-events-none",
+              "before:bg-gradient-to-b before:from-white/40 before:to-transparent",
+              // Shadow
+              "shadow-[0_4px_16px_rgba(0,0,0,0.06)]",
+              "active:scale-95 touch-manipulation"
+            )}
+          >
+            <User className="w-5 h-5 text-muted-foreground relative z-10" />
           </button>
         )}
         
