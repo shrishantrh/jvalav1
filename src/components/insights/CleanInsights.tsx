@@ -1,11 +1,11 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FlareEntry } from "@/types/flare";
 import { HealthForecast } from "@/components/forecast/HealthForecast";
-import { EnhancedMedicalExport } from "@/components/insights/EnhancedMedicalExport";
 import { useAuth } from "@/hooks/useAuth";
+import { useDeepAnalytics } from "@/hooks/useDeepAnalytics";
 import { 
   Brain, 
   TrendingUp, 
@@ -22,170 +22,73 @@ import {
   Wind,
   Sparkles,
   ChevronRight,
-  Lightbulb
+  Lightbulb,
+  Shield,
+  Gauge,
+  CloudRain,
+  Zap,
+  BarChart3
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { format, subDays, isWithinInterval, differenceInDays } from 'date-fns';
 
-interface MedicationLog {
-  id: string;
-  medicationName: string;
-  dosage: string;
-  frequency: string;
-  takenAt: Date;
-}
-
 interface CleanInsightsProps {
   entries: FlareEntry[];
   userConditions?: string[];
-  medicationLogs?: MedicationLog[];
-  onLogMedication?: (log: Omit<MedicationLog, 'id' | 'takenAt'>) => void;
-  userMedications?: string[];
   onAskAI?: (prompt: string) => void;
 }
 
-// Stop words for trigger extraction
-const STOP_WORDS = new Set([
-  'the', 'and', 'some', 'lot', 'bit', 'too', 'much', 'very', 'really', 
-  'today', 'yesterday', 'just', 'like', 'been', 'have', 'had', 'was', 'were', 
-  'that', 'this', 'with', 'good', 'great', 'bad', 'well', 'feeling', 'feel',
-]);
-
-export const CleanInsights = ({ entries, userConditions = [], medicationLogs = [], onLogMedication, userMedications = [], onAskAI }: CleanInsightsProps) => {
+export const CleanInsights = ({ entries, userConditions = [], onAskAI }: CleanInsightsProps) => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'patterns' | 'export'>('patterns');
+  const analytics = useDeepAnalytics(entries);
 
-  const analytics = useMemo(() => {
+  const basicStats = useMemo(() => {
     const now = new Date();
-    const last7Days = entries.filter(e => 
+    const flares = entries.filter(e => e.type === 'flare');
+    const last7Days = flares.filter(e => 
       isWithinInterval(e.timestamp, { start: subDays(now, 7), end: now })
     );
-    const last30Days = entries.filter(e => 
+    const last30Days = flares.filter(e => 
       isWithinInterval(e.timestamp, { start: subDays(now, 30), end: now })
     );
-    const prev30Days = entries.filter(e => 
-      isWithinInterval(e.timestamp, { start: subDays(now, 60), end: subDays(now, 30) })
-    );
 
-    const flares7d = last7Days.filter(e => e.type === 'flare');
-    const flares30d = last30Days.filter(e => e.type === 'flare');
-
-    const getSeverityScore = (s: string) => s === 'severe' ? 3 : s === 'moderate' ? 2 : 1;
-
-    const weeklyAvgFlares = flares30d.length / 4;
-    const frequencyChange = flares7d.length - weeklyAvgFlares;
+    const getSeverityScore = (s: string | undefined) => s === 'severe' ? 3 : s === 'moderate' ? 2 : 1;
     
-    let trend: 'improving' | 'worsening' | 'stable' = 'stable';
-    if (frequencyChange > 1.5) trend = 'worsening';
-    else if (frequencyChange < -1.5) trend = 'improving';
+    const avgSeverity = last30Days.length > 0 
+      ? last30Days.reduce((a, b) => a + getSeverityScore(b.severity), 0) / last30Days.length 
+      : 0;
 
-    // Time of day analysis
-    const timeSlots: Record<string, number> = { morning: 0, afternoon: 0, evening: 0, night: 0 };
-    flares30d.forEach(f => {
-      const hour = f.timestamp.getHours();
-      if (hour >= 6 && hour < 12) timeSlots.morning++;
-      else if (hour >= 12 && hour < 18) timeSlots.afternoon++;
-      else if (hour >= 18 && hour < 22) timeSlots.evening++;
-      else timeSlots.night++;
-    });
-    const peakTime = Object.entries(timeSlots).sort((a, b) => b[1] - a[1])[0];
-    const peakTimePercent = flares30d.length > 0 ? Math.round((peakTime[1] / flares30d.length) * 100) : 0;
-
-    // Symptom analysis
-    const symptomData: Record<string, { count: number; severities: number[] }> = {};
-    flares30d.forEach(f => {
-      f.symptoms?.forEach(s => {
-        if (!symptomData[s]) symptomData[s] = { count: 0, severities: [] };
-        symptomData[s].count++;
-        symptomData[s].severities.push(getSeverityScore(f.severity || 'mild'));
-      });
-    });
-
-    const topSymptoms = Object.entries(symptomData)
-      .map(([name, data]) => ({
-        name,
-        count: data.count,
-        percentage: Math.round((data.count / flares30d.length) * 100),
-        avgSeverity: data.severities.reduce((a, b) => a + b, 0) / data.severities.length
-      }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-
-    // Trigger analysis
-    const triggerData: Record<string, { count: number; severities: number[] }> = {};
-    flares30d.forEach(f => {
-      f.triggers?.forEach(t => {
-        const key = t.toLowerCase();
-        if (!STOP_WORDS.has(key) && key.length > 2) {
-          if (!triggerData[key]) triggerData[key] = { count: 0, severities: [] };
-          triggerData[key].count++;
-          triggerData[key].severities.push(getSeverityScore(f.severity || 'mild'));
-        }
-      });
-    });
-
-    const topTriggers = Object.entries(triggerData)
-      .filter(([_, data]) => data.count >= 2)
-      .map(([name, data]) => ({
-        name: name.charAt(0).toUpperCase() + name.slice(1),
-        count: data.count,
-        avgSeverity: data.severities.reduce((a, b) => a + b, 0) / data.severities.length
-      }))
-      .sort((a, b) => b.avgSeverity - a.avgSeverity)
-      .slice(0, 5);
-
-    // Weather correlation
-    const weatherData: Record<string, number> = {};
-    flares30d.forEach(f => {
-      if (f.environmentalData?.weather?.condition) {
-        const cond = f.environmentalData.weather.condition;
-        weatherData[cond] = (weatherData[cond] || 0) + 1;
-      }
-    });
-    const topWeather = Object.entries(weatherData)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 3);
-
-    // Sleep analysis
-    const sleepValues = flares30d
-      .filter(f => f.physiologicalData?.sleepHours || f.physiologicalData?.sleep_hours)
-      .map(f => (f.physiologicalData?.sleepHours || f.physiologicalData?.sleep_hours) as number);
-    const avgSleep = sleepValues.length > 0 
-      ? Math.round((sleepValues.reduce((a, b) => a + b, 0) / sleepValues.length) * 10) / 10 
-      : null;
-
-    const sortedFlares = [...flares30d].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    const sortedFlares = [...last30Days].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
     const daysSinceLastFlare = sortedFlares.length > 0 
       ? differenceInDays(now, sortedFlares[0].timestamp)
       : null;
 
     return {
-      flares7d: flares7d.length,
-      flares30d: flares30d.length,
-      trend,
-      frequencyChange: Math.round(frequencyChange * 10) / 10,
-      peakTime: peakTime[0],
-      peakTimePercent,
-      topSymptoms,
-      topTriggers,
-      topWeather,
-      avgSleep,
-      daysSinceLastFlare,
-      totalEntries: entries.length
+      flares7d: last7Days.length,
+      flares30d: last30Days.length,
+      avgSeverity,
+      daysSinceLastFlare
     };
   }, [entries]);
 
-  const getTrendIcon = () => {
-    if (analytics.trend === 'improving') return <TrendingDown className="w-5 h-5 text-emerald-500" />;
-    if (analytics.trend === 'worsening') return <TrendingUp className="w-5 h-5 text-red-500" />;
-    return <Minus className="w-5 h-5 text-muted-foreground" />;
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'weather': return <CloudRain className="w-4 h-4" />;
+      case 'air_quality': return <Wind className="w-4 h-4" />;
+      case 'sleep': return <Moon className="w-4 h-4" />;
+      case 'activity': return <Activity className="w-4 h-4" />;
+      case 'physiological': return <Heart className="w-4 h-4" />;
+      case 'time': return <Clock className="w-4 h-4" />;
+      default: return <Gauge className="w-4 h-4" />;
+    }
   };
 
-  const getTrendColor = () => {
-    if (analytics.trend === 'improving') return 'text-emerald-600';
-    if (analytics.trend === 'worsening') return 'text-red-600';
-    return 'text-muted-foreground';
+  const getStrengthColor = (strength: number) => {
+    if (strength > 0.4) return 'text-red-600 bg-red-500/10';
+    if (strength > 0.2) return 'text-orange-600 bg-orange-500/10';
+    if (strength > 0) return 'text-yellow-600 bg-yellow-500/10';
+    if (strength < -0.2) return 'text-emerald-600 bg-emerald-500/10';
+    return 'text-muted-foreground bg-muted/50';
   };
 
   if (entries.length === 0) {
@@ -204,80 +107,82 @@ export const CleanInsights = ({ entries, userConditions = [], medicationLogs = [
 
   return (
     <div className="space-y-4 pb-6">
-      {/* Tomorrow's Forecast - moved from log page */}
+      {/* Tomorrow's Forecast */}
       {user && (
         <HealthForecast userId={user.id} />
       )}
 
-      {/* Quick Stats Row - Frosted Glass */}
-      <div className="grid grid-cols-2 gap-3">
-        {/* This Week */}
-        <div className={cn(
-          "relative p-5 rounded-3xl overflow-hidden",
-          "bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl",
-          "border border-white/50 dark:border-slate-700/50",
-          "before:absolute before:inset-0 before:rounded-3xl before:pointer-events-none",
-          "before:bg-gradient-to-br before:from-white/30 before:via-transparent before:to-transparent",
-          "shadow-[0_8px_32px_rgba(0,0,0,0.06)]"
-        )}>
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-base text-muted-foreground">This Week</span>
-              {getTrendIcon()}
+      {/* Weekly Trend Card */}
+      <div className={cn(
+        "relative p-5 rounded-3xl overflow-hidden",
+        analytics.weeklyTrend.change > 2 ? "bg-gradient-to-br from-red-500/10 to-red-500/5 border-red-500/20" :
+        analytics.weeklyTrend.change < -2 ? "bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border-emerald-500/20" :
+        "bg-white/70 dark:bg-slate-900/70 border-white/50 dark:border-slate-700/50",
+        "backdrop-blur-xl border",
+        "shadow-[0_8px_32px_rgba(0,0,0,0.06)]"
+      )}>
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              {analytics.weeklyTrend.change > 2 ? (
+                <div className="w-12 h-12 rounded-2xl bg-red-500/20 flex items-center justify-center">
+                  <TrendingUp className="w-6 h-6 text-red-600" />
+                </div>
+              ) : analytics.weeklyTrend.change < -2 ? (
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 flex items-center justify-center">
+                  <TrendingDown className="w-6 h-6 text-emerald-600" />
+                </div>
+              ) : (
+                <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center">
+                  <Minus className="w-6 h-6 text-muted-foreground" />
+                </div>
+              )}
+              <div>
+                <h3 className="text-lg font-bold">This Week</h3>
+                <p className="text-base text-muted-foreground">
+                  {format(subDays(new Date(), 7), 'MMM d')} - {format(new Date(), 'MMM d')}
+                </p>
+              </div>
             </div>
-            <p className="text-5xl font-bold">{analytics.flares7d}</p>
-            <p className={cn("text-base font-medium mt-1", getTrendColor())}>
-              {analytics.trend === 'improving' ? '↓ Improving' : 
-               analytics.trend === 'worsening' ? `↑ +${Math.abs(analytics.frequencyChange)}` : 
-               'Stable'}
-            </p>
-          </div>
-        </div>
-        
-        {/* Peak Time */}
-        <div className={cn(
-          "relative p-5 rounded-3xl overflow-hidden",
-          "bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl",
-          "border border-white/50 dark:border-slate-700/50",
-          "before:absolute before:inset-0 before:rounded-3xl before:pointer-events-none",
-          "before:bg-gradient-to-br before:from-white/30 before:via-transparent before:to-transparent",
-          "shadow-[0_8px_32px_rgba(0,0,0,0.06)]"
-        )}>
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-base text-muted-foreground">Peak Time</span>
-              <Clock className="w-5 h-5 text-muted-foreground" />
+            <div className="text-right">
+              <p className="text-4xl font-bold">{analytics.weeklyTrend.thisWeek}</p>
+              <p className={cn(
+                "text-base font-medium",
+                analytics.weeklyTrend.change > 2 ? 'text-red-600' :
+                analytics.weeklyTrend.change < -2 ? 'text-emerald-600' :
+                'text-muted-foreground'
+              )}>
+                {analytics.weeklyTrend.change > 0 ? '+' : ''}{analytics.weeklyTrend.change} vs last week
+              </p>
             </div>
-            <p className="text-3xl font-bold capitalize">{analytics.peakTime}</p>
-            <p className="text-base text-muted-foreground mt-1">
-              {analytics.peakTimePercent}% of flares
-            </p>
           </div>
+          
+          {analytics.weeklyTrend.lastWeek > 0 && Math.abs(analytics.weeklyTrend.changePercent) > 20 && (
+            <p className="text-base text-muted-foreground mt-2">
+              {analytics.weeklyTrend.changePercent > 0 
+                ? `⚠️ ${analytics.weeklyTrend.changePercent}% increase from last week`
+                : `✓ ${Math.abs(analytics.weeklyTrend.changePercent)}% decrease from last week`
+              }
+            </p>
+          )}
         </div>
       </div>
 
-      {/* Flare-free streak - Frosted Glass */}
-      {analytics.daysSinceLastFlare !== null && analytics.daysSinceLastFlare >= 2 && (
+      {/* Flare-free streak */}
+      {basicStats.daysSinceLastFlare !== null && basicStats.daysSinceLastFlare >= 2 && (
         <div className={cn(
           "relative p-5 rounded-3xl overflow-hidden",
           "bg-gradient-to-br from-emerald-500/15 to-emerald-500/5",
-          "backdrop-blur-xl",
-          "border border-emerald-500/20",
-          "before:absolute before:inset-0 before:rounded-3xl before:pointer-events-none",
-          "before:bg-gradient-to-br before:from-white/20 before:via-transparent before:to-transparent",
+          "backdrop-blur-xl border border-emerald-500/20",
           "shadow-[0_8px_32px_rgba(0,0,0,0.06)]"
         )}>
           <div className="relative z-10 flex items-center gap-4">
-            <div className={cn(
-              "w-14 h-14 rounded-2xl flex items-center justify-center",
-              "bg-gradient-to-br from-emerald-500/30 to-emerald-500/20",
-              "shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]"
-            )}>
+            <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 flex items-center justify-center">
               <Target className="w-7 h-7 text-emerald-600" />
             </div>
             <div>
               <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
-                {analytics.daysSinceLastFlare} days flare-free
+                {basicStats.daysSinceLastFlare} days flare-free
               </p>
               <p className="text-base text-muted-foreground">Keep up the great work!</p>
             </div>
@@ -285,224 +190,198 @@ export const CleanInsights = ({ entries, userConditions = [], medicationLogs = [
         </div>
       )}
 
-      {/* What's Affecting You - Frosted Glass */}
-      {(analytics.topTriggers.length > 0 || analytics.topSymptoms.length > 0) && (
+      {/* KEY DISCOVERY: Your Top Correlations */}
+      {analytics.correlations.length > 0 && (
         <div className={cn(
           "relative p-5 rounded-3xl overflow-hidden",
           "bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl",
           "border border-white/50 dark:border-slate-700/50",
-          "before:absolute before:inset-0 before:rounded-3xl before:pointer-events-none",
-          "before:bg-gradient-to-br before:from-white/30 before:via-transparent before:to-transparent",
           "shadow-[0_8px_32px_rgba(0,0,0,0.06)]"
         )}>
           <div className="relative z-10">
             <div className="flex items-center gap-3 mb-4">
-              <div className={cn(
-                "w-12 h-12 rounded-2xl flex items-center justify-center",
-                "bg-gradient-to-br from-primary/20 to-primary/10",
-                "shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]"
-              )}>
-                <Brain className="w-6 h-6 text-primary" />
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                <BarChart3 className="w-6 h-6 text-primary" />
               </div>
-              <h3 className="text-lg font-bold">What's Affecting You</h3>
+              <div>
+                <h3 className="text-lg font-bold">Your Patterns</h3>
+                <p className="text-sm text-muted-foreground">Based on {basicStats.flares30d} flares in 30 days</p>
+              </div>
             </div>
             
-            {/* Top Triggers */}
-            {analytics.topTriggers.length > 0 && (
-              <div className="mb-4">
-                <p className="text-base font-medium text-muted-foreground mb-3 flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5 text-orange-500" />
-                  Top Triggers
-                </p>
-                <div className="space-y-2">
-                  {analytics.topTriggers.slice(0, 3).map((t) => (
-                    <div 
-                      key={t.name} 
+            <div className="space-y-3">
+              {analytics.correlations.slice(0, 5).map((corr, i) => (
+                <div 
+                  key={i}
+                  className={cn(
+                    "p-4 rounded-2xl",
+                    "bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm",
+                    "border border-white/40 dark:border-slate-700/40"
+                  )}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={cn(
+                      "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
+                      getStrengthColor(corr.strength)
+                    )}>
+                      {getCategoryIcon(corr.category)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-base font-semibold">{corr.factor}</p>
+                        {corr.threshold && (
+                          <Badge variant="outline" className="text-xs">
+                            {corr.threshold}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">{corr.description}</p>
+                      <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                        <span>{corr.occurrences} occurrences</span>
+                        <span>•</span>
+                        <span>{Math.round(corr.confidence * 100)}% confidence</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI-Discovered Insights */}
+      {analytics.insights.length > 0 && (
+        <div className={cn(
+          "relative p-5 rounded-3xl overflow-hidden",
+          "bg-gradient-to-br from-amber-500/10 to-amber-500/5",
+          "backdrop-blur-xl border border-amber-500/20",
+          "shadow-[0_8px_32px_rgba(0,0,0,0.06)]"
+        )}>
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/20 flex items-center justify-center">
+                <Lightbulb className="w-6 h-6 text-amber-600" />
+              </div>
+              <h3 className="text-lg font-bold">Discoveries</h3>
+            </div>
+            
+            <div className="space-y-4">
+              {analytics.insights.slice(0, 3).map((insight, i) => (
+                <div key={i} className={cn(
+                  "p-4 rounded-2xl",
+                  "bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm",
+                  "border border-white/40 dark:border-slate-700/40"
+                )}>
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <p className="text-base font-semibold">{insight.title}</p>
+                    <Badge 
+                      variant="outline" 
                       className={cn(
-                        "flex items-center justify-between p-4 rounded-2xl",
-                        "bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm",
-                        "border border-white/40 dark:border-slate-700/40"
+                        "text-xs shrink-0",
+                        insight.confidence === 'high' ? 'border-emerald-500/50 text-emerald-600' :
+                        insight.confidence === 'medium' ? 'border-yellow-500/50 text-yellow-600' :
+                        'border-muted text-muted-foreground'
                       )}
                     >
-                      <div className="flex items-center gap-3">
-                        <span className={cn(
-                          "w-3 h-3 rounded-full",
-                          t.avgSeverity >= 2.5 ? 'bg-red-500' : 
-                          t.avgSeverity >= 1.5 ? 'bg-orange-500' : 'bg-amber-500'
-                        )} />
-                        <span className="text-base font-semibold">{t.name}</span>
-                      </div>
-                      <Badge variant="outline" className="text-base font-bold">
-                        {t.count}×
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Top Symptoms */}
-            {analytics.topSymptoms.length > 0 && (
-              <div>
-                <p className="text-base font-medium text-muted-foreground mb-3 flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-blue-500" />
-                  Top Symptoms
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {analytics.topSymptoms.slice(0, 4).map((s) => (
-                    <Badge 
-                      key={s.name} 
-                      variant="secondary"
-                      className="text-base py-2 px-4 font-medium"
-                    >
-                      {s.name} ({s.count})
+                      {insight.confidence}
                     </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Environmental Factors - Frosted Glass */}
-      {(analytics.topWeather.length > 0 || analytics.avgSleep) && (
-        <div className={cn(
-          "relative p-5 rounded-3xl overflow-hidden",
-          "bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl",
-          "border border-white/50 dark:border-slate-700/50",
-          "before:absolute before:inset-0 before:rounded-3xl before:pointer-events-none",
-          "before:bg-gradient-to-br before:from-white/30 before:via-transparent before:to-transparent",
-          "shadow-[0_8px_32px_rgba(0,0,0,0.06)]"
-        )}>
-          <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-4">
-              <div className={cn(
-                "w-12 h-12 rounded-2xl flex items-center justify-center",
-                "bg-gradient-to-br from-blue-500/20 to-blue-500/10",
-                "shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]"
-              )}>
-                <ThermometerSun className="w-6 h-6 text-blue-500" />
-              </div>
-              <h3 className="text-lg font-bold">Environmental Factors</h3>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3">
-              {analytics.topWeather.length > 0 && (
-                <div className={cn(
-                  "p-4 rounded-2xl",
-                  "bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm",
-                  "border border-white/40 dark:border-slate-700/40"
-                )}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Wind className="w-5 h-5 text-muted-foreground" />
-                    <span className="text-base text-muted-foreground">Weather</span>
                   </div>
-                  <p className="text-lg font-bold">{analytics.topWeather[0].name}</p>
-                  <p className="text-base text-muted-foreground">{analytics.topWeather[0].count} flares</p>
+                  <p className="text-sm text-muted-foreground">{insight.description}</p>
+                  {insight.actionable && (
+                    <p className="text-sm font-medium text-primary mt-2">
+                      → {insight.actionable}
+                    </p>
+                  )}
                 </div>
-              )}
-              
-              {analytics.avgSleep && (
-                <div className={cn(
-                  "p-4 rounded-2xl",
-                  "bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm",
-                  "border border-white/40 dark:border-slate-700/40"
-                )}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Moon className="w-5 h-5 text-muted-foreground" />
-                    <span className="text-base text-muted-foreground">Avg Sleep</span>
-                  </div>
-                  <p className="text-lg font-bold">{analytics.avgSleep}h</p>
-                  <p className="text-base text-muted-foreground">during flares</p>
-                </div>
-              )}
+              ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* What To Do Next - Frosted Glass with gradient */}
-      <div className={cn(
-        "relative p-5 rounded-3xl overflow-hidden",
-        "bg-gradient-to-br from-primary/10 to-primary/5",
-        "backdrop-blur-xl",
-        "border border-primary/20",
-        "before:absolute before:inset-0 before:rounded-3xl before:pointer-events-none",
-        "before:bg-gradient-to-br before:from-white/20 before:via-transparent before:to-transparent",
-        "shadow-[0_8px_32px_rgba(0,0,0,0.06)]"
-      )}>
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-4">
+      {/* Risk Factors Summary */}
+      {(analytics.riskFactors.length > 0 || analytics.protectiveFactors.length > 0) && (
+        <div className="grid grid-cols-2 gap-3">
+          {/* Risk Factors */}
+          {analytics.riskFactors.length > 0 && (
             <div className={cn(
-              "w-12 h-12 rounded-2xl flex items-center justify-center",
-              "bg-gradient-to-br from-primary/30 to-primary/20",
-              "shadow-[inset_0_1px_0_rgba(255,255,255,0.3)]"
+              "relative p-4 rounded-2xl overflow-hidden",
+              "bg-red-500/10 backdrop-blur-xl border border-red-500/20"
             )}>
-              <Lightbulb className="w-6 h-6 text-primary" />
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+                <p className="text-sm font-semibold text-red-700 dark:text-red-400">Risk Factors</p>
+              </div>
+              <ul className="space-y-2">
+                {analytics.riskFactors.slice(0, 3).map((factor, i) => (
+                  <li key={i} className="text-sm text-red-700/80 dark:text-red-400/80 flex items-start gap-2">
+                    <span className="text-red-500 mt-1">•</span>
+                    <span>{factor}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
-            <h3 className="text-lg font-bold">What To Do Next</h3>
-          </div>
-          
-          <div className="space-y-2">
-            {analytics.topTriggers.length > 0 && (
-              <Button 
-                variant="ghost" 
-                className={cn(
-                  "w-full justify-between h-auto py-4 px-4 rounded-2xl",
-                  "bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm",
-                  "border border-white/40 dark:border-slate-700/40",
-                  "hover:bg-white/80 dark:hover:bg-slate-800/80"
-                )}
-                onClick={() => onAskAI?.(`Help me avoid ${analytics.topTriggers[0].name}`)}
-              >
-                <div className="flex items-center gap-3 text-left">
-                  <Sparkles className="w-5 h-5 text-primary shrink-0" />
-                  <span className="text-base font-medium">Tips for avoiding {analytics.topTriggers[0].name}</span>
-                </div>
-                <ChevronRight className="w-5 h-5 text-muted-foreground" />
-              </Button>
-            )}
-            
-            <Button 
-              variant="ghost" 
-              className={cn(
-                "w-full justify-between h-auto py-4 px-4 rounded-2xl",
-                "bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm",
-                "border border-white/40 dark:border-slate-700/40",
-                "hover:bg-white/80 dark:hover:bg-slate-800/80"
-              )}
-              onClick={() => onAskAI?.("Analyze my health patterns")}
-            >
-              <div className="flex items-center gap-3 text-left">
-                <Brain className="w-5 h-5 text-primary shrink-0" />
-                <span className="text-base font-medium">Ask AI about my patterns</span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground" />
-            </Button>
-            
-            <Button 
-              variant="ghost" 
-              className={cn(
-                "w-full justify-between h-auto py-4 px-4 rounded-2xl",
-                "bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm",
-                "border border-white/40 dark:border-slate-700/40",
-                "hover:bg-white/80 dark:hover:bg-slate-800/80"
-              )}
-              onClick={() => onAskAI?.("What's my risk today?")}
-            >
-              <div className="flex items-center gap-3 text-left">
-                <Target className="w-5 h-5 text-primary shrink-0" />
-                <span className="text-base font-medium">Check today's risk level</span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground" />
-            </Button>
-          </div>
-        </div>
-      </div>
+          )}
 
-      {/* Export Section */}
-      <EnhancedMedicalExport entries={entries} conditions={userConditions} />
+          {/* Protective Factors */}
+          {analytics.protectiveFactors.length > 0 && (
+            <div className={cn(
+              "relative p-4 rounded-2xl overflow-hidden",
+              "bg-emerald-500/10 backdrop-blur-xl border border-emerald-500/20"
+            )}>
+              <div className="flex items-center gap-2 mb-3">
+                <Shield className="w-5 h-5 text-emerald-600" />
+                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Helps You</p>
+              </div>
+              <ul className="space-y-2">
+                {analytics.protectiveFactors.slice(0, 3).map((factor, i) => (
+                  <li key={i} className="text-sm text-emerald-700/80 dark:text-emerald-400/80 flex items-start gap-2">
+                    <span className="text-emerald-500 mt-1">✓</span>
+                    <span>{factor}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Peak Risk Conditions */}
+      {analytics.peakRiskConditions.length >= 2 && (
+        <div className={cn(
+          "relative p-4 rounded-2xl overflow-hidden",
+          "bg-orange-500/10 backdrop-blur-xl border border-orange-500/20"
+        )}>
+          <div className="flex items-center gap-2 mb-2">
+            <Zap className="w-5 h-5 text-orange-600" />
+            <p className="text-sm font-semibold text-orange-700 dark:text-orange-400">Highest Risk When</p>
+          </div>
+          <p className="text-base">
+            {analytics.peakRiskConditions.join(' + ')}
+          </p>
+        </div>
+      )}
+
+      {/* Action Button */}
+      <Button
+        onClick={() => onAskAI?.("What patterns do you see in my data? Give me specific insights about what's triggering my flares.")}
+        className={cn(
+          "w-full h-14 rounded-2xl text-base font-semibold",
+          "bg-gradient-to-r from-primary to-primary/80",
+          "shadow-lg shadow-primary/20"
+        )}
+      >
+        <Brain className="w-5 h-5 mr-2" />
+        Ask AI About My Patterns
+      </Button>
+
+      {/* Minimum Data Notice */}
+      {basicStats.flares30d < 10 && (
+        <p className="text-center text-sm text-muted-foreground px-4">
+          💡 More accurate insights with {10 - basicStats.flares30d} more logged flares
+        </p>
+      )}
     </div>
   );
 };
