@@ -31,7 +31,8 @@ import { format, isSameDay } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { LimitlessAIChat } from "@/components/ai/LimitlessAIChat";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 interface MedicationDetails {
   name: string;
@@ -563,7 +564,10 @@ const Index = () => {
 
       {/* Profile Dialog */}
       <Dialog open={showProfile} onOpenChange={setShowProfile}>
-        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto p-0">
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto p-0" aria-describedby={undefined}>
+          <VisuallyHidden>
+            <DialogTitle>Profile Settings</DialogTitle>
+          </VisuallyHidden>
           <ProfileManager 
             onRequireOnboarding={() => {
               setShowProfile(false);
