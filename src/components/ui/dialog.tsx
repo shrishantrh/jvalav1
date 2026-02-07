@@ -19,7 +19,8 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/40 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      // Higher z-index than app header/nav (which uses z-50)
+      "fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className,
     )}
     {...props}
@@ -33,36 +34,36 @@ const DialogContent = React.forwardRef<
 >(({ className, children, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
-    <DialogPrimitive.Content
-      ref={ref}
-      className={cn(
-        // iOS-style bottom sheet positioning
-        "fixed inset-x-0 bottom-0 z-50",
-        "grid w-full max-w-lg mx-auto gap-4 p-6 pt-8 duration-300",
-        // Constrain height and make scrollable
-        "max-h-[85vh] overflow-y-auto",
-        // Rounded top corners for bottom sheet look
-        "rounded-t-[1.5rem]",
-        // Frosted glass styling
-        "bg-white/[0.95] dark:bg-slate-900/[0.95] backdrop-blur-[20px] backdrop-saturate-[180%]",
-        "border-t border-x border-white/30 dark:border-slate-700/30",
-        "relative",
-        // Top edge highlight
-        "before:absolute before:top-0 before:left-0 before:right-0 before:h-px before:bg-gradient-to-r before:from-white/50 before:via-white/30 before:to-white/50 before:pointer-events-none",
-        // Safe area padding for bottom
-        "pb-[calc(1.5rem+env(safe-area-inset-bottom))]",
-        // Animations - slide up from bottom
-        "data-[state=open]:animate-in data-[state=closed]:animate-out",
-        "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-        "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
-        className,
-      )}
-      {...props}
-    >
+      <DialogPrimitive.Content
+        ref={ref}
+        className={cn(
+          // iOS-style bottom sheet positioning
+          "fixed inset-x-0 bottom-0 z-[101]",
+          "grid w-full max-w-lg mx-auto gap-4 p-6 pt-8 duration-300",
+          // Constrain height and make scrollable
+          "max-h-[85vh] overflow-y-auto",
+          // Rounded top corners for bottom sheet look
+          "rounded-t-[1.5rem]",
+          // Frosted glass styling (uses semantic tokens)
+          "bg-background/95 backdrop-blur-[20px] backdrop-saturate-[180%]",
+          "border-t border-x border-border/30",
+          "relative",
+          // Top edge highlight
+          "before:absolute before:top-0 before:left-0 before:right-0 before:h-px before:bg-gradient-to-r before:from-background/60 before:via-background/30 before:to-background/60 before:pointer-events-none",
+          // Safe area padding for bottom
+          "pb-[calc(1.5rem+env(safe-area-inset-bottom))]",
+          // Animations - slide up from bottom
+          "data-[state=open]:animate-in data-[state=closed]:animate-out",
+          "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+          "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+          className,
+        )}
+        {...props}
+      >
       {/* Drag handle indicator */}
       <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-foreground/20" />
       {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 rounded-lg p-1.5 bg-white/50 backdrop-blur-sm border border-white/20 opacity-80 ring-offset-background transition-all duration-200 hover:opacity-100 hover:bg-white/70 focus:outline-none focus:ring-2 focus:ring-ring/50 focus:ring-offset-2 disabled:pointer-events-none">
+      <DialogPrimitive.Close className="absolute right-4 top-4 z-[102] rounded-lg p-1.5 bg-background/60 backdrop-blur-sm border border-border/30 opacity-80 ring-offset-background transition-all duration-200 hover:opacity-100 hover:bg-background/80 focus:outline-none focus:ring-2 focus:ring-ring/50 focus:ring-offset-2 disabled:pointer-events-none">
         <X className="h-4 w-4 text-foreground/70" />
         <span className="sr-only">Close</span>
       </DialogPrimitive.Close>
