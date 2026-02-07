@@ -34,12 +34,19 @@ const DialogContent = React.forwardRef<
 >(({ className, children, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
+
+    {/*
+      Critical: render content inside its own full-screen fixed layer so it can’t be
+      clipped/offset by any transformed ancestors (pull-to-refresh, etc.).
+      This also guarantees the sheet renders above the overlay.
+    */}
+    <div className="fixed inset-0 z-[101] flex items-end justify-center pointer-events-none">
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          // iOS-style bottom sheet positioning
-          "fixed inset-x-0 bottom-0 z-[101]",
-          "grid w-full max-w-lg mx-auto gap-4 p-6 pt-8 duration-300",
+          // Bottom sheet sizing/positioning
+          "pointer-events-auto w-full max-w-lg mx-auto",
+          "grid gap-4 p-6 pt-8 duration-300",
           // Constrain height and make scrollable
           "max-h-[85vh] overflow-y-auto",
           // Rounded top corners for bottom sheet look
@@ -60,14 +67,15 @@ const DialogContent = React.forwardRef<
         )}
         {...props}
       >
-      {/* Drag handle indicator */}
-      <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-foreground/20" />
-      {children}
-      <DialogPrimitive.Close className="absolute right-4 top-4 z-[102] rounded-lg p-1.5 bg-background/60 backdrop-blur-sm border border-border/30 opacity-80 ring-offset-background transition-all duration-200 hover:opacity-100 hover:bg-background/80 focus:outline-none focus:ring-2 focus:ring-ring/50 focus:ring-offset-2 disabled:pointer-events-none">
-        <X className="h-4 w-4 text-foreground/70" />
-        <span className="sr-only">Close</span>
-      </DialogPrimitive.Close>
-    </DialogPrimitive.Content>
+        {/* Drag handle indicator */}
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-foreground/20" />
+        {children}
+        <DialogPrimitive.Close className="absolute right-4 top-4 z-[102] rounded-lg p-1.5 bg-background/60 backdrop-blur-sm border border-border/30 opacity-80 ring-offset-background transition-all duration-200 hover:opacity-100 hover:bg-background/80 focus:outline-none focus:ring-2 focus:ring-ring/50 focus:ring-offset-2 disabled:pointer-events-none">
+          <X className="h-4 w-4 text-foreground/70" />
+          <span className="sr-only">Close</span>
+        </DialogPrimitive.Close>
+      </DialogPrimitive.Content>
+    </div>
   </DialogPortal>
 ));
 DialogContent.displayName = DialogPrimitive.Content.displayName;
