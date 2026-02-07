@@ -62,10 +62,7 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
   const loadProfile = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+      if (!user) return;
       
       setUserId(user.id);
 
