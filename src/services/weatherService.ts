@@ -49,14 +49,21 @@ export const getCurrentLocation = async (): Promise<
   { latitude: number; longitude: number; isDefault?: boolean } | null
 > => {
   try {
-    // Native iOS/Android (Capacitor): use native geolocation so it actually prompts.
+    // Native iOS/Android (Capacitor): prefer injected plugin proxy so we don't depend on bundling.
     if (isNative) {
-      const { Geolocation } = await import("@capacitor/geolocation");
+      const injected = (window as any)?.Capacitor?.Plugins?.Geolocation;
+      const Geolocation = injected
+        ? injected
+        : // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore - optional native-only dependency
+          (await import("@capacitor/geolocation")).Geolocation;
+
       const pos = await Geolocation.getCurrentPosition({
         enableHighAccuracy: false,
         timeout: 10000,
         maximumAge: 60000,
       });
+
       return {
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
@@ -88,3 +95,4 @@ export const getCurrentLocation = async (): Promise<
     return null;
   }
 };
+

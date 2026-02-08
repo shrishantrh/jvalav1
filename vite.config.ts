@@ -93,4 +93,17 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  /**
+   * Native-only Capacitor plugins (e.g. Geolocation) should not break web/PWA production builds.
+   * We externalize them so Rollup doesn’t need to resolve/bundle them for the web build.
+   */
+  build: {
+    rollupOptions: {
+      external: ["@capacitor/geolocation"],
+    },
+  },
+  optimizeDeps: {
+    exclude: ["@capacitor/geolocation"],
+  },
 }));
+
