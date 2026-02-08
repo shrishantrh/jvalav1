@@ -9,6 +9,7 @@ import {
   fetchHealthData,
   convertToPhysiologicalData,
   getHealthPlatformName,
+  isHealthPluginPresent,
   AppleHealthData,
 } from '@/services/appleHealthService';
 
@@ -188,26 +189,33 @@ export const useWearableData = () => {
   // Check Apple Health / Health Connect connection
   const checkNativeHealthConnection = useCallback(async () => {
     if (!isNative) return false;
-    
+
     try {
-      const available = await isHealthAvailable();
+      // Never let the app hang on mount because a native plugin call never resolves.
+      // If availability can't be determined quickly, treat it as unavailable.
+      const available = await withTimeout(isHealthAvailable(), 3500, 'Health.isAvailable');
       setHealthAvailable(available);
-      
+
       if (!available) return false;
-      
-      const hasPermissions = await checkHealthPermissions();
+
+      const hasPermissions = await withTimeout(
+        checkHealthPermissions(),
+        6000,
+        'Health.checkAuthorization'
+      );
+
       if (hasPermissions) {
         const healthType = platform === 'ios' ? 'apple_health' : 'google_fit';
-        setConnections(prev => prev.map(c => 
-          c.type === healthType
-            ? { ...c, connected: true, comingSoon: false }
-            : c
-        ));
+        setConnections(prev =>
+          prev.map(c => (c.type === healthType ? { ...c, connected: true, comingSoon: false } : c))
+        );
         return true;
       }
+
       return false;
     } catch (error) {
       console.error('Error checking native health connection:', error);
+      setHealthAvailable(false);
       return false;
     }
   }, []);
@@ -490,15 +498,43 @@ export const useWearableData = () => {
           return false;
         }
 
-        // 1) Verify availability first (prevents silent hangs when the plugin isn't wired correctly)
+        // 1) First verify the plugin is actually present in *this* native build.
+        // If this is missing, JS-to-native calls can hang forever (exactly what you're seeing).
+        phase = 'checking_plugin_presence';
+        if (!isHealthPluginPresent()) {
+          toast({
+            title: `${getHealthPlatformName()} not available in this build`,
+            description:
+              `The native health plugin isn’t present, so iOS can’t show the permission sheet. Fix: run npx cap sync ios, open ios/App/App.xcworkspace in Xcode, ensure HealthKit capability is enabled, then Clean Build Folder and reinstall the app (delete it from the iPhone first).`,
+            variant: 'destructive',
+          });
+          return false;
+        }
+
+        // 2) Verify availability (helpful when HealthKit capability/usage strings are missing).
+        // IMPORTANT: On some misconfigured builds Health.isAvailable() can hang; if it times out,
+        // we still try requestAuthorization() directly so the permission sheet can appear.
         phase = 'checking_availability';
         console.log(`[wearables] ${type}: checking availability...`);
-        const available = await withTimeout(isHealthAvailable(), 9000, 'Health.isAvailable');
-        if (!available) {
+
+        let available: boolean | null = null;
+        try {
+          available = await withTimeout(isHealthAvailable(), 6000, 'Health.isAvailable');
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          if (/timed out/i.test(msg)) {
+            console.warn('[wearables] Health.isAvailable timed out; attempting requestAuthorization anyway');
+            available = null; // unknown
+          } else {
+            throw e;
+          }
+        }
+
+        if (available === false) {
           toast({
             title: `${getHealthPlatformName()} unavailable`,
             description:
-              `This device/app build can’t access ${getHealthPlatformName()}. In Xcode, enable the HealthKit capability and add the Health usage description, then rebuild.`,
+              `This device/app build can’t access ${getHealthPlatformName()}. In Xcode, enable the HealthKit capability and add Health usage descriptions, then rebuild.`,
             variant: 'destructive',
           });
           return false;

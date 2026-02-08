@@ -109,6 +109,22 @@ export type HealthAvailability = {
   reason?: string;
 };
 
+/**
+ * Fast, synchronous check for whether the native plugin is injected into this build.
+ *
+ * If this is false on a physical device, the app was built without the plugin
+ * (most commonly: missing `npx cap sync ios`, or Xcode built an old workspace).
+ */
+export const isHealthPluginPresent = (): boolean => {
+  if (!isNative) return false;
+  try {
+    const cap = (window as any)?.Capacitor;
+    return Boolean(cap?.Plugins?.Health);
+  } catch {
+    return false;
+  }
+};
+
 export const getHealthAvailability = async (): Promise<HealthAvailability> => {
   if (!isNative) return { available: false, reason: 'not_native' };
 
