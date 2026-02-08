@@ -561,17 +561,56 @@ const Index = () => {
         )}
       </MobileLayout>
 
-      {/* Profile Dialog */}
-      <Dialog open={showProfile} onOpenChange={setShowProfile}>
-        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto p-0">
-          <ProfileManager 
-            onRequireOnboarding={() => {
-              setShowProfile(false);
-              setShowOnboarding(true);
-            }}
+      {/* Profile Sheet - iOS style bottom sheet */}
+      {showProfile && (
+        <div 
+          className="fixed inset-0 z-[100] flex flex-col"
+          style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+        >
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowProfile(false)}
           />
-        </DialogContent>
-      </Dialog>
+          
+          {/* Sheet content */}
+          <div 
+            className="relative flex-1 mt-12 bg-background rounded-t-3xl overflow-hidden flex flex-col"
+            style={{ 
+              boxShadow: '0 -8px 32px rgba(0,0,0,0.2)',
+              paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+            }}
+          >
+            {/* Drag handle */}
+            <div className="flex justify-center pt-3 pb-2">
+              <div className="w-10 h-1 bg-muted-foreground/30 rounded-full" />
+            </div>
+            
+            {/* Header with close button */}
+            <div className="flex items-center justify-between px-5 pb-3 border-b border-border/50">
+              <h2 className="text-lg font-semibold">Profile</h2>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowProfile(false)}
+                className="text-muted-foreground"
+              >
+                Done
+              </Button>
+            </div>
+            
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto px-5 py-4">
+              <ProfileManager 
+                onRequireOnboarding={() => {
+                  setShowProfile(false);
+                  setShowOnboarding(true);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Clinical Record Generator */}
       <ClinicalRecordGenerator 
