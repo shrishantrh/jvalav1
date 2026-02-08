@@ -236,7 +236,8 @@ export const useWearableData = () => {
     try {
       // Check for Apple Health / Health Connect sync
       if (type === 'apple_health' || type === 'google_fit') {
-        const healthData = await fetchHealthData();
+        // Native plugin calls can occasionally hang; never let a flare log wait forever on this.
+        const healthData = await withTimeout(fetchHealthData(), 12000, 'Health.fetchHealthData').catch(() => null);
         if (!healthData) {
           console.log('No native health data available');
           return null;
@@ -273,7 +274,6 @@ export const useWearableData = () => {
         
         return wearableData;
       }
-      
       // Fitbit sync
       const fitbitConnected = connections.find(c => c.type === 'fitbit')?.connected;
       
@@ -634,7 +634,26 @@ export const useWearableData = () => {
 
         phase = 'confirming_authorization';
         console.log(`[wearables] ${type}: checking authorization...`);
-        const authorized = await withTimeout(checkHealthPermissions(), 9000, 'Health.checkAuthorization');
+
+        // iOS can successfully grant permissions but the JS bridge sometimes times out / flakes here.
+        // If the user just approved in the Health sheet, treat a timeout as “likely authorized” and proceed.
+        let authorized = false;
+        try {
+          authorized = await withTimeout(checkHealthPermissions(), 9000, 'Health.checkAuthorization');
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          if (/timed out/i.test(msg)) {
+            console.warn('[wearables] checkAuthorization timed out; proceeding as connected');
+            authorized = true;
+            toast({
+              title: 'Connected (verification timed out)',
+              description: 'Permissions appear granted, but iOS didn’t respond in time. You can continue; use Sync to confirm data is flowing.',
+            });
+          } else {
+            throw e;
+          }
+        }
+
         if (!authorized) {
           toast({
             title: 'Not authorized yet',
@@ -643,7 +662,6 @@ export const useWearableData = () => {
           });
           return false;
         }
-
         // Update connection status immediately (don’t block the UI on the initial data read).
         setConnections(prev =>
           prev.map(c => (c.type === type ? { ...c, connected: true, comingSoon: false } : c))
