@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
-import { useWearableData } from "@/hooks/useWearableData";
+import { useEntryContext } from "@/hooks/useEntryContext";
 
 interface QuickEntryProps {
   onSave: (entry: Partial<FlareEntry>) => void;
@@ -37,7 +37,7 @@ export const QuickEntry = ({ onSave }: QuickEntryProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
   const { isRecording, transcript, startRecording, stopRecording, clearRecording } = useVoiceRecording();
-  const { getDataForEntry, syncData } = useWearableData();
+  const { getEntryContext } = useEntryContext();
 
   const handleQuickAction = async (action: (typeof QUICK_ACTIONS)[number]) => {
     const entry: Partial<FlareEntry> = {
@@ -53,25 +53,11 @@ export const QuickEntry = ({ onSave }: QuickEntryProps) => {
     }
 
     // Collect environmental + wearable data (real, when available)
+    // Critical: do not generate dummy data; attach whatever we can fetch quickly.
     try {
-      const { getCurrentLocation, fetchWeatherData } = await import("@/services/weatherService");
-
-      const location = await getCurrentLocation();
-      if (location) {
-        const weatherData = await fetchWeatherData(location.latitude, location.longitude);
-        if (weatherData) entry.environmentalData = weatherData;
-      }
-
-      // Prefer the latest cached wearable/native health data.
-      // If we don't have any yet, attempt a sync (non-blocking if it fails).
-      const cached = getDataForEntry();
-      if (cached) {
-        entry.physiologicalData = cached as any;
-      } else {
-        const synced = await syncData().catch(() => null);
-        const after = getDataForEntry();
-        if (synced && after) entry.physiologicalData = after as any;
-      }
+      const ctx = await getEntryContext();
+      if (ctx.environmentalData) entry.environmentalData = ctx.environmentalData as any;
+      if (ctx.physiologicalData) entry.physiologicalData = ctx.physiologicalData as any;
     } catch (error) {
       console.log("Error collecting quick-log context:", error);
     }

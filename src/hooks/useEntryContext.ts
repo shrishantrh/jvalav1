@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useWearableData } from './useWearableData';
+import { fetchWeatherData, getCurrentLocation } from '@/services/weatherService';
 
 // Small helper: context collection must NEVER block logging.
 const withTimeout = async <T,>(promise: Promise<T>, ms: number): Promise<T | null> => {
@@ -40,6 +41,11 @@ export const useEntryContext = () => {
 
   // Get fresh wearable data (sync if stale) - returns REAL metrics or null
   const getWearableData = useCallback(async (): Promise<Record<string, unknown> | null> => {
+    // Important: do not rely solely on "connected" flags.
+    // If we already have cached wearable data, attach it.
+    const cachedNow = (getDataForEntry() as Record<string, unknown> | null) ?? null;
+    if (cachedNow) return cachedNow;
+
     if (!hasWearableConnected) return null;
 
     // Sync if data is more than 5 minutes old (but never block logging)
@@ -65,22 +71,20 @@ export const useEntryContext = () => {
     city?: string;
   }> => {
     try {
-      const { getCurrentLocation, fetchWeatherData } = await import('@/services/weatherService');
+      // NOTE: These are statically imported to keep the permission prompt reliably
+      // tied to the user's tap (no async dynamic import breaking the gesture chain).
       const location = await withTimeout(getCurrentLocation(), 2500);
 
       if (!location) {
         return { environmentalData: null };
       }
 
-      const weatherData = await withTimeout(
-        fetchWeatherData((location as any).latitude, (location as any).longitude),
-        3500
-      );
+      const weatherData = await withTimeout(fetchWeatherData(location.latitude, location.longitude), 3500);
 
       return {
         environmentalData: weatherData ?? null,
-        latitude: (location as any).latitude,
-        longitude: (location as any).longitude,
+        latitude: location.latitude,
+        longitude: location.longitude,
         city: (weatherData as any)?.location?.city,
       };
     } catch (error) {
