@@ -1,6 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { isNative, platform } from '@/lib/capacitor';
+import { 
+  isHealthAvailable, 
+  checkHealthPermissions, 
+  requestHealthPermissions, 
+  fetchHealthData, 
+  convertToPhysiologicalData,
+  getHealthPlatformName,
+  AppleHealthData
+} from '@/services/appleHealthService';
 
 export interface WearableData {
   // Core vitals
@@ -72,6 +82,16 @@ export interface WearableData {
   readinessScore?: number;
   sleepScore?: number;
   
+  // Workouts (Apple Health / Health Connect)
+  workouts?: Array<{
+    type: string;
+    startDate: string;
+    endDate: string;
+    duration: number;
+    calories?: number;
+    distance?: number;
+  }>;
+  
   // Metadata
   lastSyncedAt?: Date;
   source?: 'fitbit' | 'apple_health' | 'google_fit' | 'oura' | 'simulated';
@@ -85,18 +105,42 @@ interface WearableConnection {
   connected: boolean;
   lastSync?: Date;
   comingSoon?: boolean;
+  nativeOnly?: boolean; // Only available in native apps
 }
 
 export const useWearableData = () => {
   const [data, setData] = useState<WearableData | null>(null);
-  const [connections, setConnections] = useState<WearableConnection[]>([
-    { id: 'fitbit', name: 'Fitbit', type: 'fitbit', connected: false },
-    { id: 'oura', name: 'Oura Ring', type: 'oura', connected: false, comingSoon: true },
-    { id: 'apple-health', name: 'Apple Health', type: 'apple_health', connected: false, comingSoon: true },
-    { id: 'google-fit', name: 'Google Fit', type: 'google_fit', connected: false, comingSoon: true },
-  ]);
+  const [connections, setConnections] = useState<WearableConnection[]>(() => {
+    // Determine which connections to show based on platform
+    const isIOS = isNative && platform === 'ios';
+    const isAndroid = isNative && platform === 'android';
+    
+    return [
+      { id: 'fitbit', name: 'Fitbit', type: 'fitbit', connected: false },
+      { id: 'oura', name: 'Oura Ring', type: 'oura', connected: false, comingSoon: true },
+      { 
+        id: 'apple-health', 
+        name: 'Apple Health', 
+        type: 'apple_health', 
+        connected: false, 
+        // Available on iOS native, coming soon on web
+        comingSoon: !isIOS,
+        nativeOnly: true,
+      },
+      { 
+        id: 'google-fit', 
+        name: 'Health Connect', 
+        type: 'google_fit', 
+        connected: false, 
+        // Available on Android native, coming soon on web
+        comingSoon: !isAndroid,
+        nativeOnly: true,
+      },
+    ];
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [healthAvailable, setHealthAvailable] = useState(false);
   const { toast } = useToast();
   const hasSyncedRef = useRef(false);
 
@@ -127,20 +171,96 @@ export const useWearableData = () => {
     }
   }, []);
 
+  // Check Apple Health / Health Connect connection
+  const checkNativeHealthConnection = useCallback(async () => {
+    if (!isNative) return false;
+    
+    try {
+      const available = await isHealthAvailable();
+      setHealthAvailable(available);
+      
+      if (!available) return false;
+      
+      const hasPermissions = await checkHealthPermissions();
+      if (hasPermissions) {
+        const healthType = platform === 'ios' ? 'apple_health' : 'google_fit';
+        setConnections(prev => prev.map(c => 
+          c.type === healthType
+            ? { ...c, connected: true, comingSoon: false }
+            : c
+        ));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking native health connection:', error);
+      return false;
+    }
+  }, []);
+
   const syncData = useCallback(async (type?: 'fitbit' | 'apple_health' | 'google_fit' | 'oura'): Promise<WearableData | null> => {
     setIsSyncing(true);
     
     try {
-      // Determine which service to sync based on type or connected devices
+      // Check for Apple Health / Health Connect sync
+      if (type === 'apple_health' || type === 'google_fit') {
+        const healthData = await fetchHealthData();
+        if (!healthData) {
+          console.log('No native health data available');
+          return null;
+        }
+        
+        // Convert to WearableData format
+        const wearableData: WearableData = {
+          heartRate: healthData.heartRate,
+          restingHeartRate: healthData.restingHeartRate,
+          heartRateVariability: healthData.heartRateVariability,
+          spo2: healthData.spo2,
+          breathingRate: healthData.respiratoryRate,
+          steps: healthData.steps,
+          distance: healthData.distance,
+          caloriesBurned: healthData.caloriesBurned,
+          sleepHours: healthData.sleepHours,
+          sleepMinutes: healthData.sleepMinutes,
+          sleepQuality: healthData.sleepQuality,
+          deepSleepMinutes: healthData.deepSleepMinutes,
+          remSleepMinutes: healthData.remSleepMinutes,
+          lightSleepMinutes: healthData.lightSleepMinutes,
+          wakeSleepMinutes: healthData.awakeSleepMinutes,
+          timeInBed: healthData.inBedMinutes,
+          workouts: healthData.workouts,
+          lastSyncedAt: healthData.lastSyncedAt,
+          source: 'apple_health',
+          dataDate: healthData.dataDate,
+        };
+        
+        setData(wearableData);
+        setConnections(prev => prev.map(c => 
+          c.type === type ? { ...c, lastSync: new Date() } : c
+        ));
+        
+        return wearableData;
+      }
+      
+      // Fitbit sync
       const fitbitConnected = connections.find(c => c.type === 'fitbit')?.connected;
       
-      // Only Fitbit is currently active
       if (!fitbitConnected && type !== 'fitbit') {
+        // Check if native health is connected
+        const appleConnected = connections.find(c => c.type === 'apple_health')?.connected;
+        const googleConnected = connections.find(c => c.type === 'google_fit')?.connected;
+        
+        if (appleConnected) {
+          return syncData('apple_health');
+        } else if (googleConnected) {
+          return syncData('google_fit');
+        }
+        
         console.log('No active wearable connections');
         return null;
       }
       
-      // Fitbit sync
+      // Fitbit sync via edge function
       const { data: fitbitData, error } = await supabase.functions.invoke('fitbit-data');
       
       if (error) {
@@ -254,15 +374,26 @@ export const useWearableData = () => {
     };
   }, [checkFitbitConnection, syncData, toast]);
 
-  // Check connection on mount
+  // Check connections on mount
   useEffect(() => {
     let mounted = true;
     
     const init = async () => {
-      const connected = await checkFitbitConnection();
-      if (connected && mounted && !hasSyncedRef.current) {
+      // Check Fitbit connection
+      const fitbitConnected = await checkFitbitConnection();
+      if (fitbitConnected && mounted && !hasSyncedRef.current) {
         hasSyncedRef.current = true;
         await syncData('fitbit');
+      }
+      
+      // Check native health connection (Apple Health / Health Connect)
+      if (isNative && mounted) {
+        const nativeConnected = await checkNativeHealthConnection();
+        if (nativeConnected && !hasSyncedRef.current) {
+          hasSyncedRef.current = true;
+          const healthType = platform === 'ios' ? 'apple_health' : 'google_fit';
+          await syncData(healthType as 'apple_health' | 'google_fit');
+        }
       }
     };
     
@@ -271,7 +402,7 @@ export const useWearableData = () => {
     return () => {
       mounted = false;
     };
-  }, [checkFitbitConnection, syncData]);
+  }, [checkFitbitConnection, checkNativeHealthConnection, syncData]);
 
   const connectDevice = useCallback(async (type: 'fitbit' | 'apple_health' | 'google_fit' | 'oura'): Promise<boolean> => {
     setIsLoading(true);
@@ -328,10 +459,44 @@ export const useWearableData = () => {
 
         return true;
       }
+      
+      // Handle Apple Health / Health Connect
+      if (type === 'apple_health' || type === 'google_fit') {
+        // Request permissions
+        const granted = await requestHealthPermissions();
+        
+        if (!granted) {
+          toast({
+            title: 'Permission Required',
+            description: `Please grant access to ${getHealthPlatformName()} in your device settings.`,
+            variant: 'destructive',
+          });
+          return false;
+        }
+        
+        // Update connection status
+        setConnections(prev => prev.map(c => 
+          c.type === type
+            ? { ...c, connected: true, comingSoon: false }
+            : c
+        ));
+        
+        // Sync data immediately
+        const newData = await syncData(type);
+        if (newData) {
+          toast({
+            title: `${getHealthPlatformName()} Connected`,
+            description: 'Your health data is now syncing.',
+          });
+          return true;
+        }
+        
+        return false;
+      }
 
       toast({
         title: 'Coming Soon',
-        description: `${type === 'apple_health' ? 'Apple Health' : type === 'google_fit' ? 'Google Fit' : 'Oura Ring'} integration is coming soon!`,
+        description: `${type === 'oura' ? 'Oura Ring' : type} integration is coming soon!`,
       });
       return false;
     } catch (error) {

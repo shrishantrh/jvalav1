@@ -17,11 +17,13 @@ import {
   Thermometer,
   Droplets,
   Zap,
-  Timer
+  Timer,
+  Smartphone
 } from "lucide-react";
 import { useWearableData, WearableData } from "@/hooks/useWearableData";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { isNative, platform } from '@/lib/capacitor';
 
 interface WearableIntegrationProps {
   onDataSync?: (data: WearableData) => void;
@@ -86,8 +88,31 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
         </svg>
       );
     }
+    if (type === 'apple_health') {
+      return (
+        <Heart className="w-4 h-4 text-red-500" />
+      );
+    }
+    if (type === 'google_fit') {
+      return (
+        <Activity className="w-4 h-4 text-green-500" />
+      );
+    }
     return <Watch className="w-4 h-4" />;
   };
+
+  // Check if we should show native health as the primary option
+  const isIOS = isNative && platform === 'ios';
+  const isAndroid = isNative && platform === 'android';
+  
+  // Filter connections based on platform - prioritize native health on native
+  const displayConnections = connections.filter(conn => {
+    // On iOS, hide Health Connect; on Android, hide Apple Health
+    if (isIOS && conn.type === 'google_fit') return false;
+    if (isAndroid && conn.type === 'apple_health') return false;
+    // On web, show all but mark native-only as coming soon
+    return true;
+  });
 
   return (
     <div className="space-y-4">
@@ -122,7 +147,7 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
 
         {/* Connection Cards */}
         <div className="grid grid-cols-1 gap-3 mb-4">
-          {connections.map((conn) => (
+          {displayConnections.map((conn) => (
             <div
               key={conn.id}
               className={cn(
@@ -204,13 +229,17 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
         </div>
       </Card>
 
-      {/* Comprehensive Data Display */}
-      {data && data.source === 'fitbit' && (
+      {/* Comprehensive Data Display - works for both Fitbit and Apple Health */}
+      {data && (data.source === 'fitbit' || data.source === 'apple_health') && (
         <Card className="p-5 bg-gradient-card border-0 shadow-soft">
           <div className="flex items-center justify-between mb-4">
             <h4 className="font-semibold flex items-center gap-2">
-              <Activity className="w-4 h-4 text-primary" />
-              Today's Fitbit Data
+              {data.source === 'apple_health' ? (
+                <Heart className="w-4 h-4 text-red-500" />
+              ) : (
+                <Activity className="w-4 h-4 text-primary" />
+              )}
+              Today's {data.source === 'apple_health' ? 'Apple Health' : 'Fitbit'} Data
             </h4>
             {data.lastSyncedAt && (
               <span className="text-xs text-muted-foreground">
