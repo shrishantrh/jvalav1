@@ -552,7 +552,7 @@ export const useWearableData = () => {
 
         const minimalAuth = await withTimeout(
           requestHealthPermissions({ mode: 'minimal' }),
-          22000,
+          60000,
           'Health.requestAuthorization(minimal)'
         );
 
@@ -627,13 +627,13 @@ export const useWearableData = () => {
 
       const isTimeout = /timed out/i.test(message);
 
-      toast({
-        title: isTimeout ? 'Connection timed out' : 'Connection Failed',
-        description: isTimeout
-          ? `The ${getHealthPlatformName()} connection didn’t respond during: ${phase}. This almost always means the native Health plugin isn’t running in this build (or the HealthKit entitlement/usage description is missing). Do a clean build in Xcode, delete the app from your iPhone, reinstall, then try again.`
-          : message,
-        variant: 'destructive',
-      });
+       toast({
+         title: isTimeout ? 'Connection timed out' : 'Connection Failed',
+         description: isTimeout
+           ? `The ${getHealthPlatformName()} permission flow didn’t return in time during: ${phase}. If the Health app opened, finish the permission steps there, then return to Jvala and try Connect again. If it never opened, this points to a native build configuration issue (HealthKit capability/usage strings) or the plugin not being included in the build.`
+           : message,
+         variant: 'destructive',
+       });
       return false;
     } finally {
       setIsLoading(false);

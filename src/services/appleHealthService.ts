@@ -200,7 +200,7 @@ export const requestHealthPermissions = async (options?: {
         read,
         write: [],
       }),
-      20000,
+      60000,
       'Health.requestAuthorization'
     )) as any;
 
