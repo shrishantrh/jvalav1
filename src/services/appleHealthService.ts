@@ -151,59 +151,95 @@ export const isHealthAvailable = async (): Promise<boolean> => {
 
 /**
  * Request permissions for Health data
+ *
+ * IMPORTANT:
+ * - On iOS, requesting too many scopes at once can be brittle during early integration.
+ * - We therefore support a "minimal first" strategy (e.g., steps + heartRate), then
+ *   optionally request additional scopes once the initial consent path is verified.
  */
-export const requestHealthPermissions = async (): Promise<boolean> => {
+export type HealthAuthorizationResult = {
+  ok: boolean;
+  status?: {
+    readAuthorized: HealthDataType[];
+    readDenied: HealthDataType[];
+    writeAuthorized: HealthDataType[];
+    writeDenied: HealthDataType[];
+  };
+  error?: string;
+};
+
+const DEFAULT_MINIMAL_READ: HealthDataType[] = ['steps', 'heartRate'];
+
+const DEFAULT_FULL_READ: HealthDataType[] = [
+  'steps',
+  'distance',
+  'calories',
+  'heartRate',
+  'weight',
+  'sleep',
+  'respiratoryRate',
+  'oxygenSaturation',
+  'restingHeartRate',
+  'heartRateVariability',
+];
+
+export const requestHealthPermissions = async (options?: {
+  mode?: 'minimal' | 'full';
+  read?: HealthDataType[];
+}): Promise<HealthAuthorizationResult> => {
   try {
     const plugin = await loadHealthPlugin();
-    if (!plugin) return false;
+    if (!plugin) return { ok: false, error: 'plugin_not_loaded' };
 
-    // Request read access to all supported data types
-    const readTypes: HealthDataType[] = [
-      'steps',
-      'distance',
-      'calories',
-      'heartRate',
-      'weight',
-      'sleep',
-      'respiratoryRate',
-      'oxygenSaturation',
-      'restingHeartRate',
-      'heartRateVariability',
-    ];
+    const mode = options?.mode ?? 'full';
+    const read = options?.read ?? (mode === 'minimal' ? DEFAULT_MINIMAL_READ : DEFAULT_FULL_READ);
 
-    // NOTE: On iOS, this should trigger the Health permission sheet.
-    // If it never appears, the native project is missing HealthKit capability
-    // or NSHealthShareUsageDescription.
-    await withTimeout(
+    // requestAuthorization returns AuthorizationStatus (readAuthorized/readDenied/etc.)
+    const status = (await withTimeout(
       plugin.requestAuthorization({
-        read: readTypes,
-        write: [], // We don't write data
+        read,
+        write: [],
       }),
-      15000,
+      20000,
       'Health.requestAuthorization'
-    );
+    )) as any;
 
-    return true;
+    return {
+      ok: true,
+      status: {
+        readAuthorized: (status?.readAuthorized ?? []) as HealthDataType[],
+        readDenied: (status?.readDenied ?? []) as HealthDataType[],
+        writeAuthorized: (status?.writeAuthorized ?? []) as HealthDataType[],
+        writeDenied: (status?.writeDenied ?? []) as HealthDataType[],
+      },
+    };
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     console.error('Error requesting Health permissions:', error);
-    return false;
+    return { ok: false, error: message };
   }
 };
 
 /**
  * Check authorization status without prompting
  */
-export const checkHealthPermissions = async (): Promise<boolean> => {
+export const checkHealthPermissions = async (options?: {
+  read?: HealthDataType[];
+}): Promise<boolean> => {
   try {
     const plugin = await loadHealthPlugin();
     if (!plugin) return false;
-    
-    const status = await plugin.checkAuthorization({
-      read: ['steps', 'heartRate', 'sleep'],
-    });
-    
-    // If at least one type is authorized, consider it connected
-    return status.readAuthorized.length > 0;
+
+    const read = options?.read ?? DEFAULT_MINIMAL_READ;
+
+    const status = (await withTimeout(
+      plugin.checkAuthorization({ read }),
+      8000,
+      'Health.checkAuthorization'
+    )) as any;
+
+    // Consider it "connected" if we have at least one authorized scope.
+    return Array.isArray(status?.readAuthorized) && status.readAuthorized.length > 0;
   } catch (error) {
     console.error('Error checking Health permissions:', error);
     return false;

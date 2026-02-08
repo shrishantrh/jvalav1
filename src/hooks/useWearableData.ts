@@ -541,6 +541,8 @@ export const useWearableData = () => {
         }
 
         // 2) Request permissions (this should show the Health permission sheet)
+        // Strategy: request a *minimal* set first to make the iOS prompt as reliable as possible,
+        // then immediately request the full set (optional) after the user has interacted.
         phase = 'requesting_permissions';
         console.log(`[wearables] ${type}: requesting permissions...`);
         toast({
@@ -548,17 +550,30 @@ export const useWearableData = () => {
           description: 'Requesting permission in the Health app…',
         });
 
-        const granted = await withTimeout(requestHealthPermissions(), 20000, 'Health.requestAuthorization');
-        if (!granted) {
+        const minimalAuth = await withTimeout(
+          requestHealthPermissions({ mode: 'minimal' }),
+          22000,
+          'Health.requestAuthorization(minimal)'
+        );
+
+        if (!minimalAuth.ok) {
           toast({
-            title: 'Permission Required',
-            description: `Please grant access to ${getHealthPlatformName()} (Health app → Sharing → Apps → Jvala).`,
+            title: 'Permission Request Failed',
+            description:
+              minimalAuth.error ??
+              `We couldn’t open the ${getHealthPlatformName()} permission flow. This is usually a native build/entitlement issue.`,
             variant: 'destructive',
           });
           return false;
         }
 
-        // 3) Confirm we actually have authorization after the prompt
+        // Ask for the full set (don’t fail the connection if this second step fails).
+        // This lets us at least get a working baseline connection reliably.
+        try {
+          await requestHealthPermissions({ mode: 'full' });
+        } catch {
+          // ignore
+        }
         phase = 'confirming_authorization';
         console.log(`[wearables] ${type}: checking authorization...`);
         const authorized = await withTimeout(checkHealthPermissions(), 9000, 'Health.checkAuthorization');
