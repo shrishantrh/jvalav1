@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { isNative } from "@/lib/capacitor";
 
 export interface EnvironmentalData {
   location: {
@@ -20,32 +21,52 @@ export interface EnvironmentalData {
     pollutants: number;
     aqi: number;
   };
-  season: 'spring' | 'summer' | 'fall' | 'winter';
+  season: "spring" | "summer" | "fall" | "winter";
 }
 
-export const fetchWeatherData = async (latitude: number, longitude: number): Promise<EnvironmentalData | null> => {
+export const fetchWeatherData = async (
+  latitude: number,
+  longitude: number
+): Promise<EnvironmentalData | null> => {
   try {
-    const { data, error } = await supabase.functions.invoke('get-weather', {
-      body: { latitude, longitude }
+    const { data, error } = await supabase.functions.invoke("get-weather", {
+      body: { latitude, longitude },
     });
 
     if (error) {
-      console.error('Weather API error:', error);
+      console.error("Weather API error:", error);
       return null;
     }
 
     return data;
   } catch (error) {
-    console.error('Failed to fetch weather:', error);
+    console.error("Failed to fetch weather:", error);
     return null;
   }
 };
 
-export const getCurrentLocation = async (): Promise<{ latitude: number; longitude: number; isDefault?: boolean } | null> => {
+export const getCurrentLocation = async (): Promise<
+  { latitude: number; longitude: number; isDefault?: boolean } | null
+> => {
   try {
-    // Check if geolocation is available
+    // Native iOS/Android (Capacitor): use native geolocation so it actually prompts.
+    if (isNative) {
+      const { Geolocation } = await import("@capacitor/geolocation");
+      const pos = await Geolocation.getCurrentPosition({
+        enableHighAccuracy: false,
+        timeout: 10000,
+        maximumAge: 60000,
+      });
+      return {
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        isDefault: false,
+      };
+    }
+
+    // Web fallback
     if (!navigator.geolocation) {
-      console.warn('Geolocation not available');
+      console.warn("Geolocation not available");
       return null;
     }
 
@@ -53,18 +74,17 @@ export const getCurrentLocation = async (): Promise<{ latitude: number; longitud
       navigator.geolocation.getCurrentPosition(resolve, reject, {
         enableHighAccuracy: true,
         timeout: 10000,
-        maximumAge: 60000
+        maximumAge: 60000,
       });
     });
 
     return {
       latitude: position.coords.latitude,
       longitude: position.coords.longitude,
-      isDefault: false
+      isDefault: false,
     };
   } catch (error: any) {
-    console.warn('Geolocation error:', error?.message || error);
-    // Return null instead of defaulting to New York - let the caller handle missing location
+    console.warn("Geolocation error:", error?.message || error);
     return null;
   }
 };

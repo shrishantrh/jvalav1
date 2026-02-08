@@ -1,6 +1,24 @@
 import { useCallback, useRef } from 'react';
-import { useWearableData, WearableData } from './useWearableData';
-import { generateMockWearableData, generateMockEnvironmentalData, MockEnvironmentalData as MockEnvData } from '@/services/mockWearableData';
+import { useWearableData } from './useWearableData';
+import {
+  generateMockWearableData,
+  generateMockEnvironmentalData,
+  MockEnvironmentalData as MockEnvData,
+} from '@/services/mockWearableData';
+
+// Small helper: context collection must NEVER block logging.
+const withTimeout = async <T,>(promise: Promise<T>, ms: number): Promise<T | null> => {
+  let timeoutId: number | undefined;
+  const timeoutPromise = new Promise<null>((resolve) => {
+    timeoutId = window.setTimeout(() => resolve(null), ms);
+  });
+
+  try {
+    return (await Promise.race([promise, timeoutPromise])) as T | null;
+  } finally {
+    if (timeoutId) window.clearTimeout(timeoutId);
+  }
+};
 
 interface EnvironmentalData {
   location?: {
@@ -61,32 +79,32 @@ export interface PhysiologicalData {
   hrv_coverage?: number;
   hrv_low_freq?: number;
   hrv_high_freq?: number;
-  
+
   // Blood Oxygen
   spo2?: number;
   spo2_avg?: number;
   spo2_min?: number;
   spo2_max?: number;
-  
+
   // Breathing
   breathing_rate?: number;
   breathing_rate_deep_sleep?: number;
   breathing_rate_light_sleep?: number;
   breathing_rate_rem_sleep?: number;
-  
+
   // Temperature
   skin_temperature?: number;
-  
+
   // Cardio Fitness
   vo2_max?: number;
   vo2_max_range?: string;
-  
+
   // Active Zone Minutes
   active_zone_minutes_total?: number;
   fat_burn_minutes?: number;
   cardio_minutes?: number;
   peak_minutes?: number;
-  
+
   // Sleep
   sleep_hours?: number;
   sleep_minutes?: number;
@@ -103,7 +121,7 @@ export interface PhysiologicalData {
   wake_sleep_minutes?: number;
   sleep_efficiency?: number;
   time_in_bed?: number;
-  
+
   // Activity
   steps?: number;
   active_minutes?: number;
@@ -117,12 +135,12 @@ export interface PhysiologicalData {
   floors?: number;
   elevation?: number;
   distance?: number;
-  
+
   // Metadata
   synced_at?: string;
   source?: string;
   data_date?: string;
-  
+
   // Legacy camelCase aliases for backward compatibility
   heartRate?: number;
   heartRateVariability?: number;
@@ -142,18 +160,21 @@ interface EntryContextData {
 
 /**
  * Hook that collects both environmental (weather) and physiological (wearable) data
- * for each flare entry. This ensures consistent tracking of context.
- * If no wearable is connected, uses demo data for a polished demo experience.
+ * for each flare entry.
+ *
+ * Critical rule: logging must never hang. If context cannot be collected quickly,
+ * we still log the flare and attach whatever data is available.
  */
 export const useEntryContext = () => {
   const { data: wearableData, syncData, connections, getDataForEntry } = useWearableData();
-  const lastSyncRef = useRef<Date | null>(null);
 
   // Check if any wearable is connected
-  const hasWearableConnected = connections.some(c => c.connected);
+  const hasWearableConnected = connections.some((c) => c.connected);
 
   // Convert mock data to PhysiologicalData format
-  const convertMockToPhysiological = (mock: ReturnType<typeof generateMockWearableData>): PhysiologicalData => {
+  const convertMockToPhysiological = (
+    mock: ReturnType<typeof generateMockWearableData>
+  ): PhysiologicalData => {
     return {
       heart_rate: mock.heartRate,
       resting_heart_rate: mock.restingHeartRate,
@@ -257,35 +278,37 @@ export const useEntryContext = () => {
     };
   };
 
-  // Get fresh wearable data (sync if stale) - now returns ALL Fitbit metrics or demo data
+  // Get fresh wearable data (sync if stale) - returns ALL metrics or demo data
   const getWearableData = useCallback(async (): Promise<PhysiologicalData | null> => {
     // If no wearable connected, use demo data for polished demo experience
     if (!hasWearableConnected) {
-      // Random variant for variety
-      const variants: Array<'healthy' | 'flare-warning' | 'flare-active'> = ['healthy', 'healthy', 'flare-warning'];
+      const variants: Array<'healthy' | 'flare-warning' | 'flare-active'> = [
+        'healthy',
+        'healthy',
+        'flare-warning',
+      ];
       const variant = variants[Math.floor(Math.random() * variants.length)];
       return convertMockToPhysiological(generateMockWearableData(variant));
     }
 
-    // Sync if data is more than 5 minutes old
+    // Sync if data is more than 5 minutes old (but never block logging)
     const now = new Date();
     const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
-    
+
     if (!wearableData?.lastSyncedAt || wearableData.lastSyncedAt < fiveMinutesAgo) {
-      // Find the connected device type
-      const connectedDevice = connections.find(c => c.connected);
+      const connectedDevice = connections.find((c) => c.connected);
       if (connectedDevice) {
-        await syncData(connectedDevice.type);
+        // 2.5s budget for a sync attempt; after that, proceed with cached/partial data.
+        await withTimeout(syncData(connectedDevice.type), 2500);
       }
     }
 
-    // Use getDataForEntry which returns all comprehensive data
     const fullData = getDataForEntry();
     if (!fullData) {
-      // Fallback to demo data
+      // If we can't read data quickly, still return demo so the entry isn't blocked.
       return convertMockToPhysiological(generateMockWearableData('healthy'));
     }
-    
+
     return fullData as PhysiologicalData;
   }, [wearableData, hasWearableConnected, connections, syncData, getDataForEntry]);
 
@@ -298,10 +321,9 @@ export const useEntryContext = () => {
   }> => {
     try {
       const { getCurrentLocation, fetchWeatherData } = await import('@/services/weatherService');
-      const location = await getCurrentLocation();
-      
+      const location = await withTimeout(getCurrentLocation(), 2500);
+
       if (!location) {
-        // Fallback to demo environmental data
         const mockEnv = generateMockEnvironmentalData('normal');
         const converted = convertMockToEnvironmental(mockEnv);
         return {
@@ -312,32 +334,33 @@ export const useEntryContext = () => {
         };
       }
 
-      const weatherData = await fetchWeatherData(location.latitude, location.longitude);
-      
+      const weatherData = await withTimeout(
+        fetchWeatherData((location as any).latitude, (location as any).longitude),
+        3500
+      );
+
       if (!weatherData) {
-        // Fallback to demo with real location
         const mockEnv = generateMockEnvironmentalData('normal');
         const converted = convertMockToEnvironmental(mockEnv);
         converted.location = {
-          latitude: location.latitude,
-          longitude: location.longitude,
+          latitude: (location as any).latitude,
+          longitude: (location as any).longitude,
         };
         return {
           environmentalData: converted,
-          latitude: location.latitude,
-          longitude: location.longitude,
+          latitude: (location as any).latitude,
+          longitude: (location as any).longitude,
         };
       }
 
       return {
         environmentalData: weatherData,
-        latitude: location.latitude,
-        longitude: location.longitude,
-        city: weatherData.location?.city,
+        latitude: (location as any).latitude,
+        longitude: (location as any).longitude,
+        city: (weatherData as any).location?.city,
       };
     } catch (error) {
       console.error('Error getting environmental data:', error);
-      // Always return demo data on error for polished demo
       const mockEnv = generateMockEnvironmentalData('normal');
       const converted = convertMockToEnvironmental(mockEnv);
       return {
@@ -351,15 +374,15 @@ export const useEntryContext = () => {
 
   // Get all context data for an entry
   const getEntryContext = useCallback(async (): Promise<EntryContextData> => {
-    // Fetch both in parallel
+    // Fetch both in parallel, but never block indefinitely.
     const [envResult, physioData] = await Promise.all([
       getEnvironmentalData(),
-      getWearableData(),
+      withTimeout(getWearableData(), 2500),
     ]);
 
     return {
       environmentalData: envResult.environmentalData,
-      physiologicalData: physioData,
+      physiologicalData: physioData ?? null,
       latitude: envResult.latitude,
       longitude: envResult.longitude,
       city: envResult.city,
