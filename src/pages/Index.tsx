@@ -269,7 +269,30 @@ const Index = () => {
   const handleSaveEntry = async (entryData: Partial<FlareEntry>) => {
     if (!user) return;
 
+    // Optimistic UI so we never “pretend” without either showing it in History or showing an error.
+    const optimisticId = `pending_${Date.now()}`;
+    const optimisticEntry: FlareEntry = {
+      id: optimisticId,
+      timestamp: entryData.timestamp || new Date(),
+      type: (entryData.type || 'note') as any,
+      severity: entryData.severity as any,
+      energyLevel: entryData.energyLevel as any,
+      symptoms: entryData.symptoms || undefined,
+      medications: entryData.medications || undefined,
+      triggers: entryData.triggers || undefined,
+      note: entryData.note || undefined,
+      photos: entryData.photos || undefined,
+      voiceTranscript: entryData.voiceTranscript || undefined,
+      environmentalData: entryData.environmentalData as any,
+      physiologicalData: entryData.physiologicalData as any,
+      followUps: entryData.followUps as any,
+    };
+
+    setEntries(prev => [optimisticEntry, ...prev]);
+
     try {
+      console.log('[entries] saving entry:', entryData);
+
       const { data, error } = await supabase
         .from('flare_entries')
         .insert({
@@ -284,8 +307,8 @@ const Index = () => {
           note: entryData.note || null,
           photos: entryData.photos || null,
           voice_transcript: entryData.voiceTranscript || null,
-          environmental_data: entryData.environmentalData as any || null,
-          physiological_data: entryData.physiologicalData as any || null,
+          environmental_data: (entryData.environmentalData as any) || null,
+          physiological_data: (entryData.physiologicalData as any) || null,
           latitude: entryData.environmentalData?.location?.latitude || null,
           longitude: entryData.environmentalData?.location?.longitude || null,
           city: entryData.environmentalData?.location?.city || null,
@@ -296,7 +319,7 @@ const Index = () => {
       if (error) throw error;
 
       if (data) {
-        const newEntry: FlareEntry = {
+        const savedEntry: FlareEntry = {
           id: data.id,
           timestamp: new Date(data.timestamp),
           type: data.entry_type as any,
@@ -306,39 +329,60 @@ const Index = () => {
           medications: data.medications || undefined,
           triggers: data.triggers || undefined,
           note: data.note || undefined,
+          photos: data.photos || undefined,
+          voiceTranscript: data.voice_transcript || undefined,
+          followUps: (data.follow_ups as any) || undefined,
           environmentalData: data.environmental_data as any,
           physiologicalData: data.physiological_data as any,
         };
 
-        setEntries(prev => [newEntry, ...prev]);
+        // Replace the optimistic row with the real one from the backend
+        setEntries(prev => prev.map(e => (e.id === optimisticId ? savedEntry : e)));
 
-        const isDetailed = !!(entryData.symptoms?.length || entryData.triggers?.length || entryData.note || entryData.medications?.length);
-        const { newBadges, streakIncreased, currentStreak: newStreak } = await updateEngagementOnLog(user.id, isDetailed);
+        const isDetailed = !!(
+          entryData.symptoms?.length ||
+          entryData.triggers?.length ||
+          entryData.note ||
+          entryData.medications?.length
+        );
+
+        const { newBadges, currentStreak: newStreak } = await updateEngagementOnLog(user.id, isDetailed);
         setCurrentStreak(newStreak);
-        
+
         const trackingBadges = await checkTrackingBadges(user.id);
         const allNewBadges = [...newBadges, ...trackingBadges];
-        
-        if (entryData.photos?.length && await awardBadge(user.id, 'photo_first')) {
+
+        if (entryData.photos?.length && (await awardBadge(user.id, 'photo_first'))) {
           allNewBadges.push('photo_first');
         }
-        if (entryData.voiceTranscript && await awardBadge(user.id, 'voice_first')) {
+        if (entryData.voiceTranscript && (await awardBadge(user.id, 'voice_first'))) {
           allNewBadges.push('voice_first');
         }
-        
+
         if (allNewBadges.length > 0) {
           toast({
-            title: "🏆 Badge Earned!",
+            title: '🏆 Badge Earned!',
             description: `You earned: ${allNewBadges.join(', ')}`,
           });
         }
       }
     } catch (error) {
       console.error('Failed to save entry:', error);
+
+      // Remove optimistic row
+      setEntries(prev => prev.filter(e => e.id !== optimisticId));
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : JSON.stringify(error);
+
       toast({
-        title: "Error saving entry",
-        description: "Failed to save your health data",
-        variant: "destructive"
+        title: 'Entry not saved',
+        description: message,
+        variant: 'destructive',
       });
     }
   };
