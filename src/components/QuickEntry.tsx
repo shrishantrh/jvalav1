@@ -1,131 +1,87 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { FlareEntry, FlareSeverity, EnergyLevel } from "@/types/flare";
-import { 
-  Thermometer, 
-  Battery, 
-  Pill, 
-  AlertTriangle, 
-  Heart, 
+import { FlareEntry } from "@/types/flare";
+import {
+  Thermometer,
+  Battery,
+  Pill,
+  AlertTriangle,
+  Heart,
   StickyNote,
   Sparkles,
   Mic,
-  MicOff
+  MicOff,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
+import { useWearableData } from "@/hooks/useWearableData";
 
 interface QuickEntryProps {
   onSave: (entry: Partial<FlareEntry>) => void;
 }
 
 const QUICK_ACTIONS = [
-  { type: 'flare' as const, severity: 'mild' as const, icon: Thermometer, label: 'Mild Flare', color: 'severity-mild' },
-  { type: 'flare' as const, severity: 'moderate' as const, icon: Thermometer, label: 'Moderate Flare', color: 'severity-moderate' },
-  { type: 'flare' as const, severity: 'severe' as const, icon: Thermometer, label: 'Severe Flare', color: 'severity-severe' },
-  { type: 'energy' as const, energyLevel: 'low' as const, icon: Battery, label: 'Low Energy', color: 'muted-foreground' },
-  { type: 'energy' as const, energyLevel: 'good' as const, icon: Battery, label: 'Good Energy', color: 'severity-none' },
-  { type: 'medication' as const, icon: Pill, label: 'Took Meds', color: 'primary' },
-  { type: 'trigger' as const, icon: AlertTriangle, label: 'Trigger', color: 'severity-moderate' },
-  { type: 'recovery' as const, icon: Heart, label: 'Recovery', color: 'severity-none' },
+  { type: "flare" as const, severity: "mild" as const, icon: Thermometer, label: "Mild Flare", color: "severity-mild" },
+  { type: "flare" as const, severity: "moderate" as const, icon: Thermometer, label: "Moderate Flare", color: "severity-moderate" },
+  { type: "flare" as const, severity: "severe" as const, icon: Thermometer, label: "Severe Flare", color: "severity-severe" },
+  { type: "energy" as const, energyLevel: "low" as const, icon: Battery, label: "Low Energy", color: "muted-foreground" },
+  { type: "energy" as const, energyLevel: "good" as const, icon: Battery, label: "Good Energy", color: "severity-none" },
+  { type: "medication" as const, icon: Pill, label: "Took Meds", color: "primary" },
+  { type: "trigger" as const, icon: AlertTriangle, label: "Trigger", color: "severity-moderate" },
+  { type: "recovery" as const, icon: Heart, label: "Recovery", color: "severity-none" },
 ];
 
 export const QuickEntry = ({ onSave }: QuickEntryProps) => {
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
   const { isRecording, transcript, startRecording, stopRecording, clearRecording } = useVoiceRecording();
+  const { getDataForEntry, syncData } = useWearableData();
 
-  const handleQuickAction = async (action: typeof QUICK_ACTIONS[number]) => {
+  const handleQuickAction = async (action: (typeof QUICK_ACTIONS)[number]) => {
     const entry: Partial<FlareEntry> = {
       type: action.type,
       timestamp: new Date(),
     };
 
-    if ('severity' in action && action.severity) {
+    if ("severity" in action && action.severity) {
       entry.severity = action.severity;
     }
-    if ('energyLevel' in action && action.energyLevel) {
+    if ("energyLevel" in action && action.energyLevel) {
       entry.energyLevel = action.energyLevel;
     }
 
-    // Collect comprehensive data for ALL entry types
+    // Collect environmental + wearable data (real, when available)
     try {
       const { getCurrentLocation, fetchWeatherData } = await import("@/services/weatherService");
-      
+
       const location = await getCurrentLocation();
       if (location) {
         const weatherData = await fetchWeatherData(location.latitude, location.longitude);
-        
-        if (weatherData) {
-          entry.environmentalData = weatherData;
-        }
+        if (weatherData) entry.environmentalData = weatherData;
       }
 
-      // Generate comprehensive physiological data
-      const isFlare = action.type === 'flare';
-      const severityMultiplier = action.severity === 'severe' ? 1.5 : 
-                                action.severity === 'moderate' ? 1.2 : 1.0;
-      
-      const currentHour = new Date().getHours();
-      
-      // Heart rate influenced by flare severity and time of day
-      const baseHR = 65 + (currentHour > 20 || currentHour < 6 ? -5 : 0);
-      const flareHRIncrease = isFlare ? severityMultiplier * 15 : 0;
-      const heartRate = Math.round(baseHR + flareHRIncrease + (Math.random() - 0.5) * 10);
-      
-      // Sleep quality affected by previous symptoms
-      const baseSleep = 7.5;
-      const sleepReduction = isFlare ? severityMultiplier * 1.5 : 0;
-      const sleepHours = Math.max(4, Math.round((baseSleep - sleepReduction + (Math.random() - 0.5) * 2) * 10) / 10);
-      
-      // Stress level correlates with symptoms
-      const baseStress = 3;
-      const stressIncrease = isFlare ? severityMultiplier * 3 : 0;
-      const stressLevel = Math.min(10, Math.max(1, Math.round(baseStress + stressIncrease + (Math.random() - 0.5) * 2)));
-      
-      // Activity level inversely related to symptoms
-      const baseSteps = 8000;
-      const activityReduction = isFlare ? severityMultiplier * 2000 : 0;
-      const steps = Math.max(1000, Math.round(baseSteps - activityReduction + (Math.random() - 0.5) * 3000));
-
-      entry.physiologicalData = {
-        heartRate,
-        heartRateVariability: Math.round(30 + (Math.random() - 0.5) * 40),
-        bloodPressure: {
-          systolic: Math.round(115 + (isFlare ? severityMultiplier * 10 : 0) + (Math.random() - 0.5) * 20),
-          diastolic: Math.round(75 + (isFlare ? severityMultiplier * 5 : 0) + (Math.random() - 0.5) * 15)
-        },
-        sleepHours,
-        sleepQuality: (['poor', 'fair', 'good', 'excellent'] as const)[
-          Math.max(0, Math.min(3, Math.floor(3 - (isFlare ? severityMultiplier : 0.5) + Math.random())))
-        ],
-        stressLevel,
-        steps
-      };
-
-      // Add symptoms for flares
-      if (isFlare) {
-        const commonSymptoms = ['Joint Pain', 'Fatigue', 'Muscle Stiffness', 'Morning Stiffness', 'Swelling'];
-        const symptomCount = Math.floor(Math.random() * 3) + 1;
-        const selectedSymptoms = commonSymptoms
-          .sort(() => Math.random() - 0.5)
-          .slice(0, symptomCount);
-        entry.symptoms = selectedSymptoms;
+      // Prefer the latest cached wearable/native health data.
+      // If we don't have any yet, attempt a sync (non-blocking if it fails).
+      const cached = getDataForEntry();
+      if (cached) {
+        entry.physiologicalData = cached as any;
+      } else {
+        const synced = await syncData().catch(() => null);
+        const after = getDataForEntry();
+        if (synced && after) entry.physiologicalData = after as any;
       }
-
     } catch (error) {
-      console.log('Error collecting comprehensive data:', error);
+      console.log("Error collecting quick-log context:", error);
     }
 
     onSave(entry);
-    
-    // Show demo data notice
+
     toast({
       title: "Entry logged",
-      description: "Note: Health data is simulated for demo purposes. Real device integration coming soon.",
-      duration: 3000,
+      description: "Saved with available wearable + environmental context.",
+      duration: 2500,
     });
   };
 
