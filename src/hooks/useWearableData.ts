@@ -551,10 +551,11 @@ export const useWearableData = () => {
         }
 
         // 2) Request permissions (this should show the Health permission sheet)
-        // Strategy: request a *minimal* set first to make the iOS prompt as reliable as possible,
-        // then immediately request the full set (optional) after the user has interacted.
+        // User expectation: request the full set upfront so they can approve everything in one go.
+        // If the full request fails (some iOS builds can be brittle), we fall back to minimal so the
+        // connection can still complete, then instruct the user to enable additional scopes in Health.
         phase = 'requesting_permissions';
-        console.log(`[wearables] ${type}: requesting permissions...`);
+        console.log(`[wearables] ${type}: requesting permissions (full)...`);
         toast({
           title: `Connect ${getHealthPlatformName()}`,
           description: 'Requesting permission in the Health app…',
@@ -565,44 +566,10 @@ export const useWearableData = () => {
         // in JS but isn’t bound to the native implementation, resulting in a hung Promise.
         const injected = getInjectedHealthPlugin();
 
-        let minimalOk = false;
-        let minimalError: string | undefined;
+        let ok = false;
+        let lastError: string | undefined;
 
-        if (injected) {
-          try {
-            await withTimeout(
-              injected.requestAuthorization({ read: HEALTH_MINIMAL_READ, write: [] }),
-              60000,
-              'Health.requestAuthorization(minimal)'
-            );
-            minimalOk = true;
-          } catch (e) {
-            minimalOk = false;
-            minimalError = e instanceof Error ? e.message : String(e);
-          }
-        } else {
-          const result = await withTimeout(
-            requestHealthPermissions({ mode: 'minimal' }),
-            60000,
-            'Health.requestAuthorization(minimal)'
-          );
-          minimalOk = Boolean((result as any)?.ok);
-          minimalError = typeof (result as any)?.error === 'string' ? (result as any).error : undefined;
-        }
-
-        if (!minimalOk) {
-          toast({
-            title: 'Permission Request Failed',
-            description:
-              minimalError ??
-              `We couldn’t open the ${getHealthPlatformName()} permission flow. This is usually a native build/entitlement issue.`,
-            variant: 'destructive',
-          });
-          return false;
-        }
-
-        // Ask for the full set (don’t fail the connection if this second step fails).
-        // This lets us at least get a working baseline connection reliably.
+        // Try FULL first (one permission sheet)
         try {
           if (injected) {
             await withTimeout(
@@ -611,11 +578,60 @@ export const useWearableData = () => {
               'Health.requestAuthorization(full)'
             );
           } else {
-            await requestHealthPermissions({ mode: 'full' });
+            const result = await withTimeout(
+              requestHealthPermissions({ mode: 'full' }),
+              60000,
+              'Health.requestAuthorization(full)'
+            );
+            if ((result as any)?.ok !== true) {
+              throw new Error((result as any)?.error || 'full_authorization_failed');
+            }
           }
-        } catch {
-          // ignore
+          ok = true;
+        } catch (e) {
+          ok = false;
+          lastError = e instanceof Error ? e.message : String(e);
         }
+
+        // Fallback: minimal so the connection can still complete
+        if (!ok) {
+          console.warn('[wearables] full authorization failed; falling back to minimal:', lastError);
+
+          try {
+            if (injected) {
+              await withTimeout(
+                injected.requestAuthorization({ read: HEALTH_MINIMAL_READ, write: [] }),
+                60000,
+                'Health.requestAuthorization(minimal)'
+              );
+            } else {
+              const result = await withTimeout(
+                requestHealthPermissions({ mode: 'minimal' }),
+                60000,
+                'Health.requestAuthorization(minimal)'
+              );
+              if ((result as any)?.ok !== true) {
+                throw new Error((result as any)?.error || 'minimal_authorization_failed');
+              }
+            }
+
+            ok = true;
+            toast({
+              title: 'Connected with limited permissions',
+              description:
+                'We connected, but iOS didn’t accept the full permission request in one step. Open Health → Sharing → Apps → Jvala to enable additional data types.',
+            });
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            toast({
+              title: 'Permission Request Failed',
+              description: msg,
+              variant: 'destructive',
+            });
+            return false;
+          }
+        }
+
         phase = 'confirming_authorization';
         console.log(`[wearables] ${type}: checking authorization...`);
         const authorized = await withTimeout(checkHealthPermissions(), 9000, 'Health.checkAuthorization');

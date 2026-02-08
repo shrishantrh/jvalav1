@@ -266,8 +266,8 @@ const Index = () => {
     }
   };
 
-  const handleSaveEntry = async (entryData: Partial<FlareEntry>) => {
-    if (!user) return;
+  const handleSaveEntry = async (entryData: Partial<FlareEntry>): Promise<boolean> => {
+    if (!user) return false;
 
     // Optimistic UI so we never “pretend” without either showing it in History or showing an error.
     const optimisticId = `pending_${Date.now()}`;
@@ -339,6 +339,13 @@ const Index = () => {
         // Replace the optimistic row with the real one from the backend
         setEntries(prev => prev.map(e => (e.id === optimisticId ? savedEntry : e)));
 
+        // Explicit, honest confirmation: only after the backend insert succeeds.
+        toast({
+          title: 'Saved to History',
+          description: savedEntry.type === 'flare' ? 'Flare logged.' : 'Entry logged.',
+          duration: 2000,
+        });
+
         const isDetailed = !!(
           entryData.symptoms?.length ||
           entryData.triggers?.length ||
@@ -366,6 +373,8 @@ const Index = () => {
           });
         }
       }
+
+      return true;
     } catch (error) {
       console.error('Failed to save entry:', error);
 
@@ -384,6 +393,8 @@ const Index = () => {
         description: message,
         variant: 'destructive',
       });
+
+      return false;
     }
   };
 
