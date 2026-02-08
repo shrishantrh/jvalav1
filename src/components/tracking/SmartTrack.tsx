@@ -84,7 +84,7 @@ interface MedicationDetails {
 }
 
 interface SmartTrackProps {
-  onSave: (entry: Partial<FlareEntry>) => void;
+  onSave: (entry: Partial<FlareEntry>) => Promise<boolean>;
   onUpdateEntry?: (entryId: string, updates: Partial<FlareEntry>) => void;
   userSymptoms?: string[];
   userConditions?: string[];
@@ -449,8 +449,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       console.log('Could not get context data:', e);
     }
 
-    onSave(entry);
-    
+    const saved = await onSave(entry);
+
     // Track the last logged entry for potential updates
     const entryId = Date.now().toString();
     setLastLoggedEntryId(entryId);
@@ -458,7 +458,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     const confirmMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
       role: 'assistant',
-      content: `Logged ${severity} ${symptom}.`,
+      content: saved ? `Saved ${severity} ${symptom} to History.` : `Couldn’t save that flare — please try again.`,
       timestamp: new Date(),
       entryData: entry,
     };
@@ -710,7 +710,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             environmentalData: contextData.environmentalData || undefined,
             physiologicalData: contextData.physiologicalData || undefined,
           };
-          onSave(entry);
+          await onSave(entry);
         }
       } else if (smartData?.entryData && smartData?.shouldLog) {
         const contextData = await getEntryContext();
@@ -723,7 +723,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
           physiologicalData: contextData.physiologicalData || undefined,
         };
 
-        onSave(entry);
+        await onSave(entry);
       }
     } catch (error) {
       console.error('Error:', error);

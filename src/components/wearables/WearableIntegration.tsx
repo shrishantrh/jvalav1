@@ -46,12 +46,16 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
   const handleConnect = async (type: 'fitbit' | 'apple_health' | 'google_fit' | 'oura') => {
     setConnectingDevice(type);
     const success = await connectDevice(type);
-    if (success && type !== 'fitbit' && onDataSync) {
-      // For Fitbit, data will sync after OAuth callback
-      const newData = await syncData(type);
-      if (newData) onDataSync(newData);
+
+    // Never block the UI spinner on an initial native health data read.
+    // connectDevice() already kicks off a background sync for Apple Health / Health Connect.
+    if (success && type === 'fitbit' && onDataSync) {
+      // For Fitbit, data will sync after OAuth callback; nothing to do here.
     }
+
     setConnectingDevice(null);
+
+    // Optional: if caller wants data immediately on web/fitbit, they can press Sync.
   };
 
   const handleSync = async () => {
