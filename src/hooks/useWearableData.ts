@@ -261,6 +261,16 @@ export const useWearableData = () => {
           lightSleepMinutes: healthData.lightSleepMinutes,
           wakeSleepMinutes: healthData.awakeSleepMinutes,
           timeInBed: healthData.inBedMinutes,
+          // Populate a sleep stages object so it’s stored consistently with Fitbit logs
+          sleepStages:
+            healthData.deepSleepMinutes || healthData.remSleepMinutes || healthData.lightSleepMinutes || healthData.awakeSleepMinutes
+              ? {
+                  deep: healthData.deepSleepMinutes,
+                  rem: healthData.remSleepMinutes,
+                  light: healthData.lightSleepMinutes,
+                  wake: healthData.awakeSleepMinutes,
+                }
+              : undefined,
           workouts: healthData.workouts,
           lastSyncedAt: healthData.lastSyncedAt,
           source: 'apple_health',
