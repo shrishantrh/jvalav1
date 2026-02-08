@@ -40,15 +40,16 @@ const loadPlugins = async () => {
   if (!isNative) return null;
   
   try {
-    const [haptics, statusBar, splash, push, camera] = await Promise.all([
+    const [haptics, statusBar, splash, push, camera, health] = await Promise.all([
       import('@capacitor/haptics').catch(() => null),
       import('@capacitor/status-bar').catch(() => null),
       import('@capacitor/splash-screen').catch(() => null),
       import('@capacitor/push-notifications').catch(() => null),
       import('@capacitor/camera').catch(() => null),
+      import('@capgo/capacitor-health').catch(() => null),
     ]);
     
-    return { haptics, statusBar, splash, push, camera };
+    return { haptics, statusBar, splash, push, camera, health };
   } catch {
     return null;
   }
