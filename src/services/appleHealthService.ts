@@ -90,6 +90,19 @@ const loadHealthPlugin = async () => {
     return null;
   }
 
+  // Prefer the injected Capacitor plugin proxy when present.
+  // This avoids SPM/module resolution edge cases where dynamic import succeeds,
+  // but the proxy isn't bound correctly and calls can hang.
+  try {
+    const injected = (window as any)?.Capacitor?.Plugins?.Health;
+    if (injected) {
+      healthPlugin = injected;
+      return healthPlugin;
+    }
+  } catch {
+    // ignore
+  }
+
   try {
     const module = await import('@capgo/capacitor-health');
     // Plugin exports a Capacitor proxy named Health
