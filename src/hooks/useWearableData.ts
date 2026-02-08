@@ -2,15 +2,29 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { isNative, platform } from '@/lib/capacitor';
-import { 
-  isHealthAvailable, 
-  checkHealthPermissions, 
-  requestHealthPermissions, 
-  fetchHealthData, 
+import {
+  isHealthAvailable,
+  checkHealthPermissions,
+  requestHealthPermissions,
+  fetchHealthData,
   convertToPhysiologicalData,
   getHealthPlatformName,
-  AppleHealthData
+  AppleHealthData,
 } from '@/services/appleHealthService';
+
+// Prevent “infinite loading” when a native plugin call never resolves.
+const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
+  let timeoutId: number | undefined;
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) window.clearTimeout(timeoutId);
+  }
+};
 
 export interface WearableData {
   // Core vitals
@@ -472,7 +486,8 @@ export const useWearableData = () => {
         }
 
         // 1) Verify availability first (prevents silent hangs when the plugin isn't wired correctly)
-        const available = await isHealthAvailable();
+        console.log(`[wearables] ${type}: checking availability...`);
+        const available = await withTimeout(isHealthAvailable(), 9000, 'Health.isAvailable');
         if (!available) {
           toast({
             title: `${getHealthPlatformName()} unavailable`,
@@ -484,7 +499,13 @@ export const useWearableData = () => {
         }
 
         // 2) Request permissions (this should show the Health permission sheet)
-        const granted = await requestHealthPermissions();
+        console.log(`[wearables] ${type}: requesting permissions...`);
+        toast({
+          title: `Connect ${getHealthPlatformName()}`,
+          description: 'Requesting permission in the Health app…',
+        });
+
+        const granted = await withTimeout(requestHealthPermissions(), 20000, 'Health.requestAuthorization');
         if (!granted) {
           toast({
             title: 'Permission Required',
@@ -495,7 +516,8 @@ export const useWearableData = () => {
         }
 
         // 3) Confirm we actually have authorization after the prompt
-        const authorized = await checkHealthPermissions();
+        console.log(`[wearables] ${type}: checking authorization...`);
+        const authorized = await withTimeout(checkHealthPermissions(), 9000, 'Health.checkAuthorization');
         if (!authorized) {
           toast({
             title: 'Not authorized yet',
@@ -506,14 +528,13 @@ export const useWearableData = () => {
         }
 
         // Update connection status
-        setConnections(prev => prev.map(c =>
-          c.type === type
-            ? { ...c, connected: true, comingSoon: false }
-            : c
-        ));
+        setConnections(prev =>
+          prev.map(c => (c.type === type ? { ...c, connected: true, comingSoon: false } : c))
+        );
 
         // Sync data immediately
-        const newData = await syncData(type);
+        console.log(`[wearables] ${type}: syncing data...`);
+        const newData = await withTimeout(syncData(type), 25000, 'Wearables.syncData');
         if (newData) {
           toast({
             title: `${getHealthPlatformName()} Connected`,
@@ -521,7 +542,6 @@ export const useWearableData = () => {
           });
           return true;
         }
-
         toast({
           title: 'Connected, but no data yet',
           description: `We connected to ${getHealthPlatformName()}, but couldn’t read any data. Make sure you have Health data recorded (steps/sleep/HR) and try “Sync”.`,
