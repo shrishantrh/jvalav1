@@ -557,9 +557,21 @@ export const useWearableData = () => {
       return false;
     } catch (error) {
       console.error('Error connecting device:', error);
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : 'Unknown error';
+
+      const isTimeout = /timed out/i.test(message);
+
       toast({
-        title: 'Connection Failed',
-        description: 'Could not connect to the health service.',
+        title: isTimeout ? 'Connection timed out' : 'Connection Failed',
+        description: isTimeout
+          ? `The ${getHealthPlatformName()} connection didn’t respond in time. This usually means the native Health plugin isn’t responding. Please rebuild the iOS app from Xcode after a clean build, then try again.`
+          : message,
         variant: 'destructive',
       });
       return false;
