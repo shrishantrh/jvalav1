@@ -27,6 +27,14 @@ const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): 
   }
 };
 
+const getInjectedHealthPlugin = (): any | null => {
+  try {
+    return (window as any)?.Capacitor?.Plugins?.Health ?? null;
+  } catch {
+    return null;
+  }
+};
+
 export interface WearableData {
   // Core vitals
   heartRate?: number;
@@ -550,17 +558,41 @@ export const useWearableData = () => {
           description: 'Requesting permission in the Health app…',
         });
 
-        const minimalAuth = await withTimeout(
-          requestHealthPermissions({ mode: 'minimal' }),
-          60000,
-          'Health.requestAuthorization(minimal)'
-        );
+        // IMPORTANT: Prefer calling the injected native proxy directly.
+        // When projects use SPM, importing the module can sometimes produce a proxy that exists
+        // in JS but isn’t bound to the native implementation, resulting in a hung Promise.
+        const injected = getInjectedHealthPlugin();
 
-        if (!minimalAuth.ok) {
+        let minimalOk = false;
+        let minimalError: string | undefined;
+
+        if (injected) {
+          try {
+            await withTimeout(
+              injected.requestAuthorization({ read: ['steps', 'heartRate'], write: [] }),
+              60000,
+              'Health.requestAuthorization(minimal)'
+            );
+            minimalOk = true;
+          } catch (e) {
+            minimalOk = false;
+            minimalError = e instanceof Error ? e.message : String(e);
+          }
+        } else {
+          const result = await withTimeout(
+            requestHealthPermissions({ mode: 'minimal' }),
+            60000,
+            'Health.requestAuthorization(minimal)'
+          );
+          minimalOk = Boolean((result as any)?.ok);
+          minimalError = typeof (result as any)?.error === 'string' ? (result as any).error : undefined;
+        }
+
+        if (!minimalOk) {
           toast({
             title: 'Permission Request Failed',
             description:
-              minimalAuth.error ??
+              minimalError ??
               `We couldn’t open the ${getHealthPlatformName()} permission flow. This is usually a native build/entitlement issue.`,
             variant: 'destructive',
           });

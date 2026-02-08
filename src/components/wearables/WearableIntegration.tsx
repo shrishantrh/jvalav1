@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Watch, 
-  Heart, 
-  Footprints, 
-  Moon, 
-  Flame, 
-  RefreshCw, 
+import {
+  Watch,
+  Heart,
+  Footprints,
+  Moon,
+  Flame,
+  RefreshCw,
   Loader2,
   Link,
   Unlink,
@@ -18,28 +18,29 @@ import {
   Droplets,
   Zap,
   Timer,
-  Smartphone
+  Smartphone,
 } from "lucide-react";
 import { useWearableData, WearableData } from "@/hooks/useWearableData";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { isNative, platform } from '@/lib/capacitor';
+import { APP_BUILD_MARKER } from '@/services/buildMarker';
 
 interface WearableIntegrationProps {
   onDataSync?: (data: WearableData) => void;
 }
 
 export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) => {
-  const { 
-    data, 
-    connections, 
-    isLoading, 
-    isSyncing, 
-    connectDevice, 
-    disconnectDevice, 
-    syncData 
+  const {
+    data,
+    connections,
+    isLoading,
+    isSyncing,
+    connectDevice,
+    disconnectDevice,
+    syncData,
   } = useWearableData();
-  
+
   const [connectingDevice, setConnectingDevice] = useState<string | null>(null);
 
   const handleConnect = async (type: 'fitbit' | 'apple_health' | 'google_fit' | 'oura') => {
@@ -127,12 +128,17 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
               <p className="text-xs text-muted-foreground">
                 Sync health data from your devices
               </p>
+              {isNative && (
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Build: <span className="font-mono">{APP_BUILD_MARKER}</span>
+                </p>
+              )}
             </div>
           </div>
           {hasConnection && (
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleSync}
               disabled={isSyncing}
             >
