@@ -104,19 +104,33 @@ const loadHealthPlugin = async () => {
 /**
  * Check if Apple Health / Health Connect is available
  */
-export const isHealthAvailable = async (): Promise<boolean> => {
-  if (!isNative) return false;
+export type HealthAvailability = {
+  available: boolean;
+  reason?: string;
+};
+
+export const getHealthAvailability = async (): Promise<HealthAvailability> => {
+  if (!isNative) return { available: false, reason: 'not_native' };
 
   try {
     const plugin = await loadHealthPlugin();
-    if (!plugin) return false;
+    if (!plugin) return { available: false, reason: 'plugin_not_loaded' };
 
+    // Per plugin docs, isAvailable may provide a "reason" when unavailable.
     const result = (await withTimeout(plugin.isAvailable(), 8000, 'Health.isAvailable')) as any;
-    return result?.available === true;
+    return {
+      available: result?.available === true,
+      reason: typeof result?.reason === 'string' ? result.reason : undefined,
+    };
   } catch (error) {
     console.error('Error checking Health availability:', error);
-    return false;
+    return { available: false, reason: error instanceof Error ? error.message : 'unknown_error' };
   }
+};
+
+export const isHealthAvailable = async (): Promise<boolean> => {
+  const { available } = await getHealthAvailability();
+  return available;
 };
 
 /**
