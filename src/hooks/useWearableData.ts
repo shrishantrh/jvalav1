@@ -462,25 +462,56 @@ export const useWearableData = () => {
       
       // Handle Apple Health / Health Connect
       if (type === 'apple_health' || type === 'google_fit') {
-        // Request permissions
-        const granted = await requestHealthPermissions();
-        
-        if (!granted) {
+        if (!isNative) {
           toast({
-            title: 'Permission Required',
-            description: `Please grant access to ${getHealthPlatformName()} in your device settings.`,
+            title: 'Requires the mobile app',
+            description: `${getHealthPlatformName()} only works when running on your iPhone/Android app (not the browser).`,
             variant: 'destructive',
           });
           return false;
         }
-        
+
+        // 1) Verify availability first (prevents silent hangs when the plugin isn't wired correctly)
+        const available = await isHealthAvailable();
+        if (!available) {
+          toast({
+            title: `${getHealthPlatformName()} unavailable`,
+            description:
+              `This device/app build can’t access ${getHealthPlatformName()}. In Xcode, enable the HealthKit capability and add the Health usage description, then rebuild.`,
+            variant: 'destructive',
+          });
+          return false;
+        }
+
+        // 2) Request permissions (this should show the Health permission sheet)
+        const granted = await requestHealthPermissions();
+        if (!granted) {
+          toast({
+            title: 'Permission Required',
+            description: `Please grant access to ${getHealthPlatformName()} (Health app → Sharing → Apps → Jvala).`,
+            variant: 'destructive',
+          });
+          return false;
+        }
+
+        // 3) Confirm we actually have authorization after the prompt
+        const authorized = await checkHealthPermissions();
+        if (!authorized) {
+          toast({
+            title: 'Not authorized yet',
+            description: `We didn’t receive permission. Open the Health app → Sharing → Apps → Jvala and enable access, then try again.`,
+            variant: 'destructive',
+          });
+          return false;
+        }
+
         // Update connection status
-        setConnections(prev => prev.map(c => 
+        setConnections(prev => prev.map(c =>
           c.type === type
             ? { ...c, connected: true, comingSoon: false }
             : c
         ));
-        
+
         // Sync data immediately
         const newData = await syncData(type);
         if (newData) {
@@ -490,7 +521,12 @@ export const useWearableData = () => {
           });
           return true;
         }
-        
+
+        toast({
+          title: 'Connected, but no data yet',
+          description: `We connected to ${getHealthPlatformName()}, but couldn’t read any data. Make sure you have Health data recorded (steps/sleep/HR) and try “Sync”.`,
+          variant: 'destructive',
+        });
         return false;
       }
 

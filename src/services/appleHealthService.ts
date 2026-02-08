@@ -69,17 +69,31 @@ export interface AppleHealthData {
 // Dynamically load the plugin only when needed
 let healthPlugin: any = null;
 
+const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
+  let timeoutId: number | undefined;
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) window.clearTimeout(timeoutId);
+  }
+};
+
 const loadHealthPlugin = async () => {
   if (healthPlugin) return healthPlugin;
-  
+
   if (!isNative) {
     console.log('Health plugin is only available on native platforms');
     return null;
   }
-  
+
   try {
     const module = await import('@capgo/capacitor-health');
-    healthPlugin = module.Health;
+    // Plugin exports a Capacitor proxy named Health
+    healthPlugin = (module as any).Health;
     return healthPlugin;
   } catch (error) {
     console.error('Failed to load Health plugin:', error);
@@ -92,13 +106,13 @@ const loadHealthPlugin = async () => {
  */
 export const isHealthAvailable = async (): Promise<boolean> => {
   if (!isNative) return false;
-  
+
   try {
     const plugin = await loadHealthPlugin();
     if (!plugin) return false;
-    
-    const result = await plugin.isAvailable();
-    return result.available === true;
+
+    const result = (await withTimeout(plugin.isAvailable(), 8000, 'Health.isAvailable')) as any;
+    return result?.available === true;
   } catch (error) {
     console.error('Error checking Health availability:', error);
     return false;
@@ -112,11 +126,11 @@ export const requestHealthPermissions = async (): Promise<boolean> => {
   try {
     const plugin = await loadHealthPlugin();
     if (!plugin) return false;
-    
+
     // Request read access to all supported data types
     const readTypes: HealthDataType[] = [
       'steps',
-      'distance', 
+      'distance',
       'calories',
       'heartRate',
       'weight',
@@ -126,12 +140,19 @@ export const requestHealthPermissions = async (): Promise<boolean> => {
       'restingHeartRate',
       'heartRateVariability',
     ];
-    
-    await plugin.requestAuthorization({
-      read: readTypes,
-      write: [], // We don't write data
-    });
-    
+
+    // NOTE: On iOS, this should trigger the Health permission sheet.
+    // If it never appears, the native project is missing HealthKit capability
+    // or NSHealthShareUsageDescription.
+    await withTimeout(
+      plugin.requestAuthorization({
+        read: readTypes,
+        write: [], // We don't write data
+      }),
+      15000,
+      'Health.requestAuthorization'
+    );
+
     return true;
   } catch (error) {
     console.error('Error requesting Health permissions:', error);
