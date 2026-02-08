@@ -11,6 +11,8 @@ import {
   getHealthPlatformName,
   isHealthPluginPresent,
   AppleHealthData,
+  HEALTH_FULL_READ,
+  HEALTH_MINIMAL_READ,
 } from '@/services/appleHealthService';
 
 // Prevent “infinite loading” when a native plugin call never resolves.
@@ -569,7 +571,7 @@ export const useWearableData = () => {
         if (injected) {
           try {
             await withTimeout(
-              injected.requestAuthorization({ read: ['steps', 'heartRate'], write: [] }),
+              injected.requestAuthorization({ read: HEALTH_MINIMAL_READ, write: [] }),
               60000,
               'Health.requestAuthorization(minimal)'
             );
@@ -602,7 +604,15 @@ export const useWearableData = () => {
         // Ask for the full set (don’t fail the connection if this second step fails).
         // This lets us at least get a working baseline connection reliably.
         try {
-          await requestHealthPermissions({ mode: 'full' });
+          if (injected) {
+            await withTimeout(
+              injected.requestAuthorization({ read: HEALTH_FULL_READ, write: [] }),
+              60000,
+              'Health.requestAuthorization(full)'
+            );
+          } else {
+            await requestHealthPermissions({ mode: 'full' });
+          }
         } catch {
           // ignore
         }
@@ -618,28 +628,40 @@ export const useWearableData = () => {
           return false;
         }
 
-        // Update connection status
+        // Update connection status immediately (don’t block the UI on the initial data read).
         setConnections(prev =>
           prev.map(c => (c.type === type ? { ...c, connected: true, comingSoon: false } : c))
         );
 
-        // Sync data immediately
-        phase = 'initial_sync';
-        console.log(`[wearables] ${type}: syncing data...`);
-        const newData = await withTimeout(syncData(type), 25000, 'Wearables.syncData');
-        if (newData) {
-          toast({
-            title: `${getHealthPlatformName()} Connected`,
-            description: 'Your health data is now syncing.',
-          });
-          return true;
-        }
         toast({
-          title: 'Connected, but no data yet',
-          description: `We connected to ${getHealthPlatformName()}, but couldn’t read any data. Make sure you have Health data recorded (steps/sleep/HR) and try “Sync”.`,
-          variant: 'destructive',
+          title: `${getHealthPlatformName()} Connected`,
+          description: 'Permissions granted. Syncing your health data…',
         });
-        return false;
+
+        // Kick off initial sync in the background. If it fails, we’ll surface a toast.
+        // IMPORTANT: Don’t await this; the user should never be stuck in a spinner after granting access.
+        void (async () => {
+          try {
+            phase = 'initial_sync';
+            console.log(`[wearables] ${type}: syncing data (background)...`);
+            const newData = await withTimeout(syncData(type), 25000, 'Wearables.syncData');
+            if (!newData) {
+              toast({
+                title: 'Connected, but no data yet',
+                description: `We connected to ${getHealthPlatformName()}, but couldn’t read any data yet. Try “Sync” again in a moment.`,
+              });
+            }
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            toast({
+              title: 'Health sync failed',
+              description: msg,
+              variant: 'destructive',
+            });
+          }
+        })();
+
+        return true;
       }
 
       toast({

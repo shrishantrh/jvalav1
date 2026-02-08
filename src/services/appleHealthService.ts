@@ -9,7 +9,17 @@
 import { isNative, platform } from '@/lib/capacitor';
 
 // Types from the plugin
-type HealthDataType = 'steps' | 'distance' | 'calories' | 'heartRate' | 'weight' | 'sleep' | 'respiratoryRate' | 'oxygenSaturation' | 'restingHeartRate' | 'heartRateVariability';
+export type HealthDataType =
+  | 'steps'
+  | 'distance'
+  | 'calories'
+  | 'heartRate'
+  | 'weight'
+  | 'sleep'
+  | 'respiratoryRate'
+  | 'oxygenSaturation'
+  | 'restingHeartRate'
+  | 'heartRateVariability';
 type SleepState = 'inBed' | 'asleep' | 'awake' | 'rem' | 'deep' | 'light';
 
 interface HealthSample {
@@ -181,9 +191,9 @@ export type HealthAuthorizationResult = {
   error?: string;
 };
 
-const DEFAULT_MINIMAL_READ: HealthDataType[] = ['steps', 'heartRate'];
+export const HEALTH_MINIMAL_READ: HealthDataType[] = ['steps', 'heartRate'];
 
-const DEFAULT_FULL_READ: HealthDataType[] = [
+export const HEALTH_FULL_READ: HealthDataType[] = [
   'steps',
   'distance',
   'calories',
@@ -205,7 +215,7 @@ export const requestHealthPermissions = async (options?: {
     if (!plugin) return { ok: false, error: 'plugin_not_loaded' };
 
     const mode = options?.mode ?? 'full';
-    const read = options?.read ?? (mode === 'minimal' ? DEFAULT_MINIMAL_READ : DEFAULT_FULL_READ);
+    const read = options?.read ?? (mode === 'minimal' ? HEALTH_MINIMAL_READ : HEALTH_FULL_READ);
 
     // requestAuthorization returns AuthorizationStatus (readAuthorized/readDenied/etc.)
     const status = (await withTimeout(
@@ -243,7 +253,7 @@ export const checkHealthPermissions = async (options?: {
     const plugin = await loadHealthPlugin();
     if (!plugin) return false;
 
-    const read = options?.read ?? DEFAULT_MINIMAL_READ;
+    const read = options?.read ?? HEALTH_MINIMAL_READ;
 
     const status = (await withTimeout(
       plugin.checkAuthorization({ read }),
