@@ -420,6 +420,10 @@ export const useWearableData = () => {
 
   const connectDevice = useCallback(async (type: 'fitbit' | 'apple_health' | 'google_fit' | 'oura'): Promise<boolean> => {
     setIsLoading(true);
+
+    // Used to surface *where* we hung when the native bridge doesn't respond.
+    // This keeps future debugging to one run instead of trial-and-error.
+    let phase: string = 'starting';
     
     try {
       // Check if device is coming soon
@@ -433,6 +437,7 @@ export const useWearableData = () => {
       }
       
       if (type === 'fitbit') {
+        phase = 'fitbit_auth';
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           toast({
@@ -486,6 +491,7 @@ export const useWearableData = () => {
         }
 
         // 1) Verify availability first (prevents silent hangs when the plugin isn't wired correctly)
+        phase = 'checking_availability';
         console.log(`[wearables] ${type}: checking availability...`);
         const available = await withTimeout(isHealthAvailable(), 9000, 'Health.isAvailable');
         if (!available) {
@@ -499,6 +505,7 @@ export const useWearableData = () => {
         }
 
         // 2) Request permissions (this should show the Health permission sheet)
+        phase = 'requesting_permissions';
         console.log(`[wearables] ${type}: requesting permissions...`);
         toast({
           title: `Connect ${getHealthPlatformName()}`,
@@ -516,6 +523,7 @@ export const useWearableData = () => {
         }
 
         // 3) Confirm we actually have authorization after the prompt
+        phase = 'confirming_authorization';
         console.log(`[wearables] ${type}: checking authorization...`);
         const authorized = await withTimeout(checkHealthPermissions(), 9000, 'Health.checkAuthorization');
         if (!authorized) {
@@ -533,6 +541,7 @@ export const useWearableData = () => {
         );
 
         // Sync data immediately
+        phase = 'initial_sync';
         console.log(`[wearables] ${type}: syncing data...`);
         const newData = await withTimeout(syncData(type), 25000, 'Wearables.syncData');
         if (newData) {
@@ -570,7 +579,7 @@ export const useWearableData = () => {
       toast({
         title: isTimeout ? 'Connection timed out' : 'Connection Failed',
         description: isTimeout
-          ? `The ${getHealthPlatformName()} connection didn’t respond in time. This usually means the native Health plugin isn’t responding. Please rebuild the iOS app from Xcode after a clean build, then try again.`
+          ? `The ${getHealthPlatformName()} connection didn’t respond during: ${phase}. This almost always means the native Health plugin isn’t running in this build (or the HealthKit entitlement/usage description is missing). Do a clean build in Xcode, delete the app from your iPhone, reinstall, then try again.`
           : message,
         variant: 'destructive',
       });
