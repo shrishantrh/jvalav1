@@ -50,7 +50,7 @@ export const usePushNotifications = () => {
           console.log('[Push] Service worker registered');
           
           // Check if already subscribed
-          const subscription = await reg.pushManager.getSubscription();
+          const subscription = await (reg as any).pushManager.getSubscription();
           setIsSubscribed(!!subscription);
         } catch (error) {
           console.error('[Push] Service worker registration failed:', error);
@@ -126,7 +126,7 @@ export const usePushNotifications = () => {
         return outputArray;
       };
 
-      const subscription = await registration.pushManager.subscribe({
+      const subscription = await (registration as any).pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidKey),
       });
@@ -246,7 +246,7 @@ export const usePushNotifications = () => {
     if (!registration) return;
 
     try {
-      const subscription = await registration.pushManager.getSubscription();
+      const subscription = await (registration as any).pushManager.getSubscription();
       if (subscription) {
         await subscription.unsubscribe();
         

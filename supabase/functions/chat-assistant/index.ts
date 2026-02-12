@@ -1362,10 +1362,28 @@ serve(async (req) => {
   }
 
   try {
-    const { message, history = [], userId }: ChatRequest = await req.json();
+    // ── JWT Auth Guard ──────────────────────────────────────────────────
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return replyJson({ error: "Unauthorized" }, 401);
+    }
+    const anonClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(authHeader.replace("Bearer ", ""));
+    if (claimsError || !claimsData?.claims?.sub) {
+      return replyJson({ error: "Unauthorized" }, 401);
+    }
+    const authenticatedUserId = claimsData.claims.sub as string;
+    // ─────────────────────────────────────────────────────────────────────
+
+    const { message, history = [], userId: requestedUserId }: ChatRequest = await req.json();
+    // Enforce: callers can only access their own data
+    const userId = authenticatedUserId;
+    
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     if (!apiKey) {
       console.error("❌ LOVABLE_API_KEY not configured");
@@ -1377,15 +1395,6 @@ serve(async (req) => {
     }
 
     console.log("💬 [chat-assistant] User message:", message.slice(0, 100));
-
-    if (!userId) {
-      return replyJson({
-        response: "Please sign in so I can access your health data and help you better. 🔐",
-        shouldLog: false,
-        entryData: null,
-        visualization: null,
-      });
-    }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
