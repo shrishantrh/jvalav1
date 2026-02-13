@@ -279,24 +279,23 @@ const queryHealthData = async (
   endDate: Date
 ): Promise<HealthSample[]> => {
   try {
+    console.log(`[health] → readSamples(${dataType}) calling native...`);
     const start = performance.now();
     const result = await withTimeout(
       plugin.readSamples({
         dataType,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
-        limit: 100,
-        ascending: false,
       }),
-      10000,
+      8000,
       `Health.readSamples(${dataType})`
     ) as any;
     
     const samples = result?.samples || [];
-    console.log(`[health] ${dataType}: ${samples.length} samples in ${Math.round(performance.now() - start)}ms`);
+    console.log(`[health] ✓ ${dataType}: ${samples.length} samples in ${Math.round(performance.now() - start)}ms`);
     return samples;
   } catch (error) {
-    console.warn(`[health] ${dataType} FAILED:`, error instanceof Error ? error.message : error);
+    console.warn(`[health] ✗ ${dataType} FAILED:`, error instanceof Error ? error.message : error);
     return [];
   }
 };
@@ -330,13 +329,27 @@ const calculateSleepQuality = (hours: number): 'poor' | 'fair' | 'good' | 'excel
 /**
  * Fetch comprehensive health data from Apple Health / Health Connect
  */
-export const fetchHealthData = async (): Promise<AppleHealthData | null> => {
+export const fetchHealthData = async (injectedPlugin?: any): Promise<AppleHealthData | null> => {
   console.log('[health] fetchHealthData: starting...');
-  const plugin = await loadHealthPlugin();
+  
+  // Prefer an explicitly passed plugin (already verified to work for requestAuthorization).
+  // Falling back to loadHealthPlugin() can hang when the dynamic import produces an unbound proxy.
+  let plugin = injectedPlugin;
+  if (!plugin) {
+    // Try the injected Capacitor proxy first (fastest, no async)
+    try {
+      plugin = (window as any)?.Capacitor?.Plugins?.Health;
+      if (plugin) console.log('[health] using injected Capacitor.Plugins.Health');
+    } catch { /* ignore */ }
+  }
+  if (!plugin) {
+    plugin = await loadHealthPlugin();
+  }
   if (!plugin) {
     console.warn('[health] fetchHealthData: plugin not loaded');
     return null;
   }
+  console.log('[health] plugin acquired, starting queries...');
   
   try {
     const now = new Date();
@@ -347,8 +360,8 @@ export const fetchHealthData = async (): Promise<AppleHealthData | null> => {
     const yesterdayNight = new Date(startOfToday);
     yesterdayNight.setHours(-12);
     
-    // Fetch all data types in parallel using allSettled so one hanging
-    // query doesn't block all the others.
+    console.log('[health] launching 10 parallel readSamples queries...');
+    console.log('[health] plugin methods:', Object.keys(plugin).filter(k => typeof plugin[k] === 'function').join(', '));
     const results = await Promise.allSettled([
       queryHealthData(plugin, 'heartRate', startOfToday, now),
       queryHealthData(plugin, 'restingHeartRate', startOfToday, now),
@@ -418,31 +431,36 @@ export const fetchHealthData = async (): Promise<AppleHealthData | null> => {
       }
     });
     
-    // Fetch workouts (with its own timeout — queryWorkouts can hang on some devices)
+    // Fetch workouts (skip if queryWorkouts isn't available — not all plugin versions support it)
     let workouts: AppleHealthData['workouts'] = undefined;
-    try {
-      const workoutResult = await withTimeout(
-        plugin.queryWorkouts({
-          startDate: startOfToday.toISOString(),
-          endDate: now.toISOString(),
-          limit: 10,
-        }),
-        8000,
-        'Health.queryWorkouts'
-      ) as any;
-      
-      if (workoutResult?.workouts && workoutResult.workouts.length > 0) {
-        workouts = workoutResult.workouts.map((w: any) => ({
-          type: w.workoutType || 'other',
-          startDate: w.startDate,
-          endDate: w.endDate,
-          duration: Math.round(w.duration / 60),
-          calories: w.totalEnergyBurned,
-          distance: w.totalDistance,
-        }));
+    if (typeof plugin.queryWorkouts === 'function') {
+      try {
+        console.log('[health] → queryWorkouts calling native...');
+        const workoutResult = await withTimeout(
+          plugin.queryWorkouts({
+            startDate: startOfToday.toISOString(),
+            endDate: now.toISOString(),
+          }),
+          6000,
+          'Health.queryWorkouts'
+        ) as any;
+        
+        if (workoutResult?.workouts && workoutResult.workouts.length > 0) {
+          workouts = workoutResult.workouts.map((w: any) => ({
+            type: w.workoutType || 'other',
+            startDate: w.startDate,
+            endDate: w.endDate,
+            duration: Math.round(w.duration / 60),
+            calories: w.totalEnergyBurned,
+            distance: w.totalDistance,
+          }));
+        }
+        console.log(`[health] ✓ workouts: ${workouts?.length ?? 0}`);
+      } catch (error) {
+        console.warn('[health] ✗ workouts FAILED:', error instanceof Error ? error.message : error);
       }
-    } catch (error) {
-      console.warn('[health] No workout data:', error instanceof Error ? error.message : error);
+    } else {
+      console.log('[health] queryWorkouts not available on this plugin version');
     }
     
     const sleepHours = Math.round(totalSleepMinutes / 60 * 10) / 10;
