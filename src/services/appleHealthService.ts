@@ -310,10 +310,49 @@ const getMostRecent = (samples: HealthSample[]): number | undefined => {
 };
 
 /**
- * Sum values from health data array for a time period
+ * Sum values from health data array, deduplicating overlapping samples.
+ *
+ * HealthKit returns raw samples from EVERY source (iPhone pedometer, Apple Watch,
+ * third-party apps). Apple Health's UI deduplicates these, but raw queries do not.
+ * Without dedup, steps/distance/calories will be 2x the real value.
+ *
+ * Strategy: sort by startDate, merge overlapping intervals, keep the highest
+ * value per merged window.
  */
 const sumValues = (samples: HealthSample[]): number => {
-  return samples.reduce((sum, sample) => sum + (sample.value || 0), 0);
+  if (!samples || samples.length === 0) return 0;
+
+  // Sort by start time ascending
+  const sorted = [...samples].sort(
+    (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+  );
+
+  let total = 0;
+  let currentEnd = -Infinity;
+
+  for (const sample of sorted) {
+    const start = new Date(sample.startDate).getTime();
+    const end = new Date(sample.endDate).getTime();
+    const value = sample.value || 0;
+
+    if (start >= currentEnd) {
+      // No overlap — add the full value
+      total += value;
+      currentEnd = end;
+    } else if (end > currentEnd) {
+      // Partial overlap — only count the non-overlapping portion proportionally
+      const overlapMs = currentEnd - start;
+      const totalMs = end - start;
+      if (totalMs > 0) {
+        const nonOverlapFraction = 1 - overlapMs / totalMs;
+        total += value * nonOverlapFraction;
+      }
+      currentEnd = end;
+    }
+    // Fully contained within previous sample — skip entirely
+  }
+
+  return total;
 };
 
 /**
