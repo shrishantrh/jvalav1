@@ -360,36 +360,23 @@ export const fetchHealthData = async (injectedPlugin?: any): Promise<AppleHealth
     const yesterdayNight = new Date(startOfToday);
     yesterdayNight.setHours(-12);
     
-    console.log('[health] launching 10 parallel readSamples queries...');
+    // SEQUENTIAL queries — native bridges (especially iOS HealthKit via Capacitor)
+    // often serialize JS→native calls internally. Parallel Promise.allSettled can
+    // cause the bridge to deadlock, resulting in every call hanging until the global
+    // timeout fires. Running them one-by-one is slower but actually completes.
     console.log('[health] plugin methods:', Object.keys(plugin).filter(k => typeof plugin[k] === 'function').join(', '));
-    const results = await Promise.allSettled([
-      queryHealthData(plugin, 'heartRate', startOfToday, now),
-      queryHealthData(plugin, 'restingHeartRate', startOfToday, now),
-      queryHealthData(plugin, 'heartRateVariability', startOfToday, now),
-      queryHealthData(plugin, 'oxygenSaturation', startOfToday, now),
-      queryHealthData(plugin, 'respiratoryRate', startOfToday, now),
-      queryHealthData(plugin, 'steps', startOfToday, now),
-      queryHealthData(plugin, 'distance', startOfToday, now),
-      queryHealthData(plugin, 'calories', startOfToday, now),
-      queryHealthData(plugin, 'sleep', yesterdayNight, now),
-      queryHealthData(plugin, 'weight', new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), now),
-    ]);
+    console.log('[health] starting sequential readSamples queries...');
 
-    const extract = (r: PromiseSettledResult<HealthSample[]>): HealthSample[] =>
-      r.status === 'fulfilled' ? r.value : [];
-
-    const [
-      heartRateData,
-      restingHRData,
-      hrvData,
-      spo2Data,
-      respRateData,
-      stepsData,
-      distanceData,
-      caloriesData,
-      sleepData,
-      weightData,
-    ] = results.map(extract);
+    const heartRateData = await queryHealthData(plugin, 'heartRate', startOfToday, now);
+    const restingHRData = await queryHealthData(plugin, 'restingHeartRate', startOfToday, now);
+    const hrvData = await queryHealthData(plugin, 'heartRateVariability', startOfToday, now);
+    const spo2Data = await queryHealthData(plugin, 'oxygenSaturation', startOfToday, now);
+    const respRateData = await queryHealthData(plugin, 'respiratoryRate', startOfToday, now);
+    const stepsData = await queryHealthData(plugin, 'steps', startOfToday, now);
+    const distanceData = await queryHealthData(plugin, 'distance', startOfToday, now);
+    const caloriesData = await queryHealthData(plugin, 'calories', startOfToday, now);
+    const sleepData = await queryHealthData(plugin, 'sleep', yesterdayNight, now);
+    const weightData = await queryHealthData(plugin, 'weight', new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), now);
     
     // Process sleep data - separate by sleep state
     let totalSleepMinutes = 0;

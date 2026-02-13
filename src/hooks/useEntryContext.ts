@@ -55,8 +55,8 @@ export const useEntryContext = () => {
     if (!wearableData?.lastSyncedAt || wearableData.lastSyncedAt < fiveMinutesAgo) {
       const connectedDevice = connections.find((c) => c.connected);
       if (connectedDevice) {
-        // 2.5s budget for a sync attempt; after that, proceed with cached/partial data.
-        await withTimeout(syncData(connectedDevice.type), 2500);
+        // 10s budget for a sync attempt on native (sequential health queries take longer)
+        await withTimeout(syncData(connectedDevice.type), 10000);
       }
     }
 
@@ -96,9 +96,10 @@ export const useEntryContext = () => {
   // Get all context data for an entry
   const getEntryContext = useCallback(async (): Promise<EntryContextData> => {
     // Fetch both in parallel, but never block indefinitely.
+    // Give wearable data more time on native (health queries run sequentially).
     const [envResult, physioData] = await Promise.all([
       getEnvironmentalData(),
-      withTimeout(getWearableData(), 2500),
+      withTimeout(getWearableData(), 8000),
     ]);
 
     return {

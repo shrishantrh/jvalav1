@@ -550,17 +550,6 @@ const Index = () => {
           />
         }
       >
-        {/* Sentry Test Button - TEMPORARY */}
-        <Button
-          variant="destructive"
-          size="sm"
-          className="mx-auto mb-2"
-          onClick={() => {
-            throw new Error("Sentry Test Error: Hello from my lovable project!");
-          }}
-        >
-          Break the world
-        </Button>
 
         {/* Track View - Full height chat */}
         {currentView === 'track' && user && (

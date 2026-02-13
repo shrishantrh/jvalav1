@@ -31,6 +31,46 @@ const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): 
   }
 };
 
+const HEALTH_CONNECTED_KEY = 'jvala_health_connected';
+const HEALTH_DATA_CACHE_KEY = 'jvala_health_data_cache';
+
+const persistHealthConnection = (connected: boolean) => {
+  try {
+    localStorage.setItem(HEALTH_CONNECTED_KEY, connected ? '1' : '');
+  } catch { /* ignore */ }
+};
+
+const getPersistedHealthConnection = (): boolean => {
+  try {
+    return localStorage.getItem(HEALTH_CONNECTED_KEY) === '1';
+  } catch { return false; }
+};
+
+const cacheHealthData = (data: WearableData) => {
+  try {
+    localStorage.setItem(HEALTH_DATA_CACHE_KEY, JSON.stringify({
+      ...data,
+      lastSyncedAt: data.lastSyncedAt?.toISOString(),
+      _cachedAt: new Date().toISOString(),
+    }));
+  } catch { /* ignore */ }
+};
+
+const getCachedHealthData = (): WearableData | null => {
+  try {
+    const raw = localStorage.getItem(HEALTH_DATA_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    // Only use cache if < 30 minutes old
+    const cachedAt = new Date(parsed._cachedAt);
+    if (Date.now() - cachedAt.getTime() > 30 * 60 * 1000) return null;
+    return {
+      ...parsed,
+      lastSyncedAt: parsed.lastSyncedAt ? new Date(parsed.lastSyncedAt) : undefined,
+    };
+  } catch { return null; }
+};
+
 const getInjectedHealthPlugin = (): any | null => {
   try {
     return (window as any)?.Capacitor?.Plugins?.Health ?? null;
@@ -203,34 +243,29 @@ export const useWearableData = () => {
     if (!isNative) return false;
 
     try {
-      // Skip isAvailable() — it hangs on many iOS builds/devices.
-      // Instead, directly check if we have existing permissions. If checkAuthorization
-      // returns data, we know the plugin AND HealthKit are available.
       if (!isHealthPluginPresent()) {
         console.log('[wearables] Health plugin not present in this build');
         return false;
       }
 
-      setHealthAvailable(true); // Assume available if plugin is present
+      setHealthAvailable(true);
 
-      let hasPermissions = false;
-      try {
-        hasPermissions = await withTimeout(
-          checkHealthPermissions(),
-          6000,
-          'Health.checkAuthorization'
-        );
-      } catch (e) {
-        // Timeout or error — don't block; user can connect manually
-        console.warn('[wearables] checkAuthorization failed on mount:', e instanceof Error ? e.message : e);
-        return false;
-      }
-
-      if (hasPermissions) {
+      // Trust localStorage — checkAuthorization consistently hangs on iOS.
+      // If user previously connected, mark as connected immediately.
+      if (getPersistedHealthConnection()) {
+        console.log('[wearables] Apple Health previously connected (localStorage)');
         const healthType = platform === 'ios' ? 'apple_health' : 'google_fit';
         setConnections(prev =>
           prev.map(c => (c.type === healthType ? { ...c, connected: true, comingSoon: false } : c))
         );
+
+        // Restore cached data so getDataForEntry() works immediately
+        const cached = getCachedHealthData();
+        if (cached) {
+          console.log('[wearables] Restoring cached health data');
+          setData(cached);
+        }
+
         return true;
       }
 
@@ -252,7 +287,7 @@ export const useWearableData = () => {
         const injectedPlugin = getInjectedHealthPlugin();
         console.log('[wearables] syncData: injectedPlugin present?', !!injectedPlugin);
         
-        const healthData = await withTimeout(fetchHealthData(injectedPlugin ?? undefined), 20000, 'Health.fetchHealthData').catch((e) => {
+        const healthData = await withTimeout(fetchHealthData(injectedPlugin ?? undefined), 90000, 'Health.fetchHealthData').catch((e) => {
           console.error('[wearables] fetchHealthData failed:', e instanceof Error ? e.message : e);
           return null;
         });
@@ -296,6 +331,7 @@ export const useWearableData = () => {
         };
         
         setData(wearableData);
+        cacheHealthData(wearableData); // Persist for next app launch / navigation
         setConnections(prev => prev.map(c => 
           c.type === type ? { ...c, lastSync: new Date() } : c
         ));
@@ -672,6 +708,7 @@ export const useWearableData = () => {
           return false;
         }
         // Update connection status immediately (don’t block the UI on the initial data read).
+        persistHealthConnection(true);
         setConnections(prev =>
           prev.map(c => (c.type === type ? { ...c, connected: true, comingSoon: false } : c))
         );
@@ -687,7 +724,7 @@ export const useWearableData = () => {
           try {
             phase = 'initial_sync';
             console.log(`[wearables] ${type}: syncing data (background)...`);
-            const newData = await withTimeout(syncData(type), 25000, 'Wearables.syncData');
+            const newData = await withTimeout(syncData(type), 120000, 'Wearables.syncData');
             if (!newData) {
               toast({
                 title: 'Connected, but no data yet',
@@ -760,6 +797,10 @@ export const useWearableData = () => {
     
     setData(null);
     hasSyncedRef.current = false;
+    if (type === 'apple_health' || type === 'google_fit') {
+      persistHealthConnection(false);
+      try { localStorage.removeItem(HEALTH_DATA_CACHE_KEY); } catch { /* ignore */ }
+    }
     
     const deviceNames: Record<string, string> = {
       fitbit: 'Fitbit',
