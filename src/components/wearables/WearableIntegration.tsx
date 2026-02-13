@@ -258,7 +258,7 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 items-start">
             {/* Heart Rate */}
             {data.heartRate && (
               <div className="p-3 rounded-xl bg-red-50 border border-red-100">
@@ -346,6 +346,7 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
             )}
 
             {/* Steps */}
+            {(data.steps !== undefined && data.steps !== null && data.steps > 0) && (
             <div className="p-3 rounded-xl bg-blue-50 border border-blue-100">
               <div className="flex items-center gap-2 mb-1">
                 <Footprints className="w-4 h-4 text-blue-500" />
@@ -353,7 +354,7 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
               </div>
               <div className="flex items-baseline gap-1">
                 <span className="text-2xl font-bold text-blue-600">
-                  {data.steps?.toLocaleString() || '0'}
+                  {data.steps?.toLocaleString()}
                 </span>
               </div>
               {data.activeMinutes && (
@@ -362,6 +363,7 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
                 </p>
               )}
             </div>
+            )}
 
             {/* Active Zone Minutes */}
             {data.activeZoneMinutesTotal && (
