@@ -1,5 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { isNative } from "@/lib/capacitor";
+import { cachedFetch } from "@/lib/apiResilience";
+import { logAPICall } from "@/lib/observability";
 
 export interface EnvironmentalData {
   location: {
@@ -24,25 +26,37 @@ export interface EnvironmentalData {
   season: "spring" | "summer" | "fall" | "winter";
 }
 
+// Round coords to ~1km grid so nearby calls share cache
+const roundCoord = (n: number) => Math.round(n * 100) / 100;
+
 export const fetchWeatherData = async (
   latitude: number,
   longitude: number
 ): Promise<EnvironmentalData | null> => {
-  try {
-    const { data, error } = await supabase.functions.invoke("get-weather", {
-      body: { latitude, longitude },
-    });
+  const cacheKey = `weather_${roundCoord(latitude)}_${roundCoord(longitude)}`;
+  const start = performance.now();
 
-    if (error) {
-      console.error("Weather API error:", error);
-      return null;
-    }
+  const result = await cachedFetch<EnvironmentalData>(
+    cacheKey,
+    async () => {
+      const { data, error } = await supabase.functions.invoke("get-weather", {
+        body: { latitude, longitude },
+      });
+      if (error) throw new Error(error.message || "Weather API error");
+      return data;
+    },
+    5 * 60 * 1000, // 5 min TTL
+    "weather-api" // circuit breaker name
+  );
 
-    return data;
-  } catch (error) {
-    console.error("Failed to fetch weather:", error);
-    return null;
-  }
+  logAPICall({
+    service: "weather",
+    latencyMs: Math.round(performance.now() - start),
+    status: result ? "success" : "error",
+    cached: result !== null && performance.now() - start < 10,
+  });
+
+  return result;
 };
 
 export const getCurrentLocation = async (): Promise<

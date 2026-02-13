@@ -18,8 +18,7 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    console.log('🤖 Analyzing note with Lovable AI:', note);
-
+    const aiStart = performance.now();
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -92,8 +91,10 @@ Classification Rules:
       })
     });
 
+    const aiLatency = Math.round(performance.now() - aiStart);
     if (!response.ok) {
       console.error('❌ Lovable AI request failed:', response.status);
+      console.info(`[ai-observability] ${JSON.stringify({ function: 'analyze-note', model: 'google/gemini-2.5-flash', tokensIn: 0, tokensOut: 0, latencyMs: aiLatency, status: response.status === 429 ? 'rate_limited' : response.status === 402 ? 'credits_exhausted' : 'error' })}`);
       
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
@@ -112,7 +113,8 @@ Classification Rules:
     }
 
     const data = await response.json();
-    console.log('📤 AI response:', JSON.stringify(data, null, 2));
+    const usage = data.usage;
+    console.info(`[ai-observability] ${JSON.stringify({ function: 'analyze-note', model: 'google/gemini-2.5-flash', tokensIn: usage?.prompt_tokens || 0, tokensOut: usage?.completion_tokens || 0, latencyMs: aiLatency, status: 'success' })}`);
     
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     

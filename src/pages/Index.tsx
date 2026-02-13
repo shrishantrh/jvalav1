@@ -295,9 +295,11 @@ const Index = () => {
     try {
       console.log('[entries] saving entry:', entryData);
 
+      // Idempotent insert: ON CONFLICT (user_id, timestamp) DO NOTHING
+      // prevents duplicate rows from double-taps or retries.
       const { data, error } = await supabase
         .from('flare_entries')
-        .insert({
+        .upsert({
           user_id: user.id,
           timestamp: (entryData.timestamp || new Date()).toISOString(),
           entry_type: entryData.type || 'note',
@@ -314,7 +316,7 @@ const Index = () => {
           latitude: entryData.environmentalData?.location?.latitude || null,
           longitude: entryData.environmentalData?.location?.longitude || null,
           city: entryData.environmentalData?.location?.city || null,
-        })
+        }, { onConflict: 'user_id,timestamp', ignoreDuplicates: true })
         .select()
         .single();
 

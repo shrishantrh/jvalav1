@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { isNative, platform } from '@/lib/capacitor';
+import { cachedFetch } from '@/lib/apiResilience';
+import { logAPICall } from '@/lib/observability';
 import {
   isHealthAvailable,
   checkHealthPermissions,
@@ -302,16 +304,28 @@ export const useWearableData = () => {
         return null;
       }
       
-      // Fitbit sync via edge function
-      const { data: fitbitData, error } = await supabase.functions.invoke('fitbit-data');
-      
-      if (error) {
-        console.error('Error fetching Fitbit data:', error);
-        return null;
-      }
+      // Fitbit sync via edge function with caching + circuit breaker
+      const start = performance.now();
+      const fitbitData = await cachedFetch<any>(
+        'fitbit_data',
+        async () => {
+          const { data, error } = await supabase.functions.invoke('fitbit-data');
+          if (error) throw error;
+          if (data?.error) throw new Error(data.error);
+          return data;
+        },
+        5 * 60 * 1000, // 5 min TTL
+        'fitbit-api'
+      );
 
-      if (fitbitData?.error) {
-        console.log('Fitbit data error:', fitbitData.error);
+      logAPICall({
+        service: 'fitbit',
+        latencyMs: Math.round(performance.now() - start),
+        status: fitbitData ? 'success' : 'error',
+        cached: fitbitData !== null && performance.now() - start < 10,
+      });
+
+      if (!fitbitData) {
         return null;
       }
 
