@@ -247,9 +247,12 @@ export const useWearableData = () => {
     try {
       // Check for Apple Health / Health Connect sync
       if (type === 'apple_health' || type === 'google_fit') {
-        // Native plugin calls can occasionally hang; never let a flare log wait forever on this.
-        // Give generous timeout: 10 parallel queries (8s each) + workouts (8s) ≈ 16s worst case.
-        const healthData = await withTimeout(fetchHealthData(), 25000, 'Health.fetchHealthData').catch((e) => {
+        // Pass the injected plugin directly — this is the SAME object that succeeded for
+        // requestAuthorization, so we know it's properly bound to the native bridge.
+        const injectedPlugin = getInjectedHealthPlugin();
+        console.log('[wearables] syncData: injectedPlugin present?', !!injectedPlugin);
+        
+        const healthData = await withTimeout(fetchHealthData(injectedPlugin ?? undefined), 20000, 'Health.fetchHealthData').catch((e) => {
           console.error('[wearables] fetchHealthData failed:', e instanceof Error ? e.message : e);
           return null;
         });
