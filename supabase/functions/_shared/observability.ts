@@ -1,12 +1,8 @@
 /**
  * Edge Function: AI Observability Helper
  *
- * Usage in any edge function that calls Lovable AI gateway:
- *
- *   import { observedAICall } from "./observability.ts";
- *   const { response, log } = await observedAICall("ai-insights", apiKey, body);
- *
- * Logs: model, tokens_in, tokens_out, latency_ms, status
+ * Logs AI calls as structured JSON AND reports errors/slow calls
+ * to Sentry via the HTTP Envelope API (no SDK needed for Deno).
  */
 
 interface AIObservabilityLog {
@@ -18,6 +14,77 @@ interface AIObservabilityLog {
   status: "success" | "error" | "rate_limited" | "credits_exhausted";
   errorMessage?: string;
 }
+
+// ─── Sentry HTTP reporter (lightweight, no SDK) ─────────────────────────────
+
+function parseSentryDSN(dsn: string | undefined): {
+  publicKey: string;
+  host: string;
+  projectId: string;
+} | null {
+  if (!dsn) return null;
+  try {
+    const url = new URL(dsn);
+    const publicKey = url.username;
+    const projectId = url.pathname.replace("/", "");
+    const host = url.hostname;
+    return { publicKey, host, projectId };
+  } catch {
+    return null;
+  }
+}
+
+async function sendToSentry(
+  level: "error" | "warning" | "info",
+  message: string,
+  extra: Record<string, unknown>
+): Promise<void> {
+  const dsn = Deno.env.get("SENTRY_DSN");
+  const parsed = parseSentryDSN(dsn);
+  if (!parsed) return; // Sentry not configured, silently skip
+
+  const { publicKey, host, projectId } = parsed;
+  const timestamp = Math.floor(Date.now() / 1000);
+
+  const envelope = [
+    JSON.stringify({
+      dsn,
+      sent_at: new Date().toISOString(),
+    }),
+    JSON.stringify({ type: "event" }),
+    JSON.stringify({
+      timestamp,
+      level,
+      platform: "node",
+      server_name: "edge-function",
+      message: { formatted: message },
+      extra,
+      tags: {
+        runtime: "deno",
+        service: "edge-function",
+        ai_function: extra.function || "unknown",
+      },
+    }),
+  ].join("\n");
+
+  try {
+    await fetch(
+      `https://${host}/api/${projectId}/envelope/`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-sentry-envelope",
+          "X-Sentry-Auth": `Sentry sentry_version=7, sentry_client=jvala-edge/1.0, sentry_key=${publicKey}`,
+        },
+        body: envelope,
+      }
+    );
+  } catch {
+    // Fire-and-forget — don't let Sentry failures break the function
+  }
+}
+
+// ─── Main export ─────────────────────────────────────────────────────────────
 
 export async function observedAICall(
   functionName: string,
@@ -81,6 +148,13 @@ export async function observedAICall(
 
   // Structured log for aggregation
   console.info(`[ai-observability] ${JSON.stringify(log)}`);
+
+  // Report failures and slow calls (>10s) to Sentry
+  if (status !== "success") {
+    await sendToSentry("error", `AI call failed: ${functionName} — ${status}`, log);
+  } else if (latencyMs > 10_000) {
+    await sendToSentry("warning", `AI call slow: ${functionName} — ${latencyMs}ms`, log);
+  }
 
   return { response, log };
 }
