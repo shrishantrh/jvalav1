@@ -279,17 +279,23 @@ const queryHealthData = async (
   endDate: Date
 ): Promise<HealthSample[]> => {
   try {
-    const result = await plugin.readSamples({
-      dataType,
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
-      limit: 100,
-      ascending: false,
-    });
+    // Each individual query gets its own timeout to prevent one hanging type
+    // from blocking all others (the old Promise.all approach).
+    const result = await withTimeout(
+      plugin.readSamples({
+        dataType,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        limit: 100,
+        ascending: false,
+      }),
+      8000,
+      `Health.readSamples(${dataType})`
+    ) as any;
     
-    return result.samples || [];
+    return result?.samples || [];
   } catch (error) {
-    console.log(`No data for ${dataType}:`, error);
+    console.warn(`[health] No data for ${dataType}:`, error instanceof Error ? error.message : error);
     return [];
   }
 };
@@ -336,19 +342,9 @@ export const fetchHealthData = async (): Promise<AppleHealthData | null> => {
     const yesterdayNight = new Date(startOfToday);
     yesterdayNight.setHours(-12);
     
-    // Fetch all data types in parallel
-    const [
-      heartRateData,
-      restingHRData,
-      hrvData,
-      spo2Data,
-      respRateData,
-      stepsData,
-      distanceData,
-      caloriesData,
-      sleepData,
-      weightData,
-    ] = await Promise.all([
+    // Fetch all data types in parallel using allSettled so one hanging
+    // query doesn't block all the others.
+    const results = await Promise.allSettled([
       queryHealthData(plugin, 'heartRate', startOfToday, now),
       queryHealthData(plugin, 'restingHeartRate', startOfToday, now),
       queryHealthData(plugin, 'heartRateVariability', startOfToday, now),
@@ -360,6 +356,22 @@ export const fetchHealthData = async (): Promise<AppleHealthData | null> => {
       queryHealthData(plugin, 'sleep', yesterdayNight, now),
       queryHealthData(plugin, 'weight', new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), now),
     ]);
+
+    const extract = (r: PromiseSettledResult<HealthSample[]>): HealthSample[] =>
+      r.status === 'fulfilled' ? r.value : [];
+
+    const [
+      heartRateData,
+      restingHRData,
+      hrvData,
+      spo2Data,
+      respRateData,
+      stepsData,
+      distanceData,
+      caloriesData,
+      sleepData,
+      weightData,
+    ] = results.map(extract);
     
     // Process sleep data - separate by sleep state
     let totalSleepMinutes = 0;
@@ -401,27 +413,31 @@ export const fetchHealthData = async (): Promise<AppleHealthData | null> => {
       }
     });
     
-    // Fetch workouts
+    // Fetch workouts (with its own timeout — queryWorkouts can hang on some devices)
     let workouts: AppleHealthData['workouts'] = undefined;
     try {
-      const workoutResult = await plugin.queryWorkouts({
-        startDate: startOfToday.toISOString(),
-        endDate: now.toISOString(),
-        limit: 10,
-      });
+      const workoutResult = await withTimeout(
+        plugin.queryWorkouts({
+          startDate: startOfToday.toISOString(),
+          endDate: now.toISOString(),
+          limit: 10,
+        }),
+        8000,
+        'Health.queryWorkouts'
+      ) as any;
       
-      if (workoutResult.workouts && workoutResult.workouts.length > 0) {
+      if (workoutResult?.workouts && workoutResult.workouts.length > 0) {
         workouts = workoutResult.workouts.map((w: any) => ({
           type: w.workoutType || 'other',
           startDate: w.startDate,
           endDate: w.endDate,
-          duration: Math.round(w.duration / 60), // Convert seconds to minutes
+          duration: Math.round(w.duration / 60),
           calories: w.totalEnergyBurned,
           distance: w.totalDistance,
         }));
       }
     } catch (error) {
-      console.log('No workout data available:', error);
+      console.warn('[health] No workout data:', error instanceof Error ? error.message : error);
     }
     
     const sleepHours = Math.round(totalSleepMinutes / 60 * 10) / 10;

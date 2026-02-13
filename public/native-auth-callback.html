@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jvala — Signing you in…</title>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: #0a0a0a;
+      color: #fff;
+      font-family: system-ui, sans-serif;
+    }
+    .msg { text-align: center; opacity: 0.7; }
+  </style>
+</head>
+<body>
+  <div class="msg">
+    <p>Signing you in…</p>
+    <p style="font-size: 0.8em; opacity: 0.5;">Returning to the app.</p>
+  </div>
+  <script>
+    // This page acts as a bridge for native Capacitor OAuth.
+    // After OAuth, Supabase redirects here with tokens in the URL hash.
+    // We forward them to the native app via the custom URL scheme.
+    (function () {
+      var hash = window.location.hash;
+      if (hash && hash.length > 1) {
+        // Forward tokens to the native app via custom URL scheme
+        window.location.href = 'jvala://auth-callback' + hash;
+      } else {
+        // No tokens — redirect to the main app
+        window.location.href = '/';
+      }
+    })();
+  </script>
+</body>
+</html>

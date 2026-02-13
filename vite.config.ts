@@ -103,11 +103,19 @@ export default defineConfig(({ mode }) => ({
    */
   build: {
     rollupOptions: {
-      external: ["@capacitor/geolocation"],
+      external: [
+        "@capacitor/geolocation",
+        "@capacitor/browser",
+        "@capacitor/app",
+      ],
     },
   },
   optimizeDeps: {
-    exclude: ["@capacitor/geolocation"],
+    exclude: [
+      "@capacitor/geolocation",
+      "@capacitor/browser",
+      "@capacitor/app",
+    ],
   },
 }));
 
