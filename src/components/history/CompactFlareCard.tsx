@@ -18,6 +18,13 @@ import {
   MessageSquare,
   Zap,
   Pill,
+  Wind,
+  Sun,
+  Cloud,
+  CloudRain,
+  Gauge,
+  Leaf,
+  Eye,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
@@ -218,12 +225,26 @@ export const CompactFlareCard = ({
   const city = env?.location?.city || env?.city;
   const temp = env?.weather?.temperature;
   const humidity = env?.weather?.humidity;
+  const pressure = env?.weather?.pressure || env?.weather?.pressureMb;
+  const condition = env?.weather?.condition;
+  const conditionIcon = env?.weather?.conditionIcon;
+  const windSpeed = env?.weather?.windSpeed;
+  const windDirection = env?.weather?.windDirection;
+  const uvIndex = env?.weather?.uvIndex;
+  const cloudCover = env?.weather?.cloudCover;
+  const precipitation = env?.weather?.precipitation;
+  const feelsLike = env?.weather?.feelsLike;
+  const aqi = env?.airQuality?.aqi;
+  const aqiCategory = env?.airQuality?.aqiCategory;
+  const pollenTree = env?.airQuality?.pollenTree;
+  const pollenGrass = env?.airQuality?.pollenGrass;
   
   const heartRate = phys?.heartRate || phys?.heart_rate;
   const sleepHours = phys?.sleepHours || phys?.sleep_hours;
   const steps = phys?.steps;
 
-  const hasData = city || temp || heartRate || sleepHours || entry.symptoms?.length || entry.triggers?.length || entry.note;
+  const hasWeatherData = temp || humidity || pressure || windSpeed || uvIndex || aqi || condition;
+  const hasData = city || hasWeatherData || heartRate || sleepHours || entry.symptoms?.length || entry.triggers?.length || entry.note;
 
   return (
     <Collapsible open={isExpanded} onOpenChange={handleToggle}>
@@ -317,74 +338,124 @@ export const CompactFlareCard = ({
         {/* Expanded Content */}
         <CollapsibleContent>
           <div className="px-4 pb-4 space-y-4 border-t border-white/30 pt-4 relative z-10">
-            {/* Quick Metrics Row */}
-            {(temp || heartRate || sleepHours || steps) && (
-              <div className="grid grid-cols-4 gap-2">
-                {temp && (
-                  <div 
-                    className="text-center p-3 rounded-2xl backdrop-blur-sm"
-                    style={{
-                      background: 'linear-gradient(145deg, rgba(255,237,213,0.9) 0%, rgba(254,215,170,0.85) 100%)',
-                      border: '1px solid rgba(251,191,36,0.3)',
-                      boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.3)',
-                    }}
-                  >
-                    <Thermometer className="w-4 h-4 mx-auto mb-1.5 text-orange-500" />
-                    <p className="text-sm font-bold">{temp}°</p>
-                  </div>
-                )}
-                {humidity && (
-                  <div 
-                    className="text-center p-3 rounded-2xl backdrop-blur-sm"
-                    style={{
-                      background: 'linear-gradient(145deg, rgba(219,234,254,0.9) 0%, rgba(191,219,254,0.85) 100%)',
-                      border: '1px solid rgba(59,130,246,0.3)',
-                      boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.3)',
-                    }}
-                  >
-                    <Droplets className="w-4 h-4 mx-auto mb-1.5 text-blue-500" />
-                    <p className="text-sm font-bold">{humidity}%</p>
-                  </div>
-                )}
-                {heartRate && (
-                  <div 
-                    className="text-center p-3 rounded-2xl backdrop-blur-sm"
-                    style={{
-                      background: 'linear-gradient(145deg, rgba(254,226,226,0.9) 0%, rgba(254,202,202,0.85) 100%)',
-                      border: '1px solid rgba(239,68,68,0.3)',
-                      boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.3)',
-                    }}
-                  >
-                    <Heart className="w-4 h-4 mx-auto mb-1.5 text-red-500" />
-                    <p className="text-sm font-bold">{heartRate}</p>
-                  </div>
-                )}
-                {sleepHours && (
-                  <div 
-                    className="text-center p-3 rounded-2xl backdrop-blur-sm"
-                    style={{
-                      background: 'linear-gradient(145deg, rgba(224,231,255,0.9) 0%, rgba(199,210,254,0.85) 100%)',
-                      border: '1px solid rgba(99,102,241,0.3)',
-                      boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.3)',
-                    }}
-                  >
-                    <Moon className="w-4 h-4 mx-auto mb-1.5 text-indigo-500" />
-                    <p className="text-sm font-bold">{sleepHours}h</p>
-                  </div>
-                )}
-                {steps && (
-                  <div 
-                    className="text-center p-3 rounded-2xl backdrop-blur-sm"
-                    style={{
-                      background: 'linear-gradient(145deg, rgba(209,250,229,0.9) 0%, rgba(167,243,208,0.85) 100%)',
-                      border: '1px solid rgba(16,185,129,0.3)',
-                      boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.3)',
-                    }}
-                  >
-                    <Footprints className="w-4 h-4 mx-auto mb-1.5 text-emerald-500" />
-                    <p className="text-sm font-bold">{steps >= 1000 ? `${(steps/1000).toFixed(1)}k` : steps}</p>
-                  </div>
-                )}
+            {/* Weather Condition Banner */}
+            {condition && (
+              <div 
+                className="flex items-center gap-2 p-2.5 rounded-2xl backdrop-blur-sm"
+                style={{
+                  background: 'linear-gradient(145deg, rgba(241,245,249,0.9) 0%, rgba(226,232,240,0.85) 100%)',
+                  border: '1px solid rgba(148,163,184,0.3)',
+                }}
+              >
+                {conditionIcon && <span className="text-lg">{conditionIcon}</span>}
+                <span className="text-sm font-semibold text-foreground">{condition}</span>
+                {feelsLike && <span className="text-xs text-muted-foreground ml-auto">Feels like {feelsLike}°F</span>}
+              </div>
+            )}
+
+            {/* Weather Metrics Grid */}
+            {hasWeatherData && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-2">Weather & Environment</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {temp != null && (
+                    <div className="text-center p-2.5 rounded-2xl backdrop-blur-sm"
+                      style={{ background: 'linear-gradient(145deg, rgba(255,237,213,0.9) 0%, rgba(254,215,170,0.85) 100%)', border: '1px solid rgba(251,191,36,0.3)' }}>
+                      <Thermometer className="w-3.5 h-3.5 mx-auto mb-1 text-orange-500" />
+                      <p className="text-sm font-bold">{temp}°F</p>
+                      <p className="text-[8px] text-muted-foreground">temp</p>
+                    </div>
+                  )}
+                  {humidity != null && (
+                    <div className="text-center p-2.5 rounded-2xl backdrop-blur-sm"
+                      style={{ background: 'linear-gradient(145deg, rgba(219,234,254,0.9) 0%, rgba(191,219,254,0.85) 100%)', border: '1px solid rgba(59,130,246,0.3)' }}>
+                      <Droplets className="w-3.5 h-3.5 mx-auto mb-1 text-blue-500" />
+                      <p className="text-sm font-bold">{humidity}%</p>
+                      <p className="text-[8px] text-muted-foreground">humidity</p>
+                    </div>
+                  )}
+                  {pressure != null && (
+                    <div className="text-center p-2.5 rounded-2xl backdrop-blur-sm"
+                      style={{ background: 'linear-gradient(145deg, rgba(237,233,254,0.9) 0%, rgba(221,214,254,0.85) 100%)', border: '1px solid rgba(139,92,246,0.3)' }}>
+                      <Gauge className="w-3.5 h-3.5 mx-auto mb-1 text-violet-500" />
+                      <p className="text-sm font-bold">{pressure}</p>
+                      <p className="text-[8px] text-muted-foreground">mb</p>
+                    </div>
+                  )}
+                  {windSpeed != null && (
+                    <div className="text-center p-2.5 rounded-2xl backdrop-blur-sm"
+                      style={{ background: 'linear-gradient(145deg, rgba(241,245,249,0.9) 0%, rgba(226,232,240,0.85) 100%)', border: '1px solid rgba(100,116,139,0.3)' }}>
+                      <Wind className="w-3.5 h-3.5 mx-auto mb-1 text-slate-500" />
+                      <p className="text-sm font-bold">{windSpeed}</p>
+                      <p className="text-[8px] text-muted-foreground">{windDirection || 'mph'}</p>
+                    </div>
+                  )}
+                  {uvIndex != null && (
+                    <div className="text-center p-2.5 rounded-2xl backdrop-blur-sm"
+                      style={{ background: 'linear-gradient(145deg, rgba(254,249,195,0.9) 0%, rgba(253,224,71,0.85) 100%)', border: '1px solid rgba(234,179,8,0.3)' }}>
+                      <Sun className="w-3.5 h-3.5 mx-auto mb-1 text-yellow-500" />
+                      <p className="text-sm font-bold">{uvIndex}</p>
+                      <p className="text-[8px] text-muted-foreground">UV</p>
+                    </div>
+                  )}
+                  {cloudCover != null && (
+                    <div className="text-center p-2.5 rounded-2xl backdrop-blur-sm"
+                      style={{ background: 'linear-gradient(145deg, rgba(241,245,249,0.9) 0%, rgba(226,232,240,0.85) 100%)', border: '1px solid rgba(148,163,184,0.3)' }}>
+                      <Cloud className="w-3.5 h-3.5 mx-auto mb-1 text-slate-400" />
+                      <p className="text-sm font-bold">{cloudCover}%</p>
+                      <p className="text-[8px] text-muted-foreground">clouds</p>
+                    </div>
+                  )}
+                  {aqi != null && (
+                    <div className="text-center p-2.5 rounded-2xl backdrop-blur-sm"
+                      style={{ background: 'linear-gradient(145deg, rgba(220,252,231,0.9) 0%, rgba(187,247,208,0.85) 100%)', border: '1px solid rgba(34,197,94,0.3)' }}>
+                      <Eye className="w-3.5 h-3.5 mx-auto mb-1 text-green-500" />
+                      <p className="text-sm font-bold">{aqi}</p>
+                      <p className="text-[8px] text-muted-foreground">AQI</p>
+                    </div>
+                  )}
+                  {(pollenTree != null || pollenGrass != null) && (
+                    <div className="text-center p-2.5 rounded-2xl backdrop-blur-sm"
+                      style={{ background: 'linear-gradient(145deg, rgba(236,252,203,0.9) 0%, rgba(217,249,157,0.85) 100%)', border: '1px solid rgba(132,204,22,0.3)' }}>
+                      <Leaf className="w-3.5 h-3.5 mx-auto mb-1 text-lime-500" />
+                      <p className="text-sm font-bold">{pollenTree ?? pollenGrass}</p>
+                      <p className="text-[8px] text-muted-foreground">pollen</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Biometric Metrics Row */}
+            {(heartRate || sleepHours || steps) && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-2">Biometrics</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {heartRate && (
+                    <div className="text-center p-2.5 rounded-2xl backdrop-blur-sm"
+                      style={{ background: 'linear-gradient(145deg, rgba(254,226,226,0.9) 0%, rgba(254,202,202,0.85) 100%)', border: '1px solid rgba(239,68,68,0.3)' }}>
+                      <Heart className="w-3.5 h-3.5 mx-auto mb-1 text-red-500" />
+                      <p className="text-sm font-bold">{heartRate}</p>
+                      <p className="text-[8px] text-muted-foreground">bpm</p>
+                    </div>
+                  )}
+                  {sleepHours && (
+                    <div className="text-center p-2.5 rounded-2xl backdrop-blur-sm"
+                      style={{ background: 'linear-gradient(145deg, rgba(224,231,255,0.9) 0%, rgba(199,210,254,0.85) 100%)', border: '1px solid rgba(99,102,241,0.3)' }}>
+                      <Moon className="w-3.5 h-3.5 mx-auto mb-1 text-indigo-500" />
+                      <p className="text-sm font-bold">{sleepHours}h</p>
+                      <p className="text-[8px] text-muted-foreground">sleep</p>
+                    </div>
+                  )}
+                  {steps && (
+                    <div className="text-center p-2.5 rounded-2xl backdrop-blur-sm"
+                      style={{ background: 'linear-gradient(145deg, rgba(209,250,229,0.9) 0%, rgba(167,243,208,0.85) 100%)', border: '1px solid rgba(16,185,129,0.3)' }}>
+                      <Footprints className="w-3.5 h-3.5 mx-auto mb-1 text-emerald-500" />
+                      <p className="text-sm font-bold">{steps >= 1000 ? `${(steps/1000).toFixed(1)}k` : steps}</p>
+                      <p className="text-[8px] text-muted-foreground">steps</p>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
