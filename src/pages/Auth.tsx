@@ -488,31 +488,49 @@ const Auth = () => {
               <section>
                 <h3 className="font-semibold mb-2">1. Acceptance of Terms</h3>
                 <p className="text-muted-foreground">
-                  By accessing or using Jvala ("the App"), you agree to be bound by these Terms of Service.
+                  By accessing or using Jvala ("the App"), you agree to be bound by these Terms of Service. If you do not agree, do not use the App.
                 </p>
               </section>
               <section>
                 <h3 className="font-semibold mb-2">2. Medical Disclaimer</h3>
                 <p className="text-muted-foreground">
-                  <strong>IMPORTANT:</strong> Jvala does not provide medical advice. The App is designed for informational and tracking purposes only. Always consult with qualified healthcare professionals for medical decisions, diagnoses, or treatment.
+                  <strong>IMPORTANT:</strong> Jvala does not provide medical advice, diagnosis, or treatment. The App is designed for informational and personal health tracking purposes only. Always consult with qualified healthcare professionals for medical decisions. Never disregard professional medical advice or delay seeking it because of information provided by the App.
                 </p>
               </section>
               <section>
                 <h3 className="font-semibold mb-2">3. AI-Generated Content</h3>
                 <p className="text-muted-foreground">
-                  The App uses artificial intelligence to generate insights and predictions. AI-generated content may contain errors and should not be considered medical advice. Always verify any AI-generated information with a healthcare professional before acting on it.
+                  The App uses artificial intelligence to generate insights, predictions, and correlations. AI-generated content may contain inaccuracies and should never be considered medical advice. All AI insights include a "Discuss with your doctor" recommendation.
                 </p>
               </section>
               <section>
                 <h3 className="font-semibold mb-2">4. User Responsibilities</h3>
                 <p className="text-muted-foreground">
-                  You are responsible for maintaining the confidentiality of your account and for all activities that occur under your account. You agree to provide accurate and complete information when creating your account.
+                  You are responsible for maintaining the confidentiality of your account credentials and for all activities under your account.
                 </p>
               </section>
               <section>
-                <h3 className="font-semibold mb-2">5. Data Accuracy</h3>
+                <h3 className="font-semibold mb-2">5. HealthKit & Health Data</h3>
                 <p className="text-muted-foreground">
-                  While we strive to provide accurate tracking and insights, we cannot guarantee the accuracy of all data. Environmental data, predictions, and correlations are estimates and should be used as general guidance only.
+                  The App may integrate with Apple HealthKit to read physiological data. This data is used solely for health tracking and is never used for advertising, data mining, or sold to third parties. Health data is not stored in iCloud.
+                </p>
+              </section>
+              <section>
+                <h3 className="font-semibold mb-2">6. Account Deletion</h3>
+                <p className="text-muted-foreground">
+                  You may delete your account at any time from Settings. Deletion permanently removes all your data and is irreversible.
+                </p>
+              </section>
+              <section>
+                <h3 className="font-semibold mb-2">7. Limitation of Liability</h3>
+                <p className="text-muted-foreground">
+                  Jvala shall not be liable for any damages resulting from your use of the App, including health outcomes based on App data.
+                </p>
+              </section>
+              <section>
+                <h3 className="font-semibold mb-2">8. Contact</h3>
+                <p className="text-muted-foreground">
+                  For questions, contact us at support@jvala.tech.
                 </p>
               </section>
             </div>
@@ -535,31 +553,43 @@ const Auth = () => {
               <section>
                 <h3 className="font-semibold mb-2">1. Information We Collect</h3>
                 <p className="text-muted-foreground">
-                  We collect account information (email, name), health data you enter (symptoms, triggers, medications, notes), city-level location for environmental correlation, and optional wearable device data.
+                  We collect: account information (email), health data you enter (symptoms, triggers, medications, notes, photos, voice recordings), city-level location for environmental correlation, and optional wearable device data (heart rate, HRV, sleep, SpO2).
                 </p>
               </section>
               <section>
                 <h3 className="font-semibold mb-2">2. How We Use Your Data</h3>
                 <p className="text-muted-foreground">
-                  Your data is used to provide personalized health insights, identify patterns and correlations, generate predictions, and improve our AI models. We never sell your personal health data.
+                  Your data is used exclusively for personalized health tracking, AI-powered insights, and clinical report generation. We never sell, rent, or trade your personal health data. Health data is never used for advertising or data mining.
                 </p>
               </section>
               <section>
-                <h3 className="font-semibold mb-2">3. Data Security</h3>
+                <h3 className="font-semibold mb-2">3. Apple HealthKit Data</h3>
                 <p className="text-muted-foreground">
-                  Your health data is encrypted at rest and in transit using industry-standard security measures. We use secure cloud infrastructure and follow best practices for data protection.
+                  HealthKit data is used solely for improving your health management. It is never used for advertising, never disclosed to third parties, never stored in iCloud, and the App does not write data to HealthKit.
                 </p>
               </section>
               <section>
-                <h3 className="font-semibold mb-2">4. Your Rights</h3>
+                <h3 className="font-semibold mb-2">4. Data Security</h3>
                 <p className="text-muted-foreground">
-                  You can export or delete your data at any time from your profile settings. You have the right to access, correct, or request deletion of your personal information.
+                  Your data is encrypted at rest and in transit. Row-Level Security ensures only you can access your own data.
                 </p>
               </section>
               <section>
-                <h3 className="font-semibold mb-2">5. Third-Party Services</h3>
+                <h3 className="font-semibold mb-2">5. Your Rights</h3>
                 <p className="text-muted-foreground">
-                  We may integrate with third-party services (wearables, health platforms) at your request. These integrations are governed by the respective third-party privacy policies.
+                  You can export your data at any time, edit any entry, permanently delete your account and all data from Settings, and disconnect wearable integrations.
+                </p>
+              </section>
+              <section>
+                <h3 className="font-semibold mb-2">6. Push Notifications</h3>
+                <p className="text-muted-foreground">
+                  Notifications are optional, used only for logging reminders, and never contain protected health information or advertising.
+                </p>
+              </section>
+              <section>
+                <h3 className="font-semibold mb-2">7. Contact</h3>
+                <p className="text-muted-foreground">
+                  For questions, contact us at support@jvala.tech.
                 </p>
               </section>
             </div>
