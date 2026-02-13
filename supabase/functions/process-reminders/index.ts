@@ -177,7 +177,7 @@ serve(async (req) => {
                 <div class="content">
                   ${streak > 0 ? `<div class="streak-badge">🔥 ${streak}-day streak</div>` : ''}
                   <p class="message">${bodyText}</p>
-                  <a href="https://jvala.tech" class="cta-button">Quick Log</a>
+                  <a href="https://app.jvala.tech" class="cta-button">Quick Log</a>
                 </div>
                 <div class="footer">
                   <p>Manage reminders in Settings → Reminders</p>
@@ -220,27 +220,22 @@ serve(async (req) => {
             .eq('user_id', user.user_id);
         }
 
-        // Also send push notification
+        // Send via smart-notifications for push (uses VAPID/service worker)
         try {
-          const pushPayload = {
-            userId: user.user_id,
-            title: type === 'morning' ? '🌅 Morning Check-in' : '🌙 Evening Reflection',
-            body: bodyText,
-            tag: `${type}-reminder`,
-            url: '/',
-          };
-
-          await fetch(`${supabaseUrl}/functions/v1/send-push`, {
+          await fetch(`${supabaseUrl}/functions/v1/smart-notifications`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${supabaseKey}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify(pushPayload),
+            body: JSON.stringify({
+              userId: user.user_id,
+              type,
+            }),
           });
-          console.log(`📱 Sent ${type} push notification to ${user.user_id}`);
+          console.log(`📱 Sent ${type} smart push to ${user.user_id}`);
         } catch (pushError) {
-          console.log(`⚠️ Push notification failed for ${user.user_id}:`, pushError);
+          console.log(`⚠️ Smart push failed for ${user.user_id}:`, pushError);
         }
 
       } catch (userError) {

@@ -32,6 +32,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { LimitlessAIChat } from "@/components/ai/LimitlessAIChat";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { useSmartNotifications } from "@/hooks/useSmartNotifications";
 
 interface MedicationDetails {
   name: string;
@@ -76,6 +77,7 @@ const Index = () => {
   
   const { topCorrelations, recentActivities } = useCorrelations(user?.id || null);
   const { logs: medicationLogs, addLog: addMedicationLog } = useMedicationLogs(user?.id);
+  const { schedulePostFlareFollowUps, checkStreakMilestone, checkEnvironmentalChanges } = useSmartNotifications();
 
   // Check for special badges when correlations change
   useEffect(() => {
@@ -355,6 +357,22 @@ const Index = () => {
 
         const { newBadges, currentStreak: newStreak } = await updateEngagementOnLog(user.id, isDetailed);
         setCurrentStreak(newStreak);
+        checkStreakMilestone(newStreak);
+
+        // Schedule post-flare follow-up notifications
+        if (entryData.type === 'flare' && entryData.severity) {
+          schedulePostFlareFollowUps(entryData.severity);
+        }
+
+        // Check environmental changes for proactive alerts
+        if (entryData.environmentalData) {
+          const envData = entryData.environmentalData as any;
+          checkEnvironmentalChanges({
+            temperature: envData.temperature,
+            pressure: envData.pressure,
+            aqi: envData.aqi,
+          });
+        }
 
         const trackingBadges = await checkTrackingBadges(user.id);
         const allNewBadges = [...newBadges, ...trackingBadges];
