@@ -11,6 +11,8 @@ import SharedReport from "./pages/SharedReport";
 import SharedProfile from "./pages/SharedProfile";
 import Install from "./pages/Install";
 import ClinicianDashboard from "./pages/ClinicianDashboard";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
 import { OfflineIndicator } from "./components/pwa/OfflineIndicator";
 import { InstallPrompt } from "./components/pwa/InstallPrompt";
@@ -34,6 +36,8 @@ const App = () => (
           <Route path="/shared-report" element={<SharedReport />} />
           <Route path="/shared-profile" element={<SharedProfile />} />
           <Route path="/install" element={<Install />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
