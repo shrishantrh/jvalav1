@@ -3,40 +3,94 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Jvala — Signing you in…</title>
+  <title>Jvala - Returning to app...</title>
   <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0a;
+      color: #fff;
       display: flex;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      background: #0a0a0a;
-      color: #fff;
-      font-family: system-ui, sans-serif;
+      padding: 24px;
     }
-    .msg { text-align: center; opacity: 0.7; }
+    .container { text-align: center; max-width: 340px; }
+    .logo {
+      width: 64px; height: 64px; margin: 0 auto 20px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #D6006C, #892EFF);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+    }
+    h1 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .subtitle { font-size: 14px; color: #888; margin-bottom: 24px; }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid #333; border-top-color: #D6006C;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+      margin: 0 auto 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .btn {
+      display: none; width: 100%; padding: 14px 24px;
+      border: none; border-radius: 12px;
+      background: linear-gradient(135deg, #D6006C, #892EFF);
+      color: white; font-size: 16px; font-weight: 600;
+      cursor: pointer; margin-top: 16px;
+    }
+    .btn:active { opacity: 0.9; transform: scale(0.98); }
+    .hint { display: none; font-size: 12px; color: #666; margin-top: 12px; }
   </style>
 </head>
 <body>
-  <div class="msg">
-    <p>Signing you in…</p>
-    <p style="font-size: 0.8em; opacity: 0.5;">Returning to the app.</p>
+  <div class="container">
+    <div class="logo">🔥</div>
+    <h1>Signed in successfully!</h1>
+    <p class="subtitle" id="status">Returning to Jvala...</p>
+    <div class="spinner" id="spinner"></div>
+    <button class="btn" id="returnBtn" onclick="returnToApp()">Return to Jvala</button>
+    <p class="hint" id="hint">Tap the button above to go back to the app</p>
   </div>
+
   <script>
-    // This page acts as a bridge for native Capacitor OAuth.
-    // After OAuth, Supabase redirects here with tokens in the URL hash.
-    // We forward them to the native app via the custom URL scheme.
-    (function () {
-      var hash = window.location.hash;
-      if (hash && hash.length > 1) {
-        // Forward tokens to the native app via custom URL scheme
-        window.location.href = 'jvala://auth-callback' + hash;
-      } else {
-        // No tokens — redirect to the main app
-        window.location.href = '/';
-      }
-    })();
+    var hash = window.location.hash;
+    var targetUrl = 'jvala://auth-callback' + (hash || '');
+
+    function returnToApp() {
+      window.location.replace(targetUrl);
+    }
+
+    function showButton() {
+      document.getElementById('spinner').style.display = 'none';
+      document.getElementById('returnBtn').style.display = 'block';
+      document.getElementById('hint').style.display = 'block';
+      document.getElementById('status').textContent = 'Tap below to return to the app';
+    }
+
+    if (hash && hash.length > 1) {
+      // Try 1: location.replace
+      window.location.replace(targetUrl);
+
+      // Try 2: location.href after delay
+      setTimeout(function() { window.location.href = targetUrl; }, 300);
+
+      // Try 3: anchor click
+      setTimeout(function() {
+        var a = document.createElement('a');
+        a.href = targetUrl;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+      }, 600);
+
+      // Fallback: show manual return button after 2s
+      setTimeout(showButton, 2000);
+    } else {
+      document.getElementById('status').textContent = 'Authentication failed. Please try again.';
+      document.getElementById('spinner').style.display = 'none';
+    }
   </script>
 </body>
 </html>

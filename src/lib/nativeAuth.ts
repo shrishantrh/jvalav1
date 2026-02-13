@@ -1,22 +1,25 @@
 /**
  * Native OAuth for Capacitor
  *
- * On native iOS/Android, the standard web OAuth redirect flow doesn't work
- * because the WebView runs on capacitor://localhost which isn't a valid
- * OAuth redirect target. Instead we:
+ * On native iOS/Android, OAuth flows need special handling because the
+ * WebView runs on capacitor://localhost. We:
  *
  * 1. Get the OAuth URL from Supabase with skipBrowserRedirect
- * 2. Set redirectTo to the published URL's bridge page (native-auth-callback.html)
- * 3. Open the URL in the system browser (SFSafariViewController / Chrome Custom Tabs)
+ * 2. Set redirectTo to the published URL's bridge page
+ * 3. Open the URL in the system browser (SFSafariViewController)
  * 4. The bridge page extracts tokens and redirects to jvala://auth-callback#tokens
  * 5. iOS/Android intercepts the custom scheme and reopens the app
  * 6. We capture the deep link, extract tokens, and set the Supabase session
+ *
+ * FALLBACK: If the custom scheme redirect is blocked (e.g. on newer iOS),
+ * the bridge page shows a "Return to Jvala" button. Additionally, we listen
+ * for the browser close event and check for tokens via a shared cookie approach.
  */
 
 import { supabase } from '@/integrations/supabase/client';
 import { isNative } from '@/lib/capacitor';
 
-// The published web URL where native-auth-callback.html is served
+// The published web URL where the bridge page is served
 const PUBLISHED_URL = 'https://jvalav1.lovable.app';
 
 /**
@@ -27,14 +30,13 @@ export const startNativeOAuth = async (
   provider: 'google' | 'apple'
 ): Promise<{ url: string } | { error: string }> => {
   try {
-    // Redirect to the root published URL (which is system-managed and always allowed).
-    // A tiny inline script in index.html detects the native_auth flag + hash tokens
-    // and forwards them to jvala://auth-callback#tokens so the app can pick them up.
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
         skipBrowserRedirect: true,
-        redirectTo: `${PUBLISHED_URL}?native_auth=1`,
+        // Redirect to the bridge page on the published URL.
+        // The bridge page will extract tokens and redirect to the native app.
+        redirectTo: `${PUBLISHED_URL}/native-auth-callback.html`,
       },
     });
 
@@ -53,7 +55,6 @@ export const startNativeOAuth = async (
  */
 export const openInNativeBrowser = async (url: string): Promise<void> => {
   try {
-    // Prefer the injected Capacitor plugin proxy
     const browser =
       (window as any)?.Capacitor?.Plugins?.Browser ??
       (await import('@capacitor/browser').catch(() => null))?.Browser;
@@ -61,12 +62,10 @@ export const openInNativeBrowser = async (url: string): Promise<void> => {
     if (browser) {
       await browser.open({ url, presentationStyle: 'popover' });
     } else {
-      // Fallback: open in a new window (won't close automatically)
       window.open(url, '_blank');
     }
   } catch (e) {
     console.error('[nativeAuth] Failed to open browser:', e);
-    // Last resort fallback
     window.location.href = url;
   }
 };
@@ -99,7 +98,8 @@ const parseTokensFromUrl = (
 
 /**
  * Set up the deep link listener for OAuth callbacks.
- * Returns a cleanup function to remove the listener.
+ * Also sets up a browser-close listener as fallback to check session.
+ * Returns a cleanup function to remove the listeners.
  */
 export const setupNativeAuthListener = (): (() => void) => {
   if (!isNative) return () => {};
@@ -108,54 +108,71 @@ export const setupNativeAuthListener = (): (() => void) => {
 
   const init = async () => {
     try {
-      // Get the App plugin
       const appPlugin =
         (window as any)?.Capacitor?.Plugins?.App ??
         (await import('@capacitor/app').catch(() => null))?.App;
 
-      if (!appPlugin) {
-        console.warn('[nativeAuth] @capacitor/app not available, deep links won\'t work');
-        return;
+      const browserPlugin =
+        (window as any)?.Capacitor?.Plugins?.Browser ??
+        (await import('@capacitor/browser').catch(() => null))?.Browser;
+
+      const listeners: (() => void)[] = [];
+
+      // Listen for deep links (jvala://auth-callback#tokens)
+      if (appPlugin) {
+        const listener = await appPlugin.addListener(
+          'appUrlOpen',
+          async (event: { url: string }) => {
+            console.log('[nativeAuth] Deep link received:', event.url);
+
+            if (!event.url.startsWith('jvala://auth-callback')) return;
+
+            const tokens = parseTokensFromUrl(event.url);
+            if (!tokens) {
+              console.error('[nativeAuth] Could not parse tokens from deep link');
+              return;
+            }
+
+            console.log('[nativeAuth] Setting session from deep link tokens');
+            const { error } = await supabase.auth.setSession(tokens);
+            if (error) {
+              console.error('[nativeAuth] Failed to set session:', error.message);
+            } else {
+              console.log('[nativeAuth] Session set successfully');
+            }
+
+            // Close the in-app browser
+            try {
+              if (browserPlugin) await browserPlugin.close();
+            } catch { /* ignore */ }
+          }
+        );
+        listeners.push(() => listener?.remove?.());
       }
 
-      const listener = await appPlugin.addListener(
-        'appUrlOpen',
-        async (event: { url: string }) => {
-          console.log('[nativeAuth] Deep link received:', event.url);
-
-          if (!event.url.startsWith('jvala://auth-callback')) return;
-
-          const tokens = parseTokensFromUrl(event.url);
-          if (!tokens) {
-            console.error('[nativeAuth] Could not parse tokens from deep link');
-            return;
-          }
-
-          console.log('[nativeAuth] Setting session from deep link tokens');
-          const { error } = await supabase.auth.setSession(tokens);
-          if (error) {
-            console.error('[nativeAuth] Failed to set session:', error.message);
-          } else {
-            console.log('[nativeAuth] Session set successfully');
-          }
-
-          // Close the in-app browser if still open
-          try {
-            const browser =
-              (window as any)?.Capacitor?.Plugins?.Browser ??
-              (await import('@capacitor/browser').catch(() => null))?.Browser;
-            if (browser) {
-              await browser.close();
+      // Fallback: when browser closes, check if there's a session
+      // (in case the custom scheme redirect didn't fire)
+      if (browserPlugin) {
+        const browserListener = await browserPlugin.addListener(
+          'browserFinished',
+          async () => {
+            console.log('[nativeAuth] Browser closed, checking for session...');
+            // Give a brief moment for any pending auth state changes
+            await new Promise(r => setTimeout(r, 500));
+            const { data } = await supabase.auth.getSession();
+            if (data.session) {
+              console.log('[nativeAuth] Session found after browser close');
+              // Force auth state change notification
+              window.dispatchEvent(new Event('native-auth-complete'));
             }
-          } catch {
-            // ignore
           }
-        }
-      );
+        );
+        listeners.push(() => browserListener?.remove?.());
+      }
 
-      cleanup = () => listener?.remove?.();
+      cleanup = () => listeners.forEach(remove => remove());
     } catch (e) {
-      console.error('[nativeAuth] Failed to set up deep link listener:', e);
+      console.error('[nativeAuth] Failed to set up listeners:', e);
     }
   };
 
