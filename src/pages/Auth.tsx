@@ -15,6 +15,8 @@ import { SlowConnectionIndicator } from "@/components/auth/SlowConnectionIndicat
 import { ForgotPasswordDialog } from "@/components/auth/ForgotPasswordDialog";
 import { cn } from "@/lib/utils";
 import { lovable } from "@/integrations/lovable/index";
+import { isNative } from "@/lib/capacitor";
+import { startNativeOAuth, openInNativeBrowser, setupNativeAuthListener } from "@/lib/nativeAuth";
 
 const Auth = () => {
   const [showSplash, setShowSplash] = useState(true);
@@ -35,7 +37,7 @@ const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Check if already authenticated
+  // Check if already authenticated + set up native deep link listener
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
@@ -50,7 +52,13 @@ const Auth = () => {
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Set up deep link listener for native OAuth callbacks
+    const cleanupDeepLink = setupNativeAuthListener();
+
+    return () => {
+      subscription.unsubscribe();
+      cleanupDeepLink();
+    };
   }, [navigate]);
 
   // Slow connection detection
@@ -92,8 +100,16 @@ const Auth = () => {
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
+      // Native mobile: use in-app browser + deep link flow
+      if (isNative) {
+        const result = await startNativeOAuth('google');
+        if ('error' in result) throw new Error(result.error);
+        await openInNativeBrowser(result.url);
+        // Session will be set via deep link listener — don't setLoading(false) here
+        return;
+      }
+
       if (isCustomDomain()) {
-        // Bypass auth-bridge: get OAuth URL directly and redirect manually
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider: "google",
           options: {
@@ -106,7 +122,6 @@ const Auth = () => {
           window.location.href = data.url;
         }
       } else {
-        // On lovable.app domains, use managed auth bridge
         const { error } = await lovable.auth.signInWithOAuth("google", {
           redirect_uri: window.location.origin,
         });
@@ -125,6 +140,14 @@ const Auth = () => {
   const handleAppleLogin = async () => {
     setLoading(true);
     try {
+      // Native mobile: use in-app browser + deep link flow
+      if (isNative) {
+        const result = await startNativeOAuth('apple');
+        if ('error' in result) throw new Error(result.error);
+        await openInNativeBrowser(result.url);
+        return;
+      }
+
       if (isCustomDomain()) {
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider: "apple",
