@@ -254,7 +254,7 @@ const Auth = () => {
     : email && password;
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-background max-w-md mx-auto overflow-y-auto">
+    <div className="fixed inset-0 flex flex-col bg-background max-w-md mx-auto overflow-hidden">
       {/* Ambient gradient orbs */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full bg-primary/5 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-[300px] h-[300px] rounded-full bg-accent/8 blur-[100px] pointer-events-none" />
