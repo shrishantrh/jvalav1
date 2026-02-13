@@ -27,11 +27,14 @@ export const startNativeOAuth = async (
   provider: 'google' | 'apple'
 ): Promise<{ url: string } | { error: string }> => {
   try {
+    // Redirect to the root published URL (which is system-managed and always allowed).
+    // A tiny inline script in index.html detects the native_auth flag + hash tokens
+    // and forwards them to jvala://auth-callback#tokens so the app can pick them up.
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
         skipBrowserRedirect: true,
-        redirectTo: `${PUBLISHED_URL}/native-auth-callback.html`,
+        redirectTo: `${PUBLISHED_URL}?native_auth=1`,
       },
     });
 

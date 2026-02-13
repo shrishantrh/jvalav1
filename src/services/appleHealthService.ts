@@ -279,8 +279,7 @@ const queryHealthData = async (
   endDate: Date
 ): Promise<HealthSample[]> => {
   try {
-    // Each individual query gets its own timeout to prevent one hanging type
-    // from blocking all others (the old Promise.all approach).
+    const start = performance.now();
     const result = await withTimeout(
       plugin.readSamples({
         dataType,
@@ -289,13 +288,15 @@ const queryHealthData = async (
         limit: 100,
         ascending: false,
       }),
-      8000,
+      10000,
       `Health.readSamples(${dataType})`
     ) as any;
     
-    return result?.samples || [];
+    const samples = result?.samples || [];
+    console.log(`[health] ${dataType}: ${samples.length} samples in ${Math.round(performance.now() - start)}ms`);
+    return samples;
   } catch (error) {
-    console.warn(`[health] No data for ${dataType}:`, error instanceof Error ? error.message : error);
+    console.warn(`[health] ${dataType} FAILED:`, error instanceof Error ? error.message : error);
     return [];
   }
 };
@@ -330,8 +331,12 @@ const calculateSleepQuality = (hours: number): 'poor' | 'fair' | 'good' | 'excel
  * Fetch comprehensive health data from Apple Health / Health Connect
  */
 export const fetchHealthData = async (): Promise<AppleHealthData | null> => {
+  console.log('[health] fetchHealthData: starting...');
   const plugin = await loadHealthPlugin();
-  if (!plugin) return null;
+  if (!plugin) {
+    console.warn('[health] fetchHealthData: plugin not loaded');
+    return null;
+  }
   
   try {
     const now = new Date();

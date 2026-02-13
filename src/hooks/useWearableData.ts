@@ -203,18 +203,28 @@ export const useWearableData = () => {
     if (!isNative) return false;
 
     try {
-      // Never let the app hang on mount because a native plugin call never resolves.
-      // If availability can't be determined quickly, treat it as unavailable.
-      const available = await withTimeout(isHealthAvailable(), 3500, 'Health.isAvailable');
-      setHealthAvailable(available);
+      // Skip isAvailable() — it hangs on many iOS builds/devices.
+      // Instead, directly check if we have existing permissions. If checkAuthorization
+      // returns data, we know the plugin AND HealthKit are available.
+      if (!isHealthPluginPresent()) {
+        console.log('[wearables] Health plugin not present in this build');
+        return false;
+      }
 
-      if (!available) return false;
+      setHealthAvailable(true); // Assume available if plugin is present
 
-      const hasPermissions = await withTimeout(
-        checkHealthPermissions(),
-        6000,
-        'Health.checkAuthorization'
-      );
+      let hasPermissions = false;
+      try {
+        hasPermissions = await withTimeout(
+          checkHealthPermissions(),
+          6000,
+          'Health.checkAuthorization'
+        );
+      } catch (e) {
+        // Timeout or error — don't block; user can connect manually
+        console.warn('[wearables] checkAuthorization failed on mount:', e instanceof Error ? e.message : e);
+        return false;
+      }
 
       if (hasPermissions) {
         const healthType = platform === 'ios' ? 'apple_health' : 'google_fit';
@@ -227,7 +237,6 @@ export const useWearableData = () => {
       return false;
     } catch (error) {
       console.error('Error checking native health connection:', error);
-      setHealthAvailable(false);
       return false;
     }
   }, []);
@@ -239,9 +248,13 @@ export const useWearableData = () => {
       // Check for Apple Health / Health Connect sync
       if (type === 'apple_health' || type === 'google_fit') {
         // Native plugin calls can occasionally hang; never let a flare log wait forever on this.
-        const healthData = await withTimeout(fetchHealthData(), 12000, 'Health.fetchHealthData').catch(() => null);
+        // Give generous timeout: 10 parallel queries (8s each) + workouts (8s) ≈ 16s worst case.
+        const healthData = await withTimeout(fetchHealthData(), 25000, 'Health.fetchHealthData').catch((e) => {
+          console.error('[wearables] fetchHealthData failed:', e instanceof Error ? e.message : e);
+          return null;
+        });
         if (!healthData) {
-          console.log('No native health data available');
+          console.log('[wearables] No native health data available (all queries returned empty or timed out)');
           return null;
         }
         
@@ -545,41 +558,10 @@ export const useWearableData = () => {
           return false;
         }
 
-        // 2) Verify availability (helpful when HealthKit capability/usage strings are missing).
-        // IMPORTANT: On some misconfigured builds Health.isAvailable() can hang; if it times out,
-        // we still try requestAuthorization() directly so the permission sheet can appear.
-        phase = 'checking_availability';
-        console.log(`[wearables] ${type}: checking availability...`);
-
-        let available: boolean | null = null;
-        try {
-          available = await withTimeout(isHealthAvailable(), 6000, 'Health.isAvailable');
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          if (/timed out/i.test(msg)) {
-            console.warn('[wearables] Health.isAvailable timed out; attempting requestAuthorization anyway');
-            available = null; // unknown
-          } else {
-            throw e;
-          }
-        }
-
-        if (available === false) {
-          toast({
-            title: `${getHealthPlatformName()} unavailable`,
-            description:
-              `This device/app build can’t access ${getHealthPlatformName()}. In Xcode, enable the HealthKit capability and add Health usage descriptions, then rebuild.`,
-            variant: 'destructive',
-          });
-          return false;
-        }
-
-        // 2) Request permissions (this should show the Health permission sheet)
-        // User expectation: request the full set upfront so they can approve everything in one go.
-        // If the full request fails (some iOS builds can be brittle), we fall back to minimal so the
-        // connection can still complete, then instruct the user to enable additional scopes in Health.
+        // Skip isAvailable() — it consistently hangs/times out on iOS with @capgo/capacitor-health.
+        // The plugin presence check above is sufficient. Go straight to requestAuthorization.
         phase = 'requesting_permissions';
-        console.log(`[wearables] ${type}: requesting permissions (full)...`);
+        console.log(`[wearables] ${type}: plugin present, skipping isAvailable(), requesting permissions...`);
         toast({
           title: `Connect ${getHealthPlatformName()}`,
           description: 'Requesting permission in the Health app…',
