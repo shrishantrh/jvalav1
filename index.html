@@ -48,18 +48,7 @@
 
   <body>
     <div id="root"></div>
-    <!-- Native OAuth bridge: when the system browser redirects back to the published
-         URL with ?native_auth=1 and tokens in the hash, forward them to the native app
-         via the jvala:// custom URL scheme. This runs before React loads. -->
-    <script>
-      (function() {
-        if (window.location.search.indexOf('native_auth=1') === -1) return;
-        var hash = window.location.hash;
-        if (hash && hash.length > 1) {
-          window.location.href = 'jvala://auth-callback' + hash;
-        }
-      })();
-    </script>
+    <!-- Native OAuth is handled by /native-auth-callback.html -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
