@@ -133,6 +133,7 @@ Generate insights that are:
 
 Return ONLY a JSON array, no other text:`;
 
+    const aiStart = performance.now();
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -189,9 +190,11 @@ Return ONLY a JSON array, no other text:`;
       })
     });
 
+    const aiLatency = Math.round(performance.now() - aiStart);
     if (!response.ok) {
       const errorText = await response.text();
       console.error('❌ AI API request failed:', response.status, errorText);
+      console.info(`[ai-observability] ${JSON.stringify({ function: 'generate-insights', model: 'google/gemini-2.5-flash', tokensIn: 0, tokensOut: 0, latencyMs: aiLatency, status: response.status === 429 ? 'rate_limited' : response.status === 402 ? 'credits_exhausted' : 'error' })}`);
       
       if (response.status === 429) {
         return new Response(JSON.stringify({ 
@@ -215,7 +218,9 @@ Return ONLY a JSON array, no other text:`;
     }
 
     const data = await response.json();
-    console.log('📤 AI response:', JSON.stringify(data, null, 2));
+    const usage = data.usage;
+    console.info(`[ai-observability] ${JSON.stringify({ function: 'generate-insights', model: 'google/gemini-2.5-flash', tokensIn: usage?.prompt_tokens || 0, tokensOut: usage?.completion_tokens || 0, latencyMs: aiLatency, status: 'success' })}`);
+    console.log('📤 AI response received');
     
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     if (toolCall?.function?.arguments) {

@@ -202,7 +202,8 @@ ${entries.filter((e: any) => e.note).slice(0, 5).map((e: any) =>
 ).join('\n') || '- No notes'}
 `;
 
-    // Call Lovable AI for analysis
+    // Call Lovable AI for analysis with observability
+    const aiStartTime = performance.now();
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -287,9 +288,12 @@ CRITICAL GUIDELINES:
       }),
     });
 
+    const aiLatencyMs = Math.round(performance.now() - aiStartTime);
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('AI gateway error:', response.status, errorText);
+      console.info(`[ai-observability] ${JSON.stringify({ function: 'ai-insights', model: 'google/gemini-2.5-flash', tokensIn: 0, tokensOut: 0, latencyMs: aiLatencyMs, status: response.status === 429 ? 'rate_limited' : response.status === 402 ? 'credits_exhausted' : 'error' })}`);
       
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }), {
@@ -308,6 +312,9 @@ CRITICAL GUIDELINES:
     }
 
     const aiResponse = await response.json();
+    // Log AI observability
+    const usage = aiResponse.usage;
+    console.info(`[ai-observability] ${JSON.stringify({ function: 'ai-insights', model: 'google/gemini-2.5-flash', tokensIn: usage?.prompt_tokens || 0, tokensOut: usage?.completion_tokens || 0, latencyMs: aiLatencyMs, status: 'success' })}`);
     const toolCall = aiResponse.choices?.[0]?.message?.tool_calls?.[0];
     
     if (toolCall?.function?.arguments) {
