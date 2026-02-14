@@ -193,8 +193,10 @@ serve(async (req) => {
       dateOfBirth: profile?.date_of_birth,
     };
 
-    // If this is a brand new user with zero logs, send an introductory tour message
-    const isNewUser = isFirstSession || totalLogs === 0;
+    // Classify user: new = account < 7 days old AND fewer than 5 logs
+    const accountCreatedAt = profile?.created_at ? new Date(profile.created_at) : now;
+    const accountAgeDays = Math.floor((now.getTime() - accountCreatedAt.getTime()) / 86400000);
+    const isNewUser = accountAgeDays < 7 && totalLogs < 5;
 
     const systemPrompt = isNewUser
       ? `You are Jvala's AI health companion. This is ${userName}'s FIRST TIME opening the app after creating their account. They are tracking: ${conditions.join(', ') || 'health concerns'}.
@@ -222,7 +224,7 @@ You MUST call the "send_message" tool TWICE — once for each message.`
 YOUR JOB: Decide what to say or ask right now based on context. Be human, warm, brief, situationally aware.
 
 CONTEXT:
-${JSON.stringify(contextSummary, null, 2)}
+${JSON.stringify({ ...contextSummary, accountAgeDays }, null, 2)}
 
 RULES:
 1. You MUST call exactly ONE tool: either "send_message" or "send_form".
@@ -238,7 +240,11 @@ RULES:
 11. For forms, use the user's actual conditions/symptoms for options, not generic ones.
 12. The closingMessage should be short and warm, like "thanks, rest up 💜" or "got it, have a good one!"
 13. NEVER use medical disclaimers. NEVER say "I'm an AI". Just be natural.
-14. Keep messages 1-2 sentences max. Be concise.`;
+14. Keep messages 1-2 sentences max. Be concise.
+15. NEVER give a generic "warm welcome" or app tour. This is an EXISTING user. Be situationally relevant.
+16. If the user has conditions, reference them. Ask about specific symptoms or triggers from their history.
+17. If daysSinceLastLog > 2, gently ask how things have been — mention their condition by name.
+18. If they have recent flares, ask a specific follow-up about their most frequent symptom or trigger.`;
 
     const tools = [
       {

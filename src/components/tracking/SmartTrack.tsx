@@ -495,7 +495,6 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         const { data, error } = await supabase.functions.invoke('proactive-checkin', {
           body: { 
             clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            isFirstSession: recentEntries.length === 0,
           },
         });
         
