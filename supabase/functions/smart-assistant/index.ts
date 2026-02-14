@@ -1248,8 +1248,9 @@ RESPONSE FORMAT (valid JSON):
             };
           }
           
-          // Use multipleEntries if we detected more than 1 loggable item
-          const shouldUseMultiple = multipleEntries.length > 1;
+          // If we detected any loggable entries from intent analysis, ALWAYS log them
+          // Don't rely on AI model's shouldLog — our intent detection is the source of truth
+          const hasDetectedEntries = multipleEntries.length > 0;
           
           return new Response(JSON.stringify({
             response: parsed.response,
@@ -1258,9 +1259,9 @@ RESPONSE FORMAT (valid JSON):
             weatherUsed: !!weatherData,
             weatherCard,
             chartData,
-            shouldLog: shouldUseMultiple ? true : (parsed.shouldLog || false),
-            entryData: shouldUseMultiple ? null : entryData,
-            multipleEntries: shouldUseMultiple ? multipleEntries : null,
+            shouldLog: hasDetectedEntries ? true : (parsed.shouldLog || false),
+            entryData: hasDetectedEntries ? null : entryData,
+            multipleEntries: hasDetectedEntries ? multipleEntries : null,
             activityLog,
             correlationWarning,
             shouldFollowUp,
@@ -1272,8 +1273,8 @@ RESPONSE FORMAT (valid JSON):
         console.log('Parse error, returning raw');
       }
       
-      // Even if AI response parsing fails, still use our detected multiple entries
-      const shouldUseMultiple = multipleEntries.length > 1;
+      // Even if AI response parsing fails, still use our detected entries
+      const hasDetectedEntries = multipleEntries.length > 0;
       
       return new Response(JSON.stringify({
         response: content.replace(/```json\n?|\n?```/g, '').trim(),
@@ -1281,9 +1282,9 @@ RESPONSE FORMAT (valid JSON):
         dataUsed: [],
         weatherUsed: !!weatherData,
         weatherCard,
-        shouldLog: shouldUseMultiple ? true : false,
-        entryData: shouldUseMultiple ? null : (multipleEntries[0] || null),
-        multipleEntries: shouldUseMultiple ? multipleEntries : null,
+        shouldLog: hasDetectedEntries,
+        entryData: hasDetectedEntries ? null : null,
+        multipleEntries: hasDetectedEntries ? multipleEntries : null,
         activityLog,
         correlationWarning,
         shouldFollowUp,
