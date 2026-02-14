@@ -15,6 +15,18 @@ import { DynamicChart, DynamicChartRenderer } from "@/components/chat/DynamicCha
 import { AIChatPrompts, generateFollowUps } from "@/components/chat/AIChatPrompts";
 
 
+interface ProactiveFormField {
+  id: string;
+  label: string;
+  type: 'single_select' | 'multi_select';
+  options: { label: string; value: string; emoji?: string }[];
+}
+
+interface ProactiveForm {
+  fields: ProactiveFormField[];
+  closingMessage: string;
+}
+
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -24,7 +36,6 @@ interface ChatMessage {
   isAIGenerated?: boolean;
   dataUsed?: string[];
   weatherUsed?: boolean;
-  // iMessage-style reaction on the user's own bubble
   reaction?: string;
   weatherCard?: {
     location: string;
@@ -54,10 +65,13 @@ interface ChatMessage {
     type: 'severity' | 'symptoms' | 'triggers' | 'timeline';
     data: any;
   };
-  // Dynamic chart from Limitless AI
   visualization?: DynamicChart;
   followUp?: string;
   dynamicFollowUps?: string[];
+  // Proactive form from AI
+  proactiveForm?: ProactiveForm;
+  formCompleted?: boolean;
+  formResponses?: Record<string, string | string[]>;
 
   updateInfo?: {
     entryId: string;
@@ -121,45 +135,77 @@ const chatCache = new Map<string, ChatMessage[]>();
 
 const getPersonalizedGreeting = (conditions: string[], recentEntries: any[]): string => {
   const hour = new Date().getHours();
-  const recentFlares = recentEntries.filter(e => e.type === 'flare').slice(0, 10);
-  const lastFlare = recentFlares[0];
-  
   let timeGreeting = '';
   if (hour < 12) timeGreeting = 'Good morning';
   else if (hour < 17) timeGreeting = 'Good afternoon';
   else timeGreeting = 'Good evening';
-  
-  const last24hFlares = recentFlares.filter(f => {
-    const hoursSince = (Date.now() - new Date(f.timestamp).getTime()) / (1000 * 60 * 60);
-    return hoursSince < 24;
-  });
-  
-  if (last24hFlares.length >= 3) {
-    return `${timeGreeting}. I noticed you've had ${last24hFlares.length} flares in the last day. How are you feeling now?`;
+  return `${timeGreeting}! How are you feeling?`;
+};
+
+// Proactive AI Form Card
+const ProactiveFormCard = ({ 
+  form, completed, responses, onRespond 
+}: { 
+  form: ProactiveForm; 
+  completed: boolean; 
+  responses: Record<string, string | string[]>;
+  onRespond: (fieldId: string, value: string | string[]) => void;
+}) => {
+  if (completed) {
+    return (
+      <div className="mt-2 flex items-center gap-1.5 text-[10px] text-muted-foreground animate-in fade-in duration-300">
+        <Check className="w-3 h-3 text-green-500" />
+        <span>Check-in complete</span>
+      </div>
+    );
   }
-  
-  if (lastFlare) {
-    const hoursSinceFlare = (Date.now() - new Date(lastFlare.timestamp).getTime()) / (1000 * 60 * 60);
-    if (hoursSinceFlare < 24 && lastFlare.severity === 'severe') {
-      return `${timeGreeting}. How are you feeling after yesterday's severe flare?`;
-    }
-    if (hoursSinceFlare < 6) {
-      return `${timeGreeting}. I see you logged earlier. Any updates?`;
-    }
-  }
-  
-  const daysSinceFlare = lastFlare ? 
-    Math.floor((Date.now() - new Date(lastFlare.timestamp).getTime()) / (1000 * 60 * 60 * 24)) : 0;
-  
-  if (daysSinceFlare >= 3 && recentFlares.length > 0) {
-    return `${timeGreeting}! ${daysSinceFlare} days flare-free - great streak!`;
-  }
-  
-  if (recentFlares.length === 0) {
-    return `${timeGreeting}! Tap a symptom below to start logging.`;
-  }
-  
-  return `${timeGreeting}! How are you feeling right now?`;
+
+  // Find the current unanswered field
+  const currentFieldIndex = form.fields.findIndex(f => !responses[f.id]);
+  const currentField = form.fields[currentFieldIndex];
+  if (!currentField) return null;
+
+  const progress = currentFieldIndex / form.fields.length;
+
+  return (
+    <div className="mt-2 max-w-[85%] animate-in slide-in-from-bottom-2 duration-300">
+      {/* Progress dots */}
+      {form.fields.length > 1 && (
+        <div className="flex gap-1 mb-2">
+          {form.fields.map((f, i) => (
+            <div
+              key={f.id}
+              className={cn(
+                "h-1 rounded-full flex-1 transition-all duration-300",
+                i < currentFieldIndex ? "bg-primary" :
+                i === currentFieldIndex ? "bg-primary/60" : "bg-muted"
+              )}
+            />
+          ))}
+        </div>
+      )}
+
+      <p className="text-xs font-medium text-foreground mb-2">{currentField.label}</p>
+      
+      <div className="flex flex-wrap gap-1.5">
+        {currentField.options.map(opt => (
+          <button
+            key={opt.value}
+            onClick={() => onRespond(currentField.id, opt.value)}
+            className={cn(
+              "px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200",
+              "bg-white/80 dark:bg-slate-800/80 border border-border/50",
+              "hover:bg-primary/10 hover:border-primary/30 active:scale-95",
+              "shadow-sm"
+            )}
+          >
+            {opt.emoji && <span className="mr-1">{opt.emoji}</span>}
+            {opt.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 };
 
 // Weather card component
@@ -359,21 +405,53 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   // Use entry context hook for unified environmental + wearable data
   const { getEntryContext, hasWearableConnected, currentWearableData } = useEntryContext();
 
+  // Proactive checkin — call edge function on first load
   useEffect(() => {
     if (hasLoadedMessages.current) return;
     hasLoadedMessages.current = true;
     
-    // Only show greeting if no cached messages exist
     const cached = chatCache.get(userId);
-    if (cached && cached.length > 0) return; // Already restored from cache
+    if (cached && cached.length > 0) return;
     
-    const greeting = getPersonalizedGreeting(userConditions, recentEntries);
+    // Show a quick static greeting while AI loads
+    const staticGreeting = getPersonalizedGreeting(userConditions, recentEntries);
     setMessages([{
       id: '1',
       role: 'assistant',
-      content: greeting,
+      content: staticGreeting,
       timestamp: new Date(),
     }]);
+
+    // Then call proactive-checkin for a smarter message
+    const fetchProactive = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('proactive-checkin', {
+          body: { clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+        });
+        if (error || !data) return;
+
+        const proactiveMsg: ChatMessage = {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: data.message || '',
+          timestamp: new Date(),
+          proactiveForm: data.form || undefined,
+        };
+
+        setMessages(prev => {
+          // Replace the static greeting with the AI one
+          if (prev.length === 1 && prev[0].id === '1') {
+            return [proactiveMsg];
+          }
+          return [...prev, proactiveMsg];
+        });
+      } catch (e) {
+        console.log('[ProactiveCheckin] Could not fetch:', e);
+      }
+    };
+
+    // Small delay to not block initial render
+    setTimeout(fetchProactive, 500);
   }, [userId, userConditions, recentEntries]);
 
   useEffect(() => {
@@ -943,7 +1021,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         <div className="p-4 space-y-3">
         {messages.map((msg, index) => {
           // Skip empty assistant messages (confirmation is handled by entryData badge)
-          if (msg.role === 'assistant' && !msg.content && !msg.entryData && !msg.visualization && !msg.weatherCard && !msg.chartData) return null;
+          if (msg.role === 'assistant' && !msg.content && !msg.entryData && !msg.visualization && !msg.weatherCard && !msg.chartData && !msg.proactiveForm) return null;
           
           return (
           <div key={msg.id} className={cn(
@@ -987,6 +1065,47 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                 </div>
               )}
             </div>
+
+            {/* Proactive AI Form */}
+            {msg.proactiveForm && msg.role === 'assistant' && (
+              <ProactiveFormCard
+                form={msg.proactiveForm}
+                completed={msg.formCompleted || false}
+                responses={msg.formResponses || {}}
+                onRespond={(fieldId, value) => {
+                  setMessages(prev => prev.map(m => {
+                    if (m.id !== msg.id) return m;
+                    const newResponses = { ...(m.formResponses || {}), [fieldId]: value };
+                    const allAnswered = m.proactiveForm!.fields.every(f => newResponses[f.id]);
+                    if (allAnswered) {
+                      // Log the form data
+                      const formNote = Object.entries(newResponses)
+                        .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
+                        .join('; ');
+                      onSave({
+                        type: 'note',
+                        note: `[Proactive Check-in] ${formNote}`,
+                        timestamp: new Date(),
+                      });
+                      // Add closing message
+                      setTimeout(() => {
+                        const closingMsg: ChatMessage = {
+                          id: Date.now().toString(),
+                          role: 'assistant',
+                          content: m.proactiveForm!.closingMessage,
+                          timestamp: new Date(),
+                        };
+                        setMessages(prev2 => [...prev2, closingMsg]);
+                        import('@/lib/haptics').then(({ haptics }) => haptics.success());
+                      }, 400);
+                    } else {
+                      import('@/lib/haptics').then(({ haptics }) => haptics.light());
+                    }
+                    return { ...m, formResponses: newResponses, formCompleted: allAnswered };
+                  }));
+                }}
+              />
+            )}
             
             {msg.weatherCard && <WeatherCard weather={msg.weatherCard} />}
             {msg.chartData && <MiniChart chartData={msg.chartData} />}

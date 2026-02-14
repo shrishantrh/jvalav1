@@ -80,3 +80,9 @@ verify_jwt = false
 
 [functions.delete-account]
 verify_jwt = false
+
+[functions.proactive-checkin]
+verify_jwt = false
+
+[functions.smart-notifications]
+verify_jwt = false
