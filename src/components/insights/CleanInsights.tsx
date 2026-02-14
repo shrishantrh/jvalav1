@@ -382,6 +382,14 @@ export const CleanInsights = ({ entries, userConditions = [], onAskAI }: CleanIn
           💡 More accurate insights with {10 - basicStats.flares30d} more logged flares
         </p>
       )}
+
+      {/* Medical Disclaimer */}
+      <div className="p-3 rounded-xl bg-muted/50 border border-border/30">
+        <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
+          <Shield className="w-3 h-3 inline mr-1 -mt-0.5" />
+          Insights are for informational purposes only and do not constitute medical advice. Always consult a healthcare professional.
+        </p>
+      </div>
     </div>
   );
 };

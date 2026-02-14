@@ -319,6 +319,13 @@ Make it practical and personalized to my data.`;
         )}
       </ScrollArea>
 
+      {/* Medical disclaimer */}
+      <div className="px-4 py-1.5 border-t border-border/30">
+        <p className="text-[10px] text-muted-foreground text-center leading-tight">
+          Not medical advice. Always consult your doctor before making health decisions.
+        </p>
+      </div>
+
       {/* Input */}
       <div className="p-4 border-t bg-background/50">
         <div className="flex gap-2">

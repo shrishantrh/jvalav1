@@ -34,6 +34,7 @@ const Auth = () => {
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [emailError, setEmailError] = useState("");
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -273,13 +274,14 @@ const Auth = () => {
   }
 
   const canSubmit = isSignUp 
-    ? termsAccepted && privacyAccepted && isPasswordStrong(password) && password === confirmPassword && email
+    ? termsAccepted && privacyAccepted && ageConfirmed && isPasswordStrong(password) && password === confirmPassword && email
     : email && password;
 
   const resetForm = (signUp: boolean) => {
     setIsSignUp(signUp);
     setTermsAccepted(false);
     setPrivacyAccepted(false);
+    setAgeConfirmed(false);
     setPassword("");
     setConfirmPassword("");
     setEmailError("");
@@ -487,6 +489,17 @@ const Auth = () => {
                     >
                       Privacy Policy
                     </button>
+                    <span className="text-destructive"> *</span>
+                  </label>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <Checkbox
+                    id="age"
+                    checked={ageConfirmed}
+                    onCheckedChange={(checked) => setAgeConfirmed(checked === true)}
+                  />
+                  <label htmlFor="age" className="text-xs cursor-pointer flex-1" style={{ color: 'hsl(270 25% 35%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 400 }}>
+                    I am at least 13 years old
                     <span className="text-destructive"> *</span>
                   </label>
                 </div>
