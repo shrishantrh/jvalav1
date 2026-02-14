@@ -464,6 +464,7 @@ export type Database = {
           share_enabled: boolean | null
           share_password_hash: string | null
           share_token: string | null
+          terms_accepted_at: string | null
           timezone: string | null
           updated_at: string
           weight_kg: number | null
@@ -492,6 +493,7 @@ export type Database = {
           share_enabled?: boolean | null
           share_password_hash?: string | null
           share_token?: string | null
+          terms_accepted_at?: string | null
           timezone?: string | null
           updated_at?: string
           weight_kg?: number | null
@@ -520,6 +522,7 @@ export type Database = {
           share_enabled?: boolean | null
           share_password_hash?: string | null
           share_token?: string | null
+          terms_accepted_at?: string | null
           timezone?: string | null
           updated_at?: string
           weight_kg?: number | null
