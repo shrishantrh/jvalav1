@@ -66,8 +66,14 @@ serve(async (req) => {
         throw new Error(error.message);
       }
 
-      const actionLink = data.properties?.action_link || "";
+      let actionLink = data.properties?.action_link || "";
       if (!actionLink) throw new Error("No action link generated");
+
+      // Force redirect_to to jvala.tech (Supabase overrides with its Site URL)
+      actionLink = actionLink.replace(
+        /redirect_to=[^&]*/,
+        "redirect_to=" + encodeURIComponent("https://jvala.tech/confirm-email")
+      );
 
       // Also set terms_accepted_at on the new profile
       if (data.user?.id) {
@@ -93,8 +99,14 @@ serve(async (req) => {
         throw new Error(error.message);
       }
 
-      const actionLink = data.properties?.action_link || "";
+      let actionLink = data.properties?.action_link || "";
       if (!actionLink) throw new Error("No action link generated");
+
+      // Force redirect_to to jvala.tech
+      actionLink = actionLink.replace(
+        /redirect_to=[^&]*/,
+        "redirect_to=" + encodeURIComponent("https://jvala.tech/reset-password")
+      );
 
       subject = "Reset your password — Jvala";
       htmlContent = buildResetEmail(actionLink);
