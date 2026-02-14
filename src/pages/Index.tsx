@@ -46,6 +46,7 @@ interface UserProfile {
   known_symptoms: string[];
   known_triggers: string[];
   medications: MedicationDetails[];
+  aiLogCategories: any[];
   physician_name: string | null;
   physician_email: string | null;
   physician_phone: string | null;
@@ -156,12 +157,14 @@ const Index = () => {
       if (data) {
         const profileData = data as any;
         const medications = profileData.metadata?.medications || [];
+        const aiLogCategories = profileData.metadata?.aiLogCategories || [];
         
         setUserProfile({
           conditions: data.conditions || [],
           known_symptoms: data.known_symptoms || [],
           known_triggers: data.known_triggers || [],
           medications: medications,
+          aiLogCategories: aiLogCategories,
           physician_name: data.physician_name,
           physician_email: data.physician_email,
           physician_phone: data.physician_phone,
@@ -231,6 +234,7 @@ const Index = () => {
         known_symptoms: knownSymptoms,
         known_triggers: knownTriggers,
         medications: medicationDetails,
+        aiLogCategories: aiLogCategories,
         physician_name: null,
         physician_email: null,
         physician_phone: null,
@@ -586,6 +590,7 @@ const Index = () => {
               userConditions={userProfile?.conditions || []}
               userTriggers={userProfile?.known_triggers || []}
               userMedications={userProfile?.medications || []}
+              aiLogCategories={userProfile?.aiLogCategories || []}
               userName={userProfile?.full_name}
               userDOB={userProfile?.date_of_birth}
               userBiologicalSex={userProfile?.biological_sex}
