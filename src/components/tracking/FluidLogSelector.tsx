@@ -54,6 +54,7 @@ interface FluidLogSelectorProps {
   onLogSymptom: (symptom: string, severity: string) => void;
   onLogMedication: (medicationName: string) => void;
   onLogWellness: () => void;
+  onLogMood?: (mood: string) => void;
   onLogEnergy?: (level: 'low' | 'moderate' | 'high') => void;
   onLogRecovery?: () => void;
   onLogCustom?: (trackableLabel: string, value?: string) => void;
@@ -228,7 +229,7 @@ const TrackableInteractionPanel = ({ trackable, onLog, onClose }: {
 
 export const FluidLogSelector = ({
   userSymptoms, userMedications, aiLogCategories = [], customTrackables = [],
-  onLogSymptom, onLogMedication, onLogWellness,
+  onLogSymptom, onLogMedication, onLogWellness, onLogMood,
   onLogEnergy, onLogRecovery, onLogCustom, onAddTrackable, onRemoveTrackable, onReorderTrackables, onOpenDetails, disabled
 }: FluidLogSelectorProps) => {
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
@@ -354,12 +355,10 @@ export const FluidLogSelector = ({
     setActivePanel(null);
   };
 
-  const handleMoodSelect = (severity: FlareSeverity) => {
+  const handleMoodSelect = (mood: string) => {
     haptics.success();
-    if (severity === 'none' || severity === 'mild') {
-      onLogWellness();
-    } else if (onLogRecovery) {
-      onLogRecovery();
+    if (onLogMood) {
+      onLogMood(mood);
     }
     setActivePanel(null);
   };
@@ -741,7 +740,31 @@ export const FluidLogSelector = ({
                   <X className="w-4 h-4 text-muted-foreground" />
                 </button>
               </div>
-              <SeverityWheel selectedSeverity={null} onSeveritySelect={handleMoodSelect} />
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { mood: 'happy', emoji: '😊', label: 'Happy', hue: 145, sat: 60, light: 50 },
+                  { mood: 'calm', emoji: '😌', label: 'Calm', hue: 200, sat: 55, light: 52 },
+                  { mood: 'anxious', emoji: '😰', label: 'Anxious', hue: 35, sat: 80, light: 50 },
+                  { mood: 'sad', emoji: '😢', label: 'Sad', hue: 220, sat: 60, light: 50 },
+                  { mood: 'irritable', emoji: '😤', label: 'Irritable', hue: 0, sat: 70, light: 52 },
+                  { mood: 'tired', emoji: '😴', label: 'Tired', hue: 260, sat: 40, light: 55 },
+                ].map((option) => (
+                  <button
+                    key={option.mood}
+                    onClick={() => handleMoodSelect(option.mood)}
+                    className="py-3 px-2 rounded-2xl text-center transition-all active:scale-95 hover:scale-[1.02] relative overflow-hidden"
+                    style={{
+                      background: `linear-gradient(145deg, hsl(${option.hue} ${option.sat}% ${option.light + 40}% / 0.9), hsl(${option.hue} ${option.sat - 10}% ${option.light + 35}% / 0.85))`,
+                      border: `1px solid hsl(${option.hue} ${option.sat}% ${option.light + 20}% / 0.5)`,
+                      boxShadow: `inset 0 1px 2px hsl(0 0% 100% / 0.3), 0 2px 8px hsl(${option.hue} ${option.sat}% ${option.light}% / 0.1)`,
+                    }}
+                  >
+                    <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(180deg, hsl(0 0% 100% / 0.25) 0%, transparent 50%)', borderRadius: 'inherit' }} />
+                    <span className="text-2xl relative">{option.emoji}</span>
+                    <div className="text-xs font-bold mt-1 relative" style={{ color: `hsl(${option.hue} ${option.sat}% ${option.light}%)` }}>{option.label}</div>
+                  </button>
+                ))}
+              </div>
             </>
           )}
 

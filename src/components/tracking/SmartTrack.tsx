@@ -874,6 +874,59 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     setMessages(prev => [...prev, confirmMessage]);
   };
 
+  const handleMoodLog = async (mood: string) => {
+    const moodLabels: Record<string, string> = {
+      happy: '😊 Happy',
+      calm: '😌 Calm',
+      anxious: '😰 Anxious',
+      sad: '😢 Sad',
+      irritable: '😤 Irritable',
+      tired: '😴 Tired',
+    };
+    const label = moodLabels[mood] || mood;
+
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: `Mood: ${label}`,
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, userMessage]);
+
+    const entry: Partial<FlareEntry> = {
+      type: 'wellness',
+      note: `Mood: ${label}`,
+      context: { mood },
+      timestamp: new Date(),
+    };
+
+    try {
+      const contextData = await getEntryContext();
+      if (contextData.environmentalData) entry.environmentalData = contextData.environmentalData;
+      if (contextData.physiologicalData) entry.physiologicalData = contextData.physiologicalData;
+    } catch (e) { /* silent */ }
+
+    onSave(entry);
+
+    const responses: Record<string, string> = {
+      happy: "Great mood! Logged. 🌟",
+      calm: "Feeling calm — logged.",
+      anxious: "Noted your anxiety. Take a deep breath. 💙",
+      sad: "Sorry you're feeling down. Logged. 💜",
+      irritable: "Frustration noted. Hope it passes. 🫂",
+      tired: "Tiredness logged. Rest up!",
+    };
+
+    const confirmMessage: ChatMessage = {
+      id: (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: responses[mood] || `Mood logged: ${label}`,
+      timestamp: new Date(),
+      entryData: entry,
+    };
+    setMessages(prev => [...prev, confirmMessage]);
+  };
+
   const handleRecoveryLog = async () => {
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -1409,6 +1462,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             onLogSymptom={handleFluidLog}
             onLogMedication={handleMedicationLog}
             onLogWellness={handleWellnessLog}
+            onLogMood={handleMoodLog}
             onLogEnergy={handleEnergyLog}
             onLogRecovery={handleRecoveryLog}
             onLogCustom={handleCustomLog}
