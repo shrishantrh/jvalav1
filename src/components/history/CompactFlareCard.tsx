@@ -52,13 +52,19 @@ const SeverityOrb = ({ severity, type, note }: { severity?: string; type?: strin
     // Custom trackable types (type starts with 'trackable:')
     if (type?.startsWith('trackable:')) {
       const meta = parseTrackableMeta(note);
-      const icon = meta?.icon || '📊';
+      // Map lucide icon names to emojis for display
+      const iconEmojiMap: Record<string, string> = {
+        glass_water: '💧', droplets: '💧', dumbbell: '💪', apple: '🍎',
+        heart: '❤️', brain: '🧠', moon: '🌙', sun: '☀️', thermometer: '🌡️',
+        zap: '⚡', shield: '🛡️', eye: '👁️', activity: '📊', flame: '🔥',
+      };
+      const emoji = iconEmojiMap[meta?.icon || ''] || meta?.icon || '📊';
       return { 
         gradient: 'from-violet-200 via-purple-100 to-fuchsia-50',
         glow: 'rgba(139, 92, 246, 0.35)',
         face: '#7c3aed',
         faceType: 'emoji' as const,
-        emoji: icon,
+        emoji,
       };
     }
 
@@ -324,10 +330,10 @@ export const CompactFlareCard = ({
                       {entry.type}
                     </Badge>
                   )}
-                  {trackableMeta && (
-                    <Badge variant="outline" className="text-[10px] font-medium bg-primary/5 border-primary/20 text-primary">
-                      {trackableMeta.value || 'logged'}
-                    </Badge>
+                  {trackableMeta && trackableMeta.value && trackableMeta.value !== trackableMeta.trackableLabel && (
+                    <span className="text-[10px] text-muted-foreground font-medium">
+                      {trackableMeta.value}
+                    </span>
                   )}
                 </div>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">

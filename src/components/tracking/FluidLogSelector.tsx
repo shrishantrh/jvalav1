@@ -89,6 +89,7 @@ const GlassButton = ({ children, onClick, active, disabled, className = "", styl
       background: active 
         ? 'linear-gradient(145deg, hsl(25 75% 95% / 0.95) 0%, hsl(25 70% 92% / 0.9) 100%)'
         : 'linear-gradient(145deg, hsl(0 0% 100% / 0.85) 0%, hsl(0 0% 98% / 0.8) 100%)',
+      backgroundClip: 'padding-box',
       border: active ? '2px solid hsl(25 75% 50% / 0.4)' : '1px solid hsl(0 0% 100% / 0.6)',
       boxShadow: active
         ? 'inset 0 1px 2px hsl(0 0% 100% / 0.5), 0 4px 12px hsl(25 75% 50% / 0.15)'
@@ -390,6 +391,7 @@ export const FluidLogSelector = ({
                 background: isActive
                   ? `linear-gradient(145deg, ${cat.color || 'hsl(0 70% 95%)'}, ${cat.color ? cat.color.replace(/\d+%\)/, '90%)') : 'hsl(0 70% 90%)'})`
                   : 'linear-gradient(145deg, hsl(0 0% 100% / 0.85) 0%, hsl(0 0% 98% / 0.8) 100%)',
+                backgroundClip: 'padding-box',
                 border: isActive ? `2px solid ${cat.color || 'hsl(0 70% 50%)'}` : '1px solid hsl(0 0% 100% / 0.6)',
                 boxShadow: isActive
                   ? `inset 0 1px 2px hsl(0 0% 100% / 0.5), 0 4px 12px ${cat.color || 'hsl(0 70% 50%)'}`
@@ -434,6 +436,7 @@ export const FluidLogSelector = ({
                 background: isActive
                   ? `linear-gradient(145deg, ${(t as SmartTrackable).color?.replace(/\d+%\)/, '95%)') || 'hsl(250 60% 95%)'}, ${(t as SmartTrackable).color?.replace(/\d+%\)/, '90%)') || 'hsl(250 60% 90%)'})`
                   : 'linear-gradient(145deg, hsl(0 0% 100% / 0.85) 0%, hsl(0 0% 98% / 0.8) 100%)',
+                backgroundClip: 'padding-box',
                 border: isActive ? `2px solid ${(t as SmartTrackable).color || 'hsl(250 60% 55%)'}` : '1px solid hsl(0 0% 100% / 0.6)',
                 boxShadow: isActive
                   ? `inset 0 1px 2px hsl(0 0% 100% / 0.5), 0 4px 12px ${(t as SmartTrackable).color?.replace(/\d+%\)/, '30%)') || 'hsl(250 60% 30%)'}`

@@ -606,7 +606,7 @@ const Index = () => {
                 const currentMeta: Record<string, any> = {
                   medications: (userProfile.medications || []).map(m => ({ name: m.name, dosage: m.dosage, frequency: m.frequency })),
                   aiLogCategories: userProfile.aiLogCategories || [],
-                  customTrackables: updated.map(t => ({ id: t.id, label: t.label, icon: t.icon, type: t.type })),
+                  customTrackables: updated.map(t => ({ id: t.id, label: t.label, icon: t.icon, type: t.type, color: t.color, interactionType: t.interactionType, subOptions: t.subOptions, unit: t.unit, logMessage: t.logMessage })),
                 };
                 await supabase.from('profiles').update({ metadata: currentMeta as any }).eq('id', user.id);
               }}
