@@ -1,82 +1,38 @@
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Switch } from "@/components/ui/switch";
-import { Slider } from "@/components/ui/slider";
 import { CONDITIONS, Condition } from "@/data/conditions";
 import { 
   ChevronRight, 
   Search,
   Heart,
-  Activity,
   Check,
   Sparkles,
-  Zap,
-  Watch,
   Brain,
-  Calendar,
-  Moon,
-  Droplet,
-  ThermometerSun,
-  Utensils,
-  Pill,
-  Users,
+  MapPin,
+  Activity,
   Shield,
-  ChevronLeft,
   Loader2,
-  ExternalLink
+  ChevronLeft,
+  Calendar,
+  User2,
+  Plus,
+  X
 } from "lucide-react";
 import jvalaLogo from "@/assets/jvala-logo.png";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
 
-// What users can track - condition-agnostic
-// Simplified to 2 main tracking options per document requirements
-const TRACKING_OPTIONS = [
-  { 
-    id: 'symptoms_flares', 
-    name: 'Symptoms & Flares', 
-    icon: Activity, 
-    desc: 'Track flares, symptoms, triggers, medications. Best for chronic conditions.',
-    default: true 
-  },
-  { 
-    id: 'health_tracking', 
-    name: 'General Health Tracking', 
-    icon: Heart, 
-    desc: 'Track sleep, energy, activity, mood. For overall wellness monitoring.',
-    default: false 
-  },
-];
-
-// Data sources we can auto-capture from
-const DATA_SOURCES = [
-  { id: 'apple_health', name: 'Apple Health', icon: '🍎', available: true, autoCaptures: ['sleep', 'activity', 'menstrual', 'heart_rate'] },
-  { id: 'google_fit', name: 'Google Fit', icon: '🏃', available: true, autoCaptures: ['sleep', 'activity', 'heart_rate'] },
-  { id: 'fitbit', name: 'Fitbit', icon: '⌚', available: true, autoCaptures: ['sleep', 'activity', 'heart_rate', 'stress'] },
-  { id: 'oura', name: 'Oura Ring', icon: '💍', available: true, autoCaptures: ['sleep', 'activity', 'temperature', 'menstrual'] },
-  { id: 'whoop', name: 'WHOOP', icon: '🔄', available: false, autoCaptures: ['sleep', 'strain', 'recovery'] },
-  { id: 'garmin', name: 'Garmin', icon: '⏱️', available: false, autoCaptures: ['sleep', 'activity', 'stress'] },
-];
-
-// Menstrual tracking apps we can import from
-const MENSTRUAL_APPS = [
-  { id: 'clue', name: 'Clue', icon: '🔴', desc: 'Import via Apple Health' },
-  { id: 'flo', name: 'Flo', icon: '🌸', desc: 'Import via Apple Health' },
-  { id: 'natural_cycles', name: 'Natural Cycles', icon: '🌡️', desc: 'Direct import coming soon' },
-  { id: 'manual', name: 'Log Manually', icon: '📝', desc: 'Track right here in Jvala' },
-];
-
 interface OnboardingData {
+  conditions: string[];
+  customConditions: string[];
+  dateOfBirth: string;
+  biologicalSex: string;
+  firstName: string;
   trackingItems: string[];
   dataSources: string[];
   menstrualApp: string | null;
-  conditions: string[];
   age: number | null;
-  biologicalSex: 'male' | 'female' | 'other' | null;
   enableReminders: boolean;
   reminderTime: string;
 }
@@ -85,29 +41,45 @@ interface RevolutionaryOnboardingProps {
   onComplete: (data: OnboardingData) => void;
 }
 
+const TOTAL_STEPS = 5;
+
+// Animated dot background for hero
+const FloatingOrbs = () => (
+  <div className="absolute inset-0 overflow-hidden pointer-events-none">
+    <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full opacity-20 animate-float"
+      style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.4) 0%, transparent 70%)' }} />
+    <div className="absolute -bottom-32 -left-20 w-80 h-80 rounded-full opacity-15 animate-float"
+      style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.3) 0%, transparent 70%)', animationDelay: '2s' }} />
+    <div className="absolute top-1/3 right-0 w-40 h-40 rounded-full opacity-10 animate-float"
+      style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.5) 0%, transparent 70%)', animationDelay: '1s' }} />
+  </div>
+);
+
 export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingProps) => {
   const [step, setStep] = useState(0);
   const [data, setData] = useState<OnboardingData>({
-    trackingItems: ['symptoms_flares'], // Default to symptoms & flares
+    conditions: [],
+    customConditions: [],
+    dateOfBirth: "",
+    biologicalSex: "",
+    firstName: "",
+    trackingItems: ['symptoms_flares'],
     dataSources: [],
     menstrualApp: null,
-    conditions: [],
     age: null,
-    biologicalSex: null,
     enableReminders: true,
     reminderTime: "09:00",
   });
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [conditionSearch, setConditionSearch] = useState("");
+  const [analyzeStep, setAnalyzeStep] = useState(0);
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  // No longer needed with simplified 2-option tracking
-
-  const totalSteps = 3;
-  const progress = ((step + 1) / totalSteps) * 100;
+  const progress = ((step + 1) / TOTAL_STEPS) * 100;
 
   const handleNext = () => {
     haptics.selection();
-    if (step === totalSteps - 1) {
+    if (step === TOTAL_STEPS - 1) {
       handleComplete();
     } else {
       setStep(prev => prev + 1);
@@ -122,20 +94,16 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
   const handleComplete = async () => {
     setIsAnalyzing(true);
     haptics.success();
-    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Animate through steps
+    const steps = [0, 1, 2, 3, 4];
+    for (const s of steps) {
+      await new Promise(resolve => setTimeout(resolve, 600));
+      setAnalyzeStep(s);
+    }
+    await new Promise(resolve => setTimeout(resolve, 800));
+
     onComplete(data);
-  };
-
-  // Removed toggleTracking - now using single selection with two options
-
-  const toggleDataSource = (sourceId: string) => {
-    haptics.selection();
-    setData(prev => ({
-      ...prev,
-      dataSources: prev.dataSources.includes(sourceId)
-        ? prev.dataSources.filter(s => s !== sourceId)
-        : [...prev.dataSources, sourceId]
-    }));
   };
 
   const toggleCondition = (conditionId: string) => {
@@ -148,46 +116,107 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
     }));
   };
 
+  const addCustomCondition = () => {
+    const trimmed = conditionSearch.trim();
+    if (!trimmed) return;
+    // Check if already exists in CONDITIONS list
+    const existsInList = CONDITIONS.some(c => c.name.toLowerCase() === trimmed.toLowerCase());
+    if (existsInList) return;
+    // Check if already custom-added
+    if (data.customConditions.some(c => c.toLowerCase() === trimmed.toLowerCase())) return;
+
+    haptics.selection();
+    setData(prev => ({
+      ...prev,
+      customConditions: [...prev.customConditions, trimmed]
+    }));
+    setConditionSearch("");
+  };
+
+  const removeCustomCondition = (condition: string) => {
+    haptics.selection();
+    setData(prev => ({
+      ...prev,
+      customConditions: prev.customConditions.filter(c => c !== condition)
+    }));
+  };
+
   const filteredConditions = conditionSearch
-    ? CONDITIONS.filter(c => 
+    ? CONDITIONS.filter(c =>
         c.name.toLowerCase().includes(conditionSearch.toLowerCase()) ||
         c.category.toLowerCase().includes(conditionSearch.toLowerCase())
       )
-    : CONDITIONS.slice(0, 12);
+    : CONDITIONS;
 
-  // Analyzing screen
+  const totalSelected = data.conditions.length + data.customConditions.length;
+
+  const canProceed = () => {
+    switch (step) {
+      case 0: return true; // Welcome is always passable
+      case 1: return data.firstName.trim().length > 0;
+      case 2: return totalSelected > 0;
+      case 3: return true; // Demographics are optional
+      case 4: return true; // Permissions are optional
+      default: return true;
+    }
+  };
+
+  // Personalizing screen
   if (isAnalyzing) {
+    const conditionNames = [
+      ...data.conditions.map(id => CONDITIONS.find(c => c.id === id)?.name).filter(Boolean),
+      ...data.customConditions
+    ];
+
+    const analyzeSteps = [
+      { text: `Understanding ${conditionNames[0] || 'your conditions'}...`, icon: Brain },
+      { text: "Researching evidence-based patterns...", icon: Search },
+      { text: "Configuring symptom & trigger detection...", icon: Activity },
+      { text: "Setting up environmental monitoring...", icon: MapPin },
+      { text: `Personalizing for ${data.firstName || 'you'}...`, icon: Sparkles },
+    ];
+
     return (
-      <div className="fixed inset-0 flex flex-col items-center justify-center px-6 bg-background max-w-md mx-auto">
-        <div className="text-center space-y-8 animate-in fade-in-0 zoom-in-95 duration-500">
+      <div className="fixed inset-0 flex flex-col items-center justify-center px-8"
+        style={{ background: 'var(--gradient-background)', paddingTop: 'env(safe-area-inset-top)' }}>
+        <FloatingOrbs />
+        <div className="text-center space-y-10 relative z-10 animate-in fade-in-0 zoom-in-95 duration-500">
+          {/* Pulsing logo */}
           <div className="relative w-24 h-24 mx-auto">
-            <div className="absolute inset-0 bg-gradient-primary rounded-3xl animate-pulse" />
-            <div className="absolute inset-3 bg-card rounded-2xl flex items-center justify-center glass-card">
-              <Brain className="w-10 h-10 text-primary animate-pulse" />
+            <div className="absolute inset-0 bg-gradient-primary rounded-3xl opacity-30 animate-pulse" />
+            <div className="absolute inset-0 bg-gradient-primary rounded-3xl opacity-15 animate-ping" style={{ animationDuration: '2s' }} />
+            <div className="relative glass-card rounded-3xl p-4 flex items-center justify-center h-full">
+              <Brain className="w-10 h-10 text-primary" />
             </div>
           </div>
-          
-          <div className="space-y-3">
-            <h2 className="text-xl font-bold">Building Your Health AI...</h2>
-            <div className="text-sm text-muted-foreground space-y-2 max-w-xs mx-auto">
-              <p className="animate-in fade-in-0 duration-500" style={{ animationDelay: "300ms" }}>
-                ✓ Setting up {data.trackingItems.length} tracking categories
-              </p>
-              {data.dataSources.length > 0 && (
-                <p className="animate-in fade-in-0 duration-500" style={{ animationDelay: "600ms" }}>
-                  ✓ Connecting {data.dataSources.length} data sources
-                </p>
-              )}
-              <p className="animate-in fade-in-0 duration-500" style={{ animationDelay: "900ms" }}>
-                ✓ Initializing pattern detection
-              </p>
-              <p className="animate-in fade-in-0 duration-500" style={{ animationDelay: "1200ms" }}>
-                ✓ Preparing personalized forecasts
-              </p>
+
+          <div className="space-y-6">
+            <h2 className="text-xl font-bold">Building Your Health AI</h2>
+            <div className="space-y-3 max-w-[280px] mx-auto text-left">
+              {analyzeSteps.map((s, i) => {
+                const Icon = s.icon;
+                const isActive = i === analyzeStep;
+                const isDone = i < analyzeStep;
+                return (
+                  <div key={i} className={cn(
+                    "flex items-center gap-3 py-2 px-3 rounded-xl transition-all duration-500",
+                    isDone ? "opacity-60" : isActive ? "glass-card" : "opacity-20"
+                  )}>
+                    {isDone ? (
+                      <Check className="w-5 h-5 text-primary flex-shrink-0" />
+                    ) : isActive ? (
+                      <Loader2 className="w-5 h-5 text-primary flex-shrink-0 animate-spin" />
+                    ) : (
+                      <Icon className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                    )}
+                    <span className={cn("text-sm", isActive ? "font-medium" : "")}>
+                      {s.text}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
-          
-          <Loader2 className="w-8 h-8 mx-auto animate-spin text-primary" />
         </div>
       </div>
     );
@@ -195,332 +224,354 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
 
   const renderStep = () => {
     switch (step) {
-      case 0: // Welcome + What to track
+      // ─── Step 0: Welcome ─────────────────────────────────
+      case 0:
         return (
-          <div className="space-y-6 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
-            {/* Hero */}
-            <div className="text-center space-y-4 pt-4">
-              <div className="relative w-20 h-20 mx-auto">
-                <div className="absolute inset-0 bg-gradient-primary rounded-2xl rotate-6 opacity-20" />
-                <div className="relative bg-white rounded-2xl p-3 shadow-lg">
-                  <img src={jvalaLogo} alt="Jvala" className="w-full h-full" />
+          <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-700">
+            <FloatingOrbs />
+            <div className="relative z-10 text-center space-y-8 w-full">
+              {/* Logo with 3D glass effect */}
+              <div className="relative w-28 h-28 mx-auto">
+                <div className="absolute inset-0 bg-gradient-primary rounded-[2rem] rotate-6 opacity-20" />
+                <div className="absolute inset-0 bg-gradient-primary rounded-[2rem] -rotate-3 opacity-30" />
+                <div className="relative glass-card rounded-[2rem] p-5 shadow-soft-lg h-full flex items-center justify-center">
+                  <img src={jvalaLogo} alt="Jvala" className="w-full h-full object-contain" />
                 </div>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gradient-primary">What do you want to track?</h1>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Select what matters to you. AI learns the rest.
+
+              <div className="space-y-3">
+                <h1 className="text-3xl font-bold text-gradient-primary leading-tight">
+                  Your Health,<br />Understood.
+                </h1>
+                <p className="text-base text-muted-foreground max-w-[280px] mx-auto leading-relaxed">
+                  An AI health companion that learns your unique patterns and predicts what's coming — so you can live better.
                 </p>
               </div>
-            </div>
 
-            {/* Simplified to 2 options */}
-            <div className="space-y-3">
-              {TRACKING_OPTIONS.map((option, idx) => {
-                const isSelected = data.trackingItems.includes(option.id);
-                return (
-                  <button
-                    key={option.id}
-                    onClick={() => {
-                      haptics.selection();
-                      setData(prev => ({ ...prev, trackingItems: [option.id] }));
-                    }}
-                    className={cn(
-                      "w-full p-4 rounded-2xl border text-left transition-all press-effect",
-                      "flex items-center gap-4 animate-in fade-in-0",
-                      isSelected
-                        ? 'bg-primary/10 border-primary shadow-lg'
-                        : 'bg-card hover:bg-muted/50 border-border'
-                    )}
-                    style={{ animationDelay: `${idx * 100}ms` }}
+              {/* Value props in glass cards */}
+              <div className="space-y-3 pt-2">
+                {[
+                  { icon: Brain, title: "Learns Your Patterns", desc: "AI connects the dots you can't see" },
+                  { icon: Sparkles, title: "Predicts Flares", desc: "Know what's coming before it hits" },
+                  { icon: Shield, title: "Evidence-Based", desc: "Backed by clinical research, not guesswork" },
+                ].map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="glass-card flex items-center gap-4 animate-in fade-in-0"
+                    style={{ animationDelay: `${300 + idx * 150}ms` }}
                   >
-                    <div className={cn(
-                      "w-14 h-14 rounded-2xl flex items-center justify-center shrink-0",
-                      isSelected ? 'bg-gradient-primary' : 'bg-muted'
-                    )}>
-                      <option.icon className={cn("w-7 h-7", isSelected ? 'text-primary-foreground' : 'text-foreground')} />
+                    <div className="w-11 h-11 rounded-2xl bg-gradient-primary flex items-center justify-center flex-shrink-0">
+                      <item.icon className="w-5 h-5 text-primary-foreground" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-base font-semibold">{option.name}</span>
-                        {option.default && (
-                          <Badge variant="secondary" className="text-[9px] px-1.5 py-0">Recommended</Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">{option.desc}</p>
+                    <div className="text-left">
+                      <p className="text-sm font-semibold">{item.title}</p>
+                      <p className="text-xs text-muted-foreground">{item.desc}</p>
                     </div>
-                    {isSelected && <Check className="w-6 h-6 text-primary flex-shrink-0" />}
-                  </button>
-                );
-              })}
+                  </div>
+                ))}
+              </div>
             </div>
-
-            <p className="text-xs text-center text-muted-foreground">
-              You can always change this later in settings
-            </p>
           </div>
         );
 
-      case 1: // Demographics + Data Sources
+      // ─── Step 1: Name ─────────────────────────────────
+      case 1:
         return (
-          <div className="space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
-            <div className="text-center space-y-2">
-              <h2 className="text-2xl font-bold">Personalize Your AI</h2>
-              <p className="text-xs text-muted-foreground">
-                Better data = better predictions
-              </p>
-            </div>
-
-            {/* Quick Demographics */}
-            <Card className="p-4 bg-gradient-card border-0 shadow-soft space-y-4">
-              <h3 className="text-sm font-medium flex items-center gap-2">
-                <Users className="w-4 h-4 text-primary" />
-                About You (Optional)
-              </h3>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Biological Sex</p>
-                  <div className="flex gap-1">
-                    {(['female', 'male', 'other'] as const).map(sex => (
-                      <Button
-                        key={sex}
-                        variant={data.biologicalSex === sex ? 'default' : 'outline'}
-                        size="sm"
-                        className="flex-1 text-xs h-8"
-                        onClick={() => {
-                          haptics.selection();
-                          setData(prev => ({ ...prev, biologicalSex: sex }));
-                        }}
-                      >
-                        {sex === 'female' ? '♀' : sex === 'male' ? '♂' : '⚧'}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Age Range</p>
-                  <div className="flex gap-1">
-                    {[
-                      { label: '<30', value: 25 },
-                      { label: '30-50', value: 40 },
-                      { label: '50+', value: 55 }
-                    ].map(age => (
-                      <Button
-                        key={age.value}
-                        variant={data.age === age.value ? 'default' : 'outline'}
-                        size="sm"
-                        className="flex-1 text-xs h-8"
-                        onClick={() => {
-                          haptics.selection();
-                          setData(prev => ({ ...prev, age: age.value }));
-                        }}
-                      >
-                        {age.label}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
+          <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
+            <div className="w-full max-w-sm text-center space-y-8">
+              <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-primary flex items-center justify-center">
+                <User2 className="w-8 h-8 text-primary-foreground" />
               </div>
-            </Card>
 
-            {/* Data Sources */}
-            <Card className="p-4 bg-gradient-card border-0 shadow-soft space-y-4">
-              <h3 className="text-sm font-medium flex items-center gap-2">
-                <Watch className="w-4 h-4 text-primary" />
-                Connect Data Sources
-              </h3>
-              <p className="text-[10px] text-muted-foreground -mt-2">
-                Auto-capture sleep, activity & more - no manual logging
-              </p>
-              
-              <div className="grid grid-cols-2 gap-2">
-                {DATA_SOURCES.map((source) => {
-                  const isSelected = data.dataSources.includes(source.id);
-                  return (
-                    <button
-                      key={source.id}
-                      onClick={() => source.available && toggleDataSource(source.id)}
-                      disabled={!source.available}
-                      className={cn(
-                        "p-3 rounded-xl border text-center transition-all",
-                        source.available ? 'press-effect' : 'opacity-50 cursor-not-allowed',
-                        isSelected
-                          ? 'bg-primary/10 border-primary'
-                          : 'bg-background hover:bg-muted/50'
-                      )}
-                    >
-                      <span className="text-2xl">{source.icon}</span>
-                      <p className="text-xs font-medium mt-1">{source.name}</p>
-                      {!source.available && (
-                        <Badge variant="outline" className="text-[8px] mt-1">Soon</Badge>
-                      )}
-                      {isSelected && (
-                        <Check className="w-4 h-4 text-primary mx-auto mt-1" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </Card>
-
-            {/* Menstrual tracking - show if relevant */}
-            {data.trackingItems.includes('menstrual') && (
-              <Card className="p-4 bg-gradient-card border-0 shadow-soft space-y-3 animate-in fade-in-0 duration-300">
-                <h3 className="text-sm font-medium flex items-center gap-2">
-                  <Droplet className="w-4 h-4 text-pink-500" />
-                  Menstrual Tracking
-                </h3>
-                <p className="text-[10px] text-muted-foreground">
-                  Already using an app? We can sync your data.
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold">What should we call you?</h2>
+                <p className="text-sm text-muted-foreground">
+                  So your health assistant feels personal.
                 </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {MENSTRUAL_APPS.map(app => (
-                    <button
-                      key={app.id}
-                      onClick={() => {
-                        haptics.selection();
-                        setData(prev => ({ ...prev, menstrualApp: app.id }));
-                      }}
-                      className={cn(
-                        "p-2.5 rounded-lg border text-left transition-all press-effect",
-                        data.menstrualApp === app.id
-                          ? 'bg-pink-500/10 border-pink-500'
-                          : 'bg-background hover:bg-muted/50'
-                      )}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">{app.icon}</span>
-                        <div>
-                          <p className="text-xs font-medium">{app.name}</p>
-                          <p className="text-[9px] text-muted-foreground">{app.desc}</p>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </Card>
-            )}
-          </div>
-        );
-
-      case 2: // Conditions + Launch
-        return (
-          <div className="space-y-5 animate-in fade-in-0 slide-in-from-right-4 duration-300">
-            <div className="text-center space-y-2">
-              <h2 className="text-2xl font-bold">Almost Ready!</h2>
-              <p className="text-xs text-muted-foreground">
-                Optionally add conditions for smarter predictions
-              </p>
-            </div>
-
-            {/* Conditions - Optional */}
-            <Card className="p-4 bg-gradient-card border-0 shadow-soft space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium">Health Conditions</h3>
-                <Badge variant="outline" className="text-[9px]">Optional</Badge>
               </div>
-              
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+
+              <div className="glass-card space-y-4">
                 <Input
-                  placeholder="Search conditions..."
-                  value={conditionSearch}
-                  onChange={(e) => setConditionSearch(e.target.value)}
-                  className="pl-9 h-10"
+                  placeholder="First name"
+                  value={data.firstName}
+                  onChange={(e) => setData(prev => ({ ...prev, firstName: e.target.value }))}
+                  className="h-14 text-lg text-center font-medium bg-transparent border-0 border-b-2 border-border/30 rounded-none focus-visible:ring-0 focus-visible:border-primary placeholder:text-muted-foreground/40"
+                  autoFocus
+                  autoComplete="given-name"
                 />
               </div>
 
-              <div className="max-h-[200px] overflow-y-auto space-y-1.5">
-                {filteredConditions.map((condition) => (
+              <p className="text-xs text-muted-foreground/60">
+                We'll use this to personalize your experience
+              </p>
+            </div>
+          </div>
+        );
+
+      // ─── Step 2: Conditions ─────────────────────────────────
+      case 2:
+        return (
+          <div className="space-y-4 animate-in fade-in-0 slide-in-from-right-4 duration-500 flex-1">
+            <div className="text-center space-y-2">
+              <h2 className="text-2xl font-bold">
+                {data.firstName ? `${data.firstName}, what` : "What"} are you managing?
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Type anything — chronic conditions, deficiencies, or health concerns. Our AI will learn what matters for <span className="font-medium text-foreground">your</span> body.
+              </p>
+            </div>
+
+            {/* Search with "add custom" */}
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                ref={searchRef}
+                placeholder="Search or type your condition..."
+                value={conditionSearch}
+                onChange={(e) => setConditionSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') addCustomCondition();
+                }}
+                className="pl-10 pr-12 h-12 glass-card border-0"
+              />
+              {conditionSearch.trim() && !CONDITIONS.some(c => c.name.toLowerCase() === conditionSearch.toLowerCase()) && (
+                <button
+                  onClick={addCustomCondition}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-primary flex items-center justify-center press-effect"
+                >
+                  <Plus className="w-4 h-4 text-primary-foreground" />
+                </button>
+              )}
+            </div>
+
+            {/* Selected tags */}
+            {totalSelected > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {data.conditions.map(id => {
+                  const condition = CONDITIONS.find(c => c.id === id);
+                  return (
+                    <Badge
+                      key={id}
+                      className="text-xs py-1.5 px-3 bg-primary/15 text-primary border-primary/20 gap-1 cursor-pointer press-effect"
+                      onClick={() => toggleCondition(id)}
+                    >
+                      {condition?.name}
+                      <X className="w-3 h-3" />
+                    </Badge>
+                  );
+                })}
+                {data.customConditions.map(name => (
+                  <Badge
+                    key={name}
+                    className="text-xs py-1.5 px-3 bg-accent text-accent-foreground border-accent gap-1 cursor-pointer press-effect"
+                    onClick={() => removeCustomCondition(name)}
+                  >
+                    {name}
+                    <X className="w-3 h-3" />
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            {/* Condition list */}
+            <div className="flex-1 max-h-[340px] overflow-y-auto space-y-1 pr-1 scrollbar-hide">
+              {filteredConditions.map((condition) => {
+                const isSelected = data.conditions.includes(condition.id);
+                return (
                   <button
                     key={condition.id}
                     onClick={() => toggleCondition(condition.id)}
                     className={cn(
-                      "w-full py-2.5 px-3 rounded-lg border text-left transition-all press-effect",
-                      "flex items-center justify-between text-sm",
-                      data.conditions.includes(condition.id)
-                        ? 'bg-primary/10 border-primary'
-                        : 'bg-background hover:bg-muted/50'
+                      "w-full py-3 px-4 rounded-2xl text-left transition-all press-effect",
+                      "flex items-center justify-between",
+                      isSelected
+                        ? 'glass-card bg-primary/8 border-primary/20'
+                        : 'hover:bg-card/80'
                     )}
                   >
-                    <span>{condition.name}</span>
-                    {data.conditions.includes(condition.id) && (
-                      <Check className="w-4 h-4 text-primary" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium block">{condition.name}</span>
+                      <span className="text-[11px] text-muted-foreground">{condition.category}</span>
+                    </div>
+                    {isSelected && (
+                      <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                        <Check className="w-3.5 h-3.5 text-primary-foreground" />
+                      </div>
                     )}
                   </button>
-                ))}
-              </div>
+                );
+              })}
 
-              {data.conditions.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 pt-2 border-t">
-                  {data.conditions.map(id => {
-                    const condition = CONDITIONS.find(c => c.id === id);
-                    return (
-                      <Badge key={id} variant="default" className="text-xs">
-                        {condition?.name}
-                      </Badge>
-                    );
-                  })}
-                </div>
-              )}
-            </Card>
-
-            {/* Reminders */}
-            <Card className="p-4 bg-gradient-card border-0 shadow-soft">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-muted">
-                    <Calendar className="w-4 h-4" />
+              {/* Show "add custom" option when searching */}
+              {conditionSearch.trim() && !CONDITIONS.some(c => c.name.toLowerCase() === conditionSearch.toLowerCase()) && (
+                <button
+                  onClick={addCustomCondition}
+                  className="w-full py-3 px-4 rounded-2xl text-left transition-all press-effect flex items-center gap-3 border-2 border-dashed border-primary/30 hover:border-primary/50"
+                >
+                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Plus className="w-3.5 h-3.5 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Daily Check-in</p>
-                    <p className="text-[10px] text-muted-foreground">Quick log for better predictions</p>
+                    <span className="text-sm font-medium">Add "{conditionSearch.trim()}"</span>
+                    <span className="text-[11px] text-muted-foreground block">AI will research this for you</span>
+                  </div>
+                </button>
+              )}
+            </div>
+          </div>
+        );
+
+      // ─── Step 3: Quick Profile ─────────────────────────────────
+      case 3:
+        return (
+          <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
+            <div className="w-full max-w-sm space-y-6">
+              <div className="text-center space-y-2">
+                <h2 className="text-2xl font-bold">Quick Profile</h2>
+                <p className="text-sm text-muted-foreground">
+                  Helps your AI give medically relevant insights. All optional.
+                </p>
+              </div>
+
+              {/* Date of Birth */}
+              <div className="glass-card space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Calendar className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Date of Birth</p>
+                    <p className="text-[11px] text-muted-foreground">Age affects symptom patterns & medication dosing</p>
                   </div>
                 </div>
-                <Switch
-                  checked={data.enableReminders}
-                  onCheckedChange={(checked) => {
-                    haptics.selection();
-                    setData(prev => ({ ...prev, enableReminders: checked }));
-                  }}
+                <Input
+                  type="date"
+                  value={data.dateOfBirth}
+                  onChange={(e) => setData(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                  className="h-12 bg-transparent"
                 />
               </div>
-            </Card>
 
-            {/* Privacy note */}
-            <div className="p-3 rounded-xl bg-muted/50 border border-border/50">
-              <div className="flex items-start gap-2">
-                <Shield className="w-4 h-4 text-primary mt-0.5" />
-                <div className="space-y-1">
-                  <p className="text-xs font-medium">Your Data is Yours</p>
-                  <p className="text-[10px] text-muted-foreground leading-relaxed">
-                    All health data is encrypted and never sold. You can export or delete anytime.
+              {/* Biological Sex */}
+              <div className="glass-card space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Heart className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Biological Sex</p>
+                    <p className="text-[11px] text-muted-foreground">Affects hormonal patterns, autoimmune risk factors</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: 'female', label: 'Female', icon: '♀' },
+                    { value: 'male', label: 'Male', icon: '♂' },
+                    { value: 'other', label: 'Other', icon: '⚧' },
+                  ].map(option => (
+                    <button
+                      key={option.value}
+                      onClick={() => {
+                        haptics.selection();
+                        setData(prev => ({ ...prev, biologicalSex: option.value }));
+                      }}
+                      className={cn(
+                        "py-3 rounded-xl text-center transition-all press-effect border",
+                        data.biologicalSex === option.value
+                          ? 'bg-primary/15 border-primary/30 font-semibold'
+                          : 'bg-card/50 border-border/20 hover:border-primary/20'
+                      )}
+                    >
+                      <span className="text-lg block">{option.icon}</span>
+                      <span className="text-xs mt-1 block">{option.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <p className="text-xs text-center text-muted-foreground/50">
+                Skip anything you're not comfortable sharing
+              </p>
+            </div>
+          </div>
+        );
+
+      // ─── Step 4: Permissions ─────────────────────────────────
+      case 4:
+        return (
+          <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
+            <div className="w-full max-w-sm space-y-6">
+              <div className="text-center space-y-2">
+                <h2 className="text-2xl font-bold">Make Your AI Smarter</h2>
+                <p className="text-sm text-muted-foreground">
+                  These help your AI detect environmental and physiological triggers automatically.
+                </p>
+              </div>
+
+              {/* Location */}
+              <button
+                onClick={async () => {
+                  haptics.selection();
+                  try {
+                    const { getCurrentLocation } = await import("@/services/weatherService");
+                    await getCurrentLocation();
+                  } catch (e) {
+                    console.log('Location permission not granted');
+                  }
+                }}
+                className="w-full glass-card text-left flex items-center gap-4 press-effect"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-gradient-primary flex items-center justify-center flex-shrink-0">
+                  <MapPin className="w-6 h-6 text-primary-foreground" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold">Location</p>
+                  <p className="text-xs text-muted-foreground leading-snug">
+                    Track weather, air quality, pollen & barometric pressure — key flare triggers for many conditions.
+                  </p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+              </button>
+
+              {/* Health Data */}
+              <button
+                onClick={async () => {
+                  haptics.selection();
+                  try {
+                    const { fetchHealthData } = await import("@/services/appleHealthService");
+                    await fetchHealthData();
+                  } catch (e) {
+                    console.log('Health data permission not granted');
+                  }
+                }}
+                className="w-full glass-card text-left flex items-center gap-4 press-effect"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-gradient-accent flex items-center justify-center flex-shrink-0">
+                  <Activity className="w-6 h-6 text-accent-foreground" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold">Health Data</p>
+                  <p className="text-xs text-muted-foreground leading-snug">
+                    Heart rate, HRV, sleep & steps from Apple Health or wearables. Your AI correlates these with flares.
+                  </p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+              </button>
+
+              {/* Privacy note */}
+              <div className="glass-card flex items-start gap-3 bg-primary/5">
+                <Shield className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-medium">Your data stays yours</p>
+                  <p className="text-[11px] text-muted-foreground leading-snug">
+                    Everything is encrypted and stored securely. We never sell your data. Location is city-level only.
                   </p>
                 </div>
               </div>
-            </div>
 
-            {/* Summary */}
-            <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
-              <div className="flex items-start gap-3">
-                <Sparkles className="w-5 h-5 text-primary mt-0.5" />
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Your Jvala Will:</p>
-                  <ul className="text-[11px] text-muted-foreground space-y-1">
-                    <li>• Track: {data.trackingItems.map(id => 
-                      TRACKING_OPTIONS.find(i => i.id === id)?.name
-                    ).join(', ')}</li>
-                    {data.dataSources.length > 0 && (
-                      <li>• Auto-sync from: {data.dataSources.map(id => 
-                        DATA_SOURCES.find(s => s.id === id)?.name
-                      ).join(', ')}</li>
-                    )}
-                    <li>• Learn YOUR patterns over time</li>
-                    <li>• Predict flares before they happen</li>
-                  </ul>
-                </div>
-              </div>
+              <p className="text-xs text-center text-muted-foreground/50">
+                You can enable these anytime in Settings
+              </p>
             </div>
           </div>
         );
@@ -531,57 +582,67 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
   };
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-background max-w-md mx-auto">
-      {/* Progress bar */}
+    <div className="fixed inset-0 flex flex-col" style={{ 
+      background: 'var(--gradient-background)',
+      paddingTop: 'env(safe-area-inset-top)',
+      paddingBottom: 'env(safe-area-inset-bottom)',
+    }}>
+      {/* Progress header */}
       {step > 0 && (
-        <div className="flex-shrink-0 z-10 glass border-b border-white/10 safe-area-top">
-          <div className="flex items-center gap-3 px-4 py-3">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={handleBack}
-              className="h-8 w-8 rounded-xl"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <div className="flex-1">
-              <Progress value={progress} className="h-1.5" />
-            </div>
-            <span className="text-[10px] text-muted-foreground w-10 text-right">
-              {step + 1}/{totalSteps}
-            </span>
+        <div className="flex items-center gap-3 px-5 py-3 glass-header">
+          <button
+            onClick={handleBack}
+            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-muted/50 transition-colors press-effect"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <div className="flex-1 flex gap-1.5">
+            {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "h-1 rounded-full flex-1 transition-all duration-500",
+                  i <= step ? "bg-primary" : "bg-muted"
+                )}
+              />
+            ))}
           </div>
+          <span className="text-xs text-muted-foreground w-10 text-right">
+            {step + 1}/{TOTAL_STEPS}
+          </span>
         </div>
       )}
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto scrollbar-hide">
-        <div className="px-4 py-4">
-          {renderStep()}
-        </div>
+      <div className="flex-1 overflow-y-auto px-5 py-4">
+        {renderStep()}
       </div>
 
-      {/* Navigation */}
-      <div className="flex-shrink-0 glass border-t border-white/10 safe-area-bottom">
-        <div className="px-4 py-4">
-          <Button 
+      {/* Bottom CTA */}
+      <div className="px-5 py-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
+        <button
+          onClick={handleNext}
+          disabled={!canProceed()}
+          className={cn(
+            "w-full h-14 rounded-2xl text-base font-semibold transition-all press-effect",
+            "flex items-center justify-center gap-2",
+            canProceed()
+              ? "bg-gradient-primary text-primary-foreground shadow-primary"
+              : "bg-muted text-muted-foreground"
+          )}
+        >
+          {step === 0 ? "Let's Get Started" : step === TOTAL_STEPS - 1 ? "Launch Jvala ✨" : step === 4 ? "Skip & Continue" : "Continue"}
+          <ChevronRight className="w-5 h-5" />
+        </button>
+
+        {step === 3 && (
+          <button
             onClick={handleNext}
-            disabled={step === 0 && data.trackingItems.length === 0}
-            className="w-full h-12 text-base"
+            className="w-full mt-2 py-2 text-sm text-muted-foreground"
           >
-            {step === totalSteps - 1 ? (
-              <>
-                <Sparkles className="w-5 h-5 mr-2" />
-                Launch My Health AI
-              </>
-            ) : (
-              <>
-                Continue
-                <ChevronRight className="w-5 h-5 ml-1" />
-              </>
-            )}
-          </Button>
-        </div>
+            Skip for now
+          </button>
+        )}
       </div>
     </div>
   );

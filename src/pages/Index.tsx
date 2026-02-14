@@ -183,22 +183,21 @@ const Index = () => {
     if (!user) return;
 
     try {
+      // Merge selected condition IDs with custom condition names
+      const conditionIds = data.conditions || [];
+      const customConditions = data.customConditions || [];
+      const allConditions = [
+        ...conditionIds, // IDs from the CONDITIONS list
+        ...customConditions, // Free-text custom entries
+      ];
+
       const { error } = await supabase
         .from('profiles')
         .update({
-          conditions: data.conditions,
-          known_symptoms: data.symptoms,
-          known_triggers: data.triggers,
-          physician_name: data.physicianName || null,
-          physician_email: data.physicianEmail || null,
-          physician_phone: data.physicianPhone || null,
-          physician_practice: data.physicianPractice || null,
+          full_name: data.firstName || null,
+          conditions: allConditions,
           date_of_birth: data.dateOfBirth || null,
-          gender: data.gender || null,
           biological_sex: data.biologicalSex || null,
-          height_cm: data.heightCm || null,
-          weight_kg: data.weightKg || null,
-          blood_type: data.bloodType || null,
           onboarding_completed: true,
         })
         .eq('id', user.id);
@@ -206,22 +205,22 @@ const Index = () => {
       if (error) throw error;
 
       setUserProfile({
-        conditions: data.conditions,
-        known_symptoms: data.symptoms,
-        known_triggers: data.triggers,
+        conditions: allConditions,
+        known_symptoms: [],
+        known_triggers: [],
         medications: [],
-        physician_name: data.physicianName || null,
-        physician_email: data.physicianEmail || null,
-        physician_phone: data.physicianPhone || null,
-        physician_practice: data.physicianPractice || null,
+        physician_name: null,
+        physician_email: null,
+        physician_phone: null,
+        physician_practice: null,
         onboarding_completed: true,
       });
 
       setShowOnboarding(false);
 
       toast({
-        title: "Welcome to Jvala! 💜",
-        description: "You're all set. Start tracking to see insights.",
+        title: `Welcome${data.firstName ? `, ${data.firstName}` : ''}! ✨`,
+        description: "Your AI health companion is ready.",
       });
     } catch (error) {
       console.error('Failed to save onboarding:', error);
