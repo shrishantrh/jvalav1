@@ -125,12 +125,16 @@ export const PhotoCapture = ({
         throw error;
       }
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
+      // Get time-limited signed URL (1 hour expiry)
+      const { data: urlData, error: signError } = await supabase.storage
         .from("health-reports")
-        .getPublicUrl(`photos/${filename}`);
+        .createSignedUrl(`photos/${filename}`, 3600);
 
-      onPhotoCapture(urlData.publicUrl);
+      if (signError || !urlData?.signedUrl) {
+        throw new Error("Failed to generate secure photo URL");
+      }
+
+      onPhotoCapture(urlData.signedUrl);
       
       toast({
         title: "Photo uploaded",
