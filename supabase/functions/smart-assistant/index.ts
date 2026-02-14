@@ -626,12 +626,13 @@ function classifyMultipleIntents(message: string, userContext?: UserContext): In
   let detectedSymptoms: string[] = [];
   let detectedSeverity = 'moderate';
   let hasFlareIntent = false;
+  let severityExplicit = false; // Track if user explicitly stated severity
   
   for (const { pattern, severity } of symptomPatterns) {
     if (pattern.test(lower)) {
       hasFlareIntent = true;
-      if (severity === 'severe') detectedSeverity = 'severe';
-      else if (severity === 'mild' && detectedSeverity !== 'severe') detectedSeverity = 'mild';
+      if (severity === 'severe') { detectedSeverity = 'severe'; severityExplicit = true; }
+      else if (severity === 'mild' && detectedSeverity !== 'severe') { detectedSeverity = 'mild'; severityExplicit = true; }
       
       // Extract specific symptoms
       const symptomList = ['headache', 'migraine', 'nausea', 'dizziness', 'fatigue', 'pain', 'cramping', 'brain fog', 'loss of appetite', 'joint pain', 'stiffness', 'swelling', 'inflammation', 'vertigo'];
@@ -647,7 +648,7 @@ function classifyMultipleIntents(message: string, userContext?: UserContext): In
     intents.push({ 
       type: 'flare', 
       confidence: 0.85, 
-      extractedData: { severity: detectedSeverity, symptoms: detectedSymptoms } 
+      extractedData: { severity: detectedSeverity, symptoms: detectedSymptoms, severityExplicit } 
     });
   }
   
@@ -910,6 +911,7 @@ serve(async (req) => {
     
     // Build multiple entry data from all intents
     const multipleEntries: any[] = [];
+    let needsSeverityForm = false;
     for (const intentItem of allIntents) {
       if (intentItem.type === 'flare') {
         multipleEntries.push({
@@ -918,6 +920,9 @@ serve(async (req) => {
           symptoms: intentItem.extractedData.symptoms || [],
           triggers: linkedTrigger ? [linkedTrigger] : [],
         });
+        if (!intentItem.extractedData.severityExplicit) {
+          needsSeverityForm = true;
+        }
       } else if (intentItem.type === 'medication') {
         multipleEntries.push({
           type: 'medication',
@@ -1252,6 +1257,21 @@ RESPONSE FORMAT (valid JSON):
           // Don't rely on AI model's shouldLog — our intent detection is the source of truth
           const hasDetectedEntries = multipleEntries.length > 0;
           
+          // Build severity form if severity wasn't explicitly stated
+          const severityForm = needsSeverityForm ? {
+            fields: [{
+              id: 'severity',
+              label: 'How severe?',
+              type: 'single_select' as const,
+              options: [
+                { label: 'Mild', value: 'mild', emoji: '😐' },
+                { label: 'Moderate', value: 'moderate', emoji: '😟' },
+                { label: 'Severe', value: 'severe', emoji: '😣' },
+              ],
+            }],
+            closingMessage: 'Got it, updated! 💜',
+          } : null;
+          
           return new Response(JSON.stringify({
             response: parsed.response,
             isAIGenerated: true,
@@ -1262,6 +1282,7 @@ RESPONSE FORMAT (valid JSON):
             shouldLog: hasDetectedEntries ? true : (parsed.shouldLog || false),
             entryData: hasDetectedEntries ? null : entryData,
             multipleEntries: hasDetectedEntries ? multipleEntries : null,
+            severityForm,
             activityLog,
             correlationWarning,
             shouldFollowUp,
@@ -1276,6 +1297,20 @@ RESPONSE FORMAT (valid JSON):
       // Even if AI response parsing fails, still use our detected entries
       const hasDetectedEntries = multipleEntries.length > 0;
       
+      const severityForm = needsSeverityForm ? {
+        fields: [{
+          id: 'severity',
+          label: 'How severe?',
+          type: 'single_select' as const,
+          options: [
+            { label: 'Mild', value: 'mild', emoji: '😐' },
+            { label: 'Moderate', value: 'moderate', emoji: '😟' },
+            { label: 'Severe', value: 'severe', emoji: '😣' },
+          ],
+        }],
+        closingMessage: 'Got it, updated! 💜',
+      } : null;
+      
       return new Response(JSON.stringify({
         response: content.replace(/```json\n?|\n?```/g, '').trim(),
         isAIGenerated: true,
@@ -1285,6 +1320,7 @@ RESPONSE FORMAT (valid JSON):
         shouldLog: hasDetectedEntries,
         entryData: hasDetectedEntries ? null : null,
         multipleEntries: hasDetectedEntries ? multipleEntries : null,
+        severityForm,
         activityLog,
         correlationWarning,
         shouldFollowUp,

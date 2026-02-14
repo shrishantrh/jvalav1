@@ -1075,6 +1075,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         updateInfo: smartData?.updateEntry,
         activityDetected: smartData?.activityLog ? { type: smartData.activityLog.activity_type, intensity: smartData.activityLog.intensity } : undefined,
         correlationWarning: smartData?.correlationWarning,
+        // Severity form from smart-assistant (when symptoms detected without explicit severity)
+        proactiveForm: smartData?.severityForm || undefined,
         // limitless-ai fields
         visualization: limitlessData?.visualization,
         followUp: limitlessData?.followUp,
@@ -1317,15 +1319,26 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                     const newResponses = { ...(m.formResponses || {}), [fieldId]: value };
                     const allAnswered = m.proactiveForm!.fields.every(f => newResponses[f.id]);
                     if (allAnswered) {
-                      // Log the form data
-                      const formNote = Object.entries(newResponses)
-                        .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
-                        .join('; ');
-                      onSave({
-                        type: 'note',
-                        note: `[Proactive Check-in] ${formNote}`,
-                        timestamp: new Date(),
-                      });
+                      // Check if this is a severity form (from symptom logging)
+                      const isSeverityForm = m.proactiveForm!.fields.some(f => f.id === 'severity');
+                      
+                      if (isSeverityForm && newResponses.severity && onUpdateEntry) {
+                        // Update the most recent flare entry's severity
+                        const lastFlare = recentEntries.find(e => e.type === 'flare');
+                        if (lastFlare) {
+                          onUpdateEntry(lastFlare.id, { severity: newResponses.severity as any });
+                        }
+                      } else {
+                        // Standard proactive form — log as note
+                        const formNote = Object.entries(newResponses)
+                          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
+                          .join('; ');
+                        onSave({
+                          type: 'note',
+                          note: `[Proactive Check-in] ${formNote}`,
+                          timestamp: new Date(),
+                        });
+                      }
                       // Add closing message
                       setTimeout(() => {
                         const closingMsg: ChatMessage = {
