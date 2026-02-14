@@ -650,7 +650,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                 <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">Highly Recommended</Badge>
               </div>
               <p className="text-sm text-muted-foreground">
-                AI-generated based on your specific conditions. Selecting these helps personalize your tracking from day one.
+                Tap any that apply to you — this helps your AI get smarter faster. You can always change these later.
               </p>
             </div>
 

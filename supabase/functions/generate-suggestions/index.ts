@@ -175,9 +175,9 @@ ${demographicContext ? `Patient demographics: ${demographicContext}.` : ''}
 
 Research ALL of these conditions thoroughly. For ANY condition (common or rare, standard medical term or colloquial), use your medical knowledge to provide:
 
-1. **symptoms**: 10-15 most clinically relevant symptoms across ALL the listed conditions combined. Use patient-friendly language. Be SPECIFIC to each condition.
+1. **symptoms**: 10-15 most clinically relevant symptoms across ALL the listed conditions combined. Each symptom must be 1-3 words MAX (e.g. "Joint pain", "Brain fog", "Dry cough", "Chest tightness", "Sore throat"). NEVER use full sentences or descriptions. Just the symptom name. Be SPECIFIC to each condition.
 
-2. **triggers**: 8-12 most evidence-based triggers across ALL conditions. Include dietary, environmental, hormonal, lifestyle triggers. Be SPECIFIC.
+2. **triggers**: 8-12 most evidence-based triggers across ALL conditions. Each trigger must be 1-4 words MAX (e.g. "Cold air", "Dust", "Smoke", "Acid reflux", "Stress"). NEVER use full sentences or descriptions. Just the trigger name. Be SPECIFIC.
 
 3. **logCategories**: One logging category PER condition. Each must have:
    - "id": unique snake_case identifier  
