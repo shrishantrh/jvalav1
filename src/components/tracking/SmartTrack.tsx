@@ -598,16 +598,22 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   const reactionCountRef = useRef(0); // track total reactions given this session
   const lastReactionTimeRef = useRef(0);
 
+  // Determine if a log label represents something negative/sensitive
+  const isNegativeContext = (label: string): boolean => {
+    const negativePatterns = /depression|depressive|anxiety|panic|sad|pain|migraine|headache|nausea|fatigue|exhausted|cramp|attack|episode|flare|severe|hurt|ache|dizzy|vomit|insomnia|stress|irritable|angry|cry|breakdown|suicidal|self.harm/i;
+    return negativePatterns.test(label);
+  };
+
   const getResponseStrategy = (logLabel: string, recentSameCount: number): { reaction: string; text: string } => {
     const now = Date.now();
     const recentUserMsgs = messages.filter(m => m.role === 'user' && (now - m.timestamp.getTime()) < 5 * 60 * 1000);
     const rapidFire = recentUserMsgs.length >= 3;
     const veryRapid = recentUserMsgs.length >= 5;
+    const negative = isNegativeContext(logLabel);
     
     // Reaction fatigue: max 4 reactions in 10 min window, then text only for a bit
     const timeSinceLastReaction = now - lastReactionTimeRef.current;
     const reactionFatigue = reactionCountRef.current >= 4 && timeSinceLastReaction < 10 * 60 * 1000;
-    // Reset fatigue counter after 10 min
     if (timeSinceLastReaction > 10 * 60 * 1000) reactionCountRef.current = 0;
 
     const giveReaction = (pool: string[]): { reaction: string; text: string } => {
@@ -619,11 +625,15 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
 
     // 5+ same item rapidly → always text commentary
     if (veryRapid && recentSameCount >= 4) {
-      const texts = [
-        `whoa — ${recentSameCount + 1}x ${logLabel.toLowerCase()} in a few minutes, you good? 😅`,
-        `okay ${recentSameCount + 1} ${logLabel.toLowerCase()} logs back to back… take it easy!`,
-        `${logLabel} #${recentSameCount + 1} — I'm keeping track but maybe slow down a bit 👀`,
-      ];
+      const texts = negative
+        ? [
+            `${recentSameCount + 1}x ${logLabel.toLowerCase()} — I'm keeping track. hang in there 💜`,
+            `noted, ${recentSameCount + 1} ${logLabel.toLowerCase()} logs. take care of yourself.`,
+          ]
+        : [
+            `whoa — ${recentSameCount + 1}x ${logLabel.toLowerCase()} in a few minutes, you good? 😅`,
+            `${logLabel} #${recentSameCount + 1} — I'm keeping track but maybe slow down a bit 👀`,
+          ];
       return { reaction: '', text: texts[Math.floor(Math.random() * texts.length)] };
     }
     // 3+ rapid → text about the pattern
@@ -637,15 +647,21 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     // Repeat log (2nd or 3rd) → 60% reaction, 40% text
     if (recentSameCount >= 1 && recentSameCount < 4) {
       if (Math.random() < 0.6 && !reactionFatigue) {
-        return giveReaction(['👀', '😏', '🫡', '💪']);
+        // Context-aware reactions: gentle for negative, encouraging for positive
+        const pool = negative ? ['👍', '💜', '🫂'] : ['👀', '😏', '🫡', '💪'];
+        return giveReaction(pool);
       }
       return { reaction: '', text: `another ${logLabel.toLowerCase()} — noted` };
     }
     // First log → 50% reaction, 50% short text
     if (!reactionFatigue && Math.random() < 0.5) {
-      return giveReaction(['👍', '💪', '🔥', '👏', '✌️', '🫡']);
+      // Context-aware: NO celebratory emojis (🔥👏) for negative health events
+      const pool = negative ? ['👍', '💜', '🫂', '🤍'] : ['👍', '💪', '🔥', '👏', '✌️', '🫡'];
+      return giveReaction(pool);
     }
-    const shortTexts = [`got it`, `logged`, `noted`, `tracked`];
+    const shortTexts = negative 
+      ? [`noted`, `logged — hang in there`, `got it 💜`, `tracked`]
+      : [`got it`, `logged`, `noted`, `tracked`];
     return { reaction: '', text: shortTexts[Math.floor(Math.random() * shortTexts.length)] };
   };
 
@@ -1329,15 +1345,75 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                           onUpdateEntry(lastFlare.id, { severity: newResponses.severity as any });
                         }
                       } else {
-                        // Standard proactive form — log as note
-                        const formNote = Object.entries(newResponses)
-                          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
-                          .join('; ');
-                        onSave({
-                          type: 'note',
-                          note: `[Proactive Check-in] ${formNote}`,
-                          timestamp: new Date(),
-                        });
+                        // Standard proactive form — save as proper typed entries
+                        const responses = newResponses;
+                        const fields = m.proactiveForm!.fields;
+                        
+                        // Map form fields to proper entry types
+                        for (const field of fields) {
+                          const val = responses[field.id];
+                          if (!val) continue;
+                          const valStr = Array.isArray(val) ? val.join(', ') : val;
+                          const fieldLabel = field.label.toLowerCase();
+                          
+                          // Detect entry type from field semantics
+                          if (fieldLabel.includes('mood') || fieldLabel.includes('feeling') || fieldLabel.includes('how are')) {
+                            onSave({
+                              type: 'wellness',
+                              note: `Mood: ${valStr}`,
+                              context: { mood: valStr },
+                              timestamp: new Date(),
+                            });
+                          } else if (fieldLabel.includes('sleep')) {
+                            onSave({
+                              type: 'wellness',
+                              note: `Sleep: ${valStr}`,
+                              context: { activity: `sleep:${valStr}` },
+                              timestamp: new Date(),
+                            });
+                          } else if (fieldLabel.includes('energy') || fieldLabel.includes('tired')) {
+                            const energyMap: Record<string, string> = {
+                              'great': 'high', 'good': 'good', 'okay': 'moderate',
+                              'low': 'low', 'exhausted': 'very-low', 'tired': 'low',
+                            };
+                            onSave({
+                              type: 'energy',
+                              energyLevel: (energyMap[valStr.toLowerCase()] || 'moderate') as any,
+                              note: `Energy: ${valStr}`,
+                              timestamp: new Date(),
+                            });
+                          } else if (fieldLabel.includes('symptom') || fieldLabel.includes('pain') || fieldLabel.includes('today')) {
+                            const symptoms = Array.isArray(val) ? val : [valStr];
+                            onSave({
+                              type: 'flare',
+                              severity: 'mild',
+                              symptoms,
+                              note: `[Check-in] ${symptoms.join(', ')}`,
+                              timestamp: new Date(),
+                            });
+                          } else if (fieldLabel.includes('stress')) {
+                            onSave({
+                              type: 'wellness',
+                              note: `Stress: ${valStr}`,
+                              context: { mood: `stress:${valStr}` },
+                              timestamp: new Date(),
+                            });
+                          } else if (fieldLabel.includes('trigger') || fieldLabel.includes('duration') || fieldLabel.includes('frequency') || fieldLabel.includes('long') || fieldLabel.includes('often')) {
+                            // Background/context data — save as note with structured prefix
+                            onSave({
+                              type: 'note',
+                              note: `[Profile] ${field.label}: ${valStr}`,
+                              timestamp: new Date(),
+                            });
+                          } else {
+                            // Generic — save as wellness with context
+                            onSave({
+                              type: 'wellness',
+                              note: `[Check-in] ${field.label}: ${valStr}`,
+                              timestamp: new Date(),
+                            });
+                          }
+                        }
                       }
                       // Add closing message
                       setTimeout(() => {
