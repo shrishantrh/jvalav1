@@ -217,13 +217,9 @@ const Auth = () => {
 
     try {
       if (isSignUp) {
-        const redirectUrl = 'https://jvala.tech/confirm-email';
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            emailRedirectTo: redirectUrl
-          }
         });
 
         if (error) throw error;
@@ -234,9 +230,18 @@ const Auth = () => {
           }).eq('id', data.user.id);
         }
 
+        // Send custom verification email via Resend
+        try {
+          await supabase.functions.invoke('send-auth-email', {
+            body: { type: 'signup', email },
+          });
+        } catch (emailErr) {
+          console.error('Custom email send failed, Supabase default may still arrive:', emailErr);
+        }
+
         toast({
           title: "Check your email! 📧",
-          description: "We've sent you a verification link. Please check your inbox (and spam folder).",
+          description: "We've sent a verification link to your inbox from support@jvala.tech. Check spam if needed.",
         });
         setIsSignUp(false);
         setPassword("");
