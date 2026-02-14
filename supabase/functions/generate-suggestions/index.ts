@@ -29,30 +29,48 @@ serve(async (req) => {
       return await handleLegacySuggestions(entries);
     }
 
-    return new Response(
-      JSON.stringify({ success: true, suggestions: [], symptoms: [], triggers: [], logCategories: [] }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({ success: true, suggestions: [], symptoms: [], triggers: [], logCategories: [] });
 
   } catch (error) {
     console.error('Error:', error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({ error: error instanceof Error ? error.message : 'Unknown error' }, 500);
   }
 });
 
-// ─── Condition Research: AI generates condition-specific symptoms, triggers, and UI categories ───
+function jsonResponse(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
+// Extract JSON from AI response that may contain markdown fences or extra text
+function extractJSON(raw: string): any {
+  // Try direct parse first
+  try { return JSON.parse(raw); } catch {}
+
+  // Strip markdown code fences: ```json ... ``` or ``` ... ```
+  const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenceMatch) {
+    try { return JSON.parse(fenceMatch[1].trim()); } catch {}
+  }
+
+  // Find first { and last }
+  const start = raw.indexOf('{');
+  const end = raw.lastIndexOf('}');
+  if (start !== -1 && end > start) {
+    try { return JSON.parse(raw.slice(start, end + 1)); } catch {}
+  }
+
+  return null;
+}
+
+// ─── Condition Research ───
 async function handleConditionResearch(conditions: string[], biologicalSex?: string, age?: number) {
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   if (!LOVABLE_API_KEY) {
-    // Fallback without AI
-    console.warn('LOVABLE_API_KEY not set, returning empty suggestions');
-    return new Response(
-      JSON.stringify({ success: true, symptoms: [], triggers: [], logCategories: [] }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.warn('LOVABLE_API_KEY not set');
+    return jsonResponse({ success: true, symptoms: [], triggers: [], logCategories: [] });
   }
 
   const conditionList = conditions.join(', ');
@@ -64,100 +82,80 @@ async function handleConditionResearch(conditions: string[], biologicalSex?: str
   const prompt = `You are a clinical health researcher. A patient is setting up a health tracking app for these conditions: ${conditionList}.
 ${demographicContext ? `Patient demographics: ${demographicContext}.` : ''}
 
-Research these conditions thoroughly — whether they are common chronic diseases, skin conditions, mental health, rare diseases, or even custom/non-standard health concerns. For ANY condition, use your medical knowledge to provide:
+Research ALL of these conditions thoroughly. For ANY condition (common or rare, standard medical term or colloquial), use your medical knowledge to provide:
 
-1. **symptoms**: The 8-15 most clinically relevant symptoms or manifestations a patient would want to track daily. Use patient-friendly language. For skin conditions, include things like "Breakout", "Redness", "Scarring". For pain conditions, include pain locations. Be SPECIFIC to the actual conditions, not generic.
+1. **symptoms**: 10-15 most clinically relevant symptoms across ALL the listed conditions combined. Use patient-friendly language. Be SPECIFIC to each condition. For skin conditions include "Breakout", "Redness", etc. For respiratory include "Wheezing", "Chest tightness", etc.
 
-2. **triggers**: The 8-12 most evidence-based triggers or aggravating factors for these specific conditions. Include dietary, environmental, hormonal, lifestyle, and stress-related triggers backed by research. Be SPECIFIC — e.g., for acne include "Dairy intake", "High-glycemic foods", "Touching face", "Hormonal changes".
+2. **triggers**: 8-12 most evidence-based triggers across ALL conditions. Include dietary, environmental, hormonal, lifestyle triggers. Be SPECIFIC.
 
-3. **logCategories**: 2-4 custom quick-log button categories that replace generic "Flare" terminology with condition-appropriate terms. Each category should have:
-   - "id": unique snake_case identifier
-   - "label": what the button says (e.g., "Breakout" for acne, "Episode" for anxiety, "Flare" for RA)
+3. **logCategories**: One logging category PER condition. Each must have:
+   - "id": unique snake_case identifier  
+   - "label": condition-appropriate term (e.g., "Breakout" for acne, "Attack" for asthma, "Flare" for arthritis)
    - "icon": one of: "flame", "zap", "heart", "activity", "alert", "sun", "moon", "droplets", "thermometer", "eye", "brain", "shield"
-   - "severityLabels": custom severity labels that make sense (e.g., for acne: ["Few spots", "Moderate breakout", "Severe breakout"])
-   - "color": a CSS color in HSL format for the button accent
+   - "severityLabels": array of exactly 3 severity labels appropriate for that condition
+   - "color": a CSS color in HSL format
 
-Return ONLY valid JSON with this exact structure:
-{
-  "symptoms": ["symptom1", "symptom2", ...],
-  "triggers": ["trigger1", "trigger2", ...],
-  "logCategories": [
-    {
-      "id": "breakout",
-      "label": "Breakout",
-      "icon": "flame",
-      "severityLabels": ["Minor", "Moderate", "Severe"],
-      "color": "hsl(0 70% 50%)"
-    }
-  ]
-}`;
+IMPORTANT: You MUST cover ALL conditions listed: ${conditionList}. Do not skip any.
+
+Respond with ONLY this JSON object, no other text:
+{"symptoms":["..."],"triggers":["..."],"logCategories":[{"id":"...","label":"...","icon":"...","severityLabels":["mild","moderate","severe"],"color":"hsl(0 70% 50%)"}]}`;
 
   console.log(`Researching conditions: ${conditionList}`);
 
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
-      messages: [
-        { role: 'user', content: prompt }
-      ],
-      response_format: { type: 'json_object' },
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('AI API error:', response.status, errorText);
-    return new Response(
-      JSON.stringify({ success: true, symptoms: [], triggers: [], logCategories: [] }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-
-  const aiResponse = await response.json();
-  const content = aiResponse.choices?.[0]?.message?.content;
-
-  if (!content) {
-    console.error('No content in AI response');
-    return new Response(
-      JSON.stringify({ success: true, symptoms: [], triggers: [], logCategories: [] }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-
   try {
-    const parsed = JSON.parse(content);
-    console.log(`Research complete: ${parsed.symptoms?.length || 0} symptoms, ${parsed.triggers?.length || 0} triggers, ${parsed.logCategories?.length || 0} categories`);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        symptoms: parsed.symptoms || [],
-        triggers: parsed.triggers || [],
-        logCategories: parsed.logCategories || [],
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'user', content: prompt }
+        ],
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('AI API error:', response.status, errorText);
+      return jsonResponse({ success: true, symptoms: [], triggers: [], logCategories: [] });
+    }
+
+    const aiResponse = await response.json();
+    const content = aiResponse.choices?.[0]?.message?.content;
+
+    if (!content) {
+      console.error('No content in AI response');
+      return jsonResponse({ success: true, symptoms: [], triggers: [], logCategories: [] });
+    }
+
+    console.log('Raw AI response length:', content.length);
+
+    const parsed = extractJSON(content);
+    if (!parsed) {
+      console.error('Failed to extract JSON from AI response. First 500 chars:', content.slice(0, 500));
+      return jsonResponse({ success: true, symptoms: [], triggers: [], logCategories: [] });
+    }
+
+    const symptoms = Array.isArray(parsed.symptoms) ? parsed.symptoms : [];
+    const triggers = Array.isArray(parsed.triggers) ? parsed.triggers : [];
+    const logCategories = Array.isArray(parsed.logCategories) ? parsed.logCategories : [];
+
+    console.log(`Research complete: ${symptoms.length} symptoms, ${triggers.length} triggers, ${logCategories.length} categories`);
+
+    return jsonResponse({ success: true, symptoms, triggers, logCategories });
   } catch (e) {
-    console.error('Failed to parse AI response:', e, content);
-    return new Response(
-      JSON.stringify({ success: true, symptoms: [], triggers: [], logCategories: [] }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error('Condition research error:', e);
+    return jsonResponse({ success: true, symptoms: [], triggers: [], logCategories: [] });
   }
 }
 
 // ─── Predictions Mode ───
 async function handlePredictions(entries: any[], userConditions: string[], correlations: any[]) {
   if (!entries || entries.length < 5) {
-    return new Response(
-      JSON.stringify({ error: 'At least 5 entries required for predictions' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({ error: 'At least 5 entries required for predictions' }, 400);
   }
 
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -196,36 +194,32 @@ async function handlePredictions(entries: any[], userConditions: string[], corre
         { role: 'system', content: `You are a health pattern analyst. Return JSON: { "predictions": [{ "type": "risk"|"insight", "title": "...", "description": "...", "confidence": 0.0-1.0 }] }. Generate 3-5 predictions.` },
         { role: 'user', content: `Conditions: ${userConditions?.join(', ') || 'Not specified'}. Total entries: ${entries.length}. Flares: ${flares.length}. Recent severities: ${recentFlares.map((f: any) => f.severity).join(', ')}. Top symptoms: ${topSymptoms.join(', ')}. Top triggers: ${topTriggers.join(', ')}. Peak time: ${peakTime[0]} (${peakTime[1]}). ${correlations?.length ? `Correlations: ${correlations.map((c: any) => `${c.factor}: ${c.description}`).join('; ')}` : ''}` }
       ],
-      response_format: { type: 'json_object' },
     }),
   });
 
   if (!response.ok) {
-    if (response.status === 429) return new Response(JSON.stringify({ error: 'Rate limited' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    if (response.status === 402) return new Response(JSON.stringify({ error: 'AI credits exhausted' }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (response.status === 429) return jsonResponse({ error: 'Rate limited' }, 429);
+    if (response.status === 402) return jsonResponse({ error: 'AI credits exhausted' }, 402);
     throw new Error(`AI API error: ${response.status}`);
   }
 
   const aiResponse = await response.json();
   const content = aiResponse.choices?.[0]?.message?.content;
   if (!content) throw new Error('No content');
-  const parsed = JSON.parse(content);
-  return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  const parsed = extractJSON(content);
+  if (!parsed) throw new Error('Failed to parse predictions');
+  return jsonResponse(parsed);
 }
 
 // ─── Legacy Suggestions ───
 async function handleLegacySuggestions(entries: any[]) {
   if (!entries || entries.length === 0) {
-    return new Response(JSON.stringify({ success: true, suggestions: [] }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ success: true, suggestions: [] });
   }
 
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   if (!LOVABLE_API_KEY) {
-    return new Response(JSON.stringify({ success: true, suggestions: [] }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ success: true, suggestions: [] });
   }
 
   const recentEntries = entries.slice(0, 10);
@@ -241,20 +235,19 @@ async function handleLegacySuggestions(entries: any[]) {
       messages: [
         { role: 'user', content: `Based on recent health entries, suggest 3 quick actions. Return JSON: { "suggestions": ["...", "...", "..."] }. Recent: ${JSON.stringify(recentEntries.map((e: any) => ({ type: e.type, severity: e.severity, timestamp: e.timestamp })))}` }
       ],
-      response_format: { type: 'json_object' },
     }),
   });
 
-  if (!response.ok) return new Response(JSON.stringify({ success: true, suggestions: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  if (!response.ok) return jsonResponse({ success: true, suggestions: [] });
 
   const aiResponse = await response.json();
   const content = aiResponse.choices?.[0]?.message?.content;
   if (content) {
-    try {
-      const parsed = JSON.parse(content);
-      return new Response(JSON.stringify({ success: true, suggestions: parsed.suggestions || [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    } catch (e) { /* fall through */ }
+    const parsed = extractJSON(content);
+    if (parsed?.suggestions) {
+      return jsonResponse({ success: true, suggestions: parsed.suggestions });
+    }
   }
 
-  return new Response(JSON.stringify({ success: true, suggestions: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  return jsonResponse({ success: true, suggestions: [] });
 }

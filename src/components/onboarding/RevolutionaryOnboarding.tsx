@@ -197,13 +197,13 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
 
   const totalSelected = data.conditions.length + data.customConditions.length;
 
-  // Get AI-suggested symptoms/triggers based on selected conditions
-  const suggestedSymptoms = useMemo(() => {
+  // Get fallback symptoms/triggers from predefined conditions (used when AI fails)
+  const fallbackSymptoms = useMemo(() => {
     const conditionData = CONDITIONS.filter(c => data.conditions.includes(c.id));
     return [...new Set(conditionData.flatMap(c => c.commonSymptoms))];
   }, [data.conditions]);
 
-  const suggestedTriggers = useMemo(() => {
+  const fallbackTriggers = useMemo(() => {
     const conditionData = CONDITIONS.filter(c => data.conditions.includes(c.id));
     return [...new Set(conditionData.flatMap(c => c.commonTriggers))];
   }, [data.conditions]);
@@ -236,8 +236,8 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
           });
 
           if (!error && result) {
-            const mergedSymptoms = [...new Set([...suggestedSymptoms, ...(result.symptoms || [])])];
-            const mergedTriggers = [...new Set([...suggestedTriggers, ...(result.triggers || [])])];
+            const mergedSymptoms = [...new Set([...fallbackSymptoms, ...(result.symptoms || [])])];
+            const mergedTriggers = [...new Set([...fallbackTriggers, ...(result.triggers || [])])];
             setAiSymptoms(mergedSymptoms);
             setAiTriggers(mergedTriggers);
             setAiLogCategories(result.logCategories || []);
@@ -245,8 +245,8 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
           }
         } catch (e) {
           console.error('Failed to fetch AI suggestions:', e);
-          setAiSymptoms(suggestedSymptoms);
-          setAiTriggers(suggestedTriggers);
+          setAiSymptoms(fallbackSymptoms);
+          setAiTriggers(fallbackTriggers);
           setSuggestionsLoaded(true);
         } finally {
           setIsLoadingSuggestions(false);
@@ -256,8 +256,8 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
     }
   }, [step, suggestionsLoaded, totalSelected]);
 
-  const displaySymptoms = aiSymptoms.length > 0 ? aiSymptoms : suggestedSymptoms;
-  const displayTriggers = aiTriggers.length > 0 ? aiTriggers : suggestedTriggers;
+  const displaySymptoms = aiSymptoms.length > 0 ? aiSymptoms : fallbackSymptoms;
+  const displayTriggers = aiTriggers.length > 0 ? aiTriggers : fallbackTriggers;
 
   const canProceed = () => {
     switch (step) {
