@@ -25,7 +25,8 @@ interface FluidLogSelectorProps {
   disabled?: boolean;
 }
 
-const COMMON_SYMPTOMS = [
+// Fallback symptoms only used when user has none configured
+const FALLBACK_SYMPTOMS = [
   'Headache', 'Fatigue', 'Nausea', 'Dizziness', 'Pain', 
   'Brain fog', 'Cramping', 'Weakness', 'Migraine'
 ];
@@ -93,7 +94,10 @@ export const FluidLogSelector = ({
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [energyIndex, setEnergyIndex] = useState(1);
   
-  const allSymptoms = [...new Set([...userSymptoms, ...COMMON_SYMPTOMS])].slice(0, 12);
+  // Prioritize user's known symptoms, then fallback
+  const allSymptoms = userSymptoms.length > 0 
+    ? [...new Set([...userSymptoms])].slice(0, 12)
+    : FALLBACK_SYMPTOMS;
 
   const handleSymptomClick = (symptom: string) => {
     haptics.selection();

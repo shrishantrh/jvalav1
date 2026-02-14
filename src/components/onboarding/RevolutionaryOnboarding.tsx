@@ -40,6 +40,7 @@ interface OnboardingData {
   age: number | null;
   enableReminders: boolean;
   reminderTime: string;
+  aiLogCategories?: any[];
 }
 
 interface RevolutionaryOnboardingProps {
@@ -131,7 +132,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
     }
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    onComplete({ ...data, age });
+    onComplete({ ...data, age, aiLogCategories });
   };
 
   const toggleCondition = (conditionId: string) => {
@@ -206,6 +207,57 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
     const conditionData = CONDITIONS.filter(c => data.conditions.includes(c.id));
     return [...new Set(conditionData.flatMap(c => c.commonTriggers))];
   }, [data.conditions]);
+
+  // AI-generated suggestions state
+  const [aiSymptoms, setAiSymptoms] = useState<string[]>([]);
+  const [aiTriggers, setAiTriggers] = useState<string[]>([]);
+  const [aiLogCategories, setAiLogCategories] = useState<any[]>([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [suggestionsLoaded, setSuggestionsLoaded] = useState(false);
+
+  // Fetch AI suggestions when moving TO the symptoms step (step 4)
+  useEffect(() => {
+    if (step === 4 && !suggestionsLoaded && totalSelected > 0) {
+      const fetchSuggestions = async () => {
+        setIsLoadingSuggestions(true);
+        try {
+          const allConditionNames = [
+            ...data.conditions.map(id => CONDITIONS.find(c => c.id === id)?.name).filter(Boolean),
+            ...data.customConditions,
+          ];
+          
+          const { supabase } = await import("@/integrations/supabase/client");
+          const { data: result, error } = await supabase.functions.invoke('generate-suggestions', {
+            body: { 
+              conditions: allConditionNames,
+              biologicalSex: data.biologicalSex,
+              age: age,
+            }
+          });
+
+          if (!error && result) {
+            const mergedSymptoms = [...new Set([...suggestedSymptoms, ...(result.symptoms || [])])];
+            const mergedTriggers = [...new Set([...suggestedTriggers, ...(result.triggers || [])])];
+            setAiSymptoms(mergedSymptoms);
+            setAiTriggers(mergedTriggers);
+            setAiLogCategories(result.logCategories || []);
+            setSuggestionsLoaded(true);
+          }
+        } catch (e) {
+          console.error('Failed to fetch AI suggestions:', e);
+          setAiSymptoms(suggestedSymptoms);
+          setAiTriggers(suggestedTriggers);
+          setSuggestionsLoaded(true);
+        } finally {
+          setIsLoadingSuggestions(false);
+        }
+      };
+      fetchSuggestions();
+    }
+  }, [step, suggestionsLoaded, totalSelected]);
+
+  const displaySymptoms = aiSymptoms.length > 0 ? aiSymptoms : suggestedSymptoms;
+  const displayTriggers = aiTriggers.length > 0 ? aiTriggers : suggestedTriggers;
 
   const canProceed = () => {
     switch (step) {
@@ -568,15 +620,24 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
             <div className="text-center space-y-2">
               <div className="flex items-center justify-center gap-2">
                 <h2 className="text-2xl font-bold">Symptoms & Triggers</h2>
-                <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">Recommended</Badge>
+                <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">Highly Recommended</Badge>
               </div>
               <p className="text-sm text-muted-foreground">
-                Based on your conditions, we've suggested common ones. Selecting these helps your AI give better insights from day one.
+                AI-generated based on your specific conditions. Selecting these helps personalize your tracking from day one.
               </p>
             </div>
 
+            {isLoadingSuggestions && (
+              <div className="glass-card text-center py-8 space-y-3">
+                <Loader2 className="w-8 h-8 text-primary mx-auto animate-spin" />
+                <p className="text-sm text-muted-foreground">
+                  Researching your conditions for relevant symptoms and triggers...
+                </p>
+              </div>
+            )}
+
             {/* Symptoms section */}
-            {suggestedSymptoms.length > 0 && (
+            {!isLoadingSuggestions && displaySymptoms.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Zap className="w-4 h-4 text-primary" />
@@ -584,7 +645,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                   <span className="text-[10px] text-muted-foreground">({data.knownSymptoms.length} selected)</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {suggestedSymptoms.map((symptom) => (
+                  {displaySymptoms.map((symptom) => (
                     <button
                       key={symptom}
                       onClick={() => toggleSymptom(symptom)}
@@ -603,7 +664,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
             )}
 
             {/* Triggers section */}
-            {suggestedTriggers.length > 0 && (
+            {!isLoadingSuggestions && displayTriggers.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Activity className="w-4 h-4 text-primary" />
@@ -611,7 +672,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                   <span className="text-[10px] text-muted-foreground">({data.knownTriggers.length} selected)</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {suggestedTriggers.map((trigger) => (
+                  {displayTriggers.map((trigger) => (
                     <button
                       key={trigger}
                       onClick={() => toggleTrigger(trigger)}
@@ -629,11 +690,11 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               </div>
             )}
 
-            {suggestedSymptoms.length === 0 && suggestedTriggers.length === 0 && (
+            {!isLoadingSuggestions && displaySymptoms.length === 0 && displayTriggers.length === 0 && (
               <div className="glass-card text-center py-6 space-y-2">
                 <Sparkles className="w-8 h-8 text-primary mx-auto" />
                 <p className="text-sm text-muted-foreground">
-                  Your AI will learn your symptoms and triggers as you log — no setup needed for custom conditions.
+                  Your AI will learn your symptoms and triggers as you log.
                 </p>
               </div>
             )}
@@ -641,7 +702,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
             <div className="glass-card flex items-start gap-3 bg-primary/5">
               <Sparkles className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
               <p className="text-[11px] text-muted-foreground leading-snug">
-                These are AI-suggested based on your conditions. You can always add more later in Settings. Selecting them helps personalize your experience immediately.
+                These are AI-researched based on your specific conditions. Selecting them helps personalize your quick log buttons and AI analysis immediately.
               </p>
             </div>
           </div>

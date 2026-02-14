@@ -201,12 +201,14 @@ const Index = () => {
       const knownTriggers = data.knownTriggers || [];
       const medications = data.medications || [];
 
-      // Store medications in metadata
+      // Store medications and AI log categories in metadata
       const medicationDetails = medications.map((name: string) => ({
         name,
         dosage: 'standard',
         frequency: 'as-needed',
       }));
+
+      const aiLogCategories = data.aiLogCategories || [];
 
       const { error } = await supabase
         .from('profiles')
@@ -218,7 +220,7 @@ const Index = () => {
           date_of_birth: data.dateOfBirth || null,
           biological_sex: data.biologicalSex || null,
           onboarding_completed: true,
-          metadata: { medications: medicationDetails },
+          metadata: { medications: medicationDetails, aiLogCategories },
         })
         .eq('id', user.id);
 
