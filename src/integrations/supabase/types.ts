@@ -101,6 +101,78 @@ export type Database = {
         }
         Relationships: []
       }
+      discoveries: {
+        Row: {
+          acknowledged_at: string | null
+          avg_delay_hours: number | null
+          category: string
+          confidence: number
+          created_at: string
+          discovery_type: string
+          evidence_summary: string | null
+          factor_a: string
+          factor_b: string | null
+          id: string
+          last_evidence_at: string | null
+          lift: number | null
+          occurrence_count: number
+          p_value: number | null
+          relationship: string
+          status: string
+          supporting_entry_ids: string[] | null
+          surfaced_at: string | null
+          total_exposures: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          avg_delay_hours?: number | null
+          category: string
+          confidence?: number
+          created_at?: string
+          discovery_type: string
+          evidence_summary?: string | null
+          factor_a: string
+          factor_b?: string | null
+          id?: string
+          last_evidence_at?: string | null
+          lift?: number | null
+          occurrence_count?: number
+          p_value?: number | null
+          relationship?: string
+          status?: string
+          supporting_entry_ids?: string[] | null
+          surfaced_at?: string | null
+          total_exposures?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          avg_delay_hours?: number | null
+          category?: string
+          confidence?: number
+          created_at?: string
+          discovery_type?: string
+          evidence_summary?: string | null
+          factor_a?: string
+          factor_b?: string | null
+          id?: string
+          last_evidence_at?: string | null
+          lift?: number | null
+          occurrence_count?: number
+          p_value?: number | null
+          relationship?: string
+          status?: string
+          supporting_entry_ids?: string[] | null
+          surfaced_at?: string | null
+          total_exposures?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ehr_connections: {
         Row: {
           created_at: string

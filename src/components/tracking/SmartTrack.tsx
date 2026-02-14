@@ -409,6 +409,70 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   // Use entry context hook for unified environmental + wearable data
   const { getEntryContext, hasWearableConnected, currentWearableData } = useEntryContext();
 
+  // Background discovery engine: runs analysis after each log
+  const runDiscoveryAnalysis = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('correlation-engine', {
+        body: {
+          action: 'deep_analysis',
+          data: { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+        },
+      });
+      if (error) { console.warn('Discovery analysis error:', error); return; }
+      
+      // Surface new discoveries in chat
+      const newDiscoveries = data?.newDiscoveries || [];
+      if (newDiscoveries.length > 0) {
+        const discoveryIds = newDiscoveries.map((d: any) => d.id);
+        
+        // Mark them as surfaced
+        await supabase.functions.invoke('correlation-engine', {
+          body: { action: 'mark_surfaced', data: { discoveryIds } },
+        });
+
+        // Show discovery cards in chat
+        for (const disc of newDiscoveries.slice(0, 2)) {
+          const emoji = disc.discovery_type === 'trigger' ? '🔍' : 
+                       disc.discovery_type === 'protective_factor' ? '🛡️' :
+                       disc.discovery_type === 'pattern' ? '📊' : '💡';
+          const statusLabel = disc.status === 'strong' ? 'Strong evidence' :
+                             disc.status === 'confirmed' ? 'Confirmed' :
+                             disc.status === 'investigating' ? 'Investigating' : 'Emerging';
+          const confPct = Math.round((disc.confidence || 0) * 100);
+          
+          let title = '';
+          if (disc.discovery_type === 'trigger') {
+            title = `New trigger detected: ${disc.factor_a}`;
+          } else if (disc.discovery_type === 'protective_factor') {
+            title = `Protective factor: ${disc.factor_a}`;
+          } else if (disc.discovery_type === 'pattern') {
+            title = `Pattern found: ${disc.factor_a}`;
+          } else {
+            title = `Discovery: ${disc.factor_a}`;
+          }
+
+          const discoveryMessage: ChatMessage = {
+            id: Date.now().toString() + Math.random(),
+            role: 'assistant',
+            content: `${emoji} **${title}**\n\n${disc.evidence_summary}\n\n_${statusLabel} • ${confPct}% confidence • ${disc.occurrence_count} occurrences_`,
+            timestamp: new Date(),
+            isAIGenerated: true,
+          };
+          setMessages(prev => [...prev, discoveryMessage]);
+        }
+      }
+    } catch (e) {
+      console.warn('Discovery engine background error:', e);
+    }
+  };
+
+  // Debounced analysis: run 5 seconds after last log to batch rapid logs
+  const analysisTimerRef = useRef<number | null>(null);
+  const scheduleAnalysis = () => {
+    if (analysisTimerRef.current) window.clearTimeout(analysisTimerRef.current);
+    analysisTimerRef.current = window.setTimeout(runDiscoveryAnalysis, 5000);
+  };
+
   // Proactive checkin — call edge function on first load
   useEffect(() => {
     if (hasLoadedMessages.current) return;
@@ -621,6 +685,9 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     const entryId = Date.now().toString();
     setLastLoggedEntryId(entryId);
 
+    // Trigger background discovery analysis
+    scheduleAnalysis();
+
     const confirmMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
       role: 'assistant',
@@ -788,6 +855,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     } catch (e) { /* silent */ }
 
     onSave(entry);
+    scheduleAnalysis();
 
     const confirmMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
@@ -985,6 +1053,11 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         };
 
         await onSave(entry);
+      }
+
+      // Trigger background discovery analysis after any chat-based log
+      if (smartData?.multipleEntries?.length > 0 || (smartData?.entryData && smartData?.shouldLog)) {
+        scheduleAnalysis();
       }
     } catch (error) {
       console.error('Error:', error);

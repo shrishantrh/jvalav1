@@ -81,12 +81,13 @@ serve(async (req) => {
     );
 
     // Fetch ALL user data comprehensively
-    const [entriesRes, profileRes, correlationsRes, medsRes, engagementRes] = await Promise.all([
+    const [entriesRes, profileRes, correlationsRes, medsRes, engagementRes, discoveriesRes] = await Promise.all([
       supabase.from("flare_entries").select("*").eq("user_id", userId).order("timestamp", { ascending: false }).limit(1000),
       supabase.from("profiles").select("*").eq("id", userId).single(),
       supabase.from("correlations").select("*").eq("user_id", userId).order("confidence", { ascending: false }),
       supabase.from("medication_logs").select("*").eq("user_id", userId).order("taken_at", { ascending: false }).limit(500),
       supabase.from("engagement").select("*").eq("user_id", userId).single(),
+      supabase.from("discoveries").select("*").eq("user_id", userId).gte("confidence", 0.25).order("confidence", { ascending: false }).limit(30),
     ]);
 
     const entries = entriesRes.data || [];
@@ -94,6 +95,7 @@ serve(async (req) => {
     const correlations = correlationsRes.data || [];
     const medications = medsRes.data || [];
     const engagement = engagementRes.data;
+    const discoveries = discoveriesRes.data || [];
 
     const flares = entries.filter((e: any) => e.entry_type === "flare" || e.severity);
     const now = Date.now();
@@ -280,6 +282,21 @@ serve(async (req) => {
         trigger: c.trigger_value, outcome: c.outcome_value,
         confidence: Math.round((c.confidence || 0) * 100), occurrences: c.occurrence_count,
       })),
+      discoveries: discoveries.map((d: any) => ({
+        type: d.discovery_type,
+        category: d.category,
+        factorA: d.factor_a,
+        factorB: d.factor_b,
+        relationship: d.relationship,
+        confidence: Math.round((d.confidence || 0) * 100),
+        lift: d.lift?.toFixed(1),
+        occurrences: d.occurrence_count,
+        totalExposures: d.total_exposures,
+        avgDelayHours: d.avg_delay_hours?.toFixed(1),
+        status: d.status,
+        evidence: d.evidence_summary,
+        surfaced: !!d.surfaced_at,
+      })),
       profile: {
         name: profile?.full_name || null,
         dateOfBirth: profile?.date_of_birth || null,
@@ -448,13 +465,27 @@ DO NOT research when: the question is about their personal data (use the data be
 ══ CLINICAL KNOWLEDGE — USE THIS ══
 You have evidence-based knowledge about ${userName}'s conditions. When they ask health questions, tips, or how things affect their condition — USE this knowledge to give specific, actionable, condition-relevant answers.
 
-${userConditionKnowledge}
+    ${userConditionKnowledge}
+
+══ DISCOVERIES — YOUR MOST POWERFUL FEATURE ══
+The Discovery Engine continuously runs Bayesian association rule mining across ALL user data. Below are active discoveries it has found. USE THEM.
+
+RULES:
+1. When a user logs something that matches a known discovery (e.g., they eat pizza and you know pizza→breakout), PROACTIVELY mention it: "heads up — pizza has been linked to your breakouts ${'{'}X out of Y times{'}'}"
+2. If a discovery has status "confirmed" or "strong", treat it as established fact in your responses.
+3. If status is "emerging" or "investigating", mention it cautiously: "I'm noticing a possible pattern..."
+4. NEVER ignore a high-confidence discovery when it's relevant to the conversation.
+5. When you spot a NEW pattern the engine hasn't found yet (from conversational context), mention it — the engine will catch up on next analysis.
+
+DISCOVERY DATA:
+${JSON.stringify(dataContext.discoveries?.filter((d: any) => d.confidence >= 25) || [], null, 2)}
 
 ══ CONTEXT AWARENESS — CRITICAL ══
 - You can see recent chat messages below. This includes ALL logs the user has made (flares, trackables, medications, energy).
 - If you see someone log the same thing 3+ times in quick succession (within minutes), COMMENT on it naturally like a human friend would.
 - Be aware of TIME. If it's morning and they haven't logged anything, you might ask about sleep. If it's late, acknowledge the time.
 - If they ask "how does X affect my Y" — ANSWER using the clinical knowledge above, citing specific mechanisms. Don't say "I don't have enough info" when you literally have clinical research above.
+- When the user logs a flare RIGHT AFTER logging food/activity, CONNECT THE DOTS using discoveries data. This is what makes you useful.
 
 ══ VISUALIZATION RULES — CRITICAL ══
 - ONLY create a chart when the user EXPLICITLY asks: "show me a chart", "graph my...", "visualize", "plot", "show me data"
