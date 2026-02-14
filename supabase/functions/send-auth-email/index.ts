@@ -33,31 +33,14 @@ serve(async (req) => {
       });
     }
 
-    let actionLink: string;
     let subject: string;
     let htmlContent: string;
 
     if (type === "signup") {
-      // Generate email confirmation link via admin API
-      const { data, error } = await supabaseAdmin.auth.admin.generateLink({
-        type: "signup",
-        email,
-        options: {
-          redirectTo: "https://jvala.tech/confirm-email",
-        },
-      });
-
-      if (error) {
-        console.error("generateLink signup error:", error);
-        // If user already exists, try magiclink approach or inform user
-        throw new Error(error.message);
-      }
-
-      actionLink = data.properties?.action_link || "";
-      if (!actionLink) throw new Error("No action link generated");
-
-      subject = "Verify your email — Jvala";
-      htmlContent = buildVerificationEmail(actionLink);
+      // With auto-confirm enabled, user is already created and confirmed.
+      // Send a branded welcome email (no verification link needed).
+      subject = "Welcome to Jvala! 🎉";
+      htmlContent = buildWelcomeEmail();
 
     } else if (type === "recovery") {
       // Generate password recovery link
@@ -74,7 +57,7 @@ serve(async (req) => {
         throw new Error(error.message);
       }
 
-      actionLink = data.properties?.action_link || "";
+      const actionLink = data.properties?.action_link || "";
       if (!actionLink) throw new Error("No action link generated");
 
       subject = "Reset your password — Jvala";
@@ -127,54 +110,48 @@ serve(async (req) => {
 
 // ===== Email HTML Templates =====
 
-function buildVerificationEmail(actionLink: string): string {
+function buildWelcomeEmail(): string {
   return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verify Your Email</title>
+  <title>Welcome to Jvala</title>
 </head>
 <body style="margin:0;padding:0;background:#F3F0FF;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
     <tr>
       <td align="center">
         <table width="440" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.08);overflow:hidden;">
-          <!-- Header -->
           <tr>
-            <td style="background:linear-gradient(135deg,#EC4899,#8B5CF6);padding:32px;text-align:center;">
-              <div style="width:48px;height:48px;background:rgba(255,255,255,0.2);border-radius:12px;margin:0 auto 12px;line-height:48px;font-size:24px;color:#fff;">✉</div>
-              <h1 style="margin:0;font-size:22px;font-weight:800;color:#ffffff;">Verify Your Email</h1>
+            <td style="background:linear-gradient(135deg,#D6006C,#892EFF);padding:32px;text-align:center;">
+              <div style="width:48px;height:48px;background:rgba(255,255,255,0.2);border-radius:12px;margin:0 auto 12px;line-height:48px;font-size:24px;color:#fff;">🎉</div>
+              <h1 style="margin:0;font-size:22px;font-weight:800;color:#ffffff;">Welcome to Jvala!</h1>
             </td>
           </tr>
-          <!-- Body -->
           <tr>
             <td style="padding:32px;">
               <p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
-                Welcome to Jvala! Please confirm your email address to activate your account and start tracking your health.
+                Your account has been created successfully. You're all set to start tracking your health and gaining insights.
               </p>
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center" style="padding:8px 0 24px;">
-                    <a href="${actionLink}" style="display:inline-block;padding:14px 40px;background:linear-gradient(135deg,#EC4899,#8B5CF6);color:#ffffff;text-decoration:none;border-radius:12px;font-size:16px;font-weight:700;">
-                      Confirm Email Address
+                    <a href="https://jvala.tech" style="display:inline-block;padding:14px 40px;background:linear-gradient(135deg,#D6006C,#892EFF);color:#ffffff;text-decoration:none;border-radius:12px;font-size:16px;font-weight:700;">
+                      Open Jvala
                     </a>
                   </td>
                 </tr>
               </table>
-              <p style="margin:0 0 8px;font-size:13px;color:#9CA3AF;line-height:1.5;">
-                This link expires in 24 hours. If you didn't create a Jvala account, you can safely ignore this email.
-              </p>
-              <p style="margin:0;font-size:12px;color:#D1D5DB;word-break:break-all;">
-                If the button doesn't work, copy this link:<br>${actionLink}
+              <p style="margin:0;font-size:13px;color:#9CA3AF;line-height:1.5;">
+                If you didn't create a Jvala account, you can safely ignore this email.
               </p>
             </td>
           </tr>
-          <!-- Footer -->
           <tr>
             <td style="padding:16px 32px 24px;text-align:center;border-top:1px solid #F3F4F6;">
-              <p style="margin:0;font-size:12px;color:#9CA3AF;">© ${new Date().getFullYear()} Jvala Health · <a href="https://jvala.tech" style="color:#EC4899;text-decoration:none;">jvala.tech</a></p>
+              <p style="margin:0;font-size:12px;color:#9CA3AF;">© ${new Date().getFullYear()} Jvala Health · <a href="https://jvala.tech" style="color:#D6006C;text-decoration:none;">jvala.tech</a></p>
             </td>
           </tr>
         </table>
