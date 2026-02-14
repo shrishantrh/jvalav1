@@ -6,8 +6,35 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-terra-signature',
 };
 
-// Terra API unified wearables data
-// Supports: Apple Health, Fitbit, Oura, Garmin, WHOOP, Google Fit, Samsung, Polar, etc.
+// Verify Terra webhook signature using HMAC-SHA256
+async function verifyTerraSignature(payload: string, signature: string | null, secret: string): Promise<boolean> {
+  if (!signature) return false;
+  
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  
+  const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(payload));
+  const computedHex = Array.from(new Uint8Array(signatureBuffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+  
+  // Terra sends the signature as the raw hex or prefixed with "sha256="
+  const cleanSignature = signature.replace('sha256=', '').replace('t=', '').trim();
+  
+  // Constant-time comparison to prevent timing attacks
+  if (computedHex.length !== cleanSignature.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < computedHex.length; i++) {
+    mismatch |= computedHex.charCodeAt(i) ^ cleanSignature.charCodeAt(i);
+  }
+  return mismatch === 0;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -15,15 +42,37 @@ serve(async (req) => {
   }
 
   try {
+    // Step 1: Verify Terra webhook signature
+    const terraSecret = Deno.env.get('TERRA_WEBHOOK_SECRET');
+    if (!terraSecret) {
+      console.error('TERRA_WEBHOOK_SECRET not configured');
+      return new Response(JSON.stringify({ error: 'Server misconfigured' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const terraSignature = req.headers.get('terra-signature') || req.headers.get('x-terra-signature');
+    const rawPayload = await req.text();
+
+    const isValid = await verifyTerraSignature(rawPayload, terraSignature, terraSecret);
+    if (!isValid) {
+      console.error('Invalid Terra webhook signature');
+      return new Response(JSON.stringify({ error: 'Invalid signature' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Step 2: Parse verified payload
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const payload = await req.json();
-    console.log('Terra webhook received:', JSON.stringify(payload, null, 2));
+    const payload = JSON.parse(rawPayload);
+    console.log('Terra webhook verified:', payload.type);
 
-    // Terra sends different event types
     const { type, user, data } = payload;
 
     if (!user?.user_id) {
@@ -33,12 +82,20 @@ serve(async (req) => {
       });
     }
 
-    // Map Terra's user_id to our user_id (stored in fitbit_tokens or a new terra_connections table)
-    const userId = user.reference_id || user.user_id; // reference_id is what we set during auth
+    const userId = user.reference_id || user.user_id;
+
+    // Validate userId format (UUID)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(userId)) {
+      console.error('Invalid user_id format:', userId);
+      return new Response(JSON.stringify({ error: 'Invalid user ID' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     switch (type) {
       case 'activity': {
-        // Daily activity summary
         const activityData = data?.[0];
         if (activityData) {
           await supabase.from('activity_logs').insert({
@@ -62,7 +119,6 @@ serve(async (req) => {
       }
 
       case 'sleep': {
-        // Sleep data
         const sleepData = data?.[0];
         if (sleepData) {
           await supabase.from('activity_logs').insert({
@@ -89,7 +145,6 @@ serve(async (req) => {
       }
 
       case 'body': {
-        // Body metrics (weight, body fat, etc.)
         const bodyData = data?.[0];
         if (bodyData) {
           await supabase.from('activity_logs').insert({
@@ -108,30 +163,23 @@ serve(async (req) => {
       }
 
       case 'daily': {
-        // Combined daily data
         const dailyData = data?.[0];
         if (dailyData) {
-          // Store comprehensive daily snapshot
           await supabase.from('activity_logs').insert({
             user_id: userId,
             activity_type: 'daily_snapshot',
             activity_value: JSON.stringify({
-              // Heart metrics
               resting_hr: dailyData.heart_rate?.resting,
               avg_hr: dailyData.heart_rate?.average,
               max_hr: dailyData.heart_rate?.max,
               hrv_rmssd: dailyData.hrv?.rmssd,
               hrv_sdnn: dailyData.hrv?.sdnn,
-              // Stress & recovery
               stress_score: dailyData.stress?.avg_stress_level,
               recovery_score: dailyData.recovery?.recovery_score,
-              // Activity
               steps: dailyData.steps,
               calories: dailyData.calories,
               active_zone_minutes: dailyData.active_zone_minutes?.total,
-              // Oxygen
               spo2_avg: dailyData.oxygen?.avg_saturation_percentage,
-              // Temperature
               skin_temperature: dailyData.temperature?.skin_temp_celsius,
               core_temperature: dailyData.temperature?.core_temp_celsius,
             }),
@@ -143,7 +191,6 @@ serve(async (req) => {
       }
 
       case 'menstruation': {
-        // Menstrual cycle data (from Clue, Flo via Apple Health, or Oura)
         const menstrualData = data?.[0];
         if (menstrualData) {
           await supabase.from('activity_logs').insert({
@@ -165,7 +212,6 @@ serve(async (req) => {
       }
 
       case 'auth': {
-        // User connected/disconnected
         console.log('Terra auth event:', user.provider, data?.status);
         break;
       }
