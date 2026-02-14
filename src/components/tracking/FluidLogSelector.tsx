@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
-import { Smile, Pill, X, Zap, Plus, Activity, Flame, Sun, Moon, Droplets, Thermometer, Eye, Brain, Shield, AlertTriangle, Heart, Search, Dumbbell, GlassWater, Apple, Loader2, Sparkles } from "lucide-react";
+import { Smile, Pill, X, Zap, Plus, Activity, Flame, Sun, Moon, Droplets, Thermometer, Eye, Brain, Shield, AlertTriangle, Heart, Search, Dumbbell, GlassWater, Apple, Loader2, Sparkles, Trash2 } from "lucide-react";
 import { SeverityWheel } from "@/components/flare/SeverityWheel";
 import { EnergyOrbs } from "@/components/flare/EnergyOrbs";
 import { FlareSeverity } from "@/types/flare";
@@ -58,6 +58,8 @@ interface FluidLogSelectorProps {
   onLogRecovery?: () => void;
   onLogCustom?: (trackableLabel: string, value?: string) => void;
   onAddTrackable?: (trackable: SmartTrackable) => void;
+  onRemoveTrackable?: (trackableId: string) => void;
+  onReorderTrackables?: (trackables: SmartTrackable[]) => void;
   onOpenDetails?: () => void;
   disabled?: boolean;
 }
@@ -227,7 +229,7 @@ const TrackableInteractionPanel = ({ trackable, onLog, onClose }: {
 export const FluidLogSelector = ({
   userSymptoms, userMedications, aiLogCategories = [], customTrackables = [],
   onLogSymptom, onLogMedication, onLogWellness,
-  onLogEnergy, onLogRecovery, onLogCustom, onAddTrackable, onOpenDetails, disabled
+  onLogEnergy, onLogRecovery, onLogCustom, onAddTrackable, onRemoveTrackable, onReorderTrackables, onOpenDetails, disabled
 }: FluidLogSelectorProps) => {
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [activeCondition, setActiveCondition] = useState<AILogCategory | null>(null);
@@ -236,6 +238,71 @@ export const FluidLogSelector = ({
   const [trackableSearch, setTrackableSearch] = useState("");
   const [isResearching, setIsResearching] = useState(false);
   const [researchedTrackable, setResearchedTrackable] = useState<SmartTrackable | null>(null);
+  
+  // Drag-to-delete/reorder state
+  const [dragMode, setDragMode] = useState(false);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [showDeleteZone, setShowDeleteZone] = useState(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+
+  const handleLongPressStart = (index: number) => {
+    longPressTimer.current = setTimeout(() => {
+      haptics.medium();
+      setDragMode(true);
+      setDragIndex(index);
+      setShowDeleteZone(true);
+    }, 500);
+  };
+
+  const handleLongPressEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    if (!dragMode) return;
+    e.dataTransfer.effectAllowed = 'move';
+    setDragIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (dragIndex === null || dragIndex === targetIndex) return;
+    
+    const reordered = [...customTrackables];
+    const [moved] = reordered.splice(dragIndex, 1);
+    reordered.splice(targetIndex, 0, moved);
+    onReorderTrackables?.(reordered);
+    haptics.light();
+    
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDeleteDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (dragIndex !== null && customTrackables[dragIndex]) {
+      haptics.warning();
+      onRemoveTrackable?.(customTrackables[dragIndex].id);
+    }
+    exitDragMode();
+  };
+
+  const exitDragMode = () => {
+    setDragMode(false);
+    setDragIndex(null);
+    setDragOverIndex(null);
+    setShowDeleteZone(false);
+  };
 
   const handleConditionClick = (cat: AILogCategory) => {
     haptics.selection();
@@ -426,30 +493,77 @@ export const FluidLogSelector = ({
           <span>Energy</span>
         </GlassButton>
 
-        {/* Custom trackables with their AI-generated colors */}
-        {customTrackables.map((t) => {
+        {/* Custom trackables with drag-to-delete/reorder */}
+        {customTrackables.map((t, idx) => {
           const TIcon = ICON_MAP[t.icon] || Activity;
           const isActive = activePanel === 'customTrackable' && activeTrackable?.id === t.id;
+          const isDragging = dragMode && dragIndex === idx;
+          const isDragOver = dragMode && dragOverIndex === idx;
           return (
-            <GlassButton key={t.id} onClick={() => handleCustomTrackableClick(t as SmartTrackable)} disabled={disabled} active={isActive} className="flex-shrink-0"
-              style={{
-                background: isActive
-                  ? `linear-gradient(145deg, ${(t as SmartTrackable).color?.replace(/\d+%\)/, '95%)') || 'hsl(250 60% 95%)'}, ${(t as SmartTrackable).color?.replace(/\d+%\)/, '90%)') || 'hsl(250 60% 90%)'})`
-                  : 'linear-gradient(145deg, hsl(0 0% 100% / 0.85) 0%, hsl(0 0% 98% / 0.8) 100%)',
-                WebkitBackgroundClip: 'padding-box',
-                backgroundClip: 'padding-box',
-                border: isActive ? `2px solid ${(t as SmartTrackable).color || 'hsl(250 60% 55%)'}` : '1px solid hsl(0 0% 100% / 0.6)',
-                boxShadow: isActive
-                  ? `inset 0 1px 2px hsl(0 0% 100% / 0.5), 0 4px 12px ${(t as SmartTrackable).color?.replace(/\d+%\)/, '30%)') || 'hsl(250 60% 30%)'}`
-                  : 'inset 0 1px 2px hsl(0 0% 100% / 0.4), 0 2px 8px hsl(0 0% 0% / 0.04)',
-                overflow: 'hidden',
-              }}
+            <div
+              key={t.id}
+              draggable={dragMode}
+              onDragStart={(e) => handleDragStart(e, idx)}
+              onDragOver={(e) => handleDragOver(e, idx)}
+              onDrop={(e) => handleDrop(e, idx)}
+              onDragEnd={exitDragMode}
+              onTouchStart={() => handleLongPressStart(idx)}
+              onTouchEnd={handleLongPressEnd}
+              onMouseDown={() => handleLongPressStart(idx)}
+              onMouseUp={handleLongPressEnd}
+              onMouseLeave={handleLongPressEnd}
+              className={cn(
+                "flex-shrink-0 transition-all duration-200",
+                isDragging && "opacity-50 scale-95",
+                isDragOver && "scale-110",
+                dragMode && "animate-[wiggle_0.3s_ease-in-out_infinite]"
+              )}
             >
-              <TIcon className="w-4 h-4" style={{ color: (t as SmartTrackable).color || 'hsl(250 60% 55%)' }} />
-              <span>{t.label}</span>
-            </GlassButton>
+              <GlassButton
+                onClick={() => !dragMode && handleCustomTrackableClick(t as SmartTrackable)}
+                disabled={disabled}
+                active={isActive}
+                className="flex-shrink-0"
+                style={{
+                  background: isActive
+                    ? `linear-gradient(145deg, ${(t as SmartTrackable).color?.replace(/\d+%\)/, '95%)') || 'hsl(250 60% 95%)'}, ${(t as SmartTrackable).color?.replace(/\d+%\)/, '90%)') || 'hsl(250 60% 90%)'})`
+                    : 'linear-gradient(145deg, hsl(0 0% 100% / 0.85) 0%, hsl(0 0% 98% / 0.8) 100%)',
+                  WebkitBackgroundClip: 'padding-box',
+                  backgroundClip: 'padding-box',
+                  border: isActive ? `2px solid ${(t as SmartTrackable).color || 'hsl(250 60% 55%)'}` : '1px solid hsl(0 0% 100% / 0.6)',
+                  boxShadow: isActive
+                    ? `inset 0 1px 2px hsl(0 0% 100% / 0.5), 0 4px 12px ${(t as SmartTrackable).color?.replace(/\d+%\)/, '30%)') || 'hsl(250 60% 30%)'}`
+                    : 'inset 0 1px 2px hsl(0 0% 100% / 0.4), 0 2px 8px hsl(0 0% 0% / 0.04)',
+                  overflow: 'hidden',
+                }}
+              >
+                <TIcon className="w-4 h-4" style={{ color: (t as SmartTrackable).color || 'hsl(250 60% 55%)' }} />
+                <span>{t.label}</span>
+              </GlassButton>
+              {/* Delete badge on drag mode */}
+              {dragMode && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); haptics.warning(); onRemoveTrackable?.(t.id); exitDragMode(); }}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-[10px] font-bold z-20 shadow-md"
+                >
+                  ×
+                </button>
+              )}
+            </div>
           );
         })}
+
+        {/* Delete zone - appears when dragging */}
+        {showDeleteZone && (
+          <div
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={handleDeleteDrop}
+            className="flex-shrink-0 h-11 px-3 rounded-2xl flex items-center justify-center border-2 border-dashed border-destructive/50 bg-destructive/10 text-destructive text-xs font-medium animate-in fade-in duration-200"
+          >
+            <Trash2 className="w-4 h-4 mr-1" />
+            Drop to delete
+          </div>
+        )}
 
         {/* Add trackable button */}
         <button onClick={() => togglePanel('addTrackable')} disabled={disabled}

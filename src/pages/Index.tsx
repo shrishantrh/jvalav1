@@ -616,6 +616,27 @@ const Index = () => {
                 };
                 await supabase.from('profiles').update({ metadata: currentMeta as any }).eq('id', user.id);
               }}
+              onRemoveTrackable={async (trackableId) => {
+                if (!user || !userProfile) return;
+                const updated = (userProfile.customTrackables || []).filter(t => t.id !== trackableId);
+                setUserProfile(prev => prev ? { ...prev, customTrackables: updated } : prev);
+                const currentMeta: Record<string, any> = {
+                  medications: (userProfile.medications || []).map(m => ({ name: m.name, dosage: m.dosage, frequency: m.frequency })),
+                  aiLogCategories: userProfile.aiLogCategories || [],
+                  customTrackables: updated.map(t => ({ id: t.id, label: t.label, icon: t.icon, type: t.type, color: t.color, interactionType: t.interactionType, subOptions: t.subOptions, unit: t.unit, logMessage: t.logMessage })),
+                };
+                await supabase.from('profiles').update({ metadata: currentMeta as any }).eq('id', user.id);
+              }}
+              onReorderTrackables={async (reordered) => {
+                if (!user || !userProfile) return;
+                setUserProfile(prev => prev ? { ...prev, customTrackables: reordered } : prev);
+                const currentMeta: Record<string, any> = {
+                  medications: (userProfile.medications || []).map(m => ({ name: m.name, dosage: m.dosage, frequency: m.frequency })),
+                  aiLogCategories: userProfile.aiLogCategories || [],
+                  customTrackables: reordered.map(t => ({ id: t.id, label: t.label, icon: t.icon, type: t.type, color: t.color, interactionType: t.interactionType, subOptions: t.subOptions, unit: t.unit, logMessage: t.logMessage })),
+                };
+                await supabase.from('profiles').update({ metadata: currentMeta as any }).eq('id', user.id);
+              }}
               userName={userProfile?.full_name}
               userDOB={userProfile?.date_of_birth}
               userBiologicalSex={userProfile?.biological_sex}

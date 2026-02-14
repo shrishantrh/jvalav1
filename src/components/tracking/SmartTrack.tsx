@@ -97,6 +97,8 @@ interface SmartTrackProps {
   aiLogCategories?: any[];
   customTrackables?: CustomTrackable[];
   onAddTrackable?: (trackable: CustomTrackable) => void;
+  onRemoveTrackable?: (trackableId: string) => void;
+  onReorderTrackables?: (trackables: CustomTrackable[]) => void;
   userName?: string | null;
   userDOB?: string | null;
   userBiologicalSex?: string | null;
@@ -111,6 +113,9 @@ export interface SmartTrackRef {
 }
 
 const STORAGE_KEY = 'jvala_smart_chat';
+
+// Module-level chat cache to persist across tab switches (in-memory only, not localStorage)
+const chatCache = new Map<string, ChatMessage[]>();
 
 const getPersonalizedGreeting = (conditions: string[], recentEntries: any[]): string => {
   const hour = new Date().getHours();
@@ -318,6 +323,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   aiLogCategories = [],
   customTrackables = [],
   onAddTrackable,
+  onRemoveTrackable,
+  onReorderTrackables,
   userName,
   userDOB,
   userBiologicalSex,
@@ -325,7 +332,15 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   userId,
   onOpenDetails
 }, ref) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, _setMessages] = useState<ChatMessage[]>(() => chatCache.get(userId) || []);
+  // Wrap setMessages to also update the module-level cache
+  const setMessages: typeof _setMessages = (update) => {
+    _setMessages(prev => {
+      const next = typeof update === 'function' ? update(prev) : update;
+      chatCache.set(userId, next);
+      return next;
+    });
+  };
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number; city?: string } | null>(null);
@@ -346,7 +361,10 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     if (hasLoadedMessages.current) return;
     hasLoadedMessages.current = true;
     
-    // No localStorage persistence — health data stays in-memory only for privacy
+    // Only show greeting if no cached messages exist
+    const cached = chatCache.get(userId);
+    if (cached && cached.length > 0) return; // Already restored from cache
+    
     const greeting = getPersonalizedGreeting(userConditions, recentEntries);
     setMessages([{
       id: '1',
@@ -987,6 +1005,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             onLogRecovery={handleRecoveryLog}
             onLogCustom={handleCustomLog}
             onAddTrackable={onAddTrackable}
+            onRemoveTrackable={onRemoveTrackable}
+            onReorderTrackables={onReorderTrackables}
             onOpenDetails={onOpenDetails}
           />
         </div>

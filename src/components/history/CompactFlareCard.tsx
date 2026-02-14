@@ -25,6 +25,14 @@ import {
   Gauge,
   Leaf,
   Eye,
+  GlassWater,
+  Dumbbell,
+  Apple,
+  Brain,
+  Shield,
+  Activity,
+  Flame,
+  Coffee,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
@@ -46,33 +54,71 @@ const parseTrackableMeta = (note?: string): { trackableLabel?: string; value?: s
   return null;
 };
 
-// 3D orb face component - matches SeverityWheel style
+// Map icon name to a Lucide component for rendering inside the orb
+const TRACKABLE_ICON_MAP: Record<string, React.ComponentType<any>> = {
+  glass_water: GlassWater,
+  droplets: Droplets,
+  dumbbell: Dumbbell,
+  apple: Apple,
+  heart: Heart,
+  brain: Brain,
+  moon: Moon,
+  sun: Sun,
+  thermometer: Thermometer,
+  zap: Zap,
+  coffee: Coffee,
+  shield: Shield,
+  eye: Eye,
+  activity: Activity,
+  flame: Flame,
+  pill: Pill,
+};
+
+// Parse an HSL string like "hsl(50 80% 55%)" or hex to {h,s,l}
+const parseColor = (color?: string): { h: number; s: number; l: number } | null => {
+  if (!color) return null;
+  // hsl(H S% L%) or hsl(H, S%, L%)
+  const hslMatch = color.match(/hsl\((\d+)[,\s]+(\d+)%?[,\s]+(\d+)%?\)/);
+  if (hslMatch) return { h: parseInt(hslMatch[1]), s: parseInt(hslMatch[2]), l: parseInt(hslMatch[3]) };
+  // hex
+  const hexMatch = color.match(/^#([0-9a-f]{6})$/i);
+  if (hexMatch) {
+    const r = parseInt(hexMatch[1].slice(0,2), 16) / 255;
+    const g = parseInt(hexMatch[1].slice(2,4), 16) / 255;
+    const b = parseInt(hexMatch[1].slice(4,6), 16) / 255;
+    const max = Math.max(r,g,b), min = Math.min(r,g,b);
+    let h = 0, s = 0;
+    const l = (max+min)/2;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+      if (max === r) h = ((g-b)/d + (g<b?6:0)) * 60;
+      else if (max === g) h = ((b-r)/d + 2) * 60;
+      else h = ((r-g)/d + 4) * 60;
+    }
+    return { h: Math.round(h), s: Math.round(s*100), l: Math.round(l*100) };
+  }
+  return null;
+};
+
+// 3D orb component
 const SeverityOrb = ({ severity, type, note }: { severity?: string; type?: string; note?: string }) => {
   const getConfig = () => {
-    // Custom trackable types (type starts with 'trackable:')
+    // Custom trackable types
     if (type?.startsWith('trackable:')) {
       const meta = parseTrackableMeta(note);
-      // Map lucide icon names to SVG icons rendered inline
-      const iconEmojiMap: Record<string, string> = {
-        glass_water: '💧', droplets: '💧', dumbbell: '💪', apple: '🍎',
-        heart: '❤️', brain: '🧠', moon: '🌙', sun: '☀️', thermometer: '🌡️',
-        zap: '⚡', shield: '🛡️', eye: '👁️', activity: '📊', flame: '🔥',
-      };
-      const emoji = iconEmojiMap[meta?.icon || ''] || '📊';
-      
-      // Derive gradient and glow from the trackable's color
-      const trackableColor = meta?.color || 'hsl(250 60% 55%)';
-      // Parse HSL to create gradient variants
-      const hslMatch = trackableColor.match(/hsl\((\d+)\s+(\d+)%?\s+(\d+)%?\)/);
-      const h = hslMatch ? parseInt(hslMatch[1]) : 250;
-      const s = hslMatch ? parseInt(hslMatch[2]) : 60;
+      const IconComponent = TRACKABLE_ICON_MAP[meta?.icon || ''] || Activity;
+      const parsed = parseColor(meta?.color);
+      const h = parsed?.h ?? 250;
+      const s = parsed?.s ?? 60;
       
       return { 
         gradient: `from-[hsl(${h}_${s}%_90%)] via-[hsl(${h}_${Math.max(s-10,20)}%_95%)] to-[hsl(${h}_${Math.max(s-20,10)}%_97%)]`,
         glow: `hsla(${h}, ${s}%, 55%, 0.35)`,
         face: `hsl(${h}, ${s}%, 45%)`,
-        faceType: 'emoji' as const,
-        emoji,
+        faceType: 'lucide_icon' as const,
+        IconComponent,
+        iconColor: `hsl(${h}, ${s}%, 40%)`,
       };
     }
 
@@ -107,48 +153,29 @@ const SeverityOrb = ({ severity, type, note }: { severity?: string; type?: strin
     // Severity-based
     switch (severity) {
       case 'none':
-        return { 
-          gradient: 'from-emerald-200 via-emerald-100 to-teal-50',
-          glow: 'rgba(52, 211, 153, 0.35)',
-          face: '#059669',
-          faceType: 'happy' as const
-        };
+        return { gradient: 'from-emerald-200 via-emerald-100 to-teal-50', glow: 'rgba(52, 211, 153, 0.35)', face: '#059669', faceType: 'happy' as const };
       case 'mild':
-        return { 
-          gradient: 'from-amber-200 via-yellow-100 to-orange-50',
-          glow: 'rgba(251, 191, 36, 0.35)',
-          face: '#d97706',
-          faceType: 'neutral' as const
-        };
+        return { gradient: 'from-amber-200 via-yellow-100 to-orange-50', glow: 'rgba(251, 191, 36, 0.35)', face: '#d97706', faceType: 'neutral' as const };
       case 'moderate':
-        return { 
-          gradient: 'from-orange-300 via-orange-200 to-amber-100',
-          glow: 'rgba(251, 146, 60, 0.35)',
-          face: '#ea580c',
-          faceType: 'worried' as const
-        };
+        return { gradient: 'from-orange-300 via-orange-200 to-amber-100', glow: 'rgba(251, 146, 60, 0.35)', face: '#ea580c', faceType: 'worried' as const };
       case 'severe':
-        return { 
-          gradient: 'from-rose-300 via-pink-200 to-red-100',
-          glow: 'rgba(244, 63, 94, 0.35)',
-          face: '#dc2626',
-          faceType: 'distressed' as const
-        };
+        return { gradient: 'from-rose-300 via-pink-200 to-red-100', glow: 'rgba(244, 63, 94, 0.35)', face: '#dc2626', faceType: 'distressed' as const };
       default:
-        return { 
-          gradient: 'from-slate-200 via-gray-100 to-slate-50',
-          glow: 'rgba(148, 163, 184, 0.35)',
-          face: '#64748b',
-          faceType: 'neutral' as const
-        };
+        return { gradient: 'from-slate-200 via-gray-100 to-slate-50', glow: 'rgba(148, 163, 184, 0.35)', face: '#64748b', faceType: 'neutral' as const };
     }
   };
 
   const config = getConfig() as any;
 
   const renderFace = () => {
-    if (config.emoji) {
-      return <div className="absolute inset-0 flex items-center justify-center text-lg">{config.emoji}</div>;
+    // Lucide icon for trackables — NOT emojis
+    if (config.faceType === 'lucide_icon') {
+      const IC = config.IconComponent;
+      return (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <IC className="w-5 h-5" style={{ color: config.iconColor }} />
+        </div>
+      );
     }
     if (config.icon) {
       return <div className="absolute inset-0 flex items-center justify-center">{config.icon}</div>;
@@ -184,13 +211,10 @@ const SeverityOrb = ({ severity, type, note }: { severity?: string; type?: strin
       case 'distressed':
         return (
           <svg viewBox="0 0 32 32" className="absolute inset-0 w-full h-full">
-            {/* Sad droopy eyes */}
             <ellipse cx="11" cy="12" rx="2" ry="2.5" fill={config.face} />
             <ellipse cx="21" cy="12" rx="2" ry="2.5" fill={config.face} />
-            {/* Sad eyebrows */}
             <path d="M7 8 Q11 10 15 8" stroke={config.face} strokeWidth="1.5" strokeLinecap="round" fill="none" />
             <path d="M17 8 Q21 10 25 8" stroke={config.face} strokeWidth="1.5" strokeLinecap="round" fill="none" />
-            {/* Deep frown */}
             <path d="M10 22 Q16 17 22 22" stroke={config.face} strokeWidth="1.8" strokeLinecap="round" fill="none" />
           </svg>
         );
@@ -245,15 +269,12 @@ export const CompactFlareCard = ({
 
   // Parse trackable metadata for display
   const trackableMeta = entry.type?.startsWith('trackable:') ? parseTrackableMeta(entry.note) : null;
+  // Check if the note is JSON metadata (should not be displayed as a note)
+  const isNoteMetadata = !!trackableMeta;
 
   const getLabel = () => {
-    // Custom trackable
-    if (trackableMeta?.trackableLabel) {
-      return trackableMeta.trackableLabel;
-    }
-    if (entry.type === 'wellness' || entry.type === 'recovery') {
-      return entry.type === 'recovery' ? 'Recovery' : 'Feeling Good';
-    }
+    if (trackableMeta?.trackableLabel) return trackableMeta.trackableLabel;
+    if (entry.type === 'wellness' || entry.type === 'recovery') return entry.type === 'recovery' ? 'Recovery' : 'Feeling Good';
     if (entry.type === 'energy') return 'Energy';
     if (entry.type === 'medication') return 'Medication';
     switch (entry.severity) {
@@ -265,10 +286,16 @@ export const CompactFlareCard = ({
     }
   };
 
-  // For trackables, extract the human-readable value from the note JSON
+  // For trackables, extract just a clean short value (no "Logged" prefix, no label duplication)
   const getTrackableValue = (): string | null => {
-    if (!trackableMeta) return null;
-    return trackableMeta.value || null;
+    if (!trackableMeta?.value) return null;
+    let v = trackableMeta.value;
+    // Strip "Logged" prefix and the trackable label prefix
+    v = v.replace(/^Logged\s+/i, '');
+    v = v.replace(new RegExp(`^${trackableMeta.trackableLabel}[:\\s]*`, 'i'), '');
+    // If the cleaned value is just the label again or empty, skip
+    if (!v.trim() || v.trim().toLowerCase() === trackableMeta.trackableLabel?.toLowerCase()) return null;
+    return v.trim();
   };
 
   // Extract data safely
@@ -297,7 +324,9 @@ export const CompactFlareCard = ({
   const steps = phys?.steps;
 
   const hasWeatherData = temp || humidity || pressure || windSpeed || uvIndex || aqi || condition;
-  const hasData = city || hasWeatherData || heartRate || sleepHours || entry.symptoms?.length || entry.triggers?.length || entry.note;
+  const hasData = city || hasWeatherData || heartRate || sleepHours || entry.symptoms?.length || entry.triggers?.length || (entry.note && !isNoteMetadata);
+
+  const trackableValue = getTrackableValue();
 
   return (
     <Collapsible open={isExpanded} onOpenChange={handleToggle}>
@@ -311,7 +340,6 @@ export const CompactFlareCard = ({
             : 'inset 0 1px 2px rgba(255,255,255,0.3), 0 4px 16px rgba(0,0,0,0.04)',
         }}
       >
-        {/* Glass highlight overlay */}
         <div 
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -320,14 +348,10 @@ export const CompactFlareCard = ({
           }}
         />
 
-        {/* Compact Header - Tappable */}
         <CollapsibleTrigger className="w-full text-left relative z-10">
           <div className="p-4 active:bg-muted/10 transition-colors">
             <div className="flex items-center gap-3">
-              {/* 3D Orb */}
               <SeverityOrb severity={entry.severity} type={entry.type} note={entry.note} />
-
-              {/* Main Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-base font-bold text-foreground">
@@ -338,13 +362,11 @@ export const CompactFlareCard = ({
                       {entry.type}
                     </Badge>
                   )}
-                  {trackableMeta && trackableMeta.value && trackableMeta.value !== trackableMeta.trackableLabel && (
-                    <span className="text-[10px] text-muted-foreground font-medium truncate max-w-[140px]">
-                      {/* Strip "Logged" prefix and clean up display value */}
-                      {trackableMeta.value.replace(/^Logged\s+/i, '')}
-                    </span>
-                  )}
                 </div>
+                {/* Show trackable value as subtle text */}
+                {trackableValue && (
+                  <p className="text-xs text-muted-foreground font-medium mb-1">{trackableValue}</p>
+                )}
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5" />
@@ -358,7 +380,6 @@ export const CompactFlareCard = ({
                   )}
                 </div>
                 
-                {/* Symptoms Preview */}
                 {entry.symptoms && entry.symptoms.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {entry.symptoms.slice(0, 2).map((s, i) => (
@@ -383,7 +404,6 @@ export const CompactFlareCard = ({
                 )}
               </div>
 
-              {/* Expand Arrow */}
               {hasData && (
                 <ChevronDown className={cn(
                   "w-5 h-5 text-muted-foreground transition-transform duration-300 flex-shrink-0",
@@ -394,7 +414,6 @@ export const CompactFlareCard = ({
           </div>
         </CollapsibleTrigger>
 
-        {/* Expanded Content */}
         <CollapsibleContent>
           <div className="px-4 pb-4 space-y-4 border-t border-white/30 pt-4 relative z-10">
             {/* Weather Condition Banner */}
@@ -555,8 +574,8 @@ export const CompactFlareCard = ({
               </div>
             )}
 
-            {/* Note */}
-            {entry.note && (
+            {/* Note — only if it's a real note, not JSON metadata */}
+            {entry.note && !isNoteMetadata && (
               <div 
                 className="p-3 rounded-2xl backdrop-blur-sm"
                 style={{
