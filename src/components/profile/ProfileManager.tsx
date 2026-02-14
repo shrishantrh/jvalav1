@@ -278,14 +278,17 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
                 </div>
                 <div>
                   <Label className="text-xs">Biological Sex</Label>
-                  <Select value={profile.biological_sex || ''} onValueChange={(v) => updateField('biological_sex', v)}>
+                  <Select 
+                    value={profile.biological_sex ? profile.biological_sex.charAt(0).toUpperCase() + profile.biological_sex.slice(1).toLowerCase() : ''} 
+                    onValueChange={(v) => updateField('biological_sex', v)}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Female">Female</SelectItem>
                       <SelectItem value="Male">Male</SelectItem>
-                      <SelectItem value="prefer-not">Prefer not to say</SelectItem>
+                      <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

@@ -197,19 +197,26 @@ serve(async (req) => {
     const isNewUser = isFirstSession || totalLogs === 0;
 
     const systemPrompt = isNewUser
-      ? `You are Jvala's AI health companion. This is ${userName}'s FIRST TIME opening the app after onboarding. They are tracking: ${conditions.join(', ') || 'health concerns'}.
+      ? `You are Jvala's AI health companion. This is ${userName}'s FIRST TIME opening the app after creating their account. They are tracking: ${conditions.join(', ') || 'health concerns'}.
 
-YOUR JOB: Give a warm, personal introductory message that acts as a mini tour of the chat. This is a text-message-style chat, so keep it natural and conversational.
+YOUR JOB: You will call "send_message" TWICE to send two separate messages (call the tool two times). This creates a natural texting feel.
 
-MUST include in your message (weave naturally, not a numbered list):
-- A warm welcome by name
-- Tell them this chat is their main hub — they can tell you anything: symptoms, what they ate, how they slept, their mood, took meds, etc. in plain language
-- Mention you'll learn their patterns over time and start spotting connections (triggers, trends)
-- Invite them to start by telling you about their ${conditions[0] || 'health concern'} — when it started, what makes it worse, what they've tried
-- Keep it 3-4 short paragraphs max, conversational tone, like a knowledgeable friend texting
+MESSAGE 1 (warm welcome + tour):
+- Welcome them by name warmly
+- Tell them this chat is their main hub — they can tell you anything in plain language: symptoms, diet, sleep, mood, medications, stress levels, anything they think might be relevant
+- Mention you'll learn their patterns over time and start spotting connections between triggers, symptoms, and what helps
+- Briefly mention the Trends tab where they'll see data-driven insights as they log more
 
-DO NOT: use bullet points, numbered lists, medical disclaimers, or say "I'm an AI". Just be natural and inviting.
-You MUST call the "send_message" tool.`
+MESSAGE 2 (ask about their background — this is CRITICAL):
+- Now ask specifically about their condition(s): "${conditions.join(', ') || 'what they\'re dealing with'}"
+- Ask questions like: How long have they been dealing with this? What triggers seem to make it worse? Have they noticed any patterns? What treatments or remedies have they tried?
+- Explain that this background helps you provide much better, personalized insights from day one
+- Encourage them to just type naturally, like they're texting a friend who happens to know a lot about health
+- End with something inviting, like "just start typing whenever you're ready"
+
+STYLE: Conversational, warm, like a knowledgeable friend texting. Each message should be 2-3 short paragraphs max.
+DO NOT: use bullet points, numbered lists, headers, medical disclaimers, or say "I'm an AI". Be natural.
+You MUST call the "send_message" tool TWICE — once for each message.`
       : `You are Jvala's proactive AI companion. You're texting ${userName} when they open the app.
 
 YOUR JOB: Decide what to say or ask right now based on context. Be human, warm, brief, situationally aware.
@@ -352,27 +359,41 @@ RULES:
     }
 
     const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    const toolCalls = data.choices?.[0]?.message?.tool_calls || [];
 
-    if (toolCall?.function?.arguments) {
+    if (toolCalls.length > 0) {
       try {
-        const parsed = JSON.parse(toolCall.function.arguments);
+        // Collect all messages from multiple tool calls
+        const messages: string[] = [];
+        let form: any = null;
+        let responseType = "greeting";
 
-        if (toolCall.function.name === "send_form") {
+        for (const toolCall of toolCalls) {
+          if (!toolCall?.function?.arguments) continue;
+          const parsed = JSON.parse(toolCall.function.arguments);
+
+          if (toolCall.function.name === "send_form") {
+            responseType = "form";
+            messages.push(parsed.message);
+            form = parsed.form;
+          } else if (toolCall.function.name === "send_message") {
+            messages.push(parsed.message);
+          }
+        }
+
+        if (form) {
           return new Response(
-            JSON.stringify({
-              type: "form",
-              message: parsed.message,
-              form: parsed.form,
-            }),
+            JSON.stringify({ type: "form", message: messages[0], form }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
 
+        // Return all messages as an array for the client to display sequentially
         return new Response(
           JSON.stringify({
             type: "greeting",
-            message: parsed.message,
+            message: messages[0] || getStaticFallback(userName, timeOfDay, streak, todayEntries.length),
+            messages: messages.length > 1 ? messages : undefined,
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );

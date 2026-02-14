@@ -501,16 +501,19 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         
         const message = data?.message || getPersonalizedGreeting(userConditions, recentEntries);
         
-        const proactiveMsg: ChatMessage = {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content: message,
-          timestamp: new Date(),
-          proactiveForm: data?.form || undefined,
-        };
+        // Handle multiple messages (e.g., intro tour sends 2 messages)
+        const allMessages: string[] = data?.messages || [message];
+        
+        const newMessages: ChatMessage[] = allMessages.map((msg: string, i: number) => ({
+          id: (Date.now() + i).toString(),
+          role: 'assistant' as const,
+          content: msg,
+          timestamp: new Date(Date.now() + i),
+          proactiveForm: i === 0 ? (data?.form || undefined) : undefined,
+        }));
 
-        // Replace typing indicator with real message
-        setMessages([proactiveMsg]);
+        // Replace typing indicator with real messages
+        setMessages(newMessages);
       } catch (e) {
         console.log('[ProactiveCheckin] Could not fetch:', e);
         // Fallback to static greeting
