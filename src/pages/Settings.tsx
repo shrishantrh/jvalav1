@@ -39,7 +39,7 @@ export default function Settings() {
         .from('profiles')
         .select('email, terms_accepted_at')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
       if (data) {
         setUserEmail(data.email);
