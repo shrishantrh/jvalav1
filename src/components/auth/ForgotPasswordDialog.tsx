@@ -31,7 +31,7 @@ export const ForgotPasswordDialog = ({ open, onOpenChange }: ForgotPasswordDialo
       setSent(true);
       toast({
         title: "Check your email",
-        description: "We've sent a password reset link from support@jvala.tech.",
+        description: "We've sent a password reset link from noreply@login.jvala.tech.",
       });
     } catch (error: any) {
       toast({
