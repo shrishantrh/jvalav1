@@ -1,11 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, Mail, Lock, AlertCircle } from "lucide-react";
 import jvalaLogo from "@/assets/jvala-logo.png";
@@ -13,6 +10,7 @@ import { SplashScreen } from "@/components/auth/SplashScreen";
 import { PasswordStrengthBar, isPasswordStrong } from "@/components/auth/PasswordStrengthBar";
 import { SlowConnectionIndicator } from "@/components/auth/SlowConnectionIndicator";
 import { ForgotPasswordDialog } from "@/components/auth/ForgotPasswordDialog";
+import { TermsAcceptanceGate } from "@/components/auth/TermsAcceptanceGate";
 import { cn } from "@/lib/utils";
 import { lovable } from "@/integrations/lovable/index";
 import { isNative } from "@/lib/capacitor";
@@ -20,6 +18,7 @@ import { startNativeOAuth, openInNativeBrowser, setupNativeAuthListener } from "
 
 const Auth = () => {
   const [showSplash, setShowSplash] = useState(true);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,10 +27,6 @@ const Auth = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [slowConnection, setSlowConnection] = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [privacyAccepted, setPrivacyAccepted] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
-  const [showPrivacy, setShowPrivacy] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [emailError, setEmailError] = useState("");
   const [ageConfirmed, setAgeConfirmed] = useState(false);
@@ -47,8 +42,14 @@ const Auth = () => {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
+        // Save terms acceptance for OAuth/new users who accepted the gate
+        if (termsAccepted) {
+          await supabase.from('profiles').update({
+            terms_accepted_at: new Date().toISOString(),
+          }).eq('id', session.user.id);
+        }
         navigate("/");
       }
     });
@@ -183,15 +184,6 @@ const Auth = () => {
     if (!validateEmail(email)) return;
     
     if (isSignUp) {
-      if (!termsAccepted || !privacyAccepted) {
-        toast({
-          title: "Please accept the terms",
-          description: "You must accept the Terms of Service and Privacy Policy to create an account.",
-          variant: "destructive",
-        });
-        return;
-      }
-
       if (!isPasswordStrong(password)) {
         toast({
           title: "Weak password",
@@ -228,12 +220,7 @@ const Auth = () => {
 
         if (data.user) {
           await supabase.from('profiles').update({
-            metadata: {
-              terms_accepted: true,
-              terms_accepted_at: new Date().toISOString(),
-              privacy_accepted: true,
-              privacy_accepted_at: new Date().toISOString(),
-            }
+            terms_accepted_at: new Date().toISOString(),
           }).eq('id', data.user.id);
         }
 
@@ -273,14 +260,17 @@ const Auth = () => {
     return <SplashScreen onComplete={() => setShowSplash(false)} />;
   }
 
+  // Must accept terms before seeing auth form
+  if (!termsAccepted) {
+    return <TermsAcceptanceGate onAccept={() => setTermsAccepted(true)} />;
+  }
+
   const canSubmit = isSignUp 
-    ? termsAccepted && privacyAccepted && ageConfirmed && isPasswordStrong(password) && password === confirmPassword && email
+    ? ageConfirmed && isPasswordStrong(password) && password === confirmPassword && email
     : email && password;
 
   const resetForm = (signUp: boolean) => {
     setIsSignUp(signUp);
-    setTermsAccepted(false);
-    setPrivacyAccepted(false);
     setAgeConfirmed(false);
     setPassword("");
     setConfirmPassword("");
@@ -455,43 +445,9 @@ const Auth = () => {
               </div>
             )}
 
-            {/* Terms checkboxes */}
+            {/* Age confirmation */}
             {isSignUp && (
               <div className="space-y-2.5 p-3.5 !rounded-xl animate-in fade-in-0 duration-200" style={{ background: 'hsl(270 25% 97%)', border: '1px solid hsl(270 20% 92%)' }}>
-                <div className="flex items-center gap-2.5">
-                  <Checkbox
-                    id="terms"
-                    checked={termsAccepted}
-                    onCheckedChange={(checked) => setTermsAccepted(checked === true)}
-                  />
-                  <label htmlFor="terms" className="text-xs cursor-pointer flex-1" style={{ color: 'hsl(270 25% 35%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 400 }}>
-                    <button
-                      type="button"
-                      onClick={() => setShowTerms(true)}
-                      className="transition-colors" style={{ color: 'hsl(270 45% 50%)', fontWeight: 500 }}
-                    >
-                      Terms of Service
-                    </button>
-                    <span className="text-destructive"> *</span>
-                  </label>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <Checkbox
-                    id="privacy"
-                    checked={privacyAccepted}
-                    onCheckedChange={(checked) => setPrivacyAccepted(checked === true)}
-                  />
-                  <label htmlFor="privacy" className="text-xs cursor-pointer flex-1" style={{ color: 'hsl(270 25% 35%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 400 }}>
-                    <button
-                      type="button"
-                      onClick={() => setShowPrivacy(true)}
-                      className="transition-colors" style={{ color: 'hsl(270 45% 50%)', fontWeight: 500 }}
-                    >
-                      Privacy Policy
-                    </button>
-                    <span className="text-destructive"> *</span>
-                  </label>
-                </div>
                 <div className="flex items-center gap-2.5">
                   <Checkbox
                     id="age"
@@ -581,95 +537,6 @@ const Auth = () => {
       <SlowConnectionIndicator show={slowConnection} />
       <ForgotPasswordDialog open={showForgotPassword} onOpenChange={setShowForgotPassword} />
 
-      {/* Terms Dialog */}
-      <Dialog open={showTerms} onOpenChange={setShowTerms}>
-        <DialogContent className="max-w-md max-h-[80vh]">
-          <DialogHeader>
-            <DialogTitle>Terms of Service</DialogTitle>
-            <DialogDescription>Last updated: February 2026</DialogDescription>
-          </DialogHeader>
-          <ScrollArea className="h-[50vh] pr-4">
-            <div className="text-sm space-y-4">
-              <section>
-                <h3 className="font-semibold mb-2">1. Acceptance of Terms</h3>
-                <p className="text-muted-foreground">By accessing or using Jvala ("the App"), you agree to be bound by these Terms of Service. If you do not agree, do not use the App.</p>
-              </section>
-              <section>
-                <h3 className="font-semibold mb-2">2. Medical Disclaimer</h3>
-                <p className="text-muted-foreground"><strong>IMPORTANT:</strong> Jvala does not provide medical advice, diagnosis, or treatment. The App is designed for informational and personal health tracking purposes only. Always consult with qualified healthcare professionals for medical decisions.</p>
-              </section>
-              <section>
-                <h3 className="font-semibold mb-2">3. AI-Generated Content</h3>
-                <p className="text-muted-foreground">The App uses artificial intelligence to generate insights, predictions, and correlations. AI-generated content may contain inaccuracies and should never be considered medical advice.</p>
-              </section>
-              <section>
-                <h3 className="font-semibold mb-2">4. User Responsibilities</h3>
-                <p className="text-muted-foreground">You are responsible for maintaining the confidentiality of your account credentials and for all activities under your account.</p>
-              </section>
-              <section>
-                <h3 className="font-semibold mb-2">5. HealthKit & Health Data</h3>
-                <p className="text-muted-foreground">The App may integrate with Apple HealthKit to read physiological data. This data is used solely for health tracking and is never used for advertising, data mining, or sold to third parties.</p>
-              </section>
-              <section>
-                <h3 className="font-semibold mb-2">6. Account Deletion</h3>
-                <p className="text-muted-foreground">You may delete your account at any time from Settings. Deletion permanently removes all your data and is irreversible.</p>
-              </section>
-              <section>
-                <h3 className="font-semibold mb-2">7. Limitation of Liability</h3>
-                <p className="text-muted-foreground">Jvala shall not be liable for any damages resulting from your use of the App, including health outcomes based on App data.</p>
-              </section>
-              <section>
-                <h3 className="font-semibold mb-2">8. Contact</h3>
-                <p className="text-muted-foreground">For questions, contact us at support@jvala.tech.</p>
-              </section>
-            </div>
-          </ScrollArea>
-          <Button onClick={() => { setTermsAccepted(true); setShowTerms(false); }} className="w-full">I Accept</Button>
-        </DialogContent>
-      </Dialog>
-
-      {/* Privacy Dialog */}
-      <Dialog open={showPrivacy} onOpenChange={setShowPrivacy}>
-        <DialogContent className="max-w-md max-h-[80vh]">
-          <DialogHeader>
-            <DialogTitle>Privacy Policy</DialogTitle>
-            <DialogDescription>Last updated: February 2026</DialogDescription>
-          </DialogHeader>
-          <ScrollArea className="h-[50vh] pr-4">
-            <div className="text-sm space-y-4">
-              <section>
-                <h3 className="font-semibold mb-2">1. Information We Collect</h3>
-                <p className="text-muted-foreground">We collect: account information (email), health data you enter (symptoms, triggers, medications, notes, photos, voice recordings), city-level location for environmental correlation, and optional wearable device data.</p>
-              </section>
-              <section>
-                <h3 className="font-semibold mb-2">2. How We Use Your Data</h3>
-                <p className="text-muted-foreground">Your data is used exclusively for personalized health tracking, AI-powered insights, and clinical report generation. We never sell, rent, or trade your personal health data.</p>
-              </section>
-              <section>
-                <h3 className="font-semibold mb-2">3. Apple HealthKit Data</h3>
-                <p className="text-muted-foreground">HealthKit data is used solely for improving your health management. It is never used for advertising, never disclosed to third parties, and never stored in iCloud.</p>
-              </section>
-              <section>
-                <h3 className="font-semibold mb-2">4. Data Security</h3>
-                <p className="text-muted-foreground">Your data is encrypted at rest and in transit. Row-Level Security ensures only you can access your own data.</p>
-              </section>
-              <section>
-                <h3 className="font-semibold mb-2">5. Your Rights</h3>
-                <p className="text-muted-foreground">You can export your data at any time, edit any entry, permanently delete your account and all data from Settings, and disconnect wearable integrations.</p>
-              </section>
-              <section>
-                <h3 className="font-semibold mb-2">6. Push Notifications</h3>
-                <p className="text-muted-foreground">Notifications are optional, used only for logging reminders, and never contain protected health information or advertising.</p>
-              </section>
-              <section>
-                <h3 className="font-semibold mb-2">7. Contact</h3>
-                <p className="text-muted-foreground">For questions, contact us at support@jvala.tech.</p>
-              </section>
-            </div>
-          </ScrollArea>
-          <Button onClick={() => { setPrivacyAccepted(true); setShowPrivacy(false); }} className="w-full">I Accept</Button>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
