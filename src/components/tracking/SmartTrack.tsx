@@ -90,6 +90,7 @@ interface SmartTrackProps {
   userConditions?: string[];
   userTriggers?: string[];
   userMedications?: MedicationDetails[];
+  aiLogCategories?: any[];
   userName?: string | null;
   userDOB?: string | null;
   userBiologicalSex?: string | null;
@@ -308,6 +309,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   userConditions = [], 
   userTriggers = [],
   userMedications = [],
+  aiLogCategories = [],
   userName,
   userDOB,
   userBiologicalSex,
@@ -917,6 +919,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
           <FluidLogSelector
             userSymptoms={userSymptoms}
             userMedications={userMedications}
+            aiLogCategories={aiLogCategories}
             onLogSymptom={handleFluidLog}
             onLogMedication={handleMedicationLog}
             onLogWellness={handleWellnessLog}
