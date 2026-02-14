@@ -1,27 +1,17 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, LogOut, Shield, FileText, Bell, AlertTriangle, Activity, User as UserIcon, ChevronRight, Trash2, Mail, Loader2, HelpCircle } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, LogOut, Shield, FileText, AlertTriangle, User as UserIcon, ChevronRight, Trash2, Mail, Loader2, HelpCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ReminderSettings } from "@/components/profile/ReminderSettings";
-import { SmartMedicationReminders } from "@/components/profile/SmartMedicationReminders";
 import { ThemeColorPicker } from "@/components/settings/ThemeColorPicker";
 import { haptics } from "@/lib/haptics";
-
-interface MedicationDetails {
-  name: string;
-  dosage?: string;
-  frequency?: string;
-  notes?: string;
-}
 
 export default function Settings() {
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -29,7 +19,6 @@ export default function Settings() {
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [userMedications, setUserMedications] = useState<MedicationDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
@@ -60,7 +49,6 @@ export default function Settings() {
         const metadata = data.metadata as any;
         setTermsAccepted(metadata?.terms_accepted || false);
         setPrivacyAccepted(metadata?.privacy_accepted || false);
-        setUserMedications(metadata?.medications || []);
       }
     } catch (error) {
       console.error('Failed to load settings:', error);
@@ -226,38 +214,8 @@ export default function Settings() {
           <ThemeColorPicker />
 
 
-          {/* Clinician Portal - No demo label */}
-          <Card className="glass-card border-primary/20">
-            <CardContent className="p-3">
-              <button
-                onClick={() => navigate('/clinician')}
-                className="flex items-center justify-between w-full"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Activity className="w-4 h-4 text-primary" />
-                  <div className="text-left">
-                    <p className="text-sm font-medium">Clinician Portal</p>
-                    <p className="text-[10px] text-muted-foreground">Share data with your doctor</p>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground" />
-              </button>
-            </CardContent>
-          </Card>
 
-          {/* Reminders */}
-          <Card className="glass-card">
-            <CardHeader className="p-3 pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Bell className="w-4 h-4 text-primary" />
-                Reminders
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-3 pt-0 space-y-3">
-              <SmartMedicationReminders medications={userMedications} />
-              <ReminderSettings userEmail={userEmail} />
-            </CardContent>
-          </Card>
+
 
           {/* Legal */}
           <Card className="glass-card">

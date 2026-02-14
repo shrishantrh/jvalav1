@@ -146,7 +146,8 @@ export function initializeThemeColor() {
     if (saved && saved in THEME_COLORS) {
       applyThemeColor(saved as ThemeColor);
     } else {
-      // Default to pink
+      // Default to pink and persist it so it never falls back to anything else
+      localStorage.setItem(STORAGE_KEY, 'pink');
       applyThemeColor('pink');
     }
   }
