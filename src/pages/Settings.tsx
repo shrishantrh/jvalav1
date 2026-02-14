@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Moon, Sun, LogOut, Shield, FileText, Bell, AlertTriangle, Activity, User as UserIcon, ChevronRight, Trash2, Mail, Loader2, HelpCircle } from "lucide-react";
+import { ArrowLeft, LogOut, Shield, FileText, Bell, AlertTriangle, Activity, User as UserIcon, ChevronRight, Trash2, Mail, Loader2, HelpCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,9 +40,6 @@ export default function Settings() {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
 
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    return document.documentElement.classList.contains('dark');
-  });
 
   useEffect(() => {
     if (user) {
@@ -74,17 +71,6 @@ export default function Settings() {
     }
   };
 
-  const toggleDarkMode = (newMode: boolean) => {
-    setIsDarkMode(newMode);
-    
-    if (newMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('jvala-theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('jvala-theme', 'light');
-    }
-  };
 
   const handleAcceptTerms = async () => {
     if (!user) return;
@@ -241,27 +227,6 @@ export default function Settings() {
           {/* Theme Color Picker */}
           <ThemeColorPicker />
 
-          {/* Appearance - Dark Mode */}
-          <Card className="glass-card">
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  {isDarkMode ? <Moon className="w-4 h-4 text-primary" /> : <Sun className="w-4 h-4 text-primary" />}
-                  <div>
-                    <p className="text-sm font-medium">Dark Mode</p>
-                    <p className="text-[10px] text-muted-foreground">Switch theme</p>
-                  </div>
-                </div>
-                <Switch 
-                  checked={isDarkMode} 
-                  onCheckedChange={(checked) => {
-                    haptics.selection();
-                    toggleDarkMode(checked);
-                  }} 
-                />
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Clinician Portal - No demo label */}
           <Card className="glass-card border-primary/20">
