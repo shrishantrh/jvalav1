@@ -33,6 +33,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { LimitlessAIChat } from "@/components/ai/LimitlessAIChat";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useSmartNotifications } from "@/hooks/useSmartNotifications";
+import type { SmartTrackable } from "@/components/tracking/FluidLogSelector";
 
 interface MedicationDetails {
   name: string;
@@ -41,12 +42,7 @@ interface MedicationDetails {
   notes?: string;
 }
 
-interface CustomTrackable {
-  id: string;
-  label: string;
-  icon: string;
-  type: 'custom';
-}
+type CustomTrackable = SmartTrackable;
 
 interface UserProfile {
   conditions: string[];
