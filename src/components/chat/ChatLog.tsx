@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -430,7 +431,9 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
                     : 'bg-muted rounded-tl-md',
                   message.isQuickLog && 'font-medium'
                 )}>
-                  <p>{message.content}</p>
+                  <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0 [&>ul]:mt-1 [&>ul]:mb-0 [&>ol]:mt-1 [&>ol]:mb-0">
+                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                  </div>
                   {message.entryData && message.role === 'assistant' && (
                     <div className="mt-1.5 pt-1.5 border-t border-current/10 text-xs opacity-75">
                       ✓ {message.entryData.type} logged
