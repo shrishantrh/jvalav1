@@ -59,7 +59,7 @@ serve(async (req) => {
     }
     const userId = claimsData.claims.sub as string;
 
-    const { clientTimezone, isFirstSession } = await req.json();
+    const { clientTimezone, isFirstSession, isFollowUp } = await req.json();
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
 
@@ -152,6 +152,9 @@ serve(async (req) => {
       .slice(0, 20)
       .flatMap((e: any) => e.triggers || []);
 
+    // Get AI memory from profile metadata
+    const aiMemory = (profile?.metadata as any)?.ai_memory || [];
+
     // Build context for AI
     const contextSummary = {
       userName,
@@ -191,6 +194,8 @@ serve(async (req) => {
         .slice(0, 5),
       biologicalSex: profile?.biological_sex,
       dateOfBirth: profile?.date_of_birth,
+      aiMemory: aiMemory.slice(-10), // Last 10 memory entries for context
+      isFollowUp: !!isFollowUp,
     };
 
     // Classify user: new = account < 7 days old AND fewer than 5 logs
@@ -217,9 +222,12 @@ You MUST call "send_message" once, then "send_form" once.`
       : `You are Jvala's proactive AI companion. You're texting ${userName} when they open the app.
 
 YOUR JOB: Decide what to say or ask right now based on context. Be human, warm, brief, situationally aware.
+${isFollowUp ? 'This is a FOLLOW-UP after the user just completed a form. Do NOT repeat what was just asked. Ask something NEW and different — a different dimension of their health. E.g. if they just answered about mood, now ask about sleep or energy. If about triggers, now ask about today\'s symptoms. Keep it fresh.' : ''}
 
 CONTEXT:
 ${JSON.stringify({ ...contextSummary, accountAgeDays }, null, 2)}
+
+${aiMemory.length > 0 ? `\nAI MEMORY (background info the user previously shared):\n${aiMemory.map((m: any) => `- ${m.question}: ${m.answer}`).join('\n')}\nUse this knowledge naturally. Don't re-ask things already answered.\n` : ''}
 
 RULES:
 1. You MUST call exactly ONE tool: either "send_message" or "send_form".
@@ -240,7 +248,8 @@ RULES:
 16. If the user has conditions, reference them in form labels. E.g., for depression: "How's your mood today?" with options like "Good", "Low", "Struggling".
 17. If daysSinceLastLog > 2, gently ask how things have been via form — mention their condition by name.
 18. If they have recent flares, include a form field about their most frequent symptom.
-19. Forms should have 1-3 fields max. Each field 3-5 options with emojis. Make it effortless.`;
+19. Forms should have 1-3 fields max. Each field 3-5 options with emojis. Make it effortless.
+20. Every question you ask must serve a PURPOSE — either it becomes a trackable data point (mood, sleep, energy, symptoms, stress) or it informs the AI model. Never ask just to fill space.`;
 
     const tools = [
       {

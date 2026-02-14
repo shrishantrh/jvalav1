@@ -155,6 +155,9 @@ const ProactiveFormCard = ({
   responses: Record<string, string | string[]>;
   onRespond: (fieldId: string, value: string | string[]) => void;
 }) => {
+  const [customInput, setCustomInput] = useState('');
+  const [showCustom, setShowCustom] = useState(false);
+
   if (completed) {
     return (
       <div className="mt-2 flex items-center gap-1.5 text-[10px] text-muted-foreground animate-in fade-in duration-300">
@@ -164,16 +167,20 @@ const ProactiveFormCard = ({
     );
   }
 
-  // Find the current unanswered field
   const currentFieldIndex = form.fields.findIndex(f => !responses[f.id]);
   const currentField = form.fields[currentFieldIndex];
   if (!currentField) return null;
 
-  const progress = currentFieldIndex / form.fields.length;
+  const handleCustomSubmit = () => {
+    const val = customInput.trim();
+    if (!val) return;
+    onRespond(currentField.id, val);
+    setCustomInput('');
+    setShowCustom(false);
+  };
 
   return (
     <div className="mt-2 max-w-[85%] animate-in slide-in-from-bottom-2 duration-300">
-      {/* Progress dots */}
       {form.fields.length > 1 && (
         <div className="flex gap-1 mb-2">
           {form.fields.map((f, i) => (
@@ -195,7 +202,7 @@ const ProactiveFormCard = ({
         {currentField.options.map(opt => (
           <button
             key={opt.value}
-            onClick={() => onRespond(currentField.id, opt.value)}
+            onClick={() => { setShowCustom(false); onRespond(currentField.id, opt.value); }}
             className={cn(
               "px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200",
               "bg-white/80 dark:bg-slate-800/80 border border-border/50",
@@ -207,6 +214,33 @@ const ProactiveFormCard = ({
             {opt.label}
           </button>
         ))}
+        {!showCustom ? (
+          <button
+            onClick={() => setShowCustom(true)}
+            className={cn(
+              "px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200",
+              "bg-white/80 dark:bg-slate-800/80 border border-dashed border-border/50",
+              "hover:bg-primary/10 hover:border-primary/30 active:scale-95",
+              "shadow-sm text-muted-foreground"
+            )}
+          >
+            + Other
+          </button>
+        ) : (
+          <div className="flex items-center gap-1.5 w-full mt-1">
+            <Input
+              value={customInput}
+              onChange={(e) => setCustomInput(e.target.value)}
+              placeholder="Type your own..."
+              className="h-7 text-xs flex-1"
+              autoFocus
+              onKeyDown={(e) => e.key === 'Enter' && handleCustomSubmit()}
+            />
+            <Button size="sm" className="h-7 px-2 text-xs" onClick={handleCustomSubmit} disabled={!customInput.trim()}>
+              <Check className="w-3 h-3" />
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1398,13 +1432,30 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                               context: { mood: `stress:${valStr}` },
                               timestamp: new Date(),
                             });
-                          } else if (fieldLabel.includes('trigger') || fieldLabel.includes('duration') || fieldLabel.includes('frequency') || fieldLabel.includes('long') || fieldLabel.includes('often')) {
-                            // Background/context data — save as note with structured prefix
-                            onSave({
-                              type: 'note',
-                              note: `[Profile] ${field.label}: ${valStr}`,
-                              timestamp: new Date(),
-                            });
+                          } else if (fieldLabel.includes('trigger') || fieldLabel.includes('duration') || fieldLabel.includes('frequency') || fieldLabel.includes('long') || fieldLabel.includes('often') || fieldLabel.includes('background') || fieldLabel.includes('how long') || fieldLabel.includes('experiencing')) {
+                            // Background/context data — save to profile metadata, NOT as a log entry
+                            (async () => {
+                              try {
+                                const { data: profile } = await supabase
+                                  .from('profiles')
+                                  .select('metadata')
+                                  .eq('id', userId)
+                                  .maybeSingle();
+                                const existingMeta = (profile?.metadata as Record<string, any>) || {};
+                                const aiMemory = existingMeta.ai_memory || [];
+                                aiMemory.push({
+                                  key: field.id,
+                                  question: field.label,
+                                  answer: valStr,
+                                  recorded_at: new Date().toISOString(),
+                                });
+                                await supabase.from('profiles').update({
+                                  metadata: { ...existingMeta, ai_memory: aiMemory },
+                                }).eq('id', userId);
+                              } catch (e) {
+                                console.warn('Failed to save to profile memory:', e);
+                              }
+                            })();
                           } else {
                             // Generic — save as wellness with context
                             onSave({
@@ -1415,8 +1466,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                           }
                         }
                       }
-                      // Add closing message
-                      setTimeout(() => {
+                      // Add closing message + follow-up engagement
+                      setTimeout(async () => {
                         const closingMsg: ChatMessage = {
                           id: Date.now().toString(),
                           role: 'assistant',
@@ -1425,6 +1476,30 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                         };
                         setMessages(prev2 => [...prev2, closingMsg]);
                         import('@/lib/haptics').then(({ haptics }) => haptics.success());
+                        
+                        // After a brief pause, send a follow-up proactive message
+                        setTimeout(async () => {
+                          try {
+                            const { data: followUp } = await supabase.functions.invoke('proactive-checkin', {
+                              body: { 
+                                clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                                isFollowUp: true,
+                              },
+                            });
+                            if (followUp?.message) {
+                              const followUpMsg: ChatMessage = {
+                                id: (Date.now() + 1).toString(),
+                                role: 'assistant',
+                                content: followUp.message,
+                                timestamp: new Date(),
+                                proactiveForm: followUp.form || undefined,
+                              };
+                              setMessages(prev2 => [...prev2, followUpMsg]);
+                            }
+                          } catch (e) {
+                            console.log('[ProactiveFollowUp] Skipped:', e);
+                          }
+                        }, 2000);
                       }, 400);
                     } else {
                       import('@/lib/haptics').then(({ haptics }) => haptics.light());
