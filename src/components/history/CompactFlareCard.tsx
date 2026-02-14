@@ -36,9 +36,32 @@ interface CompactFlareCardProps {
   onFollowUp?: (entry: FlareEntry) => void;
 }
 
+// Parse trackable metadata from note field
+const parseTrackableMeta = (note?: string): { trackableLabel?: string; value?: string; icon?: string; color?: string } | null => {
+  if (!note) return null;
+  try {
+    const parsed = JSON.parse(note);
+    if (parsed.trackableLabel) return parsed;
+  } catch { /* not JSON */ }
+  return null;
+};
+
 // 3D orb face component - matches SeverityWheel style
-const SeverityOrb = ({ severity, type }: { severity?: string; type?: string }) => {
+const SeverityOrb = ({ severity, type, note }: { severity?: string; type?: string; note?: string }) => {
   const getConfig = () => {
+    // Custom trackable types (type starts with 'trackable:')
+    if (type?.startsWith('trackable:')) {
+      const meta = parseTrackableMeta(note);
+      const icon = meta?.icon || '📊';
+      return { 
+        gradient: 'from-violet-200 via-purple-100 to-fuchsia-50',
+        glow: 'rgba(139, 92, 246, 0.35)',
+        face: '#7c3aed',
+        faceType: 'emoji' as const,
+        emoji: icon,
+      };
+    }
+
     // Special entry types
     if (type === 'wellness' || type === 'recovery') {
       return { 
@@ -107,9 +130,12 @@ const SeverityOrb = ({ severity, type }: { severity?: string; type?: string }) =
     }
   };
 
-  const config = getConfig();
+  const config = getConfig() as any;
 
   const renderFace = () => {
+    if (config.emoji) {
+      return <div className="absolute inset-0 flex items-center justify-center text-lg">{config.emoji}</div>;
+    }
     if (config.icon) {
       return <div className="absolute inset-0 flex items-center justify-center">{config.icon}</div>;
     }
@@ -203,7 +229,14 @@ export const CompactFlareCard = ({
     setIsExpanded(open);
   };
 
+  // Parse trackable metadata for display
+  const trackableMeta = entry.type?.startsWith('trackable:') ? parseTrackableMeta(entry.note) : null;
+
   const getLabel = () => {
+    // Custom trackable
+    if (trackableMeta?.trackableLabel) {
+      return trackableMeta.trackableLabel;
+    }
     if (entry.type === 'wellness' || entry.type === 'recovery') {
       return entry.type === 'recovery' ? 'Recovery' : 'Feeling Good';
     }
@@ -216,6 +249,12 @@ export const CompactFlareCard = ({
       case 'severe': return 'Severe';
       default: return 'Note';
     }
+  };
+
+  // For trackables, extract the human-readable value from the note JSON
+  const getTrackableValue = (): string | null => {
+    if (!trackableMeta) return null;
+    return trackableMeta.value || null;
   };
 
   // Extract data safely
@@ -272,7 +311,7 @@ export const CompactFlareCard = ({
           <div className="p-4 active:bg-muted/10 transition-colors">
             <div className="flex items-center gap-3">
               {/* 3D Orb */}
-              <SeverityOrb severity={entry.severity} type={entry.type} />
+              <SeverityOrb severity={entry.severity} type={entry.type} note={entry.note} />
 
               {/* Main Info */}
               <div className="flex-1 min-w-0">
@@ -280,9 +319,14 @@ export const CompactFlareCard = ({
                   <span className="text-base font-bold text-foreground">
                     {getLabel()}
                   </span>
-                  {entry.type && entry.type !== 'flare' && !['wellness', 'recovery', 'energy', 'medication'].includes(entry.type) && (
+                  {entry.type && entry.type !== 'flare' && !['wellness', 'recovery', 'energy', 'medication'].includes(entry.type) && !entry.type.startsWith('trackable:') && (
                     <Badge variant="secondary" className="text-[10px] capitalize">
                       {entry.type}
+                    </Badge>
+                  )}
+                  {trackableMeta && (
+                    <Badge variant="outline" className="text-[10px] font-medium bg-primary/5 border-primary/20 text-primary">
+                      {trackableMeta.value || 'logged'}
                     </Badge>
                   )}
                 </div>

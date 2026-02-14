@@ -1,4 +1,5 @@
-export type EntryType = 'flare' | 'medication' | 'trigger' | 'recovery' | 'energy' | 'note' | 'wellness';
+// Core entry types + custom trackable types (stored as entry_type in DB)
+export type EntryType = 'flare' | 'medication' | 'trigger' | 'recovery' | 'energy' | 'note' | 'wellness' | (string & {});
 
 export type FlareSeverity = 'none' | 'mild' | 'moderate' | 'severe';
 export type EnergyLevel = 'very-low' | 'low' | 'moderate' | 'good' | 'high';

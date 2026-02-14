@@ -557,6 +557,10 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
 
   const handleCustomLog = async (trackableLabel: string, value?: string) => {
     const displayText = value || `Logged ${trackableLabel}`;
+    // Find the trackable config for icon/color metadata
+    const trackable = customTrackables.find(t => t.label === trackableLabel);
+    const trackableType = `trackable:${trackableLabel.toLowerCase().replace(/\s+/g, '_')}`;
+
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
@@ -566,16 +570,30 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     setMessages(prev => [...prev, userMessage]);
 
     const entry: Partial<FlareEntry> = {
-      type: 'note',
-      note: displayText,
+      type: trackableType,
+      note: JSON.stringify({
+        trackableLabel,
+        value: value || trackableLabel,
+        icon: trackable?.icon || '📊',
+        color: trackable?.color || '#8B5CF6',
+        interactionType: trackable?.interactionType,
+      }),
       timestamp: new Date(),
     };
+
+    // Get context data for custom trackables too
+    try {
+      const contextData = await getEntryContext();
+      if (contextData.environmentalData) entry.environmentalData = contextData.environmentalData;
+      if (contextData.physiologicalData) entry.physiologicalData = contextData.physiologicalData;
+    } catch (e) { /* silent */ }
+
     onSave(entry);
 
     const confirmMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
       role: 'assistant',
-      content: `${trackableLabel} logged ✓`,
+      content: `${trackable?.icon || '✓'} ${trackableLabel} logged — ${value || 'recorded'}`,
       timestamp: new Date(),
       entryData: entry,
     };
