@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,7 @@ const Auth = () => {
   const [ageConfirmed, setAgeConfirmed] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const termsAcceptedRef = useRef(termsAccepted);
 
   // Check if already authenticated + set up native deep link listener
   useEffect(() => {
@@ -45,7 +46,7 @@ const Auth = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
         // Save terms acceptance for OAuth/new users who accepted the gate
-        if (termsAccepted) {
+        if (termsAcceptedRef.current) {
           await supabase.from('profiles').update({
             terms_accepted_at: new Date().toISOString(),
           }).eq('id', session.user.id);
@@ -262,7 +263,7 @@ const Auth = () => {
 
   // Must accept terms before seeing auth form
   if (!termsAccepted) {
-    return <TermsAcceptanceGate onAccept={() => setTermsAccepted(true)} />;
+    return <TermsAcceptanceGate onAccept={() => { setTermsAccepted(true); termsAcceptedRef.current = true; }} />;
   }
 
   const canSubmit = isSignUp 
