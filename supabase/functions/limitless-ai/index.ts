@@ -3,8 +3,46 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+// ── Web Research via Firecrawl ──────────────────────────────────────────────
+async function searchWeb(query: string): Promise<{ results: Array<{ title: string; url: string; snippet: string }>; error?: string }> {
+  const apiKey = Deno.env.get("FIRECRAWL_API_KEY");
+  if (!apiKey) return { results: [], error: "Research capability not configured" };
+
+  try {
+    const response = await fetch("https://api.firecrawl.dev/v1/search", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query,
+        limit: 5,
+        scrapeOptions: { formats: ["markdown"] },
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Firecrawl error:", response.status);
+      return { results: [], error: `Search failed: ${response.status}` };
+    }
+
+    const data = await response.json();
+    const results = (data.data || []).map((r: any) => ({
+      title: r.title || r.metadata?.title || "Source",
+      url: r.url || r.metadata?.sourceURL || "",
+      snippet: (r.markdown || r.description || "").substring(0, 800),
+    }));
+
+    return { results };
+  } catch (e) {
+    console.error("Search error:", e);
+    return { results: [], error: e instanceof Error ? e.message : "Search failed" };
+  }
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -320,12 +358,48 @@ serve(async (req) => {
 - Exercise (especially walking, yoga) improves GI transit and reduces bloating. High-intensity can worsen symptoms.
 - Meal timing matters: large meals trigger gastrocolic reflex. Smaller, frequent meals recommended.
 - Menstrual cycle affects motility: progesterone slows transit (bloating/constipation in luteal phase), prostaglandins increase it (diarrhea during menses).`,
+
+      'Lower Back Pain': `LOWER BACK PAIN CLINICAL KNOWLEDGE:
+- Chronic low back pain is strongly linked to sleep quality — poor sleep increases pain sensitivity (central sensitization) by up to 50%.
+- Sedentary behavior >6h/day increases risk. Prolonged sitting compresses lumbar discs. Stand/walk every 30-45 min.
+- Stress → muscle tension (especially erector spinae and psoas). HRV drops correlate with pain flares.
+- Exercise is the #1 evidence-based treatment. Core stabilization, walking, swimming, yoga all show benefit.
+- Cold weather and barometric pressure drops increase muscle stiffness and pain perception.
+- Dehydration reduces disc hydration (discs are ~80% water). Adequate water intake supports spinal health.
+- Sleep position matters: side sleeping with pillow between knees or supine with pillow under knees reduces lumbar strain.
+- Weight: every 10 lbs overweight adds ~40 lbs of force on the lumbar spine.`,
+
+      'Fibromyalgia': `FIBROMYALGIA CLINICAL KNOWLEDGE:
+- Central sensitization is the core mechanism — the pain processing system is amplified. Sleep is THE critical modifier.
+- Non-restorative sleep (alpha-wave intrusion into deep sleep) is present in ~90% of patients. Improving sleep quality reduces pain by 20-30%.
+- Weather sensitivity is well-documented: cold, humidity, and barometric pressure changes worsen symptoms.
+- Exercise paradox: activity worsens symptoms acutely but is the most evidence-based long-term treatment. Start very low, increase very slowly.
+- Stress → HPA axis dysregulation → cortisol abnormalities → widespread pain amplification.
+- Cognitive symptoms ("fibro fog") worsen with poor sleep and stress. Track cognitive function alongside pain.
+- Comorbid conditions: 30-70% have IBS, TMJ, migraine, or anxiety. Track interactions between these.`,
+
+      'Endometriosis': `ENDOMETRIOSIS CLINICAL KNOWLEDGE:
+- Cyclical pain pattern is hallmark but many experience non-cyclical chronic pain due to central sensitization.
+- Inflammatory diet (red meat, trans fats, alcohol) worsens symptoms. Anti-inflammatory diet (omega-3, turmeric, leafy greens) shows benefit.
+- Sleep disruption increases systemic inflammation → worsens endo pain. Prioritize sleep hygiene.
+- Stress → cortisol → inflammatory cascade → pain amplification. HRV tracking can predict flare windows.
+- Exercise reduces estrogen levels and inflammation but high-intensity can increase pain acutely. Moderate exercise recommended.
+- GI symptoms overlap with IBS in 50-80% of patients. Track bowel symptoms separately from pelvic pain.
+- Menstrual cycle tracking is critical: map pain to cycle days to identify personal high-risk windows.`,
+
+      'GERD': `GERD CLINICAL KNOWLEDGE:
+- Nighttime reflux is the most damaging. Elevate head of bed 6-8 inches. Don't eat within 3 hours of bedtime.
+- Trigger foods: coffee, chocolate, alcohol, spicy foods, citrus, tomatoes, fatty foods, mint. Individual triggers vary — tracking is key.
+- Stress directly increases gastric acid secretion and esophageal sensitivity. HRV drops precede symptom worsening.
+- Obesity increases intra-abdominal pressure. Even modest weight loss (5-10%) significantly improves symptoms.
+- Tight clothing around waist increases reflux risk.
+- Caffeine relaxes the lower esophageal sphincter. Reducing coffee may help more than any medication.
+- Sleep position: left-side sleeping reduces reflux episodes by ~75% compared to right-side (anatomical reason: stomach curvature).`,
     };
 
     // Build condition-specific context for user's actual conditions
     const userConditionKnowledge = userConditions
       .map(c => {
-        // Check exact match first, then partial
         const exact = conditionKnowledge[c];
         if (exact) return exact;
         const partial = Object.entries(conditionKnowledge).find(([k]) => c.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(c.toLowerCase()));
@@ -347,21 +421,44 @@ serve(async (req) => {
 - Be direct. No filler, no corporate speak.
 - Celebrate wins. Comfort during hard times. Be real.
 
+══ CRITICAL: STOP REFUSING QUESTIONS ══
+You are NOT a generic chatbot. You are a HEALTH COMPANION with DEEP KNOWLEDGE. When a user asks about:
+- What a medication/product is used for → ANSWER using the research_and_respond tool if you don't know. Look it up. Never say "I can't tell you."
+- Health tips → Give SPECIFIC tips relevant to THEIR CONDITIONS, not generic "drink water" garbage.
+- How X affects their condition → Use the clinical knowledge below to give SPECIFIC physiological explanations.
+- General health questions → Answer helpfully. You are here to HELP, not deflect.
+
+The ONLY things you should NOT do:
+- Diagnose new conditions
+- Prescribe specific medication dosages
+- Replace a doctor visit for acute/emergency symptoms
+
+For everything else: BE HELPFUL. Add a brief "check with your doc for personalized advice" at the end if appropriate, but LEAD with useful, specific, evidence-based information.
+
+══ WHEN TO USE WEB RESEARCH ══
+Use the research_and_respond tool when:
+- User asks about a specific product, medication, or supplement you don't have clinical knowledge about
+- User asks about breaking news, recent studies, or current medical guidelines
+- User asks "what is X used for" or "what does X do" for a specific named product
+- You need factual information that isn't in your training data
+- User asks about interactions between specific medications/supplements
+
+DO NOT research when: the question is about their personal data (use the data below), or when your clinical knowledge above already covers the topic.
+
 ══ CLINICAL KNOWLEDGE — USE THIS ══
-You have evidence-based knowledge about ${userName}'s conditions. When they ask health questions, tips, or how things affect their condition — USE this knowledge to give specific, actionable, condition-relevant answers. Always add a brief "chat with your doc for personalized advice" disclaimer, but LEAD with useful information.
+You have evidence-based knowledge about ${userName}'s conditions. When they ask health questions, tips, or how things affect their condition — USE this knowledge to give specific, actionable, condition-relevant answers.
 
 ${userConditionKnowledge}
 
 ══ CONTEXT AWARENESS — CRITICAL ══
 - You can see recent chat messages below. This includes ALL logs the user has made (flares, trackables, medications, energy).
-- If you see someone log the same thing 3+ times in quick succession (within minutes), COMMENT on it naturally like a human friend would. Examples: "whoa that's a lot of coffee back to back 😅", "5 coffees in 10 minutes? you okay??"
+- If you see someone log the same thing 3+ times in quick succession (within minutes), COMMENT on it naturally like a human friend would.
 - Be aware of TIME. If it's morning and they haven't logged anything, you might ask about sleep. If it's late, acknowledge the time.
 - If they ask "how does X affect my Y" — ANSWER using the clinical knowledge above, citing specific mechanisms. Don't say "I don't have enough info" when you literally have clinical research above.
 
 ══ VISUALIZATION RULES — CRITICAL ══
 - ONLY create a chart when the user EXPLICITLY asks: "show me a chart", "graph my...", "visualize", "plot", "show me data"
 - For ALL other questions — even data questions — just answer conversationally in text. NO chart.
-- Listing conditions, answering "what are my triggers", "how am I doing" = TEXT ONLY. No chart.
 
 ══ CHART TYPES (only when explicitly requested) ══
 bar_chart, horizontal_bar, pie_chart, donut_chart, line_chart, area_chart, scatter_plot, histogram, comparison, heatmap, pattern_summary, gauge, location_map, weather_chart
@@ -415,13 +512,28 @@ ${JSON.stringify(dataContext, null, 2)}
         type: "function",
         function: {
           name: "respond_text_only",
-          description: "Respond with text only. Use this for most responses — questions, observations, greetings, insights, anything that doesn't need a chart.",
+          description: "Respond with text only. Use this for most responses — questions, observations, greetings, insights, anything that doesn't need a chart or web research.",
           parameters: {
             type: "object",
             required: ["response"],
             properties: {
               response: { type: "string", description: "Your conversational response" },
               dynamicFollowUps: { type: "array", items: { type: "string" }, description: "2-3 follow-up questions" },
+            },
+          },
+        },
+      },
+      {
+        type: "function",
+        function: {
+          name: "research_and_respond",
+          description: "Search the web for factual information before responding. Use this when the user asks about specific products, medications, supplements, recent studies, or anything you need to look up. The search will be performed and results fed back to you.",
+          parameters: {
+            type: "object",
+            required: ["searchQuery", "userQuestion"],
+            properties: {
+              searchQuery: { type: "string", description: "The search query to look up on the web. Be specific and factual." },
+              userQuestion: { type: "string", description: "The original user question to answer after getting search results." },
             },
           },
         },
@@ -433,7 +545,6 @@ ${JSON.stringify(dataContext, null, 2)}
       { role: "system", content: systemPrompt },
     ];
 
-    // Include recent chat history so AI sees all logs and interactions
     if (chatHistory && Array.isArray(chatHistory)) {
       for (const msg of chatHistory.slice(-20)) {
         aiMessages.push({
@@ -443,9 +554,9 @@ ${JSON.stringify(dataContext, null, 2)}
       }
     }
 
-    // Add the current query
     aiMessages.push({ role: "user", content: query });
 
+    // First AI call
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -473,27 +584,93 @@ ${JSON.stringify(dataContext, null, 2)}
     }
 
     const data = await response.json();
-    
-    // Handle tool call response
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     
     if (toolCall?.function?.arguments) {
       try {
         const parsed = JSON.parse(toolCall.function.arguments);
         
+        // ── RESEARCH FLOW ──────────────────────────────────────────────────
+        if (toolCall.function.name === "research_and_respond") {
+          console.log("🔍 AI requested research:", parsed.searchQuery);
+          
+          // Do the web search
+          const searchResults = await searchWeb(parsed.searchQuery);
+          
+          if (searchResults.results.length === 0) {
+            // No results — have AI answer without research
+            return new Response(JSON.stringify({
+              response: "I tried to look that up but couldn't find specific results. Let me answer based on what I know.",
+              visualization: null,
+              citations: [],
+              wasResearched: true,
+            }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
+
+          // Format research results for the AI
+          const researchContext = searchResults.results.map((r, i) => 
+            `[${i + 1}] ${r.title}\nURL: ${r.url}\n${r.snippet}`
+          ).join('\n\n---\n\n');
+
+          // Second AI call with research results
+          const researchMessages = [
+            ...aiMessages,
+            { role: "assistant", content: `I'll research "${parsed.searchQuery}" to answer this properly.` },
+            { role: "user", content: `Here are the research results. Use them to answer the original question: "${parsed.userQuestion}"\n\nIMPORTANT: Cite sources using [1], [2] etc. in your response. Be specific and factual based on what you found. Keep it conversational.\n\nRESEARCH RESULTS:\n${researchContext}` },
+          ];
+
+          const researchResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash",
+              messages: researchMessages,
+              temperature: 0.5,
+            }),
+          });
+
+          if (!researchResponse.ok) {
+            throw new Error(`Research AI call failed: ${researchResponse.status}`);
+          }
+
+          const researchData = await researchResponse.json();
+          const researchContent = researchData.choices?.[0]?.message?.content || "Couldn't process the research results.";
+
+          // Build citations array
+          const citations = searchResults.results.map((r, i) => ({
+            index: i + 1,
+            title: r.title,
+            url: r.url,
+          }));
+
+          return new Response(JSON.stringify({
+            response: researchContent,
+            visualization: null,
+            citations,
+            wasResearched: true,
+          }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        
         if (toolCall.function.name === "respond_with_visualization") {
           return new Response(JSON.stringify({
             response: parsed.response,
             visualization: parsed.chart,
             dynamicFollowUps: parsed.dynamicFollowUps,
+            citations: [],
+            wasResearched: false,
           }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
         
-        // respond_text_only — no visualization
+        // respond_text_only
         return new Response(JSON.stringify({
           response: parsed.response,
           visualization: null,
           dynamicFollowUps: parsed.dynamicFollowUps,
+          citations: [],
+          wasResearched: false,
         }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       } catch (e) {
         console.error("Failed to parse tool arguments:", e);
@@ -504,7 +681,9 @@ ${JSON.stringify(dataContext, null, 2)}
     const content = data.choices?.[0]?.message?.content;
     return new Response(JSON.stringify({ 
       response: content || "I'm here to help with your health data.", 
-      visualization: null 
+      visualization: null,
+      citations: [],
+      wasResearched: false,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (error) {

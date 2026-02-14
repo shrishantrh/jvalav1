@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { FlareEntry } from "@/types/flare";
-import { Send, Mic, MicOff, Check, Sparkles, Thermometer, Droplets, Calendar, AlertTriangle, BarChart3, Activity, TrendingUp } from "lucide-react";
+import { Send, Mic, MicOff, Check, Sparkles, Thermometer, Droplets, Calendar, AlertTriangle, BarChart3, Activity, TrendingUp, Search, ExternalLink } from "lucide-react";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -72,6 +72,10 @@ interface ChatMessage {
   proactiveForm?: ProactiveForm;
   formCompleted?: boolean;
   formResponses?: Record<string, string | string[]>;
+
+  // Research & citations
+  citations?: Array<{ index: number; title: string; url: string }>;
+  wasResearched?: boolean;
 
   updateInfo?: {
     entryId: string;
@@ -947,6 +951,9 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         visualization: limitlessData?.visualization,
         followUp: limitlessData?.followUp,
         dynamicFollowUps: limitlessData?.dynamicFollowUps,
+        // Research & citations
+        citations: limitlessData?.citations || [],
+        wasResearched: limitlessData?.wasResearched || false,
       };
       setMessages(prev => [...prev, assistantMessage]);
 
@@ -1083,7 +1090,35 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
               <p className="text-sm whitespace-pre-wrap relative z-10">{msg.content}</p>
               {msg.visualization && <DynamicChartRenderer chart={msg.visualization} />}
               
-              {/* iMessage-style reaction overlay — bottom-left corner of user bubble */}
+              {/* Research badge */}
+              {msg.wasResearched && msg.role === 'assistant' && (
+                <div className="flex items-center gap-1 mt-1.5 text-[10px] text-primary/70 relative z-10">
+                  <Search className="w-3 h-3" />
+                  <span>Researched</span>
+                </div>
+              )}
+
+              {/* Citations */}
+              {msg.citations && msg.citations.length > 0 && msg.role === 'assistant' && (
+                <div className="mt-2 pt-2 border-t border-border/30 space-y-1 relative z-10">
+                  <p className="text-[10px] text-muted-foreground font-medium">Sources</p>
+                  {msg.citations.map((cite) => (
+                    <a
+                      key={cite.index}
+                      href={cite.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-[10px] text-primary/80 hover:text-primary transition-colors group"
+                    >
+                      <span className="bg-primary/10 rounded px-1 py-0.5 font-mono font-bold shrink-0">[{cite.index}]</span>
+                      <span className="truncate">{cite.title}</span>
+                      <ExternalLink className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                    </a>
+                  ))}
+                </div>
+              )}
+              
+              {/* iMessage-style reaction overlay — top-left corner of user bubble */}
               {msg.reaction && msg.role === 'user' && (
                 <div 
                   className="absolute -top-3 -left-2 z-20 animate-reaction-pop"
@@ -1206,10 +1241,12 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         {isProcessing && (
           <div className="flex items-start">
             <div className="bg-muted/50 rounded-2xl rounded-bl-md px-4 py-3">
-              <div className="flex gap-1">
-                <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
               </div>
             </div>
           </div>
