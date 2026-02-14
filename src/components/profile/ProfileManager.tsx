@@ -277,16 +277,14 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
                   />
                 </div>
                 <div>
-                  <Label className="text-xs">Gender</Label>
-                  <Select value={profile.gender || ''} onValueChange={(v) => updateField('gender', v)}>
+                  <Label className="text-xs">Biological Sex</Label>
+                  <Select value={profile.biological_sex || ''} onValueChange={(v) => updateField('biological_sex', v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="female">Female</SelectItem>
-                      <SelectItem value="male">Male</SelectItem>
-                      <SelectItem value="non-binary">Non-binary</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                      <SelectItem value="Male">Male</SelectItem>
                       <SelectItem value="prefer-not">Prefer not to say</SelectItem>
                     </SelectContent>
                   </Select>
@@ -316,6 +314,21 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-2">
+                {/* Show custom conditions (non-predefined) that the user is tracking */}
+                {profile.conditions
+                  .filter(id => !CONDITIONS.find(c => c.id === id))
+                  .map(customCondition => (
+                    <Badge
+                      key={customCondition}
+                      variant="default"
+                      className="cursor-pointer text-xs"
+                      onClick={() => {
+                        updateField('conditions', profile.conditions.filter(c => c !== customCondition));
+                      }}
+                    >
+                      {customCondition}
+                    </Badge>
+                  ))}
                 {CONDITIONS.map(condition => (
                   <Badge 
                     key={condition.id}

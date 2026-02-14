@@ -189,6 +189,8 @@ Research ALL of these conditions thoroughly. For ANY condition (common or rare, 
 
 IMPORTANT: You MUST cover ALL conditions listed: ${conditionList}. Each logCategory MUST have its own specific symptoms array. Do not mix symptoms between conditions.
 
+CRITICAL: The logCategory labels must MATCH what the user typed. If a user said "cough", create a "Cough" category — do NOT escalate or relabel it as "Asthma Attack" or any chronic condition the user did not explicitly list. Never diagnose. Never assume a symptom implies a specific disease. A "cough" is a "Cough", a "headache" is a "Headache", etc. Only use condition-specific labels (like "Asthma Attack", "Flare", "Breakout") when the user explicitly selected that condition.
+
 Respond with ONLY this JSON object, no other text:
 {"symptoms":["..."],"triggers":["..."],"logCategories":[{"id":"...","label":"...","icon":"...","severityLabels":["...","...","..."],"color":"hsl(...)","symptoms":["...","...."]}]}`;
 

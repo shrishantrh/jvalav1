@@ -59,7 +59,7 @@ serve(async (req) => {
     }
     const userId = claimsData.claims.sub as string;
 
-    const { clientTimezone } = await req.json();
+    const { clientTimezone, isFirstSession } = await req.json();
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
 
@@ -193,7 +193,24 @@ serve(async (req) => {
       dateOfBirth: profile?.date_of_birth,
     };
 
-    const systemPrompt = `You are Jvala's proactive AI companion. You're texting ${userName} when they open the app.
+    // If this is a brand new user with zero logs, send an introductory tour message
+    const isNewUser = isFirstSession || totalLogs === 0;
+
+    const systemPrompt = isNewUser
+      ? `You are Jvala's AI health companion. This is ${userName}'s FIRST TIME opening the app after onboarding. They are tracking: ${conditions.join(', ') || 'health concerns'}.
+
+YOUR JOB: Give a warm, personal introductory message that acts as a mini tour of the chat. This is a text-message-style chat, so keep it natural and conversational.
+
+MUST include in your message (weave naturally, not a numbered list):
+- A warm welcome by name
+- Tell them this chat is their main hub — they can tell you anything: symptoms, what they ate, how they slept, their mood, took meds, etc. in plain language
+- Mention you'll learn their patterns over time and start spotting connections (triggers, trends)
+- Invite them to start by telling you about their ${conditions[0] || 'health concern'} — when it started, what makes it worse, what they've tried
+- Keep it 3-4 short paragraphs max, conversational tone, like a knowledgeable friend texting
+
+DO NOT: use bullet points, numbered lists, medical disclaimers, or say "I'm an AI". Just be natural and inviting.
+You MUST call the "send_message" tool.`
+      : `You are Jvala's proactive AI companion. You're texting ${userName} when they open the app.
 
 YOUR JOB: Decide what to say or ask right now based on context. Be human, warm, brief, situationally aware.
 

@@ -80,9 +80,30 @@ const getTodayString = () => {
   return today.toISOString().split('T')[0];
 };
 
+const ONBOARDING_STORAGE_KEY = 'jvala_onboarding_progress';
+
+const loadSavedProgress = (): { step: number; data: OnboardingData } | null => {
+  try {
+    const saved = localStorage.getItem(ONBOARDING_STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return null;
+};
+
+const saveProgress = (step: number, data: OnboardingData) => {
+  try {
+    localStorage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify({ step, data }));
+  } catch {}
+};
+
+const clearProgress = () => {
+  try { localStorage.removeItem(ONBOARDING_STORAGE_KEY); } catch {}
+};
+
 export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingProps) => {
-  const [step, setStep] = useState(0);
-  const [data, setData] = useState<OnboardingData>({
+  const saved = loadSavedProgress();
+  const [step, setStep] = useState(saved?.step || 0);
+  const [data, setData] = useState<OnboardingData>(saved?.data || {
     conditions: [],
     customConditions: [],
     dateOfBirth: "",
@@ -107,6 +128,11 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
   const isUnder13 = age !== null && age < 13;
   const isFutureDOB = data.dateOfBirth && new Date(data.dateOfBirth) > new Date();
 
+  // Autosave progress whenever step or data changes
+  useEffect(() => {
+    saveProgress(step, data);
+  }, [step, data]);
+
   const handleNext = () => {
     haptics.selection();
     if (step === TOTAL_STEPS - 1) {
@@ -124,6 +150,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
   const handleComplete = async () => {
     setIsAnalyzing(true);
     haptics.success();
+    clearProgress();
 
     const steps = [0, 1, 2, 3, 4];
     for (const s of steps) {
