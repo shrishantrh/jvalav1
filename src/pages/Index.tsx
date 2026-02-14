@@ -187,15 +187,20 @@ const Index = () => {
       const conditionIds = data.conditions || [];
       const customConditions = data.customConditions || [];
       const allConditions = [
-        ...conditionIds, // IDs from the CONDITIONS list
-        ...customConditions, // Free-text custom entries
+        ...conditionIds,
+        ...customConditions,
       ];
+
+      const knownSymptoms = data.knownSymptoms || [];
+      const knownTriggers = data.knownTriggers || [];
 
       const { error } = await supabase
         .from('profiles')
         .update({
           full_name: data.firstName || null,
           conditions: allConditions,
+          known_symptoms: knownSymptoms,
+          known_triggers: knownTriggers,
           date_of_birth: data.dateOfBirth || null,
           biological_sex: data.biologicalSex || null,
           onboarding_completed: true,
@@ -206,8 +211,8 @@ const Index = () => {
 
       setUserProfile({
         conditions: allConditions,
-        known_symptoms: [],
-        known_triggers: [],
+        known_symptoms: knownSymptoms,
+        known_triggers: knownTriggers,
         medications: [],
         physician_name: null,
         physician_email: null,
