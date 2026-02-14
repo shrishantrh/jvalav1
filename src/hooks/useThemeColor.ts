@@ -139,9 +139,15 @@ export function useThemeColor() {
 // Initialize theme color on app load
 export function initializeThemeColor() {
   if (typeof window !== 'undefined') {
+    // Always remove dark class — app is light-only
+    document.documentElement.classList.remove('dark');
+    
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved && saved in THEME_COLORS) {
       applyThemeColor(saved as ThemeColor);
+    } else {
+      // Default to pink
+      applyThemeColor('pink');
     }
   }
 }
