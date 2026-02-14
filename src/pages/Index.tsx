@@ -359,7 +359,7 @@ const Index = () => {
           city: entryData.environmentalData?.location?.city || null,
         }, { onConflict: 'user_id,timestamp', ignoreDuplicates: true })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 
