@@ -84,7 +84,7 @@ ${demographicContext ? `Patient demographics: ${demographicContext}.` : ''}
 
 Research ALL of these conditions thoroughly. For ANY condition (common or rare, standard medical term or colloquial), use your medical knowledge to provide:
 
-1. **symptoms**: 10-15 most clinically relevant symptoms across ALL the listed conditions combined. Use patient-friendly language. Be SPECIFIC to each condition. For skin conditions include "Breakout", "Redness", etc. For respiratory include "Wheezing", "Chest tightness", etc.
+1. **symptoms**: 10-15 most clinically relevant symptoms across ALL the listed conditions combined. Use patient-friendly language. Be SPECIFIC to each condition.
 
 2. **triggers**: 8-12 most evidence-based triggers across ALL conditions. Include dietary, environmental, hormonal, lifestyle triggers. Be SPECIFIC.
 
@@ -92,13 +92,14 @@ Research ALL of these conditions thoroughly. For ANY condition (common or rare, 
    - "id": unique snake_case identifier  
    - "label": condition-appropriate term (e.g., "Breakout" for acne, "Attack" for asthma, "Flare" for arthritis)
    - "icon": one of: "flame", "zap", "heart", "activity", "alert", "sun", "moon", "droplets", "thermometer", "eye", "brain", "shield"
-   - "severityLabels": array of exactly 3 severity labels appropriate for that condition
-   - "color": a CSS color in HSL format
+   - "severityLabels": array of exactly 3 SHORT severity labels appropriate for that condition (e.g. ["Few spots", "Moderate breakout", "Severe cystic"])
+   - "color": a CSS color in HSL format like "hsl(200 70% 50%)"
+   - "symptoms": array of 4-8 symptoms SPECIFIC to this condition only (e.g. for acne: ["Forehead breakout", "Chin acne", "Oily skin", "Blackheads", "Cystic bumps"]; for asthma: ["Wheezing", "Chest tightness", "Shortness of breath", "Nighttime coughing"])
 
-IMPORTANT: You MUST cover ALL conditions listed: ${conditionList}. Do not skip any.
+IMPORTANT: You MUST cover ALL conditions listed: ${conditionList}. Each logCategory MUST have its own specific symptoms array. Do not mix symptoms between conditions.
 
 Respond with ONLY this JSON object, no other text:
-{"symptoms":["..."],"triggers":["..."],"logCategories":[{"id":"...","label":"...","icon":"...","severityLabels":["mild","moderate","severe"],"color":"hsl(0 70% 50%)"}]}`;
+{"symptoms":["..."],"triggers":["..."],"logCategories":[{"id":"...","label":"...","icon":"...","severityLabels":["...","...","..."],"color":"hsl(...)","symptoms":["...","...."]}]}`;
 
   console.log(`Researching conditions: ${conditionList}`);
 

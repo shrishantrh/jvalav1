@@ -83,6 +83,13 @@ interface MedicationDetails {
   notes?: string;
 }
 
+interface CustomTrackable {
+  id: string;
+  label: string;
+  icon: string;
+  type: 'custom';
+}
+
 interface SmartTrackProps {
   onSave: (entry: Partial<FlareEntry>) => Promise<boolean>;
   onUpdateEntry?: (entryId: string, updates: Partial<FlareEntry>) => void;
@@ -91,6 +98,8 @@ interface SmartTrackProps {
   userTriggers?: string[];
   userMedications?: MedicationDetails[];
   aiLogCategories?: any[];
+  customTrackables?: CustomTrackable[];
+  onAddTrackable?: (trackable: CustomTrackable) => void;
   userName?: string | null;
   userDOB?: string | null;
   userBiologicalSex?: string | null;
@@ -310,6 +319,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   userTriggers = [],
   userMedications = [],
   aiLogCategories = [],
+  customTrackables = [],
+  onAddTrackable,
   userName,
   userDOB,
   userBiologicalSex,
@@ -541,6 +552,32 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       id: (Date.now() + 1).toString(),
       role: 'assistant',
       content: responses[level],
+      timestamp: new Date(),
+      entryData: entry,
+    };
+    setMessages(prev => [...prev, confirmMessage]);
+  };
+
+  const handleCustomLog = async (trackableLabel: string) => {
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: `Logged ${trackableLabel}`,
+      timestamp: new Date(),
+    };
+    setMessages(prev => [...prev, userMessage]);
+
+    const entry: Partial<FlareEntry> = {
+      type: 'note',
+      note: trackableLabel,
+      timestamp: new Date(),
+    };
+    onSave(entry);
+
+    const confirmMessage: ChatMessage = {
+      id: (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: `${trackableLabel} logged.`,
       timestamp: new Date(),
       entryData: entry,
     };
@@ -920,11 +957,14 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             userSymptoms={userSymptoms}
             userMedications={userMedications}
             aiLogCategories={aiLogCategories}
+            customTrackables={customTrackables}
             onLogSymptom={handleFluidLog}
             onLogMedication={handleMedicationLog}
             onLogWellness={handleWellnessLog}
             onLogEnergy={handleEnergyLog}
             onLogRecovery={handleRecoveryLog}
+            onLogCustom={handleCustomLog}
+            onAddTrackable={onAddTrackable}
             onOpenDetails={onOpenDetails}
           />
         </div>

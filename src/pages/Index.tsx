@@ -41,12 +41,20 @@ interface MedicationDetails {
   notes?: string;
 }
 
+interface CustomTrackable {
+  id: string;
+  label: string;
+  icon: string;
+  type: 'custom';
+}
+
 interface UserProfile {
   conditions: string[];
   known_symptoms: string[];
   known_triggers: string[];
   medications: MedicationDetails[];
   aiLogCategories: any[];
+  customTrackables: CustomTrackable[];
   physician_name: string | null;
   physician_email: string | null;
   physician_phone: string | null;
@@ -158,6 +166,7 @@ const Index = () => {
         const profileData = data as any;
         const medications = profileData.metadata?.medications || [];
         const aiLogCategories = profileData.metadata?.aiLogCategories || [];
+        const customTrackables = profileData.metadata?.customTrackables || [];
         
         setUserProfile({
           conditions: data.conditions || [],
@@ -165,6 +174,7 @@ const Index = () => {
           known_triggers: data.known_triggers || [],
           medications: medications,
           aiLogCategories: aiLogCategories,
+          customTrackables: customTrackables,
           physician_name: data.physician_name,
           physician_email: data.physician_email,
           physician_phone: data.physician_phone,
@@ -235,6 +245,7 @@ const Index = () => {
         known_triggers: knownTriggers,
         medications: medicationDetails,
         aiLogCategories: aiLogCategories,
+        customTrackables: [],
         physician_name: null,
         physician_email: null,
         physician_phone: null,
@@ -591,6 +602,18 @@ const Index = () => {
               userTriggers={userProfile?.known_triggers || []}
               userMedications={userProfile?.medications || []}
               aiLogCategories={userProfile?.aiLogCategories || []}
+              customTrackables={userProfile?.customTrackables || []}
+              onAddTrackable={async (trackable) => {
+                if (!user || !userProfile) return;
+                const updated = [...(userProfile.customTrackables || []), trackable];
+                setUserProfile(prev => prev ? { ...prev, customTrackables: updated } : prev);
+                const currentMeta: Record<string, any> = {
+                  medications: (userProfile.medications || []).map(m => ({ name: m.name, dosage: m.dosage, frequency: m.frequency })),
+                  aiLogCategories: userProfile.aiLogCategories || [],
+                  customTrackables: updated.map(t => ({ id: t.id, label: t.label, icon: t.icon, type: t.type })),
+                };
+                await supabase.from('profiles').update({ metadata: currentMeta as any }).eq('id', user.id);
+              }}
               userName={userProfile?.full_name}
               userDOB={userProfile?.date_of_birth}
               userBiologicalSex={userProfile?.biological_sex}
