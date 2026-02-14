@@ -83,12 +83,9 @@ interface MedicationDetails {
   notes?: string;
 }
 
-interface CustomTrackable {
-  id: string;
-  label: string;
-  icon: string;
-  type: 'custom';
-}
+// Re-export SmartTrackable from FluidLogSelector
+import type { SmartTrackable } from "./FluidLogSelector";
+type CustomTrackable = SmartTrackable;
 
 interface SmartTrackProps {
   onSave: (entry: Partial<FlareEntry>) => Promise<boolean>;
@@ -558,18 +555,19 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     setMessages(prev => [...prev, confirmMessage]);
   };
 
-  const handleCustomLog = async (trackableLabel: string) => {
+  const handleCustomLog = async (trackableLabel: string, value?: string) => {
+    const displayText = value || `Logged ${trackableLabel}`;
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
-      content: `Logged ${trackableLabel}`,
+      content: displayText,
       timestamp: new Date(),
     };
     setMessages(prev => [...prev, userMessage]);
 
     const entry: Partial<FlareEntry> = {
       type: 'note',
-      note: trackableLabel,
+      note: displayText,
       timestamp: new Date(),
     };
     onSave(entry);
@@ -577,7 +575,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     const confirmMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
       role: 'assistant',
-      content: `${trackableLabel} logged.`,
+      content: `${trackableLabel} logged ✓`,
       timestamp: new Date(),
       entryData: entry,
     };

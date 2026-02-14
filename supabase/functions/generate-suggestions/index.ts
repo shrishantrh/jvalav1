@@ -12,7 +12,12 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { conditions, biologicalSex, age, entries, correlations } = body;
+    const { conditions, biologicalSex, age, entries, correlations, trackableQuery } = body;
+
+    // ─── Trackable Research Mode ───
+    if (trackableQuery && typeof trackableQuery === 'string') {
+      return await handleTrackableResearch(trackableQuery);
+    }
 
     // ─── Condition Research Mode (onboarding) ───
     if (conditions && Array.isArray(conditions) && conditions.length > 0 && !entries) {
@@ -44,25 +49,111 @@ function jsonResponse(data: unknown, status = 200) {
   });
 }
 
-// Extract JSON from AI response that may contain markdown fences or extra text
 function extractJSON(raw: string): any {
-  // Try direct parse first
   try { return JSON.parse(raw); } catch {}
-
-  // Strip markdown code fences: ```json ... ``` or ``` ... ```
   const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (fenceMatch) {
     try { return JSON.parse(fenceMatch[1].trim()); } catch {}
   }
-
-  // Find first { and last }
   const start = raw.indexOf('{');
   const end = raw.lastIndexOf('}');
   if (start !== -1 && end > start) {
     try { return JSON.parse(raw.slice(start, end + 1)); } catch {}
   }
-
   return null;
+}
+
+// ─── Trackable Research ───
+async function handleTrackableResearch(query: string) {
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+  if (!LOVABLE_API_KEY) {
+    return jsonResponse({ success: true, trackable: getDefaultTrackable(query) });
+  }
+
+  const prompt = `You are designing a health tracking app. A user wants to track: "${query}"
+
+Create a smart trackable configuration. Think about what makes this trackable USEFUL for health correlation — specificity matters.
+
+Return ONLY this JSON:
+{
+  "label": "Display name (clean, capitalized)",
+  "icon": "one of: flame, zap, heart, activity, alert, sun, moon, droplets, thermometer, eye, brain, shield, dumbbell, glass_water, apple",
+  "color": "hsl(H S% L%) — pick a nice distinct color",
+  "interactionType": "one of: levels, options, amount, toggle, slider",
+  "unit": "unit label if applicable (e.g. 'glasses', 'minutes', 'mg') or null",
+  "subOptions": [
+    {"id": "unique_id", "label": "Short label", "value": "value_string", "emoji": "single emoji"}
+  ],
+  "logMessage": "Template for chat message, use {value} placeholder. e.g. 'Drank {value} of water'"
+}
+
+Rules for interactionType:
+- "levels": 3-5 graduated options (e.g. water: "1 glass", "2-3 glasses", "4+ glasses")  
+- "options": 3-6 categorical choices (e.g. food: "Healthy meal", "Fast food", "Snack", "Sugary")
+- "amount": numeric with unit (e.g. supplements: "1 pill", "2 pills")
+- "slider": 1-10 scale (e.g. stress: 1=calm to 10=overwhelmed)
+- "toggle": simple yes/no (e.g. took vitamins)
+
+For water: use levels with glass amounts.
+For food: use options with food quality/type categories that help correlate with health.
+For exercise: use options with exercise types + intensity.
+For sleep: use levels with hour ranges.
+For supplements/vitamins: use options with specific common types.
+For stress: use slider.
+For alcohol/caffeine: use levels with amount.
+
+Make subOptions specific and health-relevant. 3-6 options max.`;
+
+  try {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('AI API error:', response.status);
+      return jsonResponse({ success: true, trackable: getDefaultTrackable(query) });
+    }
+
+    const aiResponse = await response.json();
+    const content = aiResponse.choices?.[0]?.message?.content;
+    if (!content) {
+      return jsonResponse({ success: true, trackable: getDefaultTrackable(query) });
+    }
+
+    const parsed = extractJSON(content);
+    if (!parsed || !parsed.label) {
+      return jsonResponse({ success: true, trackable: getDefaultTrackable(query) });
+    }
+
+    console.log(`Trackable research for "${query}": ${parsed.label} (${parsed.interactionType}, ${parsed.subOptions?.length} options)`);
+
+    return jsonResponse({ success: true, trackable: parsed });
+  } catch (e) {
+    console.error('Trackable research error:', e);
+    return jsonResponse({ success: true, trackable: getDefaultTrackable(query) });
+  }
+}
+
+function getDefaultTrackable(query: string): any {
+  return {
+    label: query.charAt(0).toUpperCase() + query.slice(1),
+    icon: 'activity',
+    color: 'hsl(250 60% 55%)',
+    interactionType: 'toggle',
+    unit: null,
+    subOptions: [
+      { id: 'yes', label: 'Done', value: 'done', emoji: '✅' }
+    ],
+    logMessage: `Logged ${query}`,
+  };
 }
 
 // ─── Condition Research ───
@@ -112,9 +203,7 @@ Respond with ONLY this JSON object, no other text:
       },
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'user', content: prompt }
-        ],
+        messages: [{ role: 'user', content: prompt }],
       }),
     });
 
