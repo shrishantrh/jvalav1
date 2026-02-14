@@ -90,6 +90,9 @@ interface SmartTrackProps {
   userConditions?: string[];
   userTriggers?: string[];
   userMedications?: MedicationDetails[];
+  userName?: string | null;
+  userDOB?: string | null;
+  userBiologicalSex?: string | null;
   recentEntries?: any[];
   userId: string;
   onOpenDetails?: () => void;
@@ -305,6 +308,9 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   userConditions = [], 
   userTriggers = [],
   userMedications = [],
+  userName,
+  userDOB,
+  userBiologicalSex,
   recentEntries = [],
   userId,
   onOpenDetails
@@ -590,6 +596,9 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         knownTriggers: userTriggers,
         medications: userMedications,
         currentLocation,
+        userName,
+        dateOfBirth: userDOB,
+        biologicalSex: userBiologicalSex,
         mostRecentEntryId: mostRecentEntry?.id,
         recentEntries: recentEntries.slice(0, 50).map(e => ({
           id: e.id,
@@ -600,6 +609,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
           note: e.note || '',
           timestamp: e.timestamp,
           environmental_data: e.environmentalData,
+          physiological_data: e.physiologicalData,
         })),
       };
 

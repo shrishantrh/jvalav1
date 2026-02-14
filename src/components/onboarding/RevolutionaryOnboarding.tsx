@@ -33,6 +33,7 @@ interface OnboardingData {
   firstName: string;
   knownSymptoms: string[];
   knownTriggers: string[];
+  medications: string[];
   trackingItems: string[];
   dataSources: string[];
   menstrualApp: string | null;
@@ -45,7 +46,7 @@ interface RevolutionaryOnboardingProps {
   onComplete: (data: OnboardingData) => void;
 }
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 7;
 
 // Animated dot background for hero
 const FloatingOrbs = () => (
@@ -88,6 +89,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
     firstName: "",
     knownSymptoms: [],
     knownTriggers: [],
+    medications: [],
     trackingItems: ['symptoms_flares'],
     dataSources: [],
     menstrualApp: null,
@@ -214,7 +216,8 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
         if (data.dateOfBirth && (isUnder13 || isFutureDOB)) return false;
         return true;
       case 4: return true; // Symptoms/triggers optional
-      case 5: return true; // Permissions optional
+      case 5: return true; // Medications optional
+      case 6: return true; // Permissions optional
       default: return true;
     }
   };
@@ -644,8 +647,64 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
           </div>
         );
 
-      // ─── Step 5: Permissions ─────────────────────────────────
+      // ─── Step 5: Medications ─────────────────────────────────
       case 5:
+        return (
+          <div className="space-y-5 animate-in fade-in-0 slide-in-from-right-4 duration-500 flex-1">
+            <div className="text-center space-y-2">
+              <h2 className="text-2xl font-bold">Current Medications</h2>
+              <p className="text-sm text-muted-foreground">
+                Add any medications you're currently taking. This helps your AI track effectiveness and interactions.
+              </p>
+            </div>
+
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Type medication name and press Enter..."
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const val = (e.target as HTMLInputElement).value.trim();
+                    if (val && !data.medications.includes(val)) {
+                      haptics.selection();
+                      setData(prev => ({ ...prev, medications: [...prev.medications, val] }));
+                      (e.target as HTMLInputElement).value = '';
+                    }
+                  }
+                }}
+                className="pl-10 h-12 glass-card border-0"
+              />
+            </div>
+
+            {data.medications.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {data.medications.map(med => (
+                  <Badge
+                    key={med}
+                    className="text-xs py-1.5 px-3 bg-primary/15 text-primary border-primary/20 gap-1 cursor-pointer press-effect"
+                    onClick={() => {
+                      haptics.selection();
+                      setData(prev => ({ ...prev, medications: prev.medications.filter(m => m !== med) }));
+                    }}
+                  >
+                    {med}
+                    <X className="w-3 h-3" />
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            <div className="glass-card flex items-start gap-3 bg-primary/5">
+              <Sparkles className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                Your AI will track how medications correlate with your symptoms over time. You can always update this in Settings.
+              </p>
+            </div>
+          </div>
+        );
+
+      // ─── Step 6: Permissions ─────────────────────────────────
+      case 6:
         return (
           <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
             <div className="w-full max-w-sm space-y-6">
@@ -755,11 +814,11 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               : "bg-muted text-muted-foreground"
           )}
         >
-          {step === 0 ? "Let's Get Started" : step === TOTAL_STEPS - 1 ? "Launch Jvala ✨" : step === 4 ? "Continue" : "Continue"}
+          {step === 0 ? "Let's Get Started" : step === TOTAL_STEPS - 1 ? "Launch Jvala ✨" : "Continue"}
           <ChevronRight className="w-5 h-5" />
         </button>
 
-        {(step === 3 || step === 4) && (
+        {(step === 3 || step === 4 || step === 5) && (
           <button
             onClick={handleNext}
             className="w-full mt-2 py-2 text-sm text-muted-foreground"
