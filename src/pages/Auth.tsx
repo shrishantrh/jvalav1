@@ -224,6 +224,19 @@ const Auth = () => {
 
         if (error) throw error;
 
+        // Detect if email is already registered (Supabase returns empty identities)
+        if (data.user && (!data.user.identities || data.user.identities.length === 0)) {
+          toast({
+            title: "Email already registered",
+            description: "This email is already in use. Please sign in instead, or use Google/Apple if that's how you originally signed up.",
+          });
+          setIsSignUp(false);
+          setPassword("");
+          setConfirmPassword("");
+          setLoading(false);
+          return;
+        }
+
         if (data.user) {
           await supabase.from('profiles').update({
             terms_accepted_at: new Date().toISOString(),
