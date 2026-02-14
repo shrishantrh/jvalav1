@@ -330,18 +330,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     if (hasLoadedMessages.current) return;
     hasLoadedMessages.current = true;
     
-    const saved = localStorage.getItem(`${STORAGE_KEY}_${userId}`);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        const lastMsg = parsed[parsed.length - 1];
-        if (lastMsg && (Date.now() - new Date(lastMsg.timestamp).getTime()) < 24 * 60 * 60 * 1000) {
-          setMessages(parsed.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })));
-          return;
-        }
-      } catch {}
-    }
-    
+    // No localStorage persistence — health data stays in-memory only for privacy
     const greeting = getPersonalizedGreeting(userConditions, recentEntries);
     setMessages([{
       id: '1',
@@ -404,11 +393,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     }
   }));
 
-  useEffect(() => {
-    if (messages.length > 0) {
-      localStorage.setItem(`${STORAGE_KEY}_${userId}`, JSON.stringify(messages));
-    }
-  }, [messages, userId]);
+  // No localStorage persistence — health data stays in-memory only for privacy
 
   useEffect(() => {
     if (messagesContainerRef.current) {

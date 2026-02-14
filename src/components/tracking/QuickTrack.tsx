@@ -33,22 +33,12 @@ const COMMON_SYMPTOMS = [
 ];
 
 export const QuickTrack = ({ onSave, userSymptoms = [], userConditions = [], userId }: QuickTrackProps) => {
-  const [messages, setMessages] = useState<ChatMessage[]>(() => {
-    // Load from localStorage
-    const saved = localStorage.getItem(`${STORAGE_KEY}_${userId}`);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return parsed.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }));
-      } catch { }
-    }
-    return [{
-      id: '1',
-      role: 'assistant',
-      content: "Hey! Tap severity or add symptoms below. I'm here if you want to chat.",
-      timestamp: new Date(),
-    }];
-  });
+  const [messages, setMessages] = useState<ChatMessage[]>([{
+    id: '1',
+    role: 'assistant',
+    content: "Hey! Tap severity or add symptoms below. I'm here if you want to chat.",
+    timestamp: new Date(),
+  }]);
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
@@ -56,10 +46,7 @@ export const QuickTrack = ({ onSave, userSymptoms = [], userConditions = [], use
   const { isRecording, transcript, startRecording, stopRecording, clearRecording } = useVoiceRecording();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Save messages to localStorage
-  useEffect(() => {
-    localStorage.setItem(`${STORAGE_KEY}_${userId}`, JSON.stringify(messages));
-  }, [messages, userId]);
+  // No localStorage persistence — health data stays in-memory only for privacy
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
