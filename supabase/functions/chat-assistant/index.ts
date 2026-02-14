@@ -1403,7 +1403,7 @@ serve(async (req) => {
     const authenticatedUserId = claimsData.claims.sub as string;
     // ─────────────────────────────────────────────────────────────────────
 
-    const { message, history = [], userId: requestedUserId }: ChatRequest = await req.json();
+    const { message, history = [], userId: requestedUserId, clientTimezone }: ChatRequest & { clientTimezone?: string } = await req.json();
     // Enforce: callers can only access their own data
     const userId = authenticatedUserId;
     
@@ -1441,8 +1441,8 @@ serve(async (req) => {
     const safeMeds = Array.isArray(medLogs) ? medLogs : [];
     const safeCorr = Array.isArray(correlations) ? correlations : [];
 
-    // Analyze data
-    const userTimezone = profile?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    // Analyze data — prefer client-sent timezone, then profile, then UTC (never server's local TZ)
+    const userTimezone = clientTimezone || (profile?.timezone && profile.timezone !== 'UTC' ? profile.timezone : null) || 'UTC';
     const flareSummary = analyzeFlares(safeEntries, userTimezone);
     const bodyMetrics = analyzeBodyMetrics(safeEntries);
     const trends = analyzeTrends(flareSummary);

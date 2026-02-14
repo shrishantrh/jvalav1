@@ -436,11 +436,13 @@ export const FluidLogSelector = ({
                 background: isActive
                   ? `linear-gradient(145deg, ${(t as SmartTrackable).color?.replace(/\d+%\)/, '95%)') || 'hsl(250 60% 95%)'}, ${(t as SmartTrackable).color?.replace(/\d+%\)/, '90%)') || 'hsl(250 60% 90%)'})`
                   : 'linear-gradient(145deg, hsl(0 0% 100% / 0.85) 0%, hsl(0 0% 98% / 0.8) 100%)',
+                WebkitBackgroundClip: 'padding-box',
                 backgroundClip: 'padding-box',
                 border: isActive ? `2px solid ${(t as SmartTrackable).color || 'hsl(250 60% 55%)'}` : '1px solid hsl(0 0% 100% / 0.6)',
                 boxShadow: isActive
                   ? `inset 0 1px 2px hsl(0 0% 100% / 0.5), 0 4px 12px ${(t as SmartTrackable).color?.replace(/\d+%\)/, '30%)') || 'hsl(250 60% 30%)'}`
                   : 'inset 0 1px 2px hsl(0 0% 100% / 0.4), 0 2px 8px hsl(0 0% 0% / 0.04)',
+                overflow: 'hidden',
               }}
             >
               <TIcon className="w-4 h-4" style={{ color: (t as SmartTrackable).color || 'hsl(250 60% 55%)' }} />

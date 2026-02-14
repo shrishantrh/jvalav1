@@ -160,6 +160,12 @@ const Index = () => {
 
       if (data) {
         const profileData = data as any;
+        
+        // Auto-update timezone if it's UTC (default) or missing
+        const clientTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (clientTz && clientTz !== 'UTC') {
+          supabase.from('profiles').update({ timezone: clientTz }).eq('id', user.id).then(() => {});
+        }
         const medications = profileData.metadata?.medications || [];
         const aiLogCategories = profileData.metadata?.aiLogCategories || [];
         const customTrackables = profileData.metadata?.customTrackables || [];
