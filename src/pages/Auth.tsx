@@ -45,11 +45,20 @@ const Auth = () => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
-        // Save terms acceptance for OAuth/new users who accepted the gate
+        // Always ensure terms_accepted_at is set when user has accepted the gate
         if (termsAcceptedRef.current) {
-          await supabase.from('profiles').update({
-            terms_accepted_at: new Date().toISOString(),
-          }).eq('id', session.user.id);
+          // Use upsert-style: only set if not already set
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('terms_accepted_at')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+          if (profile && !profile.terms_accepted_at) {
+            await supabase.from('profiles').update({
+              terms_accepted_at: new Date().toISOString(),
+            }).eq('id', session.user.id);
+          }
         }
         navigate("/");
       }
