@@ -32,7 +32,7 @@ serve(async (req) => {
     }
     const userId = claimsData.claims.sub as string;
 
-    const { query, clientTimezone } = await req.json();
+    const { query, clientTimezone, chatHistory } = await req.json();
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     
     if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
@@ -259,11 +259,84 @@ serve(async (req) => {
     };
 
     const userName = profile?.full_name?.split(' ')[0] || 'there';
+    const userConditions = profile?.conditions || [];
+    const userAge = profile?.date_of_birth 
+      ? Math.floor((Date.now() - new Date(profile.date_of_birth).getTime()) / (365.25 * 86400000))
+      : null;
+    const userSex = profile?.biological_sex || null;
+
+    // Build condition-specific clinical knowledge
+    const conditionKnowledge: Record<string, string> = {
+      'Asthma': `ASTHMA CLINICAL KNOWLEDGE:
+- Sleep disruption is bidirectional: poor sleep worsens airway inflammation; nocturnal asthma disrupts sleep. Studies show asthma symptoms peak between 4-6 AM due to circadian cortisol dips.
+- Key triggers: cold/dry air, humidity >60%, rapid temp changes (>10°F in 24h), high pollen/AQI, GERD, emotional stress, exercise (especially cold air).
+- Caffeine is a mild bronchodilator (theophylline analog) — 1-2 cups coffee may slightly help, but >4 cups can trigger anxiety/GERD which worsens symptoms.
+- Dehydration thickens airway mucus. Aim for 2-3L water daily.
+- Stress increases cortisol → airway hyperresponsiveness. HRV drops correlate with flare risk within 24-48h.
+- Exercise-induced bronchoconstriction peaks 5-15 min post-exercise; warm-up reduces risk by 50%.
+- Weather: thunderstorms can cause "thunderstorm asthma" (pollen grain rupture). Barometric pressure drops precede flares.`,
+      
+      'Migraine': `MIGRAINE CLINICAL KNOWLEDGE:
+- Sleep is the #1 modifiable trigger. Both too little (<6h) and too much (>9h) increase risk. Irregular sleep schedules are worse than consistent short sleep.
+- The "migraine threshold" model: triggers stack. One trigger alone may not cause an attack, but trigger1 + trigger2 + poor sleep = attack.
+- Common triggers: dehydration, skipped meals (blood sugar drops), alcohol (especially red wine/histamine), aged cheeses (tyramine), MSG, bright/flickering lights, strong scents, weather changes, hormonal fluctuations.
+- Caffeine: paradoxical — small amounts can abort early migraines, but regular >200mg/day creates dependency and withdrawal triggers attacks.
+- Prodrome signs 24-48h before: yawning, food cravings, neck stiffness, mood changes. Tracking these enables early intervention.
+- HRV drops and resting HR increases often precede migraines by 12-24h.
+- Magnesium deficiency is present in 50% of migraine patients. 400mg/day magnesium glycinate is evidence-based prevention.`,
+      
+      'Eczema': `ECZEMA/ATOPIC DERMATITIS CLINICAL KNOWLEDGE:
+- Sleep loss directly impairs skin barrier function and increases inflammatory cytokines (IL-4, IL-13). The itch-scratch-wake cycle is the main quality-of-life issue.
+- Flares correlate with: low humidity (<30%), temperature extremes, sweat, stress, certain fabrics (wool), fragrances, SLS in soaps, dust mites.
+- Stress → cortisol dysregulation → mast cell degranulation → histamine release → itch. This is measurable via HRV.
+- Hot showers (>100°F) strip skin lipids and worsen barrier. Lukewarm <5min showers recommended.
+- Gut-skin axis: emerging evidence links gut microbiome disruption to flares. Probiotics (L. rhamnosus) show moderate benefit.
+- Nocturnal scratching is often unconscious. Core body temp drops at night → itch worsens.
+- Weather: transitions between seasons (especially fall→winter) are highest-risk periods.`,
+      
+      'Acne': `ACNE CLINICAL KNOWLEDGE:
+- Sleep deprivation increases cortisol → stimulates sebaceous glands → excess sebum → breakouts within 48-72h.
+- Hormonal patterns: ${userSex === 'Female' ? 'Flares typically worsen 7-10 days before menstruation due to progesterone spike and androgen sensitivity. Track cycle correlation.' : 'Testosterone fluctuations affect sebum production. Stress-cortisol-androgen axis is key driver.'}
+- Dairy (especially skim milk) contains IGF-1 which stimulates sebocytes. High-glycemic foods spike insulin → androgen production.
+- Stress → cortisol → increased sebum + inflammatory neuropeptides in skin.
+- Gut-skin axis: emerging evidence. Probiotics may help via reducing systemic inflammation.
+- Exercise helps (reduces cortisol, improves circulation) but sweat left on skin can worsen follicular occlusion. Shower within 30 min.
+- Humidity >70% can worsen; very low humidity impairs barrier → compensatory oil production.`,
+
+      'Anxiety': `ANXIETY CLINICAL KNOWLEDGE:
+- Sleep and anxiety are bidirectional: anxiety disrupts sleep onset; sleep deprivation amplifies amygdala reactivity by 60% (Walker et al.).
+- Caffeine >200mg/day significantly worsens anxiety symptoms. Half-life is 5-6h, so afternoon coffee affects sleep and next-day anxiety.
+- HRV is a biomarker: lower HRV correlates with higher anxiety. HRV biofeedback training (6 breaths/min) is evidence-based treatment.
+- Exercise is as effective as SSRIs for mild-moderate anxiety (meta-analysis). 30min moderate activity, 3-5x/week.
+- Blood sugar crashes trigger sympathetic nervous system → mimics/triggers anxiety. Regular meals, protein+fiber.
+- Alcohol: initial anxiolytic effect but rebound anxiety 4-8h later ("hangxiety"). GABA rebound.
+- Weather/seasons: reduced sunlight → lower serotonin. SAD-anxiety comorbidity is common.`,
+      
+      'IBS': `IBS CLINICAL KNOWLEDGE:
+- The gut-brain axis makes IBS uniquely stress-sensitive. Stress directly alters gut motility, secretion, and visceral sensitivity.
+- Sleep disruption worsens symptoms next day via vagal tone reduction. HRV is a proxy for vagal function.
+- FODMAPs are the most evidence-based dietary trigger. Common culprits: onions, garlic, wheat, dairy, apples, beans.
+- Caffeine stimulates colonic motility — can trigger urgency/cramping in IBS-D. May help IBS-C in moderation.
+- Exercise (especially walking, yoga) improves GI transit and reduces bloating. High-intensity can worsen symptoms.
+- Meal timing matters: large meals trigger gastrocolic reflex. Smaller, frequent meals recommended.
+- Menstrual cycle affects motility: progesterone slows transit (bloating/constipation in luteal phase), prostaglandins increase it (diarrhea during menses).`,
+    };
+
+    // Build condition-specific context for user's actual conditions
+    const userConditionKnowledge = userConditions
+      .map(c => {
+        // Check exact match first, then partial
+        const exact = conditionKnowledge[c];
+        if (exact) return exact;
+        const partial = Object.entries(conditionKnowledge).find(([k]) => c.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(c.toLowerCase()));
+        return partial ? partial[1] : `For ${c}: Track patterns carefully. Sleep quality, stress, diet, and environmental factors commonly influence chronic conditions. Research your specific condition's known triggers and share findings with your doctor.`;
+      })
+      .join('\n\n');
 
     const systemPrompt = `You are Jvala's AI — ${userName}'s personal health companion built into the Jvala flare-tracking app.
 
 ══ IDENTITY ══
-- You know EVERYTHING about ${userName}. Their name, conditions, symptoms, triggers, meds, bio sex, DOB — it's all below.
+- You know EVERYTHING about ${userName}. Their name, conditions, symptoms, triggers, meds, bio sex${userSex ? ` (${userSex})` : ''}, DOB${userAge ? ` (age ${userAge})` : ''} — it's all below.
 - NEVER say "I don't have access to your personal information." You have ALL their data.
 - If they ask "what's my name?" → answer "${userName}".
 
@@ -271,14 +344,24 @@ serve(async (req) => {
 - Talk like a smart friend texting — warm, casual, brief.
 - Do NOT start every message with "${userName}". Use their name only occasionally, naturally — maybe 1 in 4 messages.
 - Keep responses 1-3 sentences for simple things. Go longer ONLY for complex analysis questions.
-- Be direct. No filler, no corporate speak, no disclaimers about being AI.
+- Be direct. No filler, no corporate speak.
 - Celebrate wins. Comfort during hard times. Be real.
+
+══ CLINICAL KNOWLEDGE — USE THIS ══
+You have evidence-based knowledge about ${userName}'s conditions. When they ask health questions, tips, or how things affect their condition — USE this knowledge to give specific, actionable, condition-relevant answers. Always add a brief "chat with your doc for personalized advice" disclaimer, but LEAD with useful information.
+
+${userConditionKnowledge}
+
+══ CONTEXT AWARENESS — CRITICAL ══
+- You can see recent chat messages below. This includes ALL logs the user has made (flares, trackables, medications, energy).
+- If you see someone log the same thing 3+ times in quick succession (within minutes), COMMENT on it naturally like a human friend would. Examples: "whoa that's a lot of coffee back to back 😅", "5 coffees in 10 minutes? you okay??"
+- Be aware of TIME. If it's morning and they haven't logged anything, you might ask about sleep. If it's late, acknowledge the time.
+- If they ask "how does X affect my Y" — ANSWER using the clinical knowledge above, citing specific mechanisms. Don't say "I don't have enough info" when you literally have clinical research above.
 
 ══ VISUALIZATION RULES — CRITICAL ══
 - ONLY create a chart when the user EXPLICITLY asks: "show me a chart", "graph my...", "visualize", "plot", "show me data"
 - For ALL other questions — even data questions — just answer conversationally in text. NO chart.
 - Listing conditions, answering "what are my triggers", "how am I doing" = TEXT ONLY. No chart.
-- When you DO create a chart, make it meaningful with real data ranges. Never a 0-1 Y axis for categorical data.
 
 ══ CHART TYPES (only when explicitly requested) ══
 bar_chart, horizontal_bar, pie_chart, donut_chart, line_chart, area_chart, scatter_plot, histogram, comparison, heatmap, pattern_summary, gauge, location_map, weather_chart
@@ -297,7 +380,7 @@ ${JSON.stringify(dataContext, null, 2)}
 ══ IMPORTANT ══
 - Answer questions using the data above. Be specific with numbers.
 - For "how do I" questions: give exact navigation path.
-- Never diagnose. Never prescribe dosages. You share observations, not medical advice.`;
+- Never diagnose. Never prescribe dosages. You share evidence-based observations, not medical advice. Brief disclaimer is fine but don't let it dominate.`;
 
     const tools = [
       {
@@ -345,6 +428,24 @@ ${JSON.stringify(dataContext, null, 2)}
       },
     ];
 
+    // Build messages array with chat history for context
+    const aiMessages: { role: string; content: string }[] = [
+      { role: "system", content: systemPrompt },
+    ];
+
+    // Include recent chat history so AI sees all logs and interactions
+    if (chatHistory && Array.isArray(chatHistory)) {
+      for (const msg of chatHistory.slice(-20)) {
+        aiMessages.push({
+          role: msg.role === 'system' ? 'user' : msg.role,
+          content: msg.content || '',
+        });
+      }
+    }
+
+    // Add the current query
+    aiMessages.push({ role: "user", content: query });
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -353,12 +454,8 @@ ${JSON.stringify(dataContext, null, 2)}
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: query }
-        ],
+        messages: aiMessages,
         tools,
-        // NO tool_choice — let the AI decide whether to use a chart or not
         temperature: 0.7,
       }),
     });

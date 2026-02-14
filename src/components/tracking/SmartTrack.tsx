@@ -564,8 +564,17 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     return { reaction: '', text: shortTexts[Math.floor(Math.random() * shortTexts.length)] };
   };
 
+  const countRecentSameType = (label: string): number => {
+    const now = Date.now();
+    return messages.filter(m => {
+      if (m.role !== 'user') return false;
+      if (now - m.timestamp.getTime() > 2 * 60 * 60 * 1000) return false;
+      return m.content.toLowerCase().includes(label.toLowerCase());
+    }).length;
+  };
+
   const handleFluidLog = async (symptom: string, severity: string) => {
-    const { reaction, text: responseText } = getResponseStrategy(symptom, 0);
+    const { reaction, text: responseText } = getResponseStrategy(symptom, countRecentSameType(symptom));
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
@@ -611,7 +620,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   };
 
   const handleMedicationLog = async (medicationName: string) => {
-    const { reaction, text: responseText } = getResponseStrategy('medication', 0);
+    const { reaction, text: responseText } = getResponseStrategy(medicationName, countRecentSameType(medicationName));
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
@@ -669,7 +678,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
 
   const handleEnergyLog = async (level: 'low' | 'moderate' | 'high') => {
     const labels = { low: 'Low energy', moderate: 'Moderate energy', high: 'High energy' };
-    const { reaction, text: responseText } = getResponseStrategy('energy', 0);
+    const { reaction, text: responseText } = getResponseStrategy('energy', countRecentSameType('energy'));
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
@@ -858,7 +867,15 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
           }
         }),
         supabase.functions.invoke('limitless-ai', {
-          body: { query: text, userId, clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+          body: { 
+            query: text, 
+            userId, 
+            clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            chatHistory: messages.slice(-20).map(m => ({
+              role: m.role === 'system' ? 'assistant' : m.role,
+              content: m.content + (m.entryData ? ` [LOG: ${m.entryData.type}${m.entryData.severity ? ' ' + m.entryData.severity : ''}]` : ''),
+            })),
+          },
         })
       ]);
 
