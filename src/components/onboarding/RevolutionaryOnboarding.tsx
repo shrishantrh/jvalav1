@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { CONDITIONS, Condition } from "@/data/conditions";
+import { CONDITIONS, Condition, ALL_SYMPTOMS, ALL_TRIGGERS } from "@/data/conditions";
 import { 
   ChevronRight, 
   Search,
@@ -17,7 +17,9 @@ import {
   Calendar,
   User2,
   Plus,
-  X
+  X,
+  AlertCircle,
+  Zap
 } from "lucide-react";
 import jvalaLogo from "@/assets/jvala-logo.png";
 import { cn } from "@/lib/utils";
@@ -29,6 +31,8 @@ interface OnboardingData {
   dateOfBirth: string;
   biologicalSex: string;
   firstName: string;
+  knownSymptoms: string[];
+  knownTriggers: string[];
   trackingItems: string[];
   dataSources: string[];
   menstrualApp: string | null;
@@ -41,7 +45,7 @@ interface RevolutionaryOnboardingProps {
   onComplete: (data: OnboardingData) => void;
 }
 
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 
 // Animated dot background for hero
 const FloatingOrbs = () => (
@@ -55,6 +59,25 @@ const FloatingOrbs = () => (
   </div>
 );
 
+// Helper to calculate age from DOB string
+const calculateAge = (dob: string): number | null => {
+  if (!dob) return null;
+  const birth = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+};
+
+// Get today's date string for max attribute
+const getTodayString = () => {
+  const today = new Date();
+  return today.toISOString().split('T')[0];
+};
+
 export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingProps) => {
   const [step, setStep] = useState(0);
   const [data, setData] = useState<OnboardingData>({
@@ -63,6 +86,8 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
     dateOfBirth: "",
     biologicalSex: "",
     firstName: "",
+    knownSymptoms: [],
+    knownTriggers: [],
     trackingItems: ['symptoms_flares'],
     dataSources: [],
     menstrualApp: null,
@@ -75,7 +100,9 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
   const [analyzeStep, setAnalyzeStep] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const progress = ((step + 1) / TOTAL_STEPS) * 100;
+  const age = useMemo(() => calculateAge(data.dateOfBirth), [data.dateOfBirth]);
+  const isUnder13 = age !== null && age < 13;
+  const isFutureDOB = data.dateOfBirth && new Date(data.dateOfBirth) > new Date();
 
   const handleNext = () => {
     haptics.selection();
@@ -95,7 +122,6 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
     setIsAnalyzing(true);
     haptics.success();
 
-    // Animate through steps
     const steps = [0, 1, 2, 3, 4];
     for (const s of steps) {
       await new Promise(resolve => setTimeout(resolve, 600));
@@ -103,7 +129,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
     }
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    onComplete(data);
+    onComplete({ ...data, age });
   };
 
   const toggleCondition = (conditionId: string) => {
@@ -119,10 +145,8 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
   const addCustomCondition = () => {
     const trimmed = conditionSearch.trim();
     if (!trimmed) return;
-    // Check if already exists in CONDITIONS list
     const existsInList = CONDITIONS.some(c => c.name.toLowerCase() === trimmed.toLowerCase());
     if (existsInList) return;
-    // Check if already custom-added
     if (data.customConditions.some(c => c.toLowerCase() === trimmed.toLowerCase())) return;
 
     haptics.selection();
@@ -141,6 +165,26 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
     }));
   };
 
+  const toggleSymptom = (symptom: string) => {
+    haptics.selection();
+    setData(prev => ({
+      ...prev,
+      knownSymptoms: prev.knownSymptoms.includes(symptom)
+        ? prev.knownSymptoms.filter(s => s !== symptom)
+        : [...prev.knownSymptoms, symptom]
+    }));
+  };
+
+  const toggleTrigger = (trigger: string) => {
+    haptics.selection();
+    setData(prev => ({
+      ...prev,
+      knownTriggers: prev.knownTriggers.includes(trigger)
+        ? prev.knownTriggers.filter(t => t !== trigger)
+        : [...prev.knownTriggers, trigger]
+    }));
+  };
+
   const filteredConditions = conditionSearch
     ? CONDITIONS.filter(c =>
         c.name.toLowerCase().includes(conditionSearch.toLowerCase()) ||
@@ -150,13 +194,27 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
 
   const totalSelected = data.conditions.length + data.customConditions.length;
 
+  // Get AI-suggested symptoms/triggers based on selected conditions
+  const suggestedSymptoms = useMemo(() => {
+    const conditionData = CONDITIONS.filter(c => data.conditions.includes(c.id));
+    return [...new Set(conditionData.flatMap(c => c.commonSymptoms))];
+  }, [data.conditions]);
+
+  const suggestedTriggers = useMemo(() => {
+    const conditionData = CONDITIONS.filter(c => data.conditions.includes(c.id));
+    return [...new Set(conditionData.flatMap(c => c.commonTriggers))];
+  }, [data.conditions]);
+
   const canProceed = () => {
     switch (step) {
-      case 0: return true; // Welcome is always passable
+      case 0: return true;
       case 1: return data.firstName.trim().length > 0;
       case 2: return totalSelected > 0;
-      case 3: return true; // Demographics are optional
-      case 4: return true; // Permissions are optional
+      case 3: // Quick Profile - block if DOB entered and under 13 or future
+        if (data.dateOfBirth && (isUnder13 || isFutureDOB)) return false;
+        return true;
+      case 4: return true; // Symptoms/triggers optional
+      case 5: return true; // Permissions optional
       default: return true;
     }
   };
@@ -181,7 +239,6 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
         style={{ background: 'var(--gradient-background)', paddingTop: 'env(safe-area-inset-top)' }}>
         <FloatingOrbs />
         <div className="text-center space-y-10 relative z-10 animate-in fade-in-0 zoom-in-95 duration-500">
-          {/* Pulsing logo */}
           <div className="relative w-24 h-24 mx-auto">
             <div className="absolute inset-0 bg-gradient-primary rounded-3xl opacity-30 animate-pulse" />
             <div className="absolute inset-0 bg-gradient-primary rounded-3xl opacity-15 animate-ping" style={{ animationDuration: '2s' }} />
@@ -230,7 +287,6 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
           <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-bottom-4 duration-700">
             <FloatingOrbs />
             <div className="relative z-10 text-center space-y-8 w-full">
-              {/* Logo with 3D glass effect */}
               <div className="relative w-28 h-28 mx-auto">
                 <div className="absolute inset-0 bg-gradient-primary rounded-[2rem] rotate-6 opacity-20" />
                 <div className="absolute inset-0 bg-gradient-primary rounded-[2rem] -rotate-3 opacity-30" />
@@ -248,7 +304,6 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                 </p>
               </div>
 
-              {/* Value props in glass cards */}
               <div className="space-y-3 pt-2">
                 {[
                   { icon: Brain, title: "Learns Your Patterns", desc: "AI connects the dots you can't see" },
@@ -321,7 +376,6 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               </p>
             </div>
 
-            {/* Search with "add custom" */}
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -344,7 +398,6 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               )}
             </div>
 
-            {/* Selected tags */}
             {totalSelected > 0 && (
               <div className="flex flex-wrap gap-2">
                 {data.conditions.map(id => {
@@ -373,7 +426,6 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               </div>
             )}
 
-            {/* Condition list */}
             <div className="flex-1 max-h-[340px] overflow-y-auto space-y-1 pr-1 scrollbar-hide">
               {filteredConditions.map((condition) => {
                 const isSelected = data.conditions.includes(condition.id);
@@ -402,7 +454,6 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                 );
               })}
 
-              {/* Show "add custom" option when searching */}
               {conditionSearch.trim() && !CONDITIONS.some(c => c.name.toLowerCase() === conditionSearch.toLowerCase()) && (
                 <button
                   onClick={addCustomCondition}
@@ -421,7 +472,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
           </div>
         );
 
-      // ─── Step 3: Quick Profile ─────────────────────────────────
+      // ─── Step 3: Quick Profile (DOB + Biological Sex) ─────────────────
       case 3:
         return (
           <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
@@ -447,9 +498,22 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                 <Input
                   type="date"
                   value={data.dateOfBirth}
+                  max={getTodayString()}
                   onChange={(e) => setData(prev => ({ ...prev, dateOfBirth: e.target.value }))}
                   className="h-12 bg-transparent"
                 />
+                {isFutureDOB && (
+                  <div className="flex items-center gap-2 text-destructive text-xs">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    <span>Date of birth cannot be in the future.</span>
+                  </div>
+                )}
+                {isUnder13 && !isFutureDOB && (
+                  <div className="flex items-center gap-2 text-destructive text-xs">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    <span>You must be at least 13 years old to use Jvala (COPPA).</span>
+                  </div>
+                )}
               </div>
 
               {/* Biological Sex */}
@@ -463,11 +527,10 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                     <p className="text-[11px] text-muted-foreground">Affects hormonal patterns, autoimmune risk factors</p>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-3">
                   {[
-                    { value: 'female', label: 'Female', icon: '♀' },
-                    { value: 'male', label: 'Male', icon: '♂' },
-                    { value: 'other', label: 'Other', icon: '⚧' },
+                    { value: 'female', label: 'Female' },
+                    { value: 'male', label: 'Male' },
                   ].map(option => (
                     <button
                       key={option.value}
@@ -476,14 +539,13 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                         setData(prev => ({ ...prev, biologicalSex: option.value }));
                       }}
                       className={cn(
-                        "py-3 rounded-xl text-center transition-all press-effect border",
+                        "py-3.5 rounded-xl text-center transition-all press-effect border text-sm font-medium",
                         data.biologicalSex === option.value
-                          ? 'bg-primary/15 border-primary/30 font-semibold'
-                          : 'bg-card/50 border-border/20 hover:border-primary/20'
+                          ? 'bg-primary/15 border-primary/30 text-foreground'
+                          : 'bg-card/50 border-border/20 hover:border-primary/20 text-muted-foreground'
                       )}
                     >
-                      <span className="text-lg block">{option.icon}</span>
-                      <span className="text-xs mt-1 block">{option.label}</span>
+                      {option.label}
                     </button>
                   ))}
                 </div>
@@ -496,8 +558,94 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
           </div>
         );
 
-      // ─── Step 4: Permissions ─────────────────────────────────
+      // ─── Step 4: Known Symptoms & Triggers (AI-suggested) ─────────────
       case 4:
+        return (
+          <div className="space-y-5 animate-in fade-in-0 slide-in-from-right-4 duration-500 flex-1">
+            <div className="text-center space-y-2">
+              <div className="flex items-center justify-center gap-2">
+                <h2 className="text-2xl font-bold">Symptoms & Triggers</h2>
+                <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">Recommended</Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Based on your conditions, we've suggested common ones. Selecting these helps your AI give better insights from day one.
+              </p>
+            </div>
+
+            {/* Symptoms section */}
+            {suggestedSymptoms.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-primary" />
+                  <h3 className="text-sm font-semibold">Common Symptoms</h3>
+                  <span className="text-[10px] text-muted-foreground">({data.knownSymptoms.length} selected)</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {suggestedSymptoms.map((symptom) => (
+                    <button
+                      key={symptom}
+                      onClick={() => toggleSymptom(symptom)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-full text-xs transition-all press-effect border",
+                        data.knownSymptoms.includes(symptom)
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-card border-primary/20 hover:border-primary/40'
+                      )}
+                    >
+                      {symptom}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Triggers section */}
+            {suggestedTriggers.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-primary" />
+                  <h3 className="text-sm font-semibold">Common Triggers</h3>
+                  <span className="text-[10px] text-muted-foreground">({data.knownTriggers.length} selected)</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {suggestedTriggers.map((trigger) => (
+                    <button
+                      key={trigger}
+                      onClick={() => toggleTrigger(trigger)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-full text-xs transition-all press-effect border",
+                        data.knownTriggers.includes(trigger)
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-card border-primary/20 hover:border-primary/40'
+                      )}
+                    >
+                      {trigger}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {suggestedSymptoms.length === 0 && suggestedTriggers.length === 0 && (
+              <div className="glass-card text-center py-6 space-y-2">
+                <Sparkles className="w-8 h-8 text-primary mx-auto" />
+                <p className="text-sm text-muted-foreground">
+                  Your AI will learn your symptoms and triggers as you log — no setup needed for custom conditions.
+                </p>
+              </div>
+            )}
+
+            <div className="glass-card flex items-start gap-3 bg-primary/5">
+              <Sparkles className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                These are AI-suggested based on your conditions. You can always add more later in Settings. Selecting them helps personalize your experience immediately.
+              </p>
+            </div>
+          </div>
+        );
+
+      // ─── Step 5: Permissions ─────────────────────────────────
+      case 5:
         return (
           <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
             <div className="w-full max-w-sm space-y-6">
@@ -508,19 +656,8 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                 </p>
               </div>
 
-              {/* Location */}
-              <button
-                onClick={async () => {
-                  haptics.selection();
-                  try {
-                    const { getCurrentLocation } = await import("@/services/weatherService");
-                    await getCurrentLocation();
-                  } catch (e) {
-                    console.log('Location permission not granted');
-                  }
-                }}
-                className="w-full glass-card text-left flex items-center gap-4 press-effect"
-              >
+              {/* Location - informational card, not a button */}
+              <div className="w-full glass-card flex items-center gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-gradient-primary flex items-center justify-center flex-shrink-0">
                   <MapPin className="w-6 h-6 text-primary-foreground" />
                 </div>
@@ -530,22 +667,10 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                     Track weather, air quality, pollen & barometric pressure — key flare triggers for many conditions.
                   </p>
                 </div>
-                <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-              </button>
+              </div>
 
-              {/* Health Data */}
-              <button
-                onClick={async () => {
-                  haptics.selection();
-                  try {
-                    const { fetchHealthData } = await import("@/services/appleHealthService");
-                    await fetchHealthData();
-                  } catch (e) {
-                    console.log('Health data permission not granted');
-                  }
-                }}
-                className="w-full glass-card text-left flex items-center gap-4 press-effect"
-              >
+              {/* Health Data - informational card, not a button */}
+              <div className="w-full glass-card flex items-center gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-gradient-accent flex items-center justify-center flex-shrink-0">
                   <Activity className="w-6 h-6 text-accent-foreground" />
                 </div>
@@ -555,8 +680,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                     Heart rate, HRV, sleep & steps from Apple Health or wearables. Your AI correlates these with flares.
                   </p>
                 </div>
-                <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-              </button>
+              </div>
 
               {/* Privacy note */}
               <div className="glass-card flex items-start gap-3 bg-primary/5">
@@ -631,11 +755,11 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               : "bg-muted text-muted-foreground"
           )}
         >
-          {step === 0 ? "Let's Get Started" : step === TOTAL_STEPS - 1 ? "Launch Jvala ✨" : step === 4 ? "Skip & Continue" : "Continue"}
+          {step === 0 ? "Let's Get Started" : step === TOTAL_STEPS - 1 ? "Launch Jvala ✨" : step === 4 ? "Continue" : "Continue"}
           <ChevronRight className="w-5 h-5" />
         </button>
 
-        {step === 3 && (
+        {(step === 3 || step === 4) && (
           <button
             onClick={handleNext}
             className="w-full mt-2 py-2 text-sm text-muted-foreground"
