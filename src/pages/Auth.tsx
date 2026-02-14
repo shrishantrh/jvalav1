@@ -286,16 +286,17 @@ const Auth = () => {
   };
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-background max-w-md mx-auto overflow-y-auto scrollbar-hide">
-      {/* Ambient gradient orbs */}
-      <div className="absolute top-[-100px] left-1/2 -translate-x-1/2 w-[400px] h-[400px] rounded-full bg-primary/8 blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-[-50px] right-[-50px] w-[250px] h-[250px] rounded-full bg-primary/5 blur-[80px] pointer-events-none" />
+    <div className="fixed inset-0 flex flex-col max-w-md mx-auto overflow-y-auto scrollbar-hide" style={{ background: 'linear-gradient(170deg, hsl(280 20% 97%) 0%, hsl(290 15% 95%) 50%, hsl(275 18% 96%) 100%)' }}>
+      {/* Orchid ambient gradient orbs */}
+      <div className="absolute top-[-100px] left-1/2 -translate-x-1/2 w-[400px] h-[400px] rounded-full blur-[100px] pointer-events-none" style={{ background: 'hsl(280 60% 70% / 0.1)' }} />
+      <div className="absolute bottom-[-50px] right-[-50px] w-[250px] h-[250px] rounded-full blur-[80px] pointer-events-none" style={{ background: 'hsl(300 50% 65% / 0.08)' }} />
+      <div className="absolute top-[30%] left-[-80px] w-[200px] h-[200px] rounded-full blur-[90px] pointer-events-none" style={{ background: 'hsl(270 55% 60% / 0.06)' }} />
 
       <div className="flex-1 flex flex-col px-6 pt-[max(env(safe-area-inset-top),2rem)] pb-6 relative z-10">
         {/* Logo — compact */}
         <div className="flex flex-col items-center mb-6 animate-in fade-in-0 zoom-in-95 duration-700">
           <div className="relative w-16 h-16 mb-3">
-            <div className="absolute -inset-1.5 rounded-2xl bg-gradient-to-br from-primary/15 to-transparent blur-md" />
+            <div className="absolute -inset-1.5 rounded-2xl blur-md" style={{ background: 'linear-gradient(135deg, hsl(280 55% 65% / 0.2), transparent)' }} />
             <div className="relative glass-card w-full h-full flex items-center justify-center !p-3 shadow-3d !rounded-2xl">
               <img src={jvalaLogo} alt="Jvala" className="w-full h-full object-contain" />
             </div>
@@ -445,7 +446,7 @@ const Auth = () => {
                 <button
                   type="button"
                   onClick={() => setShowForgotPassword(true)}
-                  className="text-[11px] text-primary/80 hover:text-primary font-medium transition-colors"
+                  className="text-[11px] font-medium transition-colors" style={{ color: 'hsl(280 55% 55%)' }}
                 >
                   Forgot password?
                 </button>
@@ -465,7 +466,7 @@ const Auth = () => {
                     <button
                       type="button"
                       onClick={() => setShowTerms(true)}
-                      className="text-primary/80 hover:text-primary font-medium transition-colors"
+                      className="font-medium transition-colors" style={{ color: 'hsl(280 55% 55%)' }}
                     >
                       Terms of Service
                     </button>
@@ -482,7 +483,7 @@ const Auth = () => {
                     <button
                       type="button"
                       onClick={() => setShowPrivacy(true)}
-                      className="text-primary/80 hover:text-primary font-medium transition-colors"
+                      className="font-medium transition-colors" style={{ color: 'hsl(280 55% 55%)' }}
                     >
                       Privacy Policy
                     </button>
@@ -493,20 +494,24 @@ const Auth = () => {
             )}
 
             {/* Submit */}
-            <Button
+            <button
               type="submit"
-              className="w-full h-11 shadow-3d-primary text-sm font-semibold"
+              className="w-full h-11 rounded-xl text-sm font-semibold text-white disabled:opacity-50 active:scale-[0.97] transition-all duration-200"
               disabled={loading || !canSubmit}
+              style={{
+                background: 'linear-gradient(135deg, hsl(280 55% 58%) 0%, hsl(300 50% 52%) 100%)',
+                boxShadow: '0 4px 16px hsl(280 55% 58% / 0.3), inset 0 1px 0 hsl(280 60% 75% / 0.3)',
+              }}
             >
               {loading ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin inline" />
                   Please wait...
                 </>
               ) : (
                 isSignUp ? "Create Account" : "Sign In"
               )}
-            </Button>
+            </button>
 
             {/* Divider */}
             <div className="relative">
