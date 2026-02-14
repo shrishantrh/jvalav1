@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback } from "react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Shield } from "lucide-react";
 import jvalaLogo from "@/assets/jvala-logo.png";
 
@@ -65,12 +64,10 @@ export const TermsAcceptanceGate = ({ onAccept }: TermsAcceptanceGateProps) => {
 
       {/* Scrollable terms content */}
       <div className="flex-1 mx-5 mb-3 rounded-2xl overflow-hidden" style={{ background: "hsl(0 0% 100% / 0.95)", border: "1px solid hsl(270 30% 90%)" }}>
-        <ScrollArea className="h-full" ref={viewportRef as any}>
           <div
             ref={viewportRef}
             className="h-full overflow-y-auto px-5 py-5 space-y-6"
             onScroll={handleScroll}
-            style={{ maxHeight: "calc(100vh - 200px)" }}
           >
             {/* Terms of Service */}
             <div>
@@ -196,14 +193,13 @@ export const TermsAcceptanceGate = ({ onAccept }: TermsAcceptanceGateProps) => {
             </Section>
 
             <Section title="10. Contact">
-              For questions, contact us at privacy@jvala.tech or visit https://jvala.tech.
+              For questions, contact us at support@jvala.tech or visit https://jvala.tech.
             </Section>
 
             <p className="text-[10px] text-center pt-4 pb-2" style={{ color: "hsl(270 20% 60%)" }}>
               © {new Date().getFullYear()} Jvala. All rights reserved.
             </p>
           </div>
-        </ScrollArea>
       </div>
 
       {/* Accept button */}
