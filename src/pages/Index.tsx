@@ -51,6 +51,9 @@ interface UserProfile {
   physician_phone: string | null;
   physician_practice: string | null;
   onboarding_completed: boolean;
+  full_name: string | null;
+  date_of_birth: string | null;
+  biological_sex: string | null;
 }
 
 const Index = () => {
@@ -144,7 +147,7 @@ const Index = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('conditions, known_symptoms, known_triggers, physician_name, physician_email, physician_phone, physician_practice, onboarding_completed, metadata')
+        .select('conditions, known_symptoms, known_triggers, physician_name, physician_email, physician_phone, physician_practice, onboarding_completed, metadata, full_name, date_of_birth, biological_sex')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -164,6 +167,9 @@ const Index = () => {
           physician_phone: data.physician_phone,
           physician_practice: data.physician_practice,
           onboarding_completed: data.onboarding_completed || false,
+          full_name: (data as any).full_name || null,
+          date_of_birth: (data as any).date_of_birth || null,
+          biological_sex: (data as any).biological_sex || null,
         });
 
         if (!data.onboarding_completed) {
@@ -193,6 +199,14 @@ const Index = () => {
 
       const knownSymptoms = data.knownSymptoms || [];
       const knownTriggers = data.knownTriggers || [];
+      const medications = data.medications || [];
+
+      // Store medications in metadata
+      const medicationDetails = medications.map((name: string) => ({
+        name,
+        dosage: 'standard',
+        frequency: 'as-needed',
+      }));
 
       const { error } = await supabase
         .from('profiles')
@@ -204,6 +218,7 @@ const Index = () => {
           date_of_birth: data.dateOfBirth || null,
           biological_sex: data.biologicalSex || null,
           onboarding_completed: true,
+          metadata: { medications: medicationDetails },
         })
         .eq('id', user.id);
 
@@ -213,12 +228,15 @@ const Index = () => {
         conditions: allConditions,
         known_symptoms: knownSymptoms,
         known_triggers: knownTriggers,
-        medications: [],
+        medications: medicationDetails,
         physician_name: null,
         physician_email: null,
         physician_phone: null,
         physician_practice: null,
         onboarding_completed: true,
+        full_name: data.firstName || null,
+        date_of_birth: data.dateOfBirth || null,
+        biological_sex: data.biologicalSex || null,
       });
 
       setShowOnboarding(false);
@@ -511,14 +529,8 @@ const Index = () => {
 
   // Show onboarding if needed
   if (showOnboarding && !isLoadingProfile) {
-    return <RevolutionaryOnboarding onComplete={(data) => {
-      handleOnboardingComplete({
-        conditions: data.conditions,
-        symptoms: [],
-        triggers: [],
-        enableReminders: data.enableReminders,
-        reminderTime: data.reminderTime,
-      });
+    return <RevolutionaryOnboarding onComplete={(onboardingData) => {
+      handleOnboardingComplete(onboardingData);
     }} />;
   }
 
@@ -572,6 +584,9 @@ const Index = () => {
               userConditions={userProfile?.conditions || []}
               userTriggers={userProfile?.known_triggers || []}
               userMedications={userProfile?.medications || []}
+              userName={userProfile?.full_name}
+              userDOB={userProfile?.date_of_birth}
+              userBiologicalSex={userProfile?.biological_sex}
               recentEntries={entries}
               userId={user.id}
               onOpenDetails={() => setShowDetailedEntry(true)}
