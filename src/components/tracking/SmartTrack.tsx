@@ -1160,8 +1160,41 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                     : "bg-gradient-to-b from-white/25 to-transparent"
                 )}
               />
-              <p className="text-sm whitespace-pre-wrap relative z-10">{msg.content}</p>
-              {msg.visualization && <DynamicChartRenderer chart={msg.visualization} />}
+              {(() => {
+                // Parse chart JSON from AI text if no visualization was provided
+                let displayContent = msg.content;
+                let inlineChart: DynamicChart | null = msg.visualization || null;
+                
+                if (!inlineChart && msg.role === 'assistant' && displayContent) {
+                  // Match ```json { "chart_type": ... } ``` or bare { "chart_type": ... }
+                  const jsonBlockRegex = /```(?:json)?\s*(\{[\s\S]*?"chart_type"[\s\S]*?\})\s*```/;
+                  const bareJsonRegex = /(\{[\s\S]*?"chart_type"[\s\S]*?"data"\s*:\s*\[[\s\S]*?\]\s*\})/;
+                  const match = displayContent.match(jsonBlockRegex) || displayContent.match(bareJsonRegex);
+                  
+                  if (match) {
+                    try {
+                      const parsed = JSON.parse(match[1]);
+                      if (parsed.chart_type && parsed.data) {
+                        inlineChart = {
+                          type: parsed.chart_type,
+                          title: parsed.title || '',
+                          data: parsed.data,
+                          config: parsed.config,
+                        };
+                        // Strip the JSON block from displayed text
+                        displayContent = displayContent.replace(match[0], '').trim();
+                      }
+                    } catch { /* ignore parse errors */ }
+                  }
+                }
+                
+                return (
+                  <>
+                    <p className="text-sm whitespace-pre-wrap relative z-10">{displayContent}</p>
+                    {inlineChart && <DynamicChartRenderer chart={inlineChart} />}
+                  </>
+                );
+              })()}
               
               {/* Research badge */}
               {msg.wasResearched && msg.role === 'assistant' && (
