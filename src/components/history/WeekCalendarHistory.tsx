@@ -130,8 +130,14 @@ export const WeekCalendarHistory = ({
       case 'moderate': return 'bg-orange-500';
       case 'mild': return 'bg-amber-500';
       case 'none': return 'bg-emerald-500';
+      case 'trackable': return 'bg-violet-500';
       default: return '';
     }
+  };
+
+  // Check if a day has trackable entries (non-flare custom types)
+  const hasTrackablesForDay = (day: Date): boolean => {
+    return getEntriesForDay(day).some(e => e.type?.startsWith('trackable:'));
   };
 
   return (
