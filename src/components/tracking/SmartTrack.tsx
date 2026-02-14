@@ -578,7 +578,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     const cleanValue = value 
       ? value.replace(/^Logged\s+/i, '').replace(new RegExp(`^${trackableLabel}:\\s*`, 'i'), '')
       : null;
-    const displayText = cleanValue || `Logged ${trackableLabel}`;
+    const displayText = cleanValue || trackableLabel;
     
     // Find the trackable config for icon/color metadata
     const trackable = customTrackables.find(t => t.label === trackableLabel);
@@ -613,10 +613,50 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
 
     onSave(entry);
 
+    // ── Dynamic emoji reaction system ──
+    // Count recent logs of same trackable in last 2 hours
+    const recentSameType = messages.filter(m => {
+      if (m.role !== 'user') return false;
+      const age = Date.now() - m.timestamp.getTime();
+      if (age > 2 * 60 * 60 * 1000) return false; // 2 hours
+      const content = m.content.toLowerCase();
+      return content.includes(trackableLabel.toLowerCase());
+    }).length; // includes the one we just added
+
+    // AI-like reaction logic — varies by count and randomness
+    let reactionEmoji = '';
+    let reactionText = '';
+    const rand = Math.random();
+    
+    if (recentSameType >= 3) {
+      // 3rd+ time — comment on the pattern
+      const patternReactions = [
+        `whoa, ${trackableLabel} #${recentSameType + 1} today 👀`,
+        `that's a lot of ${trackableLabel.toLowerCase()} — ${recentSameType + 1}x in the last couple hours`,
+        `${recentSameType + 1}th ${trackableLabel.toLowerCase()} — keep an eye on this pattern`,
+      ];
+      reactionText = patternReactions[Math.floor(Math.random() * patternReactions.length)];
+    } else if (recentSameType >= 2) {
+      // 2nd time — subtle notice
+      const doubleReactions = ['‼️', '👀', '😏'];
+      reactionEmoji = doubleReactions[Math.floor(Math.random() * doubleReactions.length)];
+    } else if (rand < 0.6) {
+      // First time — sometimes just react with an emoji (60% chance)
+      const casualReactions = ['👍', '💪', '🔥', '👏', '✌️', '💯'];
+      reactionEmoji = casualReactions[Math.floor(Math.random() * casualReactions.length)];
+    }
+    // 40% of first-time logs get no reaction, just the confirmation
+
+    const confirmContent = reactionText 
+      ? reactionText 
+      : reactionEmoji 
+        ? reactionEmoji 
+        : '';
+
     const confirmMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
       role: 'assistant',
-      content: `✓ ${trackableLabel} — ${cleanValue || 'logged'}`,
+      content: confirmContent,
       timestamp: new Date(),
       entryData: entry,
     };
@@ -910,7 +950,16 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             {msg.entryData && !msg.updateInfo && (
               <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
                 <Check className="w-3 h-3 text-green-500" />
-                <span>{msg.entryData.type} logged</span>
+                <span>{
+                  msg.entryData.type?.startsWith('trackable:') 
+                    ? (() => {
+                        try {
+                          const meta = JSON.parse(msg.entryData.note || '{}');
+                          return `${meta.trackableLabel || msg.entryData.type.replace('trackable:', '')} logged`;
+                        } catch { return msg.entryData.type.replace('trackable:', '').replace(/_/g, ' ') + ' logged'; }
+                      })()
+                    : `${msg.entryData.type} logged`
+                }{msg.entryData.severity ? ` • ${msg.entryData.severity}` : ''}</span>
               </div>
             )}
             
