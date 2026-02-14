@@ -286,42 +286,43 @@ const Auth = () => {
   };
 
   return (
-    <div className="fixed inset-0 flex flex-col max-w-md mx-auto overflow-y-auto scrollbar-hide" style={{ background: 'linear-gradient(170deg, hsl(280 20% 97%) 0%, hsl(290 15% 95%) 50%, hsl(275 18% 96%) 100%)' }}>
-      {/* Orchid ambient gradient orbs */}
-      <div className="absolute top-[-100px] left-1/2 -translate-x-1/2 w-[400px] h-[400px] rounded-full blur-[100px] pointer-events-none" style={{ background: 'hsl(280 60% 70% / 0.1)' }} />
-      <div className="absolute bottom-[-50px] right-[-50px] w-[250px] h-[250px] rounded-full blur-[80px] pointer-events-none" style={{ background: 'hsl(300 50% 65% / 0.08)' }} />
-      <div className="absolute top-[30%] left-[-80px] w-[200px] h-[200px] rounded-full blur-[90px] pointer-events-none" style={{ background: 'hsl(270 55% 60% / 0.06)' }} />
+    <div className="fixed inset-0 flex flex-col max-w-md mx-auto overflow-y-auto scrollbar-hide" style={{ background: 'linear-gradient(155deg, hsl(330 65% 82%) 0%, hsl(310 55% 78%) 35%, hsl(285 50% 75%) 65%, hsl(270 45% 70%) 100%)' }}>
+      {/* Orchid ambient gradient orbs — more saturated on darker bg */}
+      <div className="absolute top-[-80px] left-1/2 -translate-x-1/2 w-[450px] h-[450px] rounded-full blur-[120px] pointer-events-none" style={{ background: 'hsl(320 70% 70% / 0.35)' }} />
+      <div className="absolute bottom-[-40px] right-[-40px] w-[280px] h-[280px] rounded-full blur-[90px] pointer-events-none" style={{ background: 'hsl(280 60% 60% / 0.25)' }} />
+      <div className="absolute top-[40%] left-[-60px] w-[220px] h-[220px] rounded-full blur-[100px] pointer-events-none" style={{ background: 'hsl(340 65% 75% / 0.2)' }} />
 
-      <div className="flex-1 flex flex-col px-6 pt-[max(env(safe-area-inset-top),2rem)] pb-6 relative z-10">
+      <div className="flex-1 flex flex-col px-6 pt-[max(env(safe-area-inset-top),2rem)] pb-6 relative z-10" style={{ fontFamily: "'Playwrite NZ', cursive" }}>
         {/* Logo — compact */}
         <div className="flex flex-col items-center mb-6 animate-in fade-in-0 zoom-in-95 duration-700">
           <div className="relative w-16 h-16 mb-3">
-            <div className="absolute -inset-1.5 rounded-2xl blur-md" style={{ background: 'linear-gradient(135deg, hsl(280 55% 65% / 0.2), transparent)' }} />
-            <div className="relative glass-card w-full h-full flex items-center justify-center !p-3 shadow-3d !rounded-2xl">
+            <div className="absolute -inset-2 rounded-2xl blur-lg" style={{ background: 'linear-gradient(135deg, hsl(330 70% 85% / 0.5), hsl(280 60% 70% / 0.3))' }} />
+            <div className="relative w-full h-full flex items-center justify-center !p-3 !rounded-2xl" style={{ background: 'hsl(0 0% 100% / 0.85)', backdropFilter: 'blur(20px)', boxShadow: '0 8px 32px hsl(330 60% 50% / 0.2), inset 0 1px 0 hsl(0 0% 100% / 0.6)' }}>
               <img src={jvalaLogo} alt="Jvala" className="w-full h-full object-contain" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'hsl(0 0% 100% / 0.95)', fontFamily: "'Playwrite NZ', cursive", fontWeight: 400 }}>
             {isSignUp ? "Create Account" : "Welcome Back"}
           </h1>
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-xs mt-1" style={{ color: 'hsl(0 0% 100% / 0.7)', fontFamily: "'Inter', sans-serif" }}>
             {isSignUp ? "Start your health journey" : "Sign in to continue"}
           </p>
         </div>
 
-        {/* Auth form card */}
-        <div className="w-full glass-card !rounded-3xl !p-0 animate-in slide-in-from-bottom-4 duration-500">
+        {/* Auth form card — frosted glass on vivid bg */}
+        <div className="w-full !rounded-3xl !p-0 animate-in slide-in-from-bottom-4 duration-500" style={{ background: 'hsl(0 0% 100% / 0.2)', backdropFilter: 'blur(24px) saturate(180%)', WebkitBackdropFilter: 'blur(24px) saturate(180%)', border: '1px solid hsl(0 0% 100% / 0.3)', boxShadow: '0 8px 40px hsl(320 50% 30% / 0.15), inset 0 1px 0 hsl(0 0% 100% / 0.4)' }}>
           {/* Tab switcher */}
-          <div className="flex p-1.5 mx-4 mt-4 rounded-2xl bg-muted/40">
+          <div className="flex p-1.5 mx-4 mt-4 rounded-2xl" style={{ background: 'hsl(0 0% 100% / 0.15)' }}>
             <button
               type="button"
               onClick={() => resetForm(false)}
               className={cn(
                 "flex-1 py-2 text-xs font-semibold rounded-xl transition-all duration-300",
                 !isSignUp
-                  ? "bg-card shadow-3d text-foreground"
-                  : "text-muted-foreground hover:text-foreground/70"
+                  ? "text-foreground"
+                  : "hover:text-foreground/70"
               )}
+              style={!isSignUp ? { background: 'hsl(0 0% 100% / 0.6)', boxShadow: '0 2px 8px hsl(320 50% 30% / 0.1)', color: 'hsl(280 50% 30%)' } : { color: 'hsl(0 0% 100% / 0.7)' }}
             >
               Sign In
             </button>
@@ -331,9 +332,10 @@ const Auth = () => {
               className={cn(
                 "flex-1 py-2 text-xs font-semibold rounded-xl transition-all duration-300",
                 isSignUp
-                  ? "bg-card shadow-3d text-foreground"
-                  : "text-muted-foreground hover:text-foreground/70"
+                  ? "text-foreground"
+                  : "hover:text-foreground/70"
               )}
+              style={isSignUp ? { background: 'hsl(0 0% 100% / 0.6)', boxShadow: '0 2px 8px hsl(320 50% 30% / 0.1)', color: 'hsl(280 50% 30%)' } : { color: 'hsl(0 0% 100% / 0.7)' }}
             >
               Create Account
             </button>
@@ -342,11 +344,11 @@ const Auth = () => {
           <form onSubmit={handleAuth} className="p-4 pt-3 space-y-3">
             {/* Email */}
             <div className="space-y-1">
-              <label htmlFor="email" className="text-[11px] font-semibold text-foreground/70 pl-0.5">
+              <label htmlFor="email" className="text-[11px] font-semibold pl-0.5" style={{ color: 'hsl(280 40% 30%)', fontFamily: "'Inter', sans-serif" }}>
                 Email
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'hsl(280 50% 45%)' }} />
                 <Input
                   id="email"
                   type="email"
@@ -360,9 +362,10 @@ const Auth = () => {
                   required
                   disabled={loading}
                   className={cn(
-                    "h-11 pl-10 rounded-xl bg-muted/30 border-border/30 focus:border-primary/50 focus:bg-card transition-all text-foreground",
+                    "h-11 pl-10 rounded-xl transition-all text-foreground",
                     emailError && "border-destructive/50"
                   )}
+                  style={{ background: 'hsl(0 0% 100% / 0.5)', border: '1px solid hsl(0 0% 100% / 0.4)', fontFamily: "'Inter', sans-serif" }}
                 />
               </div>
               {emailError && (
@@ -375,11 +378,11 @@ const Auth = () => {
 
             {/* Password */}
             <div className="space-y-1">
-              <label htmlFor="password" className="text-[11px] font-semibold text-foreground/70 pl-0.5">
+              <label htmlFor="password" className="text-[11px] font-semibold pl-0.5" style={{ color: 'hsl(280 40% 30%)', fontFamily: "'Inter', sans-serif" }}>
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'hsl(280 50% 45%)' }} />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
@@ -389,7 +392,8 @@ const Auth = () => {
                   required
                   disabled={loading}
                   minLength={6}
-                  className="h-11 pl-10 pr-10 rounded-xl bg-muted/30 border-border/30 focus:border-primary/50 focus:bg-card transition-all text-foreground"
+                  className="h-11 pl-10 pr-10 rounded-xl transition-all text-foreground"
+                  style={{ background: 'hsl(0 0% 100% / 0.5)', border: '1px solid hsl(0 0% 100% / 0.4)', fontFamily: "'Inter', sans-serif" }}
                 />
                 <button
                   type="button"
@@ -405,11 +409,11 @@ const Auth = () => {
             {/* Confirm Password */}
             {isSignUp && (
               <div className="space-y-1 animate-in fade-in-0 slide-in-from-top-2 duration-200">
-                <label htmlFor="confirmPassword" className="text-[11px] font-semibold text-foreground/70 pl-0.5">
+                <label htmlFor="confirmPassword" className="text-[11px] font-semibold pl-0.5" style={{ color: 'hsl(280 40% 30%)', fontFamily: "'Inter', sans-serif" }}>
                   Confirm Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/40" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'hsl(280 50% 45%)' }} />
                   <Input
                     id="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
@@ -419,9 +423,10 @@ const Auth = () => {
                     required
                     disabled={loading}
                     className={cn(
-                      "h-11 pl-10 pr-10 rounded-xl bg-muted/30 border-border/30 focus:border-primary/50 focus:bg-card transition-all text-foreground",
+                      "h-11 pl-10 pr-10 rounded-xl transition-all text-foreground",
                       confirmPassword && password !== confirmPassword && "border-destructive/50"
                     )}
+                    style={{ background: 'hsl(0 0% 100% / 0.5)', border: '1px solid hsl(0 0% 100% / 0.4)', fontFamily: "'Inter', sans-serif" }}
                   />
                   <button
                     type="button"
@@ -455,14 +460,14 @@ const Auth = () => {
 
             {/* Terms checkboxes */}
             {isSignUp && (
-              <div className="space-y-2 p-3 glass-secondary !rounded-xl animate-in fade-in-0 duration-200">
+              <div className="space-y-2 p-3 !rounded-xl animate-in fade-in-0 duration-200" style={{ background: 'hsl(0 0% 100% / 0.15)', border: '1px solid hsl(0 0% 100% / 0.2)' }}>
                 <div className="flex items-center gap-2">
                   <Checkbox
                     id="terms"
                     checked={termsAccepted}
                     onCheckedChange={(checked) => setTermsAccepted(checked === true)}
                   />
-                  <label htmlFor="terms" className="text-[11px] cursor-pointer flex-1 text-foreground/70">
+                  <label htmlFor="terms" className="text-[11px] cursor-pointer flex-1" style={{ color: 'hsl(280 40% 30%)', fontFamily: "'Inter', sans-serif" }}>
                     <button
                       type="button"
                       onClick={() => setShowTerms(true)}
@@ -479,7 +484,7 @@ const Auth = () => {
                     checked={privacyAccepted}
                     onCheckedChange={(checked) => setPrivacyAccepted(checked === true)}
                   />
-                  <label htmlFor="privacy" className="text-[11px] cursor-pointer flex-1 text-foreground/70">
+                  <label htmlFor="privacy" className="text-[11px] cursor-pointer flex-1" style={{ color: 'hsl(280 40% 30%)', fontFamily: "'Inter', sans-serif" }}>
                     <button
                       type="button"
                       onClick={() => setShowPrivacy(true)}
@@ -516,10 +521,10 @@ const Auth = () => {
             {/* Divider */}
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border/30" />
+                <div className="w-full" style={{ borderTop: '1px solid hsl(0 0% 100% / 0.3)' }} />
               </div>
               <div className="relative flex justify-center text-[10px] uppercase tracking-widest">
-                <span className="px-3 text-muted-foreground/50 bg-card">or</span>
+                <span className="px-3" style={{ color: 'hsl(280 30% 40%)', background: 'transparent', fontFamily: "'Inter', sans-serif" }}>or</span>
               </div>
             </div>
 
@@ -529,7 +534,8 @@ const Auth = () => {
                 type="button"
                 disabled={loading}
                 onClick={handleGoogleLogin}
-                className="w-full h-11 flex items-center justify-center gap-2.5 glass-secondary !rounded-xl text-xs font-semibold text-foreground/90 active:scale-[0.97] transition-all duration-200 disabled:opacity-50 shadow-3d"
+                className="w-full h-11 flex items-center justify-center gap-2.5 !rounded-xl text-xs font-semibold active:scale-[0.97] transition-all duration-200 disabled:opacity-50"
+                style={{ background: 'hsl(0 0% 100% / 0.45)', border: '1px solid hsl(0 0% 100% / 0.4)', color: 'hsl(280 40% 25%)', boxShadow: '0 2px 8px hsl(320 50% 30% / 0.08)', fontFamily: "'Inter', sans-serif" }}
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -544,7 +550,8 @@ const Auth = () => {
                 type="button"
                 disabled={loading}
                 onClick={handleAppleLogin}
-                className="w-full h-11 flex items-center justify-center gap-2.5 glass-secondary !rounded-xl text-xs font-semibold text-foreground/90 active:scale-[0.97] transition-all duration-200 disabled:opacity-50 shadow-3d"
+                className="w-full h-11 flex items-center justify-center gap-2.5 !rounded-xl text-xs font-semibold active:scale-[0.97] transition-all duration-200 disabled:opacity-50"
+                style={{ background: 'hsl(0 0% 100% / 0.45)', border: '1px solid hsl(0 0% 100% / 0.4)', color: 'hsl(280 40% 25%)', boxShadow: '0 2px 8px hsl(320 50% 30% / 0.08)', fontFamily: "'Inter', sans-serif" }}
               >
                 <svg className="w-4 h-4 text-foreground" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
@@ -556,7 +563,7 @@ const Auth = () => {
         </div>
 
         {/* Footer */}
-        <p className="text-[10px] text-muted-foreground/40 mt-4 text-center leading-relaxed">
+        <p className="text-[10px] mt-4 text-center leading-relaxed" style={{ color: 'hsl(0 0% 100% / 0.5)', fontFamily: "'Inter', sans-serif" }}>
           Your health data is encrypted and never shared.
         </p>
       </div>
