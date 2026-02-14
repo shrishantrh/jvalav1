@@ -216,9 +216,9 @@ const getDayShort = (d: Date): string => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fr
 const SYMPTOM_CATEGORIES = {
   neurological: ["headache", "migraine", "dizziness", "vertigo", "brain fog", "confusion", "numbness", "tingling", "tremor", "seizure", "aura", "light sensitivity", "sound sensitivity", "tinnitus", "blurred vision"],
   pain: ["pain", "ache", "aching", "throbbing", "stabbing", "burning", "cramping", "cramps", "stiffness", "tension", "soreness", "tenderness"],
-  fatigue: ["fatigue", "tired", "exhausted", "weakness", "lethargy", "malaise", "drowsy", "low energy", "drained"],
+  fatigue: ["fatigue", "tired", "exhausted", "weakness", "lethargy", "malaise", "drowsy", "low energy", "drained", "sick", "feeling sick", "unwell"],
   digestive: ["nausea", "nauseous", "vomiting", "bloating", "stomach pain", "indigestion", "diarrhea", "constipation", "appetite loss", "acid reflux"],
-  respiratory: ["shortness of breath", "chest tightness", "wheezing", "coughing", "congestion"],
+  respiratory: ["shortness of breath", "chest tightness", "wheezing", "coughing", "cough", "congestion", "sore throat", "runny nose", "sneezing", "sinus"],
   cardiovascular: ["palpitations", "racing heart", "chest pain", "irregular heartbeat"],
   musculoskeletal: ["joint pain", "muscle pain", "back pain", "neck pain", "shoulder pain", "knee pain", "hip pain", "stiff joints", "swelling", "inflammation"],
   skin: ["rash", "itching", "hives", "flushing", "sweating", "dry skin", "pallor"],
@@ -1088,6 +1088,8 @@ ${correlations.slice(0, 5).map(c => `• ${c.trigger_value} → ${c.outcome_valu
 ═══════════════════════════════════════════════════════════════════════════════
 RESPONSE GUIDELINES
 ═══════════════════════════════════════════════════════════════════════════════
+
+CRITICAL LOGGING RULE: If the user mentions ANY symptom, feeling, or health complaint (e.g. "feeling sick", "sore throat", "headache", "nauseous", "tired"), you MUST set shouldLog=true and populate entryData with type="flare", the detected symptoms, and a severity. NEVER just acknowledge symptoms without logging them. The whole point of this app is to track health data — if they tell you about a symptom, LOG IT.
 
 When responding:
 1. ALWAYS use the data above to ground your observations
