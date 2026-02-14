@@ -243,15 +243,22 @@ const Auth = () => {
           }).eq('id', data.user.id);
         }
 
-        // Send branded welcome email via Resend (fire-and-forget)
-        supabase.functions.invoke('send-auth-email', {
-          body: { type: 'signup', email },
-        }).catch(err => console.error('Welcome email failed:', err));
+        // Send custom verification email via Resend from login.jvala.tech
+        try {
+          await supabase.functions.invoke('send-auth-email', {
+            body: { type: 'signup', email },
+          });
+        } catch (emailErr) {
+          console.error('Custom email send failed:', emailErr);
+        }
 
         toast({
-          title: "Account created! 🎉",
-          description: "You're all set. Welcome to Jvala!",
+          title: "Check your email! 📧",
+          description: "We've sent a verification link to your inbox from noreply@login.jvala.tech. Check spam if needed.",
         });
+        setIsSignUp(false);
+        setPassword("");
+        setConfirmPassword("");
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
