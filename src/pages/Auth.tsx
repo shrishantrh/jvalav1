@@ -286,43 +286,39 @@ const Auth = () => {
   };
 
   return (
-    <div className="fixed inset-0 flex flex-col max-w-md mx-auto overflow-y-auto scrollbar-hide" style={{ background: 'linear-gradient(155deg, hsl(330 65% 82%) 0%, hsl(310 55% 78%) 35%, hsl(285 50% 75%) 65%, hsl(270 45% 70%) 100%)' }}>
-      {/* Orchid ambient gradient orbs — more saturated on darker bg */}
-      <div className="absolute top-[-80px] left-1/2 -translate-x-1/2 w-[450px] h-[450px] rounded-full blur-[120px] pointer-events-none" style={{ background: 'hsl(320 70% 70% / 0.35)' }} />
-      <div className="absolute bottom-[-40px] right-[-40px] w-[280px] h-[280px] rounded-full blur-[90px] pointer-events-none" style={{ background: 'hsl(280 60% 60% / 0.25)' }} />
-      <div className="absolute top-[40%] left-[-60px] w-[220px] h-[220px] rounded-full blur-[100px] pointer-events-none" style={{ background: 'hsl(340 65% 75% / 0.2)' }} />
+    <div className="fixed inset-0 flex flex-col max-w-md mx-auto overflow-y-auto scrollbar-hide" style={{ background: 'linear-gradient(165deg, #F8F0FF 0%, #EDE0FA 40%, #E8D5FF 100%)' }}>
+      {/* Soft ambient orbs */}
+      <div className="absolute top-[-80px] left-1/2 -translate-x-1/2 w-[400px] h-[400px] rounded-full blur-[130px] pointer-events-none" style={{ background: 'hsl(280 50% 85% / 0.4)' }} />
+      <div className="absolute bottom-[-40px] right-[-40px] w-[250px] h-[250px] rounded-full blur-[100px] pointer-events-none" style={{ background: 'hsl(300 40% 82% / 0.3)' }} />
 
-      <div className="flex-1 flex flex-col px-6 pt-[max(env(safe-area-inset-top),2rem)] pb-6 relative z-10" style={{ fontFamily: "'Playwrite NZ', cursive" }}>
-        {/* Logo — compact */}
-        <div className="flex flex-col items-center mb-6 animate-in fade-in-0 zoom-in-95 duration-700">
-          <div className="relative w-16 h-16 mb-3">
-            <div className="absolute -inset-2 rounded-2xl blur-lg" style={{ background: 'linear-gradient(135deg, hsl(330 70% 85% / 0.5), hsl(280 60% 70% / 0.3))' }} />
-            <div className="relative w-full h-full flex items-center justify-center !p-3 !rounded-2xl" style={{ background: 'hsl(0 0% 100% / 0.85)', backdropFilter: 'blur(20px)', boxShadow: '0 8px 32px hsl(330 60% 50% / 0.2), inset 0 1px 0 hsl(0 0% 100% / 0.6)' }}>
+      <div className="flex-1 flex flex-col px-7 pt-[max(env(safe-area-inset-top),2.5rem)] pb-8 relative z-10">
+        {/* Logo */}
+        <div className="flex flex-col items-center mb-8 animate-in fade-in-0 zoom-in-95 duration-700">
+          <div className="relative w-16 h-16 mb-4">
+            <div className="absolute -inset-2 rounded-2xl blur-lg" style={{ background: 'hsl(280 40% 80% / 0.4)' }} />
+            <div className="relative w-full h-full flex items-center justify-center !p-3 !rounded-2xl" style={{ background: 'hsl(0 0% 100% / 0.9)', boxShadow: '0 4px 20px hsl(280 40% 60% / 0.12)' }}>
               <img src={jvalaLogo} alt="Jvala" className="w-full h-full object-contain" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'hsl(0 0% 100% / 0.95)', fontFamily: "'Playwrite NZ', cursive", fontWeight: 400 }}>
+          <h1 className="text-[26px] tracking-tight" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 700, color: 'hsl(270 40% 25%)' }}>
             {isSignUp ? "Create Account" : "Welcome Back"}
           </h1>
-          <p className="text-xs mt-1" style={{ color: 'hsl(0 0% 100% / 0.7)', fontFamily: "'Inter', sans-serif" }}>
+          <p className="text-sm mt-1.5" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 400, color: 'hsl(270 20% 50%)' }}>
             {isSignUp ? "Start your health journey" : "Sign in to continue"}
           </p>
         </div>
 
-        {/* Auth form card — frosted glass on vivid bg */}
-        <div className="w-full !rounded-3xl !p-0 animate-in slide-in-from-bottom-4 duration-500" style={{ background: 'hsl(0 0% 100% / 0.2)', backdropFilter: 'blur(24px) saturate(180%)', WebkitBackdropFilter: 'blur(24px) saturate(180%)', border: '1px solid hsl(0 0% 100% / 0.3)', boxShadow: '0 8px 40px hsl(320 50% 30% / 0.15), inset 0 1px 0 hsl(0 0% 100% / 0.4)' }}>
+        {/* Auth form card */}
+        <div className="w-full !rounded-3xl !p-0 animate-in slide-in-from-bottom-4 duration-500" style={{ background: 'hsl(0 0% 100% / 0.95)', border: '1px solid hsl(270 30% 90%)', boxShadow: '0 8px 40px hsl(270 40% 50% / 0.08)' }}>
           {/* Tab switcher */}
-          <div className="flex p-1.5 mx-4 mt-4 rounded-2xl" style={{ background: 'hsl(0 0% 100% / 0.15)' }}>
+          <div className="flex p-1.5 mx-5 mt-5 rounded-2xl" style={{ background: 'hsl(270 30% 95%)' }}>
             <button
               type="button"
               onClick={() => resetForm(false)}
               className={cn(
-                "flex-1 py-2 text-xs font-semibold rounded-xl transition-all duration-300",
-                !isSignUp
-                  ? "text-foreground"
-                  : "hover:text-foreground/70"
+                "flex-1 py-2.5 text-sm rounded-xl transition-all duration-300"
               )}
-              style={!isSignUp ? { background: 'hsl(0 0% 100% / 0.6)', boxShadow: '0 2px 8px hsl(320 50% 30% / 0.1)', color: 'hsl(280 50% 30%)' } : { color: 'hsl(0 0% 100% / 0.7)' }}
+              style={!isSignUp ? { background: 'hsl(0 0% 100%)', boxShadow: '0 2px 8px hsl(270 40% 50% / 0.1)', color: 'hsl(270 45% 35%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 700 } : { color: 'hsl(270 20% 55%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}
             >
               Sign In
             </button>
@@ -330,25 +326,22 @@ const Auth = () => {
               type="button"
               onClick={() => resetForm(true)}
               className={cn(
-                "flex-1 py-2 text-xs font-semibold rounded-xl transition-all duration-300",
-                isSignUp
-                  ? "text-foreground"
-                  : "hover:text-foreground/70"
+                "flex-1 py-2.5 text-sm rounded-xl transition-all duration-300"
               )}
-              style={isSignUp ? { background: 'hsl(0 0% 100% / 0.6)', boxShadow: '0 2px 8px hsl(320 50% 30% / 0.1)', color: 'hsl(280 50% 30%)' } : { color: 'hsl(0 0% 100% / 0.7)' }}
+              style={isSignUp ? { background: 'hsl(0 0% 100%)', boxShadow: '0 2px 8px hsl(270 40% 50% / 0.1)', color: 'hsl(270 45% 35%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 700 } : { color: 'hsl(270 20% 55%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}
             >
               Create Account
             </button>
           </div>
 
-          <form onSubmit={handleAuth} className="p-4 pt-3 space-y-3">
+          <form onSubmit={handleAuth} className="p-5 pt-5 space-y-4">
             {/* Email */}
-            <div className="space-y-1">
-              <label htmlFor="email" className="text-[11px] font-semibold pl-0.5" style={{ color: 'hsl(280 40% 30%)', fontFamily: "'Inter', sans-serif" }}>
+            <div className="space-y-1.5">
+              <label htmlFor="email" className="text-xs pl-0.5" style={{ color: 'hsl(270 25% 40%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}>
                 Email
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'hsl(280 50% 45%)' }} />
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'hsl(270 40% 50%)' }} />
                 <Input
                   id="email"
                   type="email"
@@ -362,14 +355,14 @@ const Auth = () => {
                   required
                   disabled={loading}
                   className={cn(
-                    "h-11 pl-10 rounded-xl transition-all text-foreground",
+                    "h-12 pl-11 rounded-xl transition-all text-foreground",
                     emailError && "border-destructive/50"
                   )}
-                  style={{ background: 'hsl(0 0% 100% / 0.5)', border: '1px solid hsl(0 0% 100% / 0.4)', fontFamily: "'Inter', sans-serif" }}
+                  style={{ background: 'hsl(270 20% 97%)', border: '1px solid hsl(270 20% 90%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 400 }}
                 />
               </div>
               {emailError && (
-                <p className="text-[10px] text-destructive flex items-center gap-1 pl-0.5">
+                <p className="text-[11px] text-destructive flex items-center gap-1 pl-0.5" style={{ fontFamily: "'Satoshi', sans-serif" }}>
                   <AlertCircle className="w-3 h-3" />
                   {emailError}
                 </p>
@@ -377,12 +370,12 @@ const Auth = () => {
             </div>
 
             {/* Password */}
-            <div className="space-y-1">
-              <label htmlFor="password" className="text-[11px] font-semibold pl-0.5" style={{ color: 'hsl(280 40% 30%)', fontFamily: "'Inter', sans-serif" }}>
+            <div className="space-y-1.5">
+              <label htmlFor="password" className="text-xs pl-0.5" style={{ color: 'hsl(270 25% 40%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}>
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'hsl(280 50% 45%)' }} />
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'hsl(270 40% 50%)' }} />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
@@ -392,13 +385,14 @@ const Auth = () => {
                   required
                   disabled={loading}
                   minLength={6}
-                  className="h-11 pl-10 pr-10 rounded-xl transition-all text-foreground"
-                  style={{ background: 'hsl(0 0% 100% / 0.5)', border: '1px solid hsl(0 0% 100% / 0.4)', fontFamily: "'Inter', sans-serif" }}
+                  className="h-12 pl-11 pr-11 rounded-xl transition-all text-foreground"
+                  style={{ background: 'hsl(270 20% 97%)', border: '1px solid hsl(270 20% 90%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 400 }}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground/70 transition-colors"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors"
+                  style={{ color: 'hsl(270 30% 55%)' }}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -408,12 +402,12 @@ const Auth = () => {
 
             {/* Confirm Password */}
             {isSignUp && (
-              <div className="space-y-1 animate-in fade-in-0 slide-in-from-top-2 duration-200">
-                <label htmlFor="confirmPassword" className="text-[11px] font-semibold pl-0.5" style={{ color: 'hsl(280 40% 30%)', fontFamily: "'Inter', sans-serif" }}>
+              <div className="space-y-1.5 animate-in fade-in-0 slide-in-from-top-2 duration-200">
+                <label htmlFor="confirmPassword" className="text-xs pl-0.5" style={{ color: 'hsl(270 25% 40%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}>
                   Confirm Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'hsl(280 50% 45%)' }} />
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'hsl(270 40% 50%)' }} />
                   <Input
                     id="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
@@ -423,21 +417,22 @@ const Auth = () => {
                     required
                     disabled={loading}
                     className={cn(
-                      "h-11 pl-10 pr-10 rounded-xl transition-all text-foreground",
+                      "h-12 pl-11 pr-11 rounded-xl transition-all text-foreground",
                       confirmPassword && password !== confirmPassword && "border-destructive/50"
                     )}
-                    style={{ background: 'hsl(0 0% 100% / 0.5)', border: '1px solid hsl(0 0% 100% / 0.4)', fontFamily: "'Inter', sans-serif" }}
+                    style={{ background: 'hsl(270 20% 97%)', border: '1px solid hsl(270 20% 90%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 400 }}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/40 hover:text-foreground/70 transition-colors"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors"
+                    style={{ color: 'hsl(270 30% 55%)' }}
                   >
                     {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
                 {confirmPassword && password !== confirmPassword && (
-                  <p className="text-[10px] text-destructive flex items-center gap-1 pl-0.5">
+                  <p className="text-[11px] text-destructive flex items-center gap-1 pl-0.5" style={{ fontFamily: "'Satoshi', sans-serif" }}>
                     <AlertCircle className="w-3 h-3" />
                     Passwords don't match
                   </p>
@@ -451,7 +446,7 @@ const Auth = () => {
                 <button
                   type="button"
                   onClick={() => setShowForgotPassword(true)}
-                  className="text-[11px] font-medium transition-colors" style={{ color: 'hsl(280 55% 55%)' }}
+                  className="text-xs transition-colors" style={{ color: 'hsl(270 45% 55%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}
                 >
                   Forgot password?
                 </button>
@@ -460,35 +455,35 @@ const Auth = () => {
 
             {/* Terms checkboxes */}
             {isSignUp && (
-              <div className="space-y-2 p-3 !rounded-xl animate-in fade-in-0 duration-200" style={{ background: 'hsl(0 0% 100% / 0.15)', border: '1px solid hsl(0 0% 100% / 0.2)' }}>
-                <div className="flex items-center gap-2">
+              <div className="space-y-2.5 p-3.5 !rounded-xl animate-in fade-in-0 duration-200" style={{ background: 'hsl(270 25% 97%)', border: '1px solid hsl(270 20% 92%)' }}>
+                <div className="flex items-center gap-2.5">
                   <Checkbox
                     id="terms"
                     checked={termsAccepted}
                     onCheckedChange={(checked) => setTermsAccepted(checked === true)}
                   />
-                  <label htmlFor="terms" className="text-[11px] cursor-pointer flex-1" style={{ color: 'hsl(280 40% 30%)', fontFamily: "'Inter', sans-serif" }}>
+                  <label htmlFor="terms" className="text-xs cursor-pointer flex-1" style={{ color: 'hsl(270 25% 35%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 400 }}>
                     <button
                       type="button"
                       onClick={() => setShowTerms(true)}
-                      className="font-medium transition-colors" style={{ color: 'hsl(280 55% 55%)' }}
+                      className="transition-colors" style={{ color: 'hsl(270 45% 50%)', fontWeight: 500 }}
                     >
                       Terms of Service
                     </button>
                     <span className="text-destructive"> *</span>
                   </label>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <Checkbox
                     id="privacy"
                     checked={privacyAccepted}
                     onCheckedChange={(checked) => setPrivacyAccepted(checked === true)}
                   />
-                  <label htmlFor="privacy" className="text-[11px] cursor-pointer flex-1" style={{ color: 'hsl(280 40% 30%)', fontFamily: "'Inter', sans-serif" }}>
+                  <label htmlFor="privacy" className="text-xs cursor-pointer flex-1" style={{ color: 'hsl(270 25% 35%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 400 }}>
                     <button
                       type="button"
                       onClick={() => setShowPrivacy(true)}
-                      className="font-medium transition-colors" style={{ color: 'hsl(280 55% 55%)' }}
+                      className="transition-colors" style={{ color: 'hsl(270 45% 50%)', fontWeight: 500 }}
                     >
                       Privacy Policy
                     </button>
@@ -501,11 +496,13 @@ const Auth = () => {
             {/* Submit */}
             <button
               type="submit"
-              className="w-full h-11 rounded-xl text-sm font-semibold text-white disabled:opacity-50 active:scale-[0.97] transition-all duration-200"
+              className="w-full h-12 rounded-xl text-sm text-white disabled:opacity-50 active:scale-[0.97] transition-all duration-200 mt-1"
               disabled={loading || !canSubmit}
               style={{
-                background: 'linear-gradient(135deg, hsl(280 55% 58%) 0%, hsl(300 50% 52%) 100%)',
-                boxShadow: '0 4px 16px hsl(280 55% 58% / 0.3), inset 0 1px 0 hsl(280 60% 75% / 0.3)',
+                background: 'linear-gradient(135deg, hsl(270 50% 55%) 0%, hsl(290 45% 50%) 100%)',
+                boxShadow: '0 4px 16px hsl(270 50% 55% / 0.25)',
+                fontFamily: "'Satoshi', sans-serif",
+                fontWeight: 700,
               }}
             >
               {loading ? (
@@ -519,23 +516,23 @@ const Auth = () => {
             </button>
 
             {/* Divider */}
-            <div className="relative">
+            <div className="relative py-1">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full" style={{ borderTop: '1px solid hsl(0 0% 100% / 0.3)' }} />
+                <div className="w-full" style={{ borderTop: '1px solid hsl(270 20% 90%)' }} />
               </div>
-              <div className="relative flex justify-center text-[10px] uppercase tracking-widest">
-                <span className="px-3" style={{ color: 'hsl(280 30% 40%)', background: 'transparent', fontFamily: "'Inter', sans-serif" }}>or</span>
+              <div className="relative flex justify-center">
+                <span className="px-3 text-[11px] uppercase tracking-widest" style={{ color: 'hsl(270 20% 60%)', background: 'hsl(0 0% 100% / 0.95)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}>or</span>
               </div>
             </div>
 
             {/* Social buttons */}
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <button
                 type="button"
                 disabled={loading}
                 onClick={handleGoogleLogin}
-                className="w-full h-11 flex items-center justify-center gap-2.5 !rounded-xl text-xs font-semibold active:scale-[0.97] transition-all duration-200 disabled:opacity-50"
-                style={{ background: 'hsl(0 0% 100% / 0.45)', border: '1px solid hsl(0 0% 100% / 0.4)', color: 'hsl(280 40% 25%)', boxShadow: '0 2px 8px hsl(320 50% 30% / 0.08)', fontFamily: "'Inter', sans-serif" }}
+                className="w-full h-12 flex items-center justify-center gap-2.5 !rounded-xl text-sm active:scale-[0.97] transition-all duration-200 disabled:opacity-50"
+                style={{ background: 'hsl(270 15% 97%)', border: '1px solid hsl(270 20% 90%)', color: 'hsl(270 30% 25%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -550,10 +547,10 @@ const Auth = () => {
                 type="button"
                 disabled={loading}
                 onClick={handleAppleLogin}
-                className="w-full h-11 flex items-center justify-center gap-2.5 !rounded-xl text-xs font-semibold active:scale-[0.97] transition-all duration-200 disabled:opacity-50"
-                style={{ background: 'hsl(0 0% 100% / 0.45)', border: '1px solid hsl(0 0% 100% / 0.4)', color: 'hsl(280 40% 25%)', boxShadow: '0 2px 8px hsl(320 50% 30% / 0.08)', fontFamily: "'Inter', sans-serif" }}
+                className="w-full h-12 flex items-center justify-center gap-2.5 !rounded-xl text-sm active:scale-[0.97] transition-all duration-200 disabled:opacity-50"
+                style={{ background: 'hsl(270 15% 97%)', border: '1px solid hsl(270 20% 90%)', color: 'hsl(270 30% 25%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}
               >
-                <svg className="w-4 h-4 text-foreground" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
                 </svg>
                 Continue with Apple
@@ -563,7 +560,7 @@ const Auth = () => {
         </div>
 
         {/* Footer */}
-        <p className="text-[10px] mt-4 text-center leading-relaxed" style={{ color: 'hsl(0 0% 100% / 0.5)', fontFamily: "'Inter', sans-serif" }}>
+        <p className="text-xs mt-6 text-center" style={{ color: 'hsl(270 20% 55%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 400 }}>
           Your health data is encrypted and never shared.
         </p>
       </div>
