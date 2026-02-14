@@ -7,7 +7,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Eye, EyeOff, Mail, Lock, AlertCircle } from "lucide-react";
+import { Loader2, Eye, EyeOff, Mail, Lock, AlertCircle, Sparkles } from "lucide-react";
+import jvalaLogo from "@/assets/jvala-logo.png";
 import { SplashScreen } from "@/components/auth/SplashScreen";
 import { PasswordStrengthBar, isPasswordStrong } from "@/components/auth/PasswordStrengthBar";
 import { SlowConnectionIndicator } from "@/components/auth/SlowConnectionIndicator";
@@ -51,6 +52,7 @@ const Auth = () => {
       }
     });
 
+    // Set up deep link listener for native OAuth callbacks
     const cleanupDeepLink = setupNativeAuthListener();
 
     return () => {
@@ -59,6 +61,7 @@ const Auth = () => {
     };
   }, [navigate]);
 
+  // Slow connection detection
   useEffect(() => {
     let timeout: NodeJS.Timeout;
     if (loading) {
@@ -79,6 +82,12 @@ const Auth = () => {
     return true;
   };
 
+  /**
+   * Detect if we're running on a custom domain (not *.lovable.app).
+   * On custom domains the Lovable auth-bridge redirect URI may not be
+   * registered with Google, so we fall back to direct Supabase OAuth
+   * with skipBrowserRedirect to avoid the redirect_uri_mismatch error.
+   */
   const isCustomDomain = () => {
     const host = window.location.hostname;
     return (
@@ -91,10 +100,12 @@ const Auth = () => {
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
+      // Native mobile: use in-app browser + deep link flow
       if (isNative) {
         const result = await startNativeOAuth('google');
         if ('error' in result) throw new Error(result.error);
         await openInNativeBrowser(result.url);
+        // Session will be set via deep link listener — don't setLoading(false) here
         return;
       }
 
@@ -129,6 +140,7 @@ const Auth = () => {
   const handleAppleLogin = async () => {
     setLoading(true);
     try {
+      // Native mobile: use in-app browser + deep link flow
       if (isNative) {
         const result = await startNativeOAuth('apple');
         if ('error' in result) throw new Error(result.error);
@@ -255,6 +267,7 @@ const Auth = () => {
     }
   };
 
+  // Show splash screen first
   if (showSplash) {
     return <SplashScreen onComplete={() => setShowSplash(false)} />;
   }
@@ -264,308 +277,300 @@ const Auth = () => {
     : email && password;
 
   return (
-    <div className="fixed inset-0 flex flex-col max-w-md mx-auto overflow-hidden" style={{ background: 'linear-gradient(170deg, hsl(280 45% 8%) 0%, hsl(300 50% 12%) 35%, hsl(270 55% 15%) 65%, hsl(260 50% 10%) 100%)' }}>
+    <div className="fixed inset-0 flex flex-col bg-background max-w-md mx-auto overflow-hidden">
+      {/* Ambient gradient orbs */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full bg-primary/5 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-[300px] h-[300px] rounded-full bg-accent/8 blur-[100px] pointer-events-none" />
       
-      {/* Celestial orbs */}
-      <div className="absolute top-[-8%] right-[-15%] w-[280px] h-[280px] rounded-full opacity-60 animate-pulse" style={{ background: 'radial-gradient(circle, hsl(280 60% 50% / 0.3) 0%, hsl(300 50% 40% / 0.1) 60%, transparent 80%)' }} />
-      <div className="absolute top-[5%] left-[-10%] w-[180px] h-[180px] rounded-full opacity-40" style={{ background: 'radial-gradient(circle, hsl(320 70% 55% / 0.25) 0%, transparent 70%)' }} />
-      <div className="absolute top-[20%] right-[10%] w-[120px] h-[120px] rounded-full opacity-50" style={{ background: 'radial-gradient(circle, hsl(260 80% 70% / 0.2) 0%, transparent 60%)' }} />
-      <div className="absolute bottom-[15%] left-[-5%] w-[200px] h-[200px] rounded-full opacity-30" style={{ background: 'radial-gradient(circle, hsl(290 60% 45% / 0.2) 0%, transparent 70%)' }} />
-      
-      {/* Tiny stars */}
-      <div className="absolute top-[12%] left-[20%] w-1.5 h-1.5 rounded-full bg-white/30 animate-pulse" />
-      <div className="absolute top-[8%] right-[30%] w-1 h-1 rounded-full bg-white/20" />
-      <div className="absolute top-[25%] left-[70%] w-1 h-1 rounded-full bg-white/25 animate-pulse" style={{ animationDelay: '1s' }} />
-      <div className="absolute top-[18%] left-[45%] w-0.5 h-0.5 rounded-full bg-white/40" />
-      <div className="absolute top-[30%] right-[20%] w-1 h-1 rounded-full bg-white/15 animate-pulse" style={{ animationDelay: '2s' }} />
-
-      <div className="flex-1 flex flex-col px-7 relative z-10 overflow-y-auto">
-        
-        {/* Top spacer + branding */}
-        <div className="pt-[22vh] pb-6 animate-in fade-in-0 duration-700">
-          <h1 className="text-[3.5rem] font-extrabold leading-none tracking-tight" style={{ color: 'white' }}>
-            Jvala
-          </h1>
-          <p className="text-sm mt-2.5 font-medium" style={{ color: 'hsl(300 30% 75%)' }}>
-            {isSignUp ? 'Create your account' : 'Sign in with email address'}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 relative z-10">
+        {/* Logo and branding — premium 3D glass style */}
+        <div className="flex flex-col items-center mb-8 animate-in fade-in-0 zoom-in-95 duration-700">
+          <div className="relative w-[88px] h-[88px] mb-5">
+            {/* Outer glow ring */}
+            <div className="absolute -inset-2 rounded-[1.75rem] bg-gradient-to-br from-primary/20 via-primary/5 to-transparent blur-md" />
+            {/* 3D container */}
+            <div className="relative glass-card w-full h-full flex items-center justify-center !p-4 shadow-3d">
+              <img src={jvalaLogo} alt="Jvala" className="w-full h-full object-contain" />
+            </div>
+          </div>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">Jvala</h1>
+          <p className="text-sm text-muted-foreground mt-1.5 flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-primary/60" />
+            Your intelligent health companion
           </p>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleAuth} className="space-y-3.5 animate-in slide-in-from-bottom-4 duration-500">
-          {/* Email */}
-          <div className="relative">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: 'hsl(300 20% 55%)' }} />
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                if (emailError) validateEmail(e.target.value);
-              }}
-              onBlur={() => email && validateEmail(email)}
-              placeholder="Yourname@gmail.com"
-              required
-              disabled={loading}
-              className={cn(
-                "w-full h-14 pl-12 pr-4 rounded-2xl text-base font-medium placeholder:font-normal transition-all duration-300 outline-none",
-                "border focus:ring-2",
-                emailError ? "border-red-500/50" : "border-white/10 focus:border-white/20 focus:ring-purple-400/20"
-              )}
-              style={{ 
-                background: 'hsl(280 40% 15% / 0.6)',
-                backdropFilter: 'blur(20px)',
-                color: 'white',
-              }}
-            />
-            {emailError && (
-              <p className="text-xs mt-1.5 pl-1 flex items-center gap-1" style={{ color: 'hsl(0 80% 65%)' }}>
-                <AlertCircle className="w-3 h-3" />
-                {emailError}
-              </p>
-            )}
-          </div>
-
-          {/* Password */}
-          <div className="relative">
-            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: 'hsl(300 20% 55%)' }} />
-            <input
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              disabled={loading}
-              minLength={6}
-              className="w-full h-14 pl-12 pr-12 rounded-2xl text-base font-medium transition-all duration-300 outline-none border border-white/10 focus:border-white/20 focus:ring-2 focus:ring-purple-400/20"
-              style={{ 
-                background: 'hsl(280 40% 15% / 0.6)',
-                backdropFilter: 'blur(20px)',
-                color: 'white',
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-1/2 -translate-y-1/2 transition-colors"
-              style={{ color: 'hsl(300 20% 50%)' }}
-            >
-              {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
-            </button>
-          </div>
-
-          {isSignUp && <PasswordStrengthBar password={password} />}
-
-          {/* Confirm Password */}
-          {isSignUp && (
-            <div className="relative animate-in fade-in-0 slide-in-from-top-2 duration-200">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: 'hsl(300 20% 55%)' }} />
-              <input
-                type={showConfirmPassword ? "text" : "password"}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm password"
-                required
-                disabled={loading}
-                className={cn(
-                  "w-full h-14 pl-12 pr-12 rounded-2xl text-base font-medium transition-all duration-300 outline-none border focus:ring-2 focus:ring-purple-400/20",
-                  confirmPassword && password !== confirmPassword ? "border-red-500/50" : "border-white/10 focus:border-white/20"
-                )}
-                style={{ 
-                  background: 'hsl(280 40% 15% / 0.6)',
-                  backdropFilter: 'blur(20px)',
-                  color: 'white',
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 transition-colors"
-                style={{ color: 'hsl(300 20% 50%)' }}
-              >
-                {showConfirmPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
-              </button>
-              {confirmPassword && password !== confirmPassword && (
-                <p className="text-xs mt-1.5 pl-1 flex items-center gap-1" style={{ color: 'hsl(0 80% 65%)' }}>
-                  <AlertCircle className="w-3 h-3" />
-                  Passwords don't match
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Forgot password */}
-          {!isSignUp && (
-            <div className="text-right">
-              <button
-                type="button"
-                onClick={() => setShowForgotPassword(true)}
-                className="text-xs font-medium transition-colors hover:brightness-125"
-                style={{ color: 'hsl(300 50% 70%)' }}
-              >
-                Forgot password?
-              </button>
-            </div>
-          )}
-
-          {/* Terms for signup */}
-          {isSignUp && (
-            <div className="space-y-2.5 p-4 rounded-2xl animate-in fade-in-0 duration-200" style={{ background: 'hsl(280 40% 15% / 0.4)', border: '1px solid hsl(300 30% 30% / 0.3)' }}>
-              <p className="text-[10px] font-semibold" style={{ color: 'hsl(300 20% 65%)' }}>By creating an account, you agree to:</p>
-              
-              <div className="flex items-center gap-2.5">
-                <Checkbox 
-                  id="terms" 
-                  checked={termsAccepted}
-                  onCheckedChange={(checked) => setTermsAccepted(checked === true)}
-                  className="border-white/20 data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
-                />
-                <label htmlFor="terms" className="text-xs cursor-pointer flex-1">
-                  <button 
-                    type="button"
-                    onClick={() => setShowTerms(true)} 
-                    className="font-medium transition-colors hover:brightness-125"
-                    style={{ color: 'hsl(300 50% 70%)' }}
-                  >
-                    Terms of Service
-                  </button>
-                  <span style={{ color: 'hsl(0 80% 65%)' }}> *</span>
-                </label>
-              </div>
-
-              <div className="flex items-center gap-2.5">
-                <Checkbox 
-                  id="privacy" 
-                  checked={privacyAccepted}
-                  onCheckedChange={(checked) => setPrivacyAccepted(checked === true)}
-                  className="border-white/20 data-[state=checked]:bg-purple-500 data-[state=checked]:border-purple-500"
-                />
-                <label htmlFor="privacy" className="text-xs cursor-pointer flex-1">
-                  <button 
-                    type="button"
-                    onClick={() => setShowPrivacy(true)} 
-                    className="font-medium transition-colors hover:brightness-125"
-                    style={{ color: 'hsl(300 50% 70%)' }}
-                  >
-                    Privacy Policy
-                  </button>
-                  <span style={{ color: 'hsl(0 80% 65%)' }}> *</span>
-                </label>
-              </div>
-            </div>
-          )}
-
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={loading || !canSubmit}
-            className="w-full h-14 rounded-2xl text-base font-bold text-white transition-all duration-300 active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none relative overflow-hidden"
-            style={{ 
-              background: 'linear-gradient(135deg, hsl(320 70% 50%) 0%, hsl(270 70% 55%) 50%, hsl(250 65% 55%) 100%)',
-              boxShadow: '0 8px 32px hsl(300 60% 45% / 0.35), inset 0 1px 0 hsl(300 80% 80% / 0.2)',
-            }}
-          >
-            {/* Glossy highlight */}
-            <div className="absolute inset-x-0 top-0 h-[45%] rounded-t-2xl" style={{ background: 'linear-gradient(to bottom, hsl(0 0% 100% / 0.15), transparent)' }} />
-            <span className="relative z-10">
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Please wait...
-                </span>
-              ) : (
-                isSignUp ? "Create Account" : "Sign In"
-              )}
-            </span>
-          </button>
-
-          {/* Divider */}
-          <div className="relative my-2">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full" style={{ borderTop: '1px solid hsl(300 30% 30% / 0.3)' }} />
-            </div>
-            <div className="relative flex justify-center text-[10px] uppercase tracking-[0.2em]">
-              <span className="px-4" style={{ color: 'hsl(300 20% 50%)', background: 'transparent' }}>Or continue with</span>
-            </div>
-          </div>
-
-          {/* Social buttons */}
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              disabled={loading}
-              onClick={handleGoogleLogin}
-              className="h-13 flex items-center justify-center gap-2 rounded-2xl text-sm font-semibold text-white/90 active:scale-[0.96] transition-all duration-200 disabled:opacity-50"
-              style={{ 
-                background: 'hsl(280 40% 18% / 0.6)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid hsl(300 30% 30% / 0.3)',
-              }}
-            >
-              <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-              </svg>
-              Google
-            </button>
-
-            <button
-              type="button"
-              disabled={loading}
-              onClick={handleAppleLogin}
-              className="h-13 flex items-center justify-center gap-2 rounded-2xl text-sm font-semibold text-white/90 active:scale-[0.96] transition-all duration-200 disabled:opacity-50"
-              style={{ 
-                background: 'hsl(280 40% 18% / 0.6)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid hsl(300 30% 30% / 0.3)',
-              }}
-            >
-              <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="white">
-                <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-              </svg>
-              Apple
-            </button>
-          </div>
-
-          {/* Toggle sign up / sign in */}
-          <div className="text-center pt-2">
+        {/* Auth card — frosted glass */}
+        <div className="w-full glass-card !rounded-[1.75rem] !p-0 animate-in slide-in-from-bottom-4 duration-500">
+          {/* Tab header */}
+          <div className="flex p-1.5 m-5 mb-0 rounded-2xl bg-muted/40">
             <button
               type="button"
               onClick={() => {
-                setIsSignUp(!isSignUp);
+                setIsSignUp(false);
                 setTermsAccepted(false);
                 setPrivacyAccepted(false);
                 setPassword("");
                 setConfirmPassword("");
                 setEmailError("");
               }}
-              className="text-xs font-medium transition-colors hover:brightness-125"
-              style={{ color: 'hsl(300 30% 60%)' }}
+              className={cn(
+                "flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all duration-300",
+                !isSignUp
+                  ? "bg-card shadow-3d text-foreground"
+                  : "text-muted-foreground hover:text-foreground/70"
+              )}
             >
-              {isSignUp ? "Already have an account? Sign in" : "Don't have an account? Create one"}
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsSignUp(true);
+                setPassword("");
+                setConfirmPassword("");
+                setEmailError("");
+              }}
+              className={cn(
+                "flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all duration-300",
+                isSignUp
+                  ? "bg-card shadow-3d text-foreground"
+                  : "text-muted-foreground hover:text-foreground/70"
+              )}
+            >
+              Create Account
             </button>
           </div>
-        </form>
 
-        {/* Footer */}
-        <div className="mt-auto pb-8 pt-6 text-center">
-          <p className="text-[10px] leading-relaxed" style={{ color: 'hsl(300 15% 40%)' }}>
-            By registering you agree to our{' '}
-            <button type="button" onClick={() => setShowTerms(true)} className="underline hover:brightness-125" style={{ color: 'hsl(300 40% 60%)' }}>
-              Terms
-            </button>
-            {' & '}
-            <button type="button" onClick={() => setShowPrivacy(true)} className="underline hover:brightness-125" style={{ color: 'hsl(300 40% 60%)' }}>
-              Privacy Policy
-            </button>
-          </p>
+          <form onSubmit={handleAuth} className="p-5 pt-4 space-y-3.5">
+            {/* Email */}
+            <div className="space-y-1.5">
+              <label htmlFor="email" className="text-xs font-semibold text-foreground/80 pl-0.5">
+                Email
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60" />
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (emailError) validateEmail(e.target.value);
+                  }}
+                  onBlur={() => email && validateEmail(email)}
+                  placeholder="your@email.com"
+                  required
+                  disabled={loading}
+                  className={cn(
+                    "h-12 pl-11 rounded-xl bg-muted/30 border-border/30 focus:border-primary/50 focus:bg-card transition-all",
+                    emailError && "border-destructive/50"
+                  )}
+                />
+              </div>
+              {emailError && (
+                <p className="text-xs text-destructive flex items-center gap-1 pl-0.5">
+                  <AlertCircle className="w-3 h-3" />
+                  {emailError}
+                </p>
+              )}
+            </div>
+
+            {/* Password */}
+            <div className="space-y-1.5">
+              <label htmlFor="password" className="text-xs font-semibold text-foreground/80 pl-0.5">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60" />
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  disabled={loading}
+                  minLength={6}
+                  className="h-12 pl-11 pr-11 rounded-xl bg-muted/30 border-border/30 focus:border-primary/50 focus:bg-card transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {isSignUp && <PasswordStrengthBar password={password} />}
+            </div>
+
+            {/* Confirm Password for Sign Up */}
+            {isSignUp && (
+              <div className="space-y-1.5 animate-in fade-in-0 slide-in-from-top-2 duration-200">
+                <label htmlFor="confirmPassword" className="text-xs font-semibold text-foreground/80 pl-0.5">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60" />
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    disabled={loading}
+                    className={cn(
+                      "h-12 pl-11 pr-11 rounded-xl bg-muted/30 border-border/30 focus:border-primary/50 focus:bg-card transition-all",
+                      confirmPassword && password !== confirmPassword && "border-destructive/50"
+                    )}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors"
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {confirmPassword && password !== confirmPassword && (
+                  <p className="text-xs text-destructive flex items-center gap-1 pl-0.5">
+                    <AlertCircle className="w-3 h-3" />
+                    Passwords don't match
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Forgot Password for Login */}
+            {!isSignUp && (
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-xs text-primary/80 hover:text-primary font-medium transition-colors"
+                >
+                  Forgot password?
+                </button>
+              </div>
+            )}
+
+            {/* Terms and Privacy for Sign Up */}
+            {isSignUp && (
+              <div className="space-y-2.5 p-3.5 glass-secondary !rounded-xl animate-in fade-in-0 duration-200">
+                <p className="text-[10px] font-semibold text-foreground/70">By creating an account, you agree to:</p>
+                
+                <div className="flex items-center gap-2.5">
+                  <Checkbox 
+                    id="terms" 
+                    checked={termsAccepted}
+                    onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+                  />
+                  <label htmlFor="terms" className="text-xs cursor-pointer flex-1">
+                    <button 
+                      type="button"
+                      onClick={() => setShowTerms(true)} 
+                      className="text-primary/80 hover:text-primary font-medium transition-colors"
+                    >
+                      Terms of Service
+                    </button>
+                    <span className="text-destructive"> *</span>
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  <Checkbox 
+                    id="privacy" 
+                    checked={privacyAccepted}
+                    onCheckedChange={(checked) => setPrivacyAccepted(checked === true)}
+                  />
+                  <label htmlFor="privacy" className="text-xs cursor-pointer flex-1">
+                    <button 
+                      type="button"
+                      onClick={() => setShowPrivacy(true)} 
+                      className="text-primary/80 hover:text-primary font-medium transition-colors"
+                    >
+                      Privacy Policy
+                    </button>
+                    <span className="text-destructive"> *</span>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* Submit button */}
+            <Button
+              type="submit"
+              className="w-full h-12 shadow-3d-primary text-base"
+              disabled={loading || !canSubmit}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Please wait...
+                </>
+              ) : (
+                isSignUp ? "Create Account" : "Sign In"
+              )}
+            </Button>
+
+            {/* Divider */}
+            <div className="relative my-1">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border/30" />
+              </div>
+              <div className="relative flex justify-center text-[10px] uppercase tracking-widest">
+                <span className="px-3 text-muted-foreground/60 bg-transparent">or</span>
+              </div>
+            </div>
+
+            {/* Social Login Buttons — 3D glass style */}
+            <div className="space-y-2.5">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleGoogleLogin}
+                className="w-full h-12 flex items-center justify-center gap-2.5 glass-secondary !rounded-xl text-sm font-semibold text-foreground/90 active:scale-[0.97] transition-all duration-200 disabled:opacity-50 shadow-3d"
+              >
+                <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                Continue with Google
+              </button>
+
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleAppleLogin}
+                className="w-full h-12 flex items-center justify-center gap-2.5 glass-secondary !rounded-xl text-sm font-semibold text-foreground/90 active:scale-[0.97] transition-all duration-200 disabled:opacity-50 shadow-3d"
+              >
+                <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+                </svg>
+                Continue with Apple
+              </button>
+            </div>
+          </form>
         </div>
+
+        {/* Footer text */}
+        <p className="text-[10px] text-muted-foreground/50 mt-6 text-center max-w-[260px] leading-relaxed">
+          Your health data is encrypted end-to-end and never shared with third parties.
+        </p>
       </div>
 
+      {/* Slow Connection Indicator */}
       <SlowConnectionIndicator show={slowConnection} />
-      <ForgotPasswordDialog open={showForgotPassword} onOpenChange={setShowForgotPassword} />
+
+      {/* Forgot Password Dialog */}
+      <ForgotPasswordDialog 
+        open={showForgotPassword} 
+        onOpenChange={setShowForgotPassword}
+      />
 
       {/* Terms Dialog */}
       <Dialog open={showTerms} onOpenChange={setShowTerms}>
@@ -578,35 +583,51 @@ const Auth = () => {
             <div className="text-sm space-y-4">
               <section>
                 <h3 className="font-semibold mb-2">1. Acceptance of Terms</h3>
-                <p className="text-muted-foreground">By accessing or using Jvala ("the App"), you agree to be bound by these Terms of Service. If you do not agree, do not use the App.</p>
+                <p className="text-muted-foreground">
+                  By accessing or using Jvala ("the App"), you agree to be bound by these Terms of Service. If you do not agree, do not use the App.
+                </p>
               </section>
               <section>
                 <h3 className="font-semibold mb-2">2. Medical Disclaimer</h3>
-                <p className="text-muted-foreground"><strong>IMPORTANT:</strong> Jvala does not provide medical advice, diagnosis, or treatment. The App is designed for informational and personal health tracking purposes only. Always consult with qualified healthcare professionals for medical decisions.</p>
+                <p className="text-muted-foreground">
+                  <strong>IMPORTANT:</strong> Jvala does not provide medical advice, diagnosis, or treatment. The App is designed for informational and personal health tracking purposes only. Always consult with qualified healthcare professionals for medical decisions.
+                </p>
               </section>
               <section>
                 <h3 className="font-semibold mb-2">3. AI-Generated Content</h3>
-                <p className="text-muted-foreground">The App uses artificial intelligence to generate insights, predictions, and correlations. AI-generated content may contain inaccuracies and should never be considered medical advice.</p>
+                <p className="text-muted-foreground">
+                  The App uses artificial intelligence to generate insights, predictions, and correlations. AI-generated content may contain inaccuracies and should never be considered medical advice.
+                </p>
               </section>
               <section>
                 <h3 className="font-semibold mb-2">4. User Responsibilities</h3>
-                <p className="text-muted-foreground">You are responsible for maintaining the confidentiality of your account credentials and for all activities under your account.</p>
+                <p className="text-muted-foreground">
+                  You are responsible for maintaining the confidentiality of your account credentials and for all activities under your account.
+                </p>
               </section>
               <section>
                 <h3 className="font-semibold mb-2">5. HealthKit & Health Data</h3>
-                <p className="text-muted-foreground">The App may integrate with Apple HealthKit to read physiological data. This data is used solely for health tracking and is never used for advertising, data mining, or sold to third parties.</p>
+                <p className="text-muted-foreground">
+                  The App may integrate with Apple HealthKit to read physiological data. This data is used solely for health tracking and is never used for advertising, data mining, or sold to third parties.
+                </p>
               </section>
               <section>
                 <h3 className="font-semibold mb-2">6. Account Deletion</h3>
-                <p className="text-muted-foreground">You may delete your account at any time from Settings. Deletion permanently removes all your data and is irreversible.</p>
+                <p className="text-muted-foreground">
+                  You may delete your account at any time from Settings. Deletion permanently removes all your data and is irreversible.
+                </p>
               </section>
               <section>
                 <h3 className="font-semibold mb-2">7. Limitation of Liability</h3>
-                <p className="text-muted-foreground">Jvala shall not be liable for any damages resulting from your use of the App, including health outcomes based on App data.</p>
+                <p className="text-muted-foreground">
+                  Jvala shall not be liable for any damages resulting from your use of the App, including health outcomes based on App data.
+                </p>
               </section>
               <section>
                 <h3 className="font-semibold mb-2">8. Contact</h3>
-                <p className="text-muted-foreground">For questions, contact us at support@jvala.tech.</p>
+                <p className="text-muted-foreground">
+                  For questions, contact us at support@jvala.tech.
+                </p>
               </section>
             </div>
           </ScrollArea>
@@ -627,31 +648,45 @@ const Auth = () => {
             <div className="text-sm space-y-4">
               <section>
                 <h3 className="font-semibold mb-2">1. Information We Collect</h3>
-                <p className="text-muted-foreground">We collect: account information (email), health data you enter (symptoms, triggers, medications, notes, photos, voice recordings), city-level location for environmental correlation, and optional wearable device data.</p>
+                <p className="text-muted-foreground">
+                  We collect: account information (email), health data you enter (symptoms, triggers, medications, notes, photos, voice recordings), city-level location for environmental correlation, and optional wearable device data.
+                </p>
               </section>
               <section>
                 <h3 className="font-semibold mb-2">2. How We Use Your Data</h3>
-                <p className="text-muted-foreground">Your data is used exclusively for personalized health tracking, AI-powered insights, and clinical report generation. We never sell, rent, or trade your personal health data.</p>
+                <p className="text-muted-foreground">
+                  Your data is used exclusively for personalized health tracking, AI-powered insights, and clinical report generation. We never sell, rent, or trade your personal health data.
+                </p>
               </section>
               <section>
                 <h3 className="font-semibold mb-2">3. Apple HealthKit Data</h3>
-                <p className="text-muted-foreground">HealthKit data is used solely for improving your health management. It is never used for advertising, never disclosed to third parties, and never stored in iCloud.</p>
+                <p className="text-muted-foreground">
+                  HealthKit data is used solely for improving your health management. It is never used for advertising, never disclosed to third parties, and never stored in iCloud.
+                </p>
               </section>
               <section>
                 <h3 className="font-semibold mb-2">4. Data Security</h3>
-                <p className="text-muted-foreground">Your data is encrypted at rest and in transit. Row-Level Security ensures only you can access your own data.</p>
+                <p className="text-muted-foreground">
+                  Your data is encrypted at rest and in transit. Row-Level Security ensures only you can access your own data.
+                </p>
               </section>
               <section>
                 <h3 className="font-semibold mb-2">5. Your Rights</h3>
-                <p className="text-muted-foreground">You can export your data at any time, edit any entry, permanently delete your account and all data from Settings, and disconnect wearable integrations.</p>
+                <p className="text-muted-foreground">
+                  You can export your data at any time, edit any entry, permanently delete your account and all data from Settings, and disconnect wearable integrations.
+                </p>
               </section>
               <section>
                 <h3 className="font-semibold mb-2">6. Push Notifications</h3>
-                <p className="text-muted-foreground">Notifications are optional, used only for logging reminders, and never contain protected health information or advertising.</p>
+                <p className="text-muted-foreground">
+                  Notifications are optional, used only for logging reminders, and never contain protected health information or advertising.
+                </p>
               </section>
               <section>
                 <h3 className="font-semibold mb-2">7. Contact</h3>
-                <p className="text-muted-foreground">For questions, contact us at support@jvala.tech.</p>
+                <p className="text-muted-foreground">
+                  For questions, contact us at support@jvala.tech.
+                </p>
               </section>
             </div>
           </ScrollArea>
