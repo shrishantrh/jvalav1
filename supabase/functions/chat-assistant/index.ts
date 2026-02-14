@@ -182,6 +182,23 @@ const scoreToSeverity = (score: number): string => {
 const formatDate = (d: Date): string => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 const formatTime = (d: Date): string => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 
+// Timezone-aware hour extraction — crucial for accurate time-of-day analysis
+const getLocalHour = (d: Date, tz?: string): number => {
+  if (!tz) return d.getUTCHours();
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: tz }).formatToParts(d);
+    const hourPart = parts.find(p => p.type === "hour");
+    return hourPart ? parseInt(hourPart.value, 10) : d.getUTCHours();
+  } catch { return d.getUTCHours(); }
+};
+
+const getLocalDayShort = (d: Date, tz?: string): string => {
+  if (!tz) return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getUTCDay()];
+  try {
+    return new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: tz }).format(d);
+  } catch { return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getUTCDay()]; }
+};
+
 const getTimeOfDay = (hour: number): string => {
   if (hour >= 5 && hour < 12) return "morning";
   if (hour >= 12 && hour < 17) return "afternoon";
@@ -517,7 +534,7 @@ function analyzeIntent(message: string, history: { role: string; content: string
 // DATA ANALYSIS ENGINE
 // ─────────────────────────────────────────────────────────────────────────────
 
-function analyzeFlares(entries: any[]): FlareSummary {
+function analyzeFlares(entries: any[], userTimezone?: string): FlareSummary {
   const flares = entries.filter(e => e?.entry_type === "flare");
   const now = Date.now();
   const oneDay = 24 * 60 * 60 * 1000;
@@ -585,9 +602,10 @@ function analyzeFlares(entries: any[]): FlareSummary {
     }
 
     const d = new Date(e.timestamp);
-    const hour = d.getHours();
+    const hour = getLocalHour(d, userTimezone);
     hourBuckets[getTimeOfDay(hour)]++;
-    dayCounts[getDayShort(d)]++;
+    const dayKey = getLocalDayShort(d, userTimezone);
+    if (dayCounts[dayKey] !== undefined) dayCounts[dayKey]++;
 
     // Weather correlation
     const weather = e?.environmental_data?.weather?.condition || e?.environmental_data?.condition;
@@ -1027,10 +1045,16 @@ ${flareSummary.topSymptoms.slice(0, 5).map(s => `• ${s.name}: ${s.count}x ${s.
 ⚡ TOP TRIGGERS
 ${flareSummary.topTriggers.slice(0, 5).map(t => `• ${t.name}: ${t.count}x`).join("\n") || "• None logged yet"}
 
-⏰ TIMING PATTERNS
+⏰ TIMING PATTERNS (all times in user's local timezone: ${profile?.timezone || "UTC"})
 • Peak time: ${flareSummary.peakTimeOfDay.period} (${flareSummary.peakTimeOfDay.percentage}% of flares)
 • Peak day: ${flareSummary.peakDayOfWeek.day} (${flareSummary.peakDayOfWeek.percentage}% of flares)
 • Distribution: Morning ${flareSummary.hourBuckets.morning}, Afternoon ${flareSummary.hourBuckets.afternoon}, Evening ${flareSummary.hourBuckets.evening}, Night ${flareSummary.hourBuckets.night}
+• Recent entries (local time): ${flareSummary.recentEntries.slice(0, 5).map(e => {
+    const d = new Date(e.timestamp);
+    try {
+      return d.toLocaleString("en-US", { timeZone: profile?.timezone || "UTC", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + ` (${e.severity || e.entry_type})`;
+    } catch { return formatDate(d) + ` (${e.severity || e.entry_type})`; }
+  }).join(", ") || "None"}
 
 📈 TRENDS
 • Frequency: ${trends.frequencyTrend === "improving" ? "✅ Improving" : trends.frequencyTrend === "worsening" ? "⚠️ Worsening" : "→ Stable"}
@@ -1418,7 +1442,8 @@ serve(async (req) => {
     const safeCorr = Array.isArray(correlations) ? correlations : [];
 
     // Analyze data
-    const flareSummary = analyzeFlares(safeEntries);
+    const userTimezone = profile?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const flareSummary = analyzeFlares(safeEntries, userTimezone);
     const bodyMetrics = analyzeBodyMetrics(safeEntries);
     const trends = analyzeTrends(flareSummary);
     const riskFactors = identifyRiskFactors(flareSummary, bodyMetrics, safeCorr);
