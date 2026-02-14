@@ -4,46 +4,59 @@
  * On native iOS/Android, OAuth flows need special handling because the
  * WebView runs on capacitor://localhost. We:
  *
- * 1. Get the OAuth URL from Supabase with skipBrowserRedirect
- * 2. Set redirectTo to the published URL's bridge page
- * 3. Open the URL in the system browser (SFSafariViewController)
- * 4. The bridge page extracts tokens and redirects to jvala://auth-callback#tokens
+ * 1. Build the Lovable Cloud OAuth broker URL with the native callback as redirect_uri
+ * 2. Open the URL in the system browser (SFSafariViewController)
+ * 3. The broker handles Google/Apple OAuth and redirects to native-auth-callback.html#tokens
+ * 4. The callback page redirects to jvala://auth-callback#tokens
  * 5. iOS/Android intercepts the custom scheme and reopens the app
  * 6. We capture the deep link, extract tokens, and set the Supabase session
  *
- * FALLBACK: If the custom scheme redirect is blocked (e.g. on newer iOS),
- * the bridge page shows a "Return to Jvala" button. Additionally, we listen
- * for the browser close event and check for tokens via a shared cookie approach.
+ * FALLBACK: If the custom scheme redirect is blocked, the callback page shows
+ * a "Return to Jvala" button. Additionally, we listen for the browser close
+ * event and check for tokens.
  */
 
 import { supabase } from '@/integrations/supabase/client';
 import { isNative } from '@/lib/capacitor';
 
-// The published web URL where the bridge page is served
-const PUBLISHED_URL = 'https://jvalav1.lovable.app';
+// The published web URL where the broker and bridge page are served
+const PUBLISHED_URL = 'https://app.jvala.tech';
+
+/**
+ * Generate a cryptographic random state parameter for CSRF protection.
+ */
+const generateState = (): string => {
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    return [...crypto.getRandomValues(new Uint8Array(16))]
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+  }
+  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+};
 
 /**
  * Start native OAuth flow for a provider.
- * Returns the OAuth URL to open in the system browser.
+ * Uses the Lovable Cloud OAuth broker instead of direct Supabase auth,
+ * so that managed Google/Apple credentials are used.
  */
 export const startNativeOAuth = async (
   provider: 'google' | 'apple'
 ): Promise<{ url: string } | { error: string }> => {
   try {
-    const { data, error } = await supabase.auth.signInWithOAuth({
+    const state = generateState();
+    // Store state for validation when tokens come back
+    sessionStorage.setItem('native_oauth_state', state);
+
+    const params = new URLSearchParams({
       provider,
-      options: {
-        skipBrowserRedirect: true,
-        // Redirect to the bridge page on the published URL.
-        // The bridge page will extract tokens and redirect to the native app.
-        redirectTo: `${PUBLISHED_URL}/native-auth-callback.html`,
-      },
+      redirect_uri: `${PUBLISHED_URL}/native-auth-callback.html`,
+      state,
     });
 
-    if (error) return { error: error.message };
-    if (!data?.url) return { error: 'No OAuth URL returned' };
+    // Use the Lovable Cloud OAuth broker on the published URL
+    const brokerUrl = `${PUBLISHED_URL}/~oauth/initiate?${params.toString()}`;
 
-    return { url: data.url };
+    return { url: brokerUrl };
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Unknown error' };
   }
@@ -151,18 +164,15 @@ export const setupNativeAuthListener = (): (() => void) => {
       }
 
       // Fallback: when browser closes, check if there's a session
-      // (in case the custom scheme redirect didn't fire)
       if (browserPlugin) {
         const browserListener = await browserPlugin.addListener(
           'browserFinished',
           async () => {
             console.log('[nativeAuth] Browser closed, checking for session...');
-            // Give a brief moment for any pending auth state changes
             await new Promise(r => setTimeout(r, 500));
             const { data } = await supabase.auth.getSession();
             if (data.session) {
               console.log('[nativeAuth] Session found after browser close');
-              // Force auth state change notification
               window.dispatchEvent(new Event('native-auth-complete'));
             }
           }
