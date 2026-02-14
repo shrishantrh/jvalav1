@@ -708,7 +708,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
           }
         }),
         supabase.functions.invoke('limitless-ai', {
-          body: { query: text, userId },
+          body: { query: text, userId, clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
         })
       ]);
 

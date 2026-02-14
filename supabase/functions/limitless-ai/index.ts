@@ -33,7 +33,7 @@ serve(async (req) => {
     const userId = claimsData.claims.sub as string;
     // ─────────────────────────────────────────────────────────────────────
 
-    const { query } = await req.json();
+    const { query, clientTimezone } = await req.json();
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     
     if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
@@ -111,15 +111,33 @@ serve(async (req) => {
     });
     const topTriggers = Object.entries(triggerCounts).sort((a, b) => b[1] - a[1]).slice(0, 15);
 
-    // Time patterns - by hour
+    // Timezone-aware helpers
+    const userTz = clientTimezone || profile?.timezone || 'UTC';
+    const getLocalHour = (d: Date): number => {
+      try {
+        const parts = new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: userTz }).formatToParts(d);
+        const hourPart = parts.find(p => p.type === "hour");
+        return hourPart ? parseInt(hourPart.value, 10) : d.getUTCHours();
+      } catch { return d.getUTCHours(); }
+    };
+    const getLocalDay = (d: Date): number => {
+      try {
+        const dayStr = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: userTz }).format(d);
+        return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(dayStr);
+      } catch { return d.getUTCDay(); }
+    };
+
+    // Time patterns - by hour (timezone-aware)
     const hourCounts: Record<number, number> = {};
     const dayCounts: Record<number, { count: number; severity: number[] }> = {};
     flares.forEach((e: any) => {
       const d = new Date(e.timestamp);
-      hourCounts[d.getHours()] = (hourCounts[d.getHours()] || 0) + 1;
-      if (!dayCounts[d.getDay()]) dayCounts[d.getDay()] = { count: 0, severity: [] };
-      dayCounts[d.getDay()].count++;
-      dayCounts[d.getDay()].severity.push(e.severity === "mild" ? 1 : e.severity === "moderate" ? 2 : 3);
+      const localHour = getLocalHour(d);
+      const localDay = getLocalDay(d);
+      hourCounts[localHour] = (hourCounts[localHour] || 0) + 1;
+      if (!dayCounts[localDay]) dayCounts[localDay] = { count: 0, severity: [] };
+      dayCounts[localDay].count++;
+      dayCounts[localDay].severity.push(e.severity === "mild" ? 1 : e.severity === "moderate" ? 2 : 3);
     });
 
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -216,10 +234,10 @@ serve(async (req) => {
       weeklyFlares.push({ week: `Week ${8 - i}`, count });
     }
 
-    // Severity by hour
+    // Severity by hour (timezone-aware)
     const hourSeverity: Record<number, { total: number; count: number }> = {};
     flares.forEach((e: any) => {
-      const h = new Date(e.timestamp).getHours();
+      const h = getLocalHour(new Date(e.timestamp));
       if (!hourSeverity[h]) hourSeverity[h] = { total: 0, count: 0 };
       hourSeverity[h].total += e.severity === "mild" ? 1 : e.severity === "moderate" ? 2 : 3;
       hourSeverity[h].count++;
@@ -295,9 +313,14 @@ serve(async (req) => {
         occurrences: c.occurrence_count,
       })),
       profile: {
+        name: profile?.full_name || null,
+        dateOfBirth: profile?.date_of_birth || null,
+        biologicalSex: profile?.biological_sex || null,
         conditions: profile?.conditions || [],
         knownSymptoms: profile?.known_symptoms || [],
         knownTriggers: profile?.known_triggers || [],
+        email: profile?.email || null,
+        timezone: userTz,
       },
       engagement: {
         streak: engagement?.current_streak || 0,
@@ -353,11 +376,17 @@ When users ask "how do I...", give SPECIFIC navigation:
 YOUR PERSONALITY & RESPONSE STYLE
 ═══════════════════════════════════════════════════════════════════════════════
 - You ARE Jvala's assistant - speak with confidence about the app
-- NEVER say "I don't have access" - you have ALL their data AND know the app inside-out
+- NEVER say "I don't have access" or "I can't see your personal info" - you have ALL their data AND know the app inside-out
+- The user's name is ${profile?.full_name?.split(' ')[0] || 'there'}. Address them by name. If they ask "what's my name", answer it.
+- Their conditions: ${(profile?.conditions || []).join(', ') || 'Not specified'}
+${profile?.biological_sex ? `- Biological sex: ${profile.biological_sex}` : ''}
+${profile?.date_of_birth ? `- Date of birth: ${profile.date_of_birth}` : ''}
 - Conversational and warm, like texting a smart friend who knows the app
 - SHORT responses: 1-3 sentences max. Be helpful and direct.
+- Only create charts/visualizations when the user EXPLICITLY asks for visual data, graphs, or charts
+- For simple questions, answer conversationally - no tables or structured formats unless asked
 - For "how do I" questions: Give the exact navigation path
-- For data questions: Lead with insight, show a chart
+- For data questions: Lead with insight, only show a chart if asked
 
 ═══════════════════════════════════════════════════════════════════════════════
 CHART TYPES YOU CAN CREATE (pick the BEST one for data questions)
