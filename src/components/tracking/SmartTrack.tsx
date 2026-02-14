@@ -441,8 +441,53 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     if (transcript) setInput(transcript);
   }, [transcript]);
 
+  // ── Smart response system: every log gets EITHER a reaction OR a text response ──
+  const getResponseStrategy = (logLabel: string, recentSameCount: number): { reaction: string; text: string } => {
+    const now = Date.now();
+    const recentUserMsgs = messages.filter(m => m.role === 'user' && (now - m.timestamp.getTime()) < 5 * 60 * 1000);
+    const rapidFire = recentUserMsgs.length >= 3;
+    const veryRapid = recentUserMsgs.length >= 5;
+    const recentReactions = messages.filter(m => m.role === 'user' && m.reaction && (now - m.timestamp.getTime()) < 10 * 60 * 1000).length;
+    const reactionFatigue = recentReactions >= 3;
+
+    if (veryRapid && recentSameCount >= 4) {
+      const texts = [
+        `whoa — ${recentSameCount + 1}x ${logLabel.toLowerCase()} in a few minutes, you good? 😅`,
+        `okay ${recentSameCount + 1} ${logLabel.toLowerCase()} logs back to back… take it easy!`,
+        `${logLabel} #${recentSameCount + 1} — I'm keeping track but maybe slow down a bit 👀`,
+      ];
+      return { reaction: '', text: texts[Math.floor(Math.random() * texts.length)] };
+    }
+    if (rapidFire && recentSameCount >= 2) {
+      const texts = [
+        `${recentSameCount + 1}x ${logLabel.toLowerCase()} — noted, watching this pattern`,
+        `that's a lot of ${logLabel.toLowerCase()} recently — ${recentSameCount + 1} and counting`,
+      ];
+      return { reaction: '', text: texts[Math.floor(Math.random() * texts.length)] };
+    }
+    if (recentSameCount >= 3) {
+      const texts = [
+        `that's ${logLabel} #${recentSameCount + 1} in the last couple hours — keeping an eye on it`,
+        `${recentSameCount + 1}x ${logLabel.toLowerCase()} today, noted 👀`,
+      ];
+      return { reaction: '', text: texts[Math.floor(Math.random() * texts.length)] };
+    }
+    if (recentSameCount >= 1) {
+      if (Math.random() < 0.5 && !reactionFatigue) {
+        return { reaction: ['👀', '‼️', '😏'][Math.floor(Math.random() * 3)], text: '' };
+      }
+      return { reaction: '', text: `another ${logLabel.toLowerCase()} — noted` };
+    }
+    if (!reactionFatigue && Math.random() < 0.3) {
+      const pool = ['👍', '💪', '🔥', '👏', '✌️'];
+      return { reaction: pool[Math.floor(Math.random() * pool.length)], text: '' };
+    }
+    const shortTexts = [`got it 👍`, `logged.`, `noted!`, `✓ ${logLabel}`, `tracked.`];
+    return { reaction: '', text: shortTexts[Math.floor(Math.random() * shortTexts.length)] };
+  };
+
   const handleFluidLog = async (symptom: string, severity: string) => {
-    const reaction = maybeReaction('flare', 0);
+    const { reaction, text: responseText } = getResponseStrategy(symptom, 0);
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
@@ -463,29 +508,24 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       timestamp: new Date(),
     };
 
-    // Get unified context data (environmental + wearable)
     try {
       const contextData = await getEntryContext();
-      if (contextData.environmentalData) {
-        entry.environmentalData = contextData.environmentalData;
-      }
-      if (contextData.physiologicalData) {
-        entry.physiologicalData = contextData.physiologicalData;
-      }
+      if (contextData.environmentalData) entry.environmentalData = contextData.environmentalData;
+      if (contextData.physiologicalData) entry.physiologicalData = contextData.physiologicalData;
     } catch (e) {
       console.log('Could not get context data:', e);
     }
 
     const saved = await onSave(entry);
-
-    // Track the last logged entry for potential updates
     const entryId = Date.now().toString();
     setLastLoggedEntryId(entryId);
 
     const confirmMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
       role: 'assistant',
-      content: saved ? `Saved ${severity} ${symptom}.` : `Couldn't save that — please try again.`,
+      content: saved 
+        ? (responseText || `Saved ${severity} ${symptom}.`)
+        : `Couldn't save that — please try again.`,
       timestamp: new Date(),
       entryData: entry,
     };
@@ -493,7 +533,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   };
 
   const handleMedicationLog = async (medicationName: string) => {
-    const reaction = maybeReaction('medication', 0);
+    const { reaction, text: responseText } = getResponseStrategy('medication', 0);
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
@@ -515,7 +555,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     const confirmMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
       role: 'assistant',
-      content: `${medicationName} logged.`,
+      content: responseText || `${medicationName} logged.`,
       timestamp: new Date(),
       entryData: entry,
     };
@@ -551,7 +591,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
 
   const handleEnergyLog = async (level: 'low' | 'moderate' | 'high') => {
     const labels = { low: 'Low energy', moderate: 'Moderate energy', high: 'High energy' };
-    const reaction = maybeReaction('energy', 0);
+    const { reaction, text: responseText } = getResponseStrategy('energy', 0);
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
@@ -579,28 +619,12 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     const confirmMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
       role: 'assistant',
-      content: responses[level],
+      content: responseText || responses[level],
       timestamp: new Date(),
       entryData: entry,
     };
     setMessages(prev => [...prev, confirmMessage]);
   };
-
-    // Helper: maybe add a reaction to a user message (iMessage-style)
-    // Returns the emoji or empty string. ~15% chance for routine logs.
-    const maybeReaction = (logType: string, recentSameCount: number): string => {
-      if (recentSameCount >= 3) return ''; // 3rd+ time we'll comment in text instead
-      if (recentSameCount >= 2) {
-        // 2nd time same thing — 40% chance of a noticing reaction
-        return Math.random() < 0.4 ? (['👀', '‼️'])[Math.floor(Math.random() * 2)] : '';
-      }
-      // First time — ~15% chance of a casual reaction
-      if (Math.random() < 0.15) {
-        const pool = ['👍', '💪', '🔥', '👏', '✌️', '💯'];
-        return pool[Math.floor(Math.random() * pool.length)];
-      }
-      return '';
-    };
 
     const handleCustomLog = async (trackableLabel: string, value?: string) => {
     // Extract a clean display value from the logMessage template output
@@ -621,15 +645,15 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       return m.content.toLowerCase().includes(trackableLabel.toLowerCase());
     }).length;
 
-    // Maybe attach an iMessage-style reaction to user bubble
-    const reaction = maybeReaction(trackableLabel, recentSameType);
+    // Get response strategy: reaction OR text, never nothing
+    const { reaction, text: responseText } = getResponseStrategy(trackableLabel, recentSameType);
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
       content: displayText,
       timestamp: new Date(),
-      reaction, // appears as corner overlay on the bubble
+      reaction,
     };
     setMessages(prev => [...prev, userMessage]);
 
@@ -637,7 +661,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     if (reaction) {
       setTimeout(() => {
         import('@/lib/haptics').then(({ haptics }) => haptics.light());
-      }, 400); // delay to sync with animation
+      }, 400);
     }
 
     const entry: Partial<FlareEntry> = {
@@ -661,22 +685,10 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
 
     onSave(entry);
 
-    // Build a proper confirmation — always show text, never blank
-    let confirmContent = '';
-    if (recentSameType >= 3) {
-      const patternReactions = [
-        `that's ${trackableLabel} #${recentSameType + 1} in the last couple hours — keeping an eye on it`,
-        `${recentSameType + 1}x ${trackableLabel.toLowerCase()} today, noted 👀`,
-      ];
-      confirmContent = patternReactions[Math.floor(Math.random() * patternReactions.length)];
-    }
-    // Otherwise just show the clean confirmation line (no separate text needed,
-    // the entryData confirmation badge handles it)
-
     const confirmMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
       role: 'assistant',
-      content: confirmContent,
+      content: responseText, // may be empty if reaction was given instead
       timestamp: new Date(),
       entryData: entry,
     };
@@ -936,7 +948,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
           return (
           <div key={msg.id} className={cn(
             "flex flex-col",
-            msg.role === 'user' ? "items-end" : "items-start"
+            msg.role === 'user' ? "items-end" : "items-start",
+            msg.reaction ? "mt-4" : "" // extra space for reaction overlay
           )}>
             {/* 3D Frosted glass chat bubble using accent color */}
             <div 
@@ -965,7 +978,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
               {/* iMessage-style reaction overlay — bottom-left corner of user bubble */}
               {msg.reaction && msg.role === 'user' && (
                 <div 
-                  className="absolute -bottom-3 -left-2 z-20 animate-reaction-pop"
+                  className="absolute -top-3 -left-2 z-20 animate-reaction-pop"
                   style={{ animationDelay: '300ms', animationFillMode: 'both' }}
                 >
                   <div className="bg-white dark:bg-slate-800 rounded-full px-1.5 py-0.5 shadow-lg border border-border/50 text-sm">
