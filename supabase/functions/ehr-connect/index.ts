@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 // 1Up Health API endpoints
@@ -46,6 +46,34 @@ serve(async (req) => {
   }
 
   try {
+    // --- JWT Authentication Guard ---
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const anonClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Use authenticated user ID - never trust client-supplied userId
+    const userId = claimsData.claims.sub as string;
+
+    // Service role client for privileged operations (token storage)
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -54,7 +82,7 @@ serve(async (req) => {
     const ONEUP_CLIENT_ID = Deno.env.get('ONEUP_CLIENT_ID');
     const ONEUP_CLIENT_SECRET = Deno.env.get('ONEUP_CLIENT_SECRET');
 
-    const { action, userId, provider, code, appUserId } = await req.json();
+    const { action, provider, code } = await req.json();
     console.log(`EHR Connect: action=${action}, provider=${provider}, userId=${userId}`);
 
     switch (action) {
@@ -82,14 +110,12 @@ serve(async (req) => {
         }
 
         // Step 1: Ensure a 1Up Health user exists for this app_user_id
-        // 1Up returns "this user does not exist" unless we create/upsert the mapping first.
         console.log('Ensuring 1Up Health user exists for:', userId);
 
         const createUserResponse = await fetch('https://api.1up.health/user-management/v1/user', {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
-            // Per 1Up docs these are sent as headers
             'client_id': ONEUP_CLIENT_ID,
             'client_secret': ONEUP_CLIENT_SECRET,
           },
@@ -304,6 +330,8 @@ serve(async (req) => {
             const data = await conditionsRes.json();
             fhirResources.conditions = data.entry?.map((e: any) => e.resource) || [];
             console.log(`Fetched ${fhirResources.conditions.length} conditions`);
+          } else {
+            await conditionsRes.text();
           }
         } catch (e) {
           console.error('Error fetching conditions:', e);
@@ -318,6 +346,8 @@ serve(async (req) => {
             const data = await medsRes.json();
             fhirResources.medications = data.entry?.map((e: any) => e.resource) || [];
             console.log(`Fetched ${fhirResources.medications.length} medications`);
+          } else {
+            await medsRes.text();
           }
         } catch (e) {
           console.error('Error fetching medications:', e);
@@ -332,6 +362,8 @@ serve(async (req) => {
             const data = await allergiesRes.json();
             fhirResources.allergies = data.entry?.map((e: any) => e.resource) || [];
             console.log(`Fetched ${fhirResources.allergies.length} allergies`);
+          } else {
+            await allergiesRes.text();
           }
         } catch (e) {
           console.error('Error fetching allergies:', e);
@@ -345,7 +377,6 @@ serve(async (req) => {
           if (obsRes.ok) {
             const data = await obsRes.json();
             const observations = data.entry?.map((e: any) => e.resource) || [];
-            // Separate labs from vitals based on category
             fhirResources.labs = observations.filter((o: any) => 
               o.category?.some((c: any) => c.coding?.some((cd: any) => cd.code === 'laboratory'))
             );
@@ -353,6 +384,8 @@ serve(async (req) => {
               o.category?.some((c: any) => c.coding?.some((cd: any) => cd.code === 'vital-signs'))
             );
             console.log(`Fetched ${fhirResources.labs.length} labs, ${fhirResources.vitals.length} vitals`);
+          } else {
+            await obsRes.text();
           }
         } catch (e) {
           console.error('Error fetching observations:', e);
@@ -448,7 +481,6 @@ serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('EHR connect error:', error);
 
-    // Return 200 so the client can render a friendly error state (Supabase client treats non-2xx as a hard error).
     return new Response(JSON.stringify({
       status: 'error',
       error: errorMessage,
