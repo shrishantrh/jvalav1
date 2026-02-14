@@ -520,14 +520,29 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   }, [transcript]);
 
   // ── Smart response system: every log gets EITHER a reaction OR a text response ──
+  const reactionCountRef = useRef(0); // track total reactions given this session
+  const lastReactionTimeRef = useRef(0);
+
   const getResponseStrategy = (logLabel: string, recentSameCount: number): { reaction: string; text: string } => {
     const now = Date.now();
     const recentUserMsgs = messages.filter(m => m.role === 'user' && (now - m.timestamp.getTime()) < 5 * 60 * 1000);
     const rapidFire = recentUserMsgs.length >= 3;
     const veryRapid = recentUserMsgs.length >= 5;
-    const recentReactions = messages.filter(m => m.role === 'user' && m.reaction && (now - m.timestamp.getTime()) < 10 * 60 * 1000).length;
-    const reactionFatigue = recentReactions >= 3;
+    
+    // Reaction fatigue: max 4 reactions in 10 min window, then text only for a bit
+    const timeSinceLastReaction = now - lastReactionTimeRef.current;
+    const reactionFatigue = reactionCountRef.current >= 4 && timeSinceLastReaction < 10 * 60 * 1000;
+    // Reset fatigue counter after 10 min
+    if (timeSinceLastReaction > 10 * 60 * 1000) reactionCountRef.current = 0;
 
+    const giveReaction = (pool: string[]): { reaction: string; text: string } => {
+      const emoji = pool[Math.floor(Math.random() * pool.length)];
+      reactionCountRef.current++;
+      lastReactionTimeRef.current = now;
+      return { reaction: emoji, text: '' };
+    };
+
+    // 5+ same item rapidly → always text commentary
     if (veryRapid && recentSameCount >= 4) {
       const texts = [
         `whoa — ${recentSameCount + 1}x ${logLabel.toLowerCase()} in a few minutes, you good? 😅`,
@@ -536,6 +551,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       ];
       return { reaction: '', text: texts[Math.floor(Math.random() * texts.length)] };
     }
+    // 3+ rapid → text about the pattern
     if (rapidFire && recentSameCount >= 2) {
       const texts = [
         `${recentSameCount + 1}x ${logLabel.toLowerCase()} — noted, watching this pattern`,
@@ -543,24 +559,18 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       ];
       return { reaction: '', text: texts[Math.floor(Math.random() * texts.length)] };
     }
-    if (recentSameCount >= 3) {
-      const texts = [
-        `that's ${logLabel} #${recentSameCount + 1} in the last couple hours — keeping an eye on it`,
-        `${recentSameCount + 1}x ${logLabel.toLowerCase()} today, noted 👀`,
-      ];
-      return { reaction: '', text: texts[Math.floor(Math.random() * texts.length)] };
-    }
-    if (recentSameCount >= 1) {
-      if (Math.random() < 0.5 && !reactionFatigue) {
-        return { reaction: ['👀', '‼️', '😏'][Math.floor(Math.random() * 3)], text: '' };
+    // Repeat log (2nd or 3rd) → 60% reaction, 40% text
+    if (recentSameCount >= 1 && recentSameCount < 4) {
+      if (Math.random() < 0.6 && !reactionFatigue) {
+        return giveReaction(['👀', '😏', '🫡', '💪']);
       }
       return { reaction: '', text: `another ${logLabel.toLowerCase()} — noted` };
     }
-    if (!reactionFatigue && Math.random() < 0.3) {
-      const pool = ['👍', '💪', '🔥', '👏', '✌️'];
-      return { reaction: pool[Math.floor(Math.random() * pool.length)], text: '' };
+    // First log → 50% reaction, 50% short text
+    if (!reactionFatigue && Math.random() < 0.5) {
+      return giveReaction(['👍', '💪', '🔥', '👏', '✌️', '🫡']);
     }
-    const shortTexts = [`got it 👍`, `logged.`, `noted!`, `✓ ${logLabel}`, `tracked.`];
+    const shortTexts = [`got it`, `logged`, `noted`, `tracked`];
     return { reaction: '', text: shortTexts[Math.floor(Math.random() * shortTexts.length)] };
   };
 
@@ -725,11 +735,14 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     const trackableType = `trackable:${trackableLabel.toLowerCase().replace(/\s+/g, '_')}`;
 
     // Count recent logs of same trackable in last 2 hours
+    // Search for BOTH the trackable label AND the display text to catch matches
+    const searchTerms = [trackableLabel.toLowerCase(), displayText.toLowerCase()];
     const recentSameType = messages.filter(m => {
       if (m.role !== 'user') return false;
       const age = Date.now() - m.timestamp.getTime();
       if (age > 2 * 60 * 60 * 1000) return false;
-      return m.content.toLowerCase().includes(trackableLabel.toLowerCase());
+      const lc = m.content.toLowerCase();
+      return searchTerms.some(term => lc.includes(term));
     }).length;
 
     // Get response strategy: reaction OR text, never nothing
