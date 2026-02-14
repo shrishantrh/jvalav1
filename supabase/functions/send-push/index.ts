@@ -78,6 +78,30 @@ serve(async (req) => {
   }
 
   try {
+    // Auth guard: require service role key or valid JWT
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const token = authHeader.replace('Bearer ', '');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (token !== serviceRoleKey) {
+      // Not service role — verify as user JWT
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+      const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: claims, error: claimsError } = await anonClient.auth.getClaims(token);
+      if (claimsError || !claims?.claims?.sub) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY');
     const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY');
     

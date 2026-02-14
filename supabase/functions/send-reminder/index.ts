@@ -29,9 +29,30 @@ serve(async (req) => {
   }
 
   try {
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    // Auth guard: require service role key or valid JWT
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const token = authHeader.replace('Bearer ', '');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    if (token !== supabaseKey) {
+      // Not service role — verify as user JWT
+      const anonClient = createClient(supabaseUrl!, Deno.env.get('SUPABASE_ANON_KEY')!, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: claims, error: claimsError } = await anonClient.auth.getClaims(token);
+      if (claimsError || !claims?.claims?.sub) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
 
     if (!resendApiKey || !supabaseUrl || !supabaseKey) {
       throw new Error('Missing required environment variables');
