@@ -48,8 +48,12 @@ interface CompactFlareCardProps {
 const parseTrackableMeta = (note?: string): { trackableLabel?: string; value?: string; icon?: string; color?: string } | null => {
   if (!note) return null;
   try {
-    const parsed = JSON.parse(note);
-    if (parsed.trackableLabel) return parsed;
+    // Try to parse as JSON - handle both clean JSON and any surrounding whitespace/quotes
+    const trimmed = note.trim();
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      const parsed = JSON.parse(trimmed);
+      if (parsed.trackableLabel) return parsed;
+    }
   } catch { /* not JSON */ }
   return null;
 };
@@ -267,8 +271,8 @@ export const CompactFlareCard = ({
     setIsExpanded(open);
   };
 
-  // Parse trackable metadata for display
-  const trackableMeta = entry.type?.startsWith('trackable:') ? parseTrackableMeta(entry.note) : null;
+  // Parse trackable metadata for display — also detect JSON notes that aren't on trackable: type
+  const trackableMeta = parseTrackableMeta(entry.note);
   // Check if the note is JSON metadata (should not be displayed as a note)
   const isNoteMetadata = !!trackableMeta;
 
