@@ -481,45 +481,50 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     const cached = chatCache.get(userId);
     if (cached && cached.length > 0) return;
     
-    // Show a quick static greeting while AI loads
-    const staticGreeting = getPersonalizedGreeting(userConditions, recentEntries);
+    // Show typing indicator while AI loads
     setMessages([{
-      id: '1',
+      id: 'typing',
       role: 'assistant',
-      content: staticGreeting,
+      content: '...',
       timestamp: new Date(),
     }]);
 
-    // Then call proactive-checkin for a smarter message
+    // Fetch proactive AI message (no static greeting first)
     const fetchProactive = async () => {
       try {
         const { data, error } = await supabase.functions.invoke('proactive-checkin', {
-          body: { clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+          body: { 
+            clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            isFirstSession: recentEntries.length === 0,
+          },
         });
-        if (error || !data) return;
-
+        
+        const message = data?.message || getPersonalizedGreeting(userConditions, recentEntries);
+        
         const proactiveMsg: ChatMessage = {
           id: Date.now().toString(),
           role: 'assistant',
-          content: data.message || '',
+          content: message,
           timestamp: new Date(),
-          proactiveForm: data.form || undefined,
+          proactiveForm: data?.form || undefined,
         };
 
-        setMessages(prev => {
-          // Replace the static greeting with the AI one
-          if (prev.length === 1 && prev[0].id === '1') {
-            return [proactiveMsg];
-          }
-          return [...prev, proactiveMsg];
-        });
+        // Replace typing indicator with real message
+        setMessages([proactiveMsg]);
       } catch (e) {
         console.log('[ProactiveCheckin] Could not fetch:', e);
+        // Fallback to static greeting
+        setMessages([{
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: getPersonalizedGreeting(userConditions, recentEntries),
+          timestamp: new Date(),
+        }]);
       }
     };
 
-    // Small delay to not block initial render
-    setTimeout(fetchProactive, 500);
+    // Small delay to show typing indicator
+    setTimeout(fetchProactive, 300);
   }, [userId, userConditions, recentEntries]);
 
   useEffect(() => {
@@ -1190,7 +1195,15 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                 
                 return (
                   <>
-                    <p className="text-sm whitespace-pre-wrap relative z-10">{displayContent}</p>
+                    {displayContent === '...' ? (
+                      <div className="flex items-center gap-1 py-1 relative z-10">
+                        <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
+                    ) : (
+                      <p className="text-sm whitespace-pre-wrap relative z-10">{displayContent}</p>
+                    )}
                     {inlineChart && <DynamicChartRenderer chart={inlineChart} />}
                   </>
                 );
