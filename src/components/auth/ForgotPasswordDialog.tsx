@@ -22,8 +22,8 @@ export const ForgotPasswordDialog = ({ open, onOpenChange }: ForgotPasswordDialo
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'https://jvala.tech/reset-password',
+      const { error } = await supabase.functions.invoke('send-auth-email', {
+        body: { type: 'recovery', email },
       });
 
       if (error) throw error;
@@ -31,7 +31,7 @@ export const ForgotPasswordDialog = ({ open, onOpenChange }: ForgotPasswordDialo
       setSent(true);
       toast({
         title: "Check your email",
-        description: "We've sent you a password reset link.",
+        description: "We've sent a password reset link from support@jvala.tech.",
       });
     } catch (error: any) {
       toast({
