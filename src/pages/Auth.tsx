@@ -217,15 +217,15 @@ const Auth = () => {
 
     try {
       if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
+        // Edge function handles user creation + sends verification email via Resend
+        const { data: fnData, error: fnError } = await supabase.functions.invoke('send-auth-email', {
+          body: { type: 'signup', email, password },
         });
 
-        if (error) throw error;
+        if (fnError) throw fnError;
 
-        // Detect if email is already registered (Supabase returns empty identities)
-        if (data.user && (!data.user.identities || data.user.identities.length === 0)) {
+        // Check if email is already registered
+        if (fnData?.error === 'already_registered') {
           toast({
             title: "Email already registered",
             description: "This email is already in use. Please sign in instead, or use Google/Apple if that's how you originally signed up.",
@@ -237,20 +237,7 @@ const Auth = () => {
           return;
         }
 
-        if (data.user) {
-          await supabase.from('profiles').update({
-            terms_accepted_at: new Date().toISOString(),
-          }).eq('id', data.user.id);
-        }
-
-        // Send custom verification email via Resend from login.jvala.tech
-        try {
-          await supabase.functions.invoke('send-auth-email', {
-            body: { type: 'signup', email },
-          });
-        } catch (emailErr) {
-          console.error('Custom email send failed:', emailErr);
-        }
+        if (fnData?.error) throw new Error(fnData.error);
 
         toast({
           title: "Check your email! 📧",

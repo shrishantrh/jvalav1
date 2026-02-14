@@ -24,7 +24,7 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const { type, email } = await req.json();
+    const { type, email, password } = await req.json();
 
     if (!type || !email) {
       return new Response(JSON.stringify({ error: "Missing type or email" }), {
@@ -33,15 +33,22 @@ serve(async (req) => {
       });
     }
 
-    let actionLink: string;
     let subject: string;
     let htmlContent: string;
 
     if (type === "signup") {
-      // Generate email confirmation link via admin API
+      if (!password) {
+        return new Response(JSON.stringify({ error: "Password required for signup" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // generateLink creates the user AND returns a confirmation link — no default email sent
       const { data, error } = await supabaseAdmin.auth.admin.generateLink({
         type: "signup",
         email,
+        password,
         options: {
           redirectTo: "https://jvala.tech/confirm-email",
         },
@@ -49,17 +56,30 @@ serve(async (req) => {
 
       if (error) {
         console.error("generateLink signup error:", error);
+        // Check if user already exists
+        if (error.message?.includes("already been registered") || error.message?.includes("already exists")) {
+          return new Response(JSON.stringify({ error: "already_registered" }), {
+            status: 409,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         throw new Error(error.message);
       }
 
-      actionLink = data.properties?.action_link || "";
+      const actionLink = data.properties?.action_link || "";
       if (!actionLink) throw new Error("No action link generated");
+
+      // Also set terms_accepted_at on the new profile
+      if (data.user?.id) {
+        await supabaseAdmin.from('profiles').update({
+          terms_accepted_at: new Date().toISOString(),
+        }).eq('id', data.user.id);
+      }
 
       subject = "Verify your email — Jvala";
       htmlContent = buildVerificationEmail(actionLink);
 
     } else if (type === "recovery") {
-      // Generate password recovery link
       const { data, error } = await supabaseAdmin.auth.admin.generateLink({
         type: "recovery",
         email,
@@ -73,7 +93,7 @@ serve(async (req) => {
         throw new Error(error.message);
       }
 
-      actionLink = data.properties?.action_link || "";
+      const actionLink = data.properties?.action_link || "";
       if (!actionLink) throw new Error("No action link generated");
 
       subject = "Reset your password — Jvala";
@@ -86,7 +106,7 @@ serve(async (req) => {
       });
     }
 
-    // Send via Resend from the verified login.jvala.tech subdomain
+    // Send via Resend from verified login.jvala.tech subdomain
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
