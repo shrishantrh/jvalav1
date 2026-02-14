@@ -115,7 +115,7 @@ export function useThemeColor() {
         return saved as ThemeColor;
       }
     }
-    return 'amber';
+    return 'pink';
   });
 
   // Apply theme on mount and changes
