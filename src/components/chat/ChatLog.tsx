@@ -329,6 +329,7 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
           userSymptoms,
           userConditions,
           userId,
+          clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           history: historyForAI,
         },
       });

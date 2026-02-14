@@ -555,8 +555,13 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     setMessages(prev => [...prev, confirmMessage]);
   };
 
-  const handleCustomLog = async (trackableLabel: string, value?: string) => {
-    const displayText = value || `Logged ${trackableLabel}`;
+    const handleCustomLog = async (trackableLabel: string, value?: string) => {
+    // Extract a clean display value from the logMessage template output
+    const cleanValue = value 
+      ? value.replace(/^Logged\s+/i, '').replace(new RegExp(`^${trackableLabel}:\\s*`, 'i'), '')
+      : null;
+    const displayText = cleanValue || `Logged ${trackableLabel}`;
+    
     // Find the trackable config for icon/color metadata
     const trackable = customTrackables.find(t => t.label === trackableLabel);
     const trackableType = `trackable:${trackableLabel.toLowerCase().replace(/\s+/g, '_')}`;
@@ -573,9 +578,9 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       type: trackableType,
       note: JSON.stringify({
         trackableLabel,
-        value: value || trackableLabel,
-        icon: trackable?.icon || '📊',
-        color: trackable?.color || '#8B5CF6',
+        value: cleanValue || trackableLabel,
+        icon: trackable?.icon || 'activity',
+        color: trackable?.color || 'hsl(250 60% 55%)',
         interactionType: trackable?.interactionType,
       }),
       timestamp: new Date(),
@@ -593,7 +598,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     const confirmMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
       role: 'assistant',
-      content: `${trackable?.icon || '✓'} ${trackableLabel} logged — ${value || 'recorded'}`,
+      content: `✓ ${trackableLabel} — ${cleanValue || 'logged'}`,
       timestamp: new Date(),
       entryData: entry,
     };
@@ -677,6 +682,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             message: text,
             userContext,
             userId,
+            clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
             history: messages.slice(-8).map(m => ({
               role: m.role === 'system' ? 'assistant' : m.role,
               content: m.content,

@@ -52,17 +52,25 @@ const SeverityOrb = ({ severity, type, note }: { severity?: string; type?: strin
     // Custom trackable types (type starts with 'trackable:')
     if (type?.startsWith('trackable:')) {
       const meta = parseTrackableMeta(note);
-      // Map lucide icon names to emojis for display
+      // Map lucide icon names to SVG icons rendered inline
       const iconEmojiMap: Record<string, string> = {
         glass_water: '💧', droplets: '💧', dumbbell: '💪', apple: '🍎',
         heart: '❤️', brain: '🧠', moon: '🌙', sun: '☀️', thermometer: '🌡️',
         zap: '⚡', shield: '🛡️', eye: '👁️', activity: '📊', flame: '🔥',
       };
-      const emoji = iconEmojiMap[meta?.icon || ''] || meta?.icon || '📊';
+      const emoji = iconEmojiMap[meta?.icon || ''] || '📊';
+      
+      // Derive gradient and glow from the trackable's color
+      const trackableColor = meta?.color || 'hsl(250 60% 55%)';
+      // Parse HSL to create gradient variants
+      const hslMatch = trackableColor.match(/hsl\((\d+)\s+(\d+)%?\s+(\d+)%?\)/);
+      const h = hslMatch ? parseInt(hslMatch[1]) : 250;
+      const s = hslMatch ? parseInt(hslMatch[2]) : 60;
+      
       return { 
-        gradient: 'from-violet-200 via-purple-100 to-fuchsia-50',
-        glow: 'rgba(139, 92, 246, 0.35)',
-        face: '#7c3aed',
+        gradient: `from-[hsl(${h}_${s}%_90%)] via-[hsl(${h}_${Math.max(s-10,20)}%_95%)] to-[hsl(${h}_${Math.max(s-20,10)}%_97%)]`,
+        glow: `hsla(${h}, ${s}%, 55%, 0.35)`,
+        face: `hsl(${h}, ${s}%, 45%)`,
         faceType: 'emoji' as const,
         emoji,
       };
@@ -331,8 +339,9 @@ export const CompactFlareCard = ({
                     </Badge>
                   )}
                   {trackableMeta && trackableMeta.value && trackableMeta.value !== trackableMeta.trackableLabel && (
-                    <span className="text-[10px] text-muted-foreground font-medium">
-                      {trackableMeta.value}
+                    <span className="text-[10px] text-muted-foreground font-medium truncate max-w-[140px]">
+                      {/* Strip "Logged" prefix and clean up display value */}
+                      {trackableMeta.value.replace(/^Logged\s+/i, '')}
                     </span>
                   )}
                 </div>
