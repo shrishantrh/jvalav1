@@ -24,6 +24,8 @@ interface ChatMessage {
   isAIGenerated?: boolean;
   dataUsed?: string[];
   weatherUsed?: boolean;
+  // iMessage-style reaction on the user's own bubble
+  reaction?: string;
   weatherCard?: {
     location: string;
     country?: string;
@@ -440,13 +442,19 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   }, [transcript]);
 
   const handleFluidLog = async (symptom: string, severity: string) => {
+    const reaction = maybeReaction('flare', 0);
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
       content: `${severity} ${symptom}`,
       timestamp: new Date(),
+      reaction,
     };
     setMessages(prev => [...prev, userMessage]);
+
+    if (reaction) {
+      setTimeout(() => { import('@/lib/haptics').then(({ haptics }) => haptics.light()); }, 400);
+    }
 
     const entry: Partial<FlareEntry> = {
       type: 'flare',
@@ -477,7 +485,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     const confirmMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
       role: 'assistant',
-      content: saved ? `Saved ${severity} ${symptom} to History.` : `Couldn’t save that flare — please try again.`,
+      content: saved ? `Saved ${severity} ${symptom}.` : `Couldn't save that — please try again.`,
       timestamp: new Date(),
       entryData: entry,
     };
@@ -485,13 +493,16 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   };
 
   const handleMedicationLog = async (medicationName: string) => {
+    const reaction = maybeReaction('medication', 0);
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
       content: `Took ${medicationName}`,
       timestamp: new Date(),
+      reaction,
     };
     setMessages(prev => [...prev, userMessage]);
+    if (reaction) setTimeout(() => { import('@/lib/haptics').then(({ haptics }) => haptics.light()); }, 400);
 
     const entry: Partial<FlareEntry> = {
       type: 'medication',
@@ -499,7 +510,6 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       note: `Took ${medicationName}`,
       timestamp: new Date(),
     };
-
     onSave(entry);
 
     const confirmMessage: ChatMessage = {
@@ -541,13 +551,16 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
 
   const handleEnergyLog = async (level: 'low' | 'moderate' | 'high') => {
     const labels = { low: 'Low energy', moderate: 'Moderate energy', high: 'High energy' };
+    const reaction = maybeReaction('energy', 0);
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
       content: labels[level],
       timestamp: new Date(),
+      reaction,
     };
     setMessages(prev => [...prev, userMessage]);
+    if (reaction) setTimeout(() => { import('@/lib/haptics').then(({ haptics }) => haptics.light()); }, 400);
 
     const entry: Partial<FlareEntry> = {
       type: 'energy',
@@ -559,7 +572,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
 
     const responses: Record<string, string> = {
       low: "Logged low energy. Take it easy.",
-      moderate: "Noted. Pace yourself!",
+      moderate: "Noted — pace yourself!",
       high: "Great energy! Make the most of it.",
     };
 
@@ -573,6 +586,22 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     setMessages(prev => [...prev, confirmMessage]);
   };
 
+    // Helper: maybe add a reaction to a user message (iMessage-style)
+    // Returns the emoji or empty string. ~15% chance for routine logs.
+    const maybeReaction = (logType: string, recentSameCount: number): string => {
+      if (recentSameCount >= 3) return ''; // 3rd+ time we'll comment in text instead
+      if (recentSameCount >= 2) {
+        // 2nd time same thing — 40% chance of a noticing reaction
+        return Math.random() < 0.4 ? (['👀', '‼️'])[Math.floor(Math.random() * 2)] : '';
+      }
+      // First time — ~15% chance of a casual reaction
+      if (Math.random() < 0.15) {
+        const pool = ['👍', '💪', '🔥', '👏', '✌️', '💯'];
+        return pool[Math.floor(Math.random() * pool.length)];
+      }
+      return '';
+    };
+
     const handleCustomLog = async (trackableLabel: string, value?: string) => {
     // Extract a clean display value from the logMessage template output
     const cleanValue = value 
@@ -584,13 +613,32 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     const trackable = customTrackables.find(t => t.label === trackableLabel);
     const trackableType = `trackable:${trackableLabel.toLowerCase().replace(/\s+/g, '_')}`;
 
+    // Count recent logs of same trackable in last 2 hours
+    const recentSameType = messages.filter(m => {
+      if (m.role !== 'user') return false;
+      const age = Date.now() - m.timestamp.getTime();
+      if (age > 2 * 60 * 60 * 1000) return false;
+      return m.content.toLowerCase().includes(trackableLabel.toLowerCase());
+    }).length;
+
+    // Maybe attach an iMessage-style reaction to user bubble
+    const reaction = maybeReaction(trackableLabel, recentSameType);
+
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
       content: displayText,
       timestamp: new Date(),
+      reaction, // appears as corner overlay on the bubble
     };
     setMessages(prev => [...prev, userMessage]);
+
+    // Trigger haptic for the reaction pop-in
+    if (reaction) {
+      setTimeout(() => {
+        import('@/lib/haptics').then(({ haptics }) => haptics.light());
+      }, 400); // delay to sync with animation
+    }
 
     const entry: Partial<FlareEntry> = {
       type: trackableType,
@@ -613,45 +661,17 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
 
     onSave(entry);
 
-    // ── Dynamic emoji reaction system ──
-    // Count recent logs of same trackable in last 2 hours
-    const recentSameType = messages.filter(m => {
-      if (m.role !== 'user') return false;
-      const age = Date.now() - m.timestamp.getTime();
-      if (age > 2 * 60 * 60 * 1000) return false; // 2 hours
-      const content = m.content.toLowerCase();
-      return content.includes(trackableLabel.toLowerCase());
-    }).length; // includes the one we just added
-
-    // AI-like reaction logic — varies by count and randomness
-    let reactionEmoji = '';
-    let reactionText = '';
-    const rand = Math.random();
-    
+    // Build a proper confirmation — always show text, never blank
+    let confirmContent = '';
     if (recentSameType >= 3) {
-      // 3rd+ time — comment on the pattern
       const patternReactions = [
-        `whoa, ${trackableLabel} #${recentSameType + 1} today 👀`,
-        `that's a lot of ${trackableLabel.toLowerCase()} — ${recentSameType + 1}x in the last couple hours`,
-        `${recentSameType + 1}th ${trackableLabel.toLowerCase()} — keep an eye on this pattern`,
+        `that's ${trackableLabel} #${recentSameType + 1} in the last couple hours — keeping an eye on it`,
+        `${recentSameType + 1}x ${trackableLabel.toLowerCase()} today, noted 👀`,
       ];
-      reactionText = patternReactions[Math.floor(Math.random() * patternReactions.length)];
-    } else if (recentSameType >= 2) {
-      // 2nd time — subtle notice
-      const doubleReactions = ['‼️', '👀', '😏'];
-      reactionEmoji = doubleReactions[Math.floor(Math.random() * doubleReactions.length)];
-    } else if (rand < 0.6) {
-      // First time — sometimes just react with an emoji (60% chance)
-      const casualReactions = ['👍', '💪', '🔥', '👏', '✌️', '💯'];
-      reactionEmoji = casualReactions[Math.floor(Math.random() * casualReactions.length)];
+      confirmContent = patternReactions[Math.floor(Math.random() * patternReactions.length)];
     }
-    // 40% of first-time logs get no reaction, just the confirmation
-
-    const confirmContent = reactionText 
-      ? reactionText 
-      : reactionEmoji 
-        ? reactionEmoji 
-        : '';
+    // Otherwise just show the clean confirmation line (no separate text needed,
+    // the entryData confirmation badge handles it)
 
     const confirmMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
@@ -909,7 +929,11 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
 
         {/* Messages */}
         <div className="p-4 space-y-3">
-        {messages.map((msg, index) => (
+        {messages.map((msg, index) => {
+          // Skip empty assistant messages (confirmation is handled by entryData badge)
+          if (msg.role === 'assistant' && !msg.content && !msg.entryData && !msg.visualization && !msg.weatherCard && !msg.chartData) return null;
+          
+          return (
           <div key={msg.id} className={cn(
             "flex flex-col",
             msg.role === 'user' ? "items-end" : "items-start"
@@ -917,8 +941,10 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             {/* 3D Frosted glass chat bubble using accent color */}
             <div 
               className={cn(
-                "max-w-[85%] rounded-2xl px-4 py-2.5 relative overflow-hidden",
+                "max-w-[85%] rounded-2xl px-4 py-2.5 relative",
                 msg.role === 'user' ? "rounded-br-md" : "rounded-bl-md",
+                // Hide empty assistant bubbles but keep the entryData confirmation below
+                msg.role === 'assistant' && !msg.content && msg.entryData ? "hidden" : "",
                 msg.role === 'user' 
                   ? "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground border border-primary/50 shadow-[inset_0_1px_2px_rgba(255,255,255,0.2),0_4px_12px_hsl(var(--primary)/0.25)]"
                   : "bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-white/60 dark:border-slate-700/60 shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_12px_rgba(0,0,0,0.04)]"
@@ -927,7 +953,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
               {/* Glass highlight overlay */}
               <div 
                 className={cn(
-                  "absolute inset-0 pointer-events-none rounded-inherit",
+                  "absolute inset-0 pointer-events-none rounded-inherit overflow-hidden",
                   msg.role === 'user'
                     ? "bg-gradient-to-b from-white/15 to-transparent"
                     : "bg-gradient-to-b from-white/25 to-transparent"
@@ -935,6 +961,18 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
               />
               <p className="text-sm whitespace-pre-wrap relative z-10">{msg.content}</p>
               {msg.visualization && <DynamicChartRenderer chart={msg.visualization} />}
+              
+              {/* iMessage-style reaction overlay — bottom-left corner of user bubble */}
+              {msg.reaction && msg.role === 'user' && (
+                <div 
+                  className="absolute -bottom-3 -left-2 z-20 animate-reaction-pop"
+                  style={{ animationDelay: '300ms', animationFillMode: 'both' }}
+                >
+                  <div className="bg-white dark:bg-slate-800 rounded-full px-1.5 py-0.5 shadow-lg border border-border/50 text-sm">
+                    {msg.reaction}
+                  </div>
+                </div>
+              )}
             </div>
             
             {msg.weatherCard && <WeatherCard weather={msg.weatherCard} />}
@@ -948,7 +986,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             )}
             
             {msg.entryData && !msg.updateInfo && (
-              <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+              <div className={cn("flex items-center gap-1.5 text-[10px] text-muted-foreground", msg.reaction ? "mt-3" : "mt-1.5")}>
                 <Check className="w-3 h-3 text-green-500" />
                 <span>{
                   msg.entryData.type?.startsWith('trackable:') 
@@ -979,7 +1017,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
         
         {/* Show top correlations hint if user has discovered patterns */}
         {topCorrelations.length > 0 && messages.length === 1 && (
