@@ -305,7 +305,7 @@ const Auth = () => {
   return (
     <div className="fixed inset-0 flex flex-col max-w-md mx-auto overflow-y-auto scrollbar-hide" style={{ background: '#000' }}>
       {/* Shader gradient background - fixed so it covers full scroll */}
-      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0, maxWidth: '430px', margin: '0 auto' }}>
         <ShaderGradientCanvas
           style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
           pointerEvents="none"
@@ -350,10 +350,10 @@ const Auth = () => {
               <img src={jvalaLogo} alt="Jvala" className="w-full h-full object-contain" />
             </div>
           </div>
-          <h1 className="text-[32px] tracking-tight" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 800, color: '#fff', textShadow: '0 2px 16px hsl(0 0% 0% / 0.4)' }}>
+          <h1 className="text-[30px] tracking-tight" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 800, color: '#2d1b4e', textShadow: '0 1px 16px hsl(0 0% 100% / 0.5)' }}>
             {isSignUp ? "Create Account" : "Welcome Back"}
           </h1>
-          <p className="text-[17px] mt-1.5" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 700, color: '#fff', textShadow: '0 1px 12px hsl(0 0% 0% / 0.35)' }}>
+          <p className="text-[16px] mt-1.5" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 600, color: '#3d2a5c', textShadow: '0 1px 12px hsl(0 0% 100% / 0.4)' }}>
             {isSignUp ? "Start your health journey" : "Sign in to continue"}
           </p>
         </div>
@@ -587,7 +587,7 @@ const Auth = () => {
         </div>
 
         {/* Footer */}
-        <p className="text-[14px] mt-6 text-center" style={{ color: '#fff', fontFamily: "'Satoshi', sans-serif", fontWeight: 700, textShadow: '0 1px 10px hsl(0 0% 0% / 0.35)' }}>
+        <p className="text-[14px] mt-6 text-center" style={{ color: '#2d1b4e', fontFamily: "'Satoshi', sans-serif", fontWeight: 600, textShadow: '0 1px 8px hsl(0 0% 100% / 0.4)' }}>
           🔒 Your health data is encrypted and never shared.
         </p>
       </div>
