@@ -69,12 +69,14 @@ export const TourSpotlight = ({
     zIndex: 10003,
   };
 
-  // If target bottom half is below 45% of viewport, put bubble above
+  // Always place bubble above if target is in lower 60% of screen, otherwise below
+  const targetTop = cutout.y;
   const targetBottom = cutout.y + cutout.h;
-  const effectivePosition = targetBottom > vh * 0.45 ? 'above' : position;
+  const effectivePosition = targetTop > vh * 0.35 ? 'above' : position;
 
   if (effectivePosition === 'above') {
-    bubbleStyle.top = Math.max(bubbleMargin, cutout.y - 100);
+    // Place bubble so its bottom edge is above the cutout with margin
+    bubbleStyle.top = Math.max(bubbleMargin, targetTop - 110);
   } else {
     bubbleStyle.top = Math.min(targetBottom + bubbleMargin, vh - 140);
   }
@@ -193,7 +195,7 @@ export const TourSpotlight = ({
             {/* Hint for interactive step */}
             {allowInteraction && (
               <span className="text-[10px] text-muted-foreground animate-pulse">
-                👆 Tap a button to try
+                Tap a button to try
               </span>
             )}
           </div>
