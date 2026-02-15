@@ -70,9 +70,10 @@ export const MobileHeader = ({
       {/* Right: Actions */}
       <div className="flex items-center gap-2">
         {/* Streak pill - Frosted glass style */}
-        {onStreakClick && streak > 0 && (
+        {onStreakClick && (
           <button
             onClick={handleStreakClick}
+            data-tour="streak-pill"
             className={cn(
               "relative flex items-center gap-1.5 px-4 py-2 rounded-2xl transition-all duration-300 overflow-hidden",
               // Frosted glass
@@ -97,6 +98,7 @@ export const MobileHeader = ({
         {onProfileClick && (
           <button
             onClick={handleProfileClick}
+            data-tour="profile-button"
             className={cn(
               "relative h-10 w-10 rounded-2xl flex items-center justify-center transition-all overflow-hidden",
               // Frosted glass

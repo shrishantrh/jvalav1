@@ -55,7 +55,7 @@ export const RevampedInsights = ({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-tour="trends-area">
       {/* Tabs - now 3 tabs without Export */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3 h-10 bg-card/80 backdrop-blur-sm">
