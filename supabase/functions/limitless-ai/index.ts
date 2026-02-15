@@ -565,20 +565,14 @@ You have evidence-based knowledge about ${userName}'s conditions. When they ask 
     ${userConditionKnowledge}
 
 ══ DISCOVERIES — YOUR MOST POWERFUL FEATURE ══
-The Discovery Engine continuously runs Bayesian association rule mining across ALL user data. Below are active discoveries it has found. USE THEM.
+The Discovery Engine has found the following patterns. You have this data available.
 
-RULES:
-1. When a user logs something that matches a known discovery (e.g., they eat pizza and you know pizza→breakout), PROACTIVELY mention it briefly: "heads up — pizza has been linked to your breakouts X out of Y times."
-2. If a discovery has status "confirmed" or "strong", treat it as established fact in your responses.
-3. If status is "emerging" or "investigating", mention it cautiously: "I'm noticing a possible pattern..."
-4. NEVER ignore a high-confidence discovery when it's relevant to the conversation.
-5. When you spot a NEW pattern the engine hasn't found yet (from conversational context), mention it — the engine will catch up on next analysis.
-
-CRITICAL FORMATTING RULE FOR DISCOVERIES:
-- When announcing or discussing discoveries, keep it SHORT and conversational. Do NOT dump full statistics as raw text.
-- Say things like: "Cold temperature has been a strong trigger — linked to your flares 14 out of 14 times with 5.3× higher risk."
-- Do NOT use formatting like "**Discovery: temperature:cold**" with long stat blocks. Just weave the key numbers into a natural sentence.
-- The frontend handles visual rendering — you just provide clean text.
+CRITICAL RULES:
+1. When mentioning a discovery, weave the KEY STAT into ONE short sentence. Example: "Heads up — medication has been linked to your flares 4 out of 4 times (3.3× more likely)."
+2. NEVER use the old format with "**Discovery: X**" blocks, stat paragraphs, italic lines, or 💡 emojis before discoveries. That format is BANNED.
+3. NEVER output raw discovery data blocks. Just mention the relevant finding naturally in 1 sentence.
+4. Include discovery details in the "discoveries" array of your respond_text_only tool call — the frontend renders them as visual cards automatically.
+5. If status is "confirmed" or "strong", state it as fact. If "emerging" or "investigating", say "I'm noticing a possible pattern..."
 
 DISCOVERY DATA:
 ${JSON.stringify(dataContext.discoveries?.filter((d: any) => d.confidence >= 25) || [], null, 2)}
@@ -666,12 +660,29 @@ ${JSON.stringify(dataContext, null, 2)}
         type: "function",
         function: {
           name: "respond_text_only",
-          description: "Respond with text only. Use this for most responses — questions, observations, greetings, insights, anything that doesn't need a chart or web research.",
+          description: "Respond with text only. Use this for most responses. If discoveries are relevant, include them in the discoveries array — the frontend will render them as visual cards.",
           parameters: {
             type: "object",
             required: ["response"],
             properties: {
-              response: { type: "string", description: "Your conversational response" },
+              response: { type: "string", description: "Your conversational response. Do NOT include raw discovery stat blocks here — put them in the discoveries array instead." },
+              discoveries: { 
+                type: "array", 
+                items: { 
+                  type: "object",
+                  required: ["factor", "confidence", "occurrences", "total", "category"],
+                  properties: {
+                    factor: { type: "string", description: "The trigger/factor name (e.g. 'Cold Temperature', 'Medication', 'Advil')" },
+                    confidence: { type: "number", description: "Confidence percentage 0-100" },
+                    lift: { type: "number", description: "How many times more likely than random (e.g. 3.3)" },
+                    occurrences: { type: "number", description: "Times this factor led to a flare" },
+                    total: { type: "number", description: "Total times this factor was observed" },
+                    category: { type: "string", enum: ["trigger", "protective", "investigating"], description: "Whether this is a risk factor, protective factor, or under investigation" },
+                    summary: { type: "string", description: "One-line plain English summary" },
+                  }
+                },
+                description: "Structured discovery data to render as visual cards. Use when discoveries are relevant to the conversation." 
+              },
               dynamicFollowUps: { type: "array", items: { type: "string" }, description: "2-3 follow-up questions" },
             },
           },
@@ -822,6 +833,7 @@ ${JSON.stringify(dataContext, null, 2)}
         return new Response(JSON.stringify({
           response: parsed.response,
           visualization: null,
+          discoveries: parsed.discoveries || [],
           dynamicFollowUps: parsed.dynamicFollowUps,
           citations: [],
           wasResearched: false,

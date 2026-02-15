@@ -10,10 +10,21 @@ import { cn } from "@/lib/utils";
 import { AIVisualization, AIVisualizationRenderer } from "@/components/chat/AIVisualization";
 import { useToast } from "@/hooks/use-toast";
 
+interface StructuredDiscovery {
+  factor: string;
+  confidence: number;
+  lift: number;
+  occurrences: number;
+  total: number;
+  category: 'trigger' | 'protective' | 'investigating';
+  summary?: string;
+}
+
 interface Message {
   role: "user" | "assistant";
   content: string;
   visualization?: AIVisualization;
+  discoveries?: StructuredDiscovery[];
   followUp?: string;
   protocolSteps?: string[];
 }
@@ -27,58 +38,9 @@ interface LimitlessAIChatProps {
 }
 
 // ─── Discovery Card ───
-// Detects discovery blocks in AI text and renders them as compact visual cards
+// Renders structured discovery data as compact visual cards
 
-const DISCOVERY_REGEX = /\*{0,2}Discovery:\s*(.+?)\*{0,2}\n+([\s\S]*?)(?=\n\*{0,2}Discovery:|\n💡|\n$|$)/gi;
-
-interface ParsedDiscovery {
-  factor: string;
-  confidence: number;
-  lift: number;
-  occurrences: number;
-  total: number;
-  category: 'trigger' | 'protective' | 'investigating';
-  summary: string;
-}
-
-function parseDiscoveries(text: string): { discoveries: ParsedDiscovery[]; cleanText: string } {
-  const discoveries: ParsedDiscovery[] = [];
-  
-  // Match patterns like "**Discovery: temperature:cold**" or "Discovery: humidity:high_humidity"
-  const discoveryPattern = /(?:💡\s*)?(?:\*{1,2})?Discovery:\s*(.+?)(?:\*{1,2})?\n+([\s\S]*?)(?=(?:💡\s*)?(?:\*{1,2})?Discovery:|$)/gi;
-  
-  let match;
-  while ((match = discoveryPattern.exec(text)) !== null) {
-    const factor = match[1].trim().replace(/\*+/g, '');
-    const body = match[2].trim();
-    
-    // Extract numbers
-    const occMatch = body.match(/(\d+)\s*out of\s*(\d+)\s*times/);
-    const liftMatch = body.match(/([\d.]+)x\s*more likely/);
-    const confMatch = body.match(/(\d+)%\s*confidence/);
-    
-    discoveries.push({
-      factor: factor.replace(/:/g, ' → ').replace(/_/g, ' '),
-      confidence: confMatch ? parseInt(confMatch[1]) : 0,
-      lift: liftMatch ? parseFloat(liftMatch[1]) : 1,
-      occurrences: occMatch ? parseInt(occMatch[1]) : 0,
-      total: occMatch ? parseInt(occMatch[2]) : 0,
-      category: body.toLowerCase().includes('protect') ? 'protective' : 
-                body.toLowerCase().includes('investigat') ? 'investigating' : 'trigger',
-      summary: occMatch ? `${occMatch[1]}/${occMatch[2]} times a flare followed` : body.slice(0, 60),
-    });
-  }
-
-  // Remove discovery blocks from text
-  let cleanText = text
-    .replace(/(?:💡\s*)?(?:\*{1,2})?Discovery:\s*.+?(?:\*{1,2})?\n+[\s\S]*?(?=(?:💡\s*)?(?:\*{1,2})?Discovery:|$)/gi, '')
-    .replace(/^_.*?_$/gm, '') // Remove italic-only lines like "_Strong evidence..."
-    .trim();
-
-  return { discoveries, cleanText };
-}
-
-const DiscoveryCard = ({ discovery, onViewTrends }: { discovery: ParsedDiscovery; onViewTrends?: () => void }) => {
+const DiscoveryCard = ({ discovery, onViewTrends }: { discovery: StructuredDiscovery; onViewTrends?: () => void }) => {
   const icon = discovery.category === 'trigger' ? TrendingUp : 
                discovery.category === 'protective' ? Shield : Search;
   const Icon = icon;
@@ -88,6 +50,7 @@ const DiscoveryCard = ({ discovery, onViewTrends }: { discovery: ParsedDiscovery
     investigating: { bg: 'hsl(220 60% 95%)', border: 'hsl(220 40% 85%)', icon: 'hsl(220 50% 50%)', bar: 'hsl(220 50% 55%)' },
   };
   const colors = categoryColors[discovery.category];
+  const summary = discovery.summary || `${discovery.occurrences}/${discovery.total} times a flare followed`;
 
   return (
     <div className="rounded-xl p-3 my-2" style={{ background: colors.bg, border: `1px solid ${colors.border}` }}>
@@ -100,7 +63,7 @@ const DiscoveryCard = ({ discovery, onViewTrends }: { discovery: ParsedDiscovery
       
       {/* Stats row */}
       <div className="flex items-center gap-3 text-[11px] text-muted-foreground mb-2">
-        <span>{discovery.summary}</span>
+        <span>{summary}</span>
         {discovery.lift > 1 && <span className="font-medium" style={{ color: colors.icon }}>{discovery.lift}× likely</span>}
       </div>
 
@@ -127,27 +90,28 @@ const DiscoveryCard = ({ discovery, onViewTrends }: { discovery: ParsedDiscovery
   );
 };
 
-const MessageContent = ({ content, role, onNavigateToTrends }: { content: string; role: string; onNavigateToTrends?: () => void }) => {
-  const { discoveries, cleanText } = parseDiscoveries(content);
+// Also clean any leftover raw discovery blocks from text (fallback)
+function cleanDiscoveryText(text: string): string {
+  return text
+    .replace(/(?:💡\s*)?(?:\*{1,2})?Discovery:\s*.+?(?:\*{1,2})?\n+[\s\S]*?(?=(?:💡\s*)?(?:\*{1,2})?Discovery:|$)/gi, '')
+    .replace(/^_.*?_$/gm, '')
+    .trim();
+}
 
-  if (discoveries.length > 0) {
-    return (
-      <div className="text-sm">
-        {cleanText && (
-          <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0 [&>ul]:mt-1 [&>ul]:mb-0 [&>ol]:mt-1 [&>ol]:mb-0 mb-1">
-            <ReactMarkdown>{cleanText}</ReactMarkdown>
-          </div>
-        )}
-        {discoveries.map((d, i) => (
-          <DiscoveryCard key={i} discovery={d} onViewTrends={onNavigateToTrends} />
-        ))}
-      </div>
-    );
-  }
+const MessageContent = ({ content, role, discoveries, onNavigateToTrends }: { content: string; role: string; discoveries?: StructuredDiscovery[]; onNavigateToTrends?: () => void }) => {
+  // Clean any leftover raw discovery blocks from text
+  const cleanText = cleanDiscoveryText(content);
 
   return (
-    <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0 [&>ul]:mt-1 [&>ul]:mb-0 [&>ol]:mt-1 [&>ol]:mb-0 text-sm">
-      <ReactMarkdown>{content}</ReactMarkdown>
+    <div className="text-sm">
+      {cleanText && (
+        <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0 [&>ul]:mt-1 [&>ul]:mb-0 [&>ol]:mt-1 [&>ol]:mb-0">
+          <ReactMarkdown>{cleanText}</ReactMarkdown>
+        </div>
+      )}
+      {discoveries && discoveries.length > 0 && discoveries.map((d, i) => (
+        <DiscoveryCard key={i} discovery={d} onViewTrends={onNavigateToTrends} />
+      ))}
     </div>
   );
 };
@@ -220,6 +184,7 @@ Make it practical and personalized to my data.`;
         role: "assistant",
         content: data.response || "I'm here to help with your health patterns.",
         visualization: data.visualization,
+        discoveries: data.discoveries,
         followUp: data.followUp,
         protocolSteps: data.protocolSteps,
       };
@@ -366,7 +331,7 @@ Make it practical and personalized to my data.`;
                     msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
                   )}
                 >
-                  <MessageContent content={msg.content} role={msg.role} onNavigateToTrends={onClose} />
+                  <MessageContent content={msg.content} role={msg.role} discoveries={msg.discoveries} onNavigateToTrends={onClose} />
 
                   {msg.visualization && <AIVisualizationRenderer viz={msg.visualization} />}
 
