@@ -7,8 +7,9 @@ interface TourStep {
   message: string;
   position: 'above' | 'below';
   navigateTo?: 'track' | 'history' | 'insights' | 'exports';
-  allowInteraction?: boolean; // step 1: user must tap a button
-  waitForEntry?: boolean; // step 1: wait for entry to be logged
+  allowInteraction?: boolean;
+  waitForEntry?: boolean;
+  scrollIntoView?: boolean; // scroll element into view before measuring
 }
 
 const TOUR_STEPS: TourStep[] = [
@@ -42,6 +43,7 @@ const TOUR_STEPS: TourStep[] = [
     message: "After 10 entries, AI finds deep links.",
     position: 'above',
     navigateTo: 'insights',
+    scrollIntoView: true,
   },
   {
     target: 'exports-area',
@@ -61,7 +63,7 @@ interface AppTourProps {
   userId: string;
   onViewChange: (view: 'track' | 'history' | 'insights' | 'exports') => void;
   onComplete: () => void;
-  onEntryLogged?: boolean; // becomes true when user logs something during step 1
+  onEntryLogged?: boolean;
 }
 
 export const AppTour = ({ userId, onViewChange, onComplete, onEntryLogged }: AppTourProps) => {
@@ -78,49 +80,63 @@ export const AppTour = ({ userId, onViewChange, onComplete, onEntryLogged }: App
     }
   }, [currentStep]);
 
-  // Find and measure the target element
+  // Find and measure the target element with robust retry
   useEffect(() => {
-    const findTarget = () => {
+    setReady(false);
+    setTargetRect(null);
+
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 15;
+
+    const measure = () => {
+      if (cancelled) return;
       const el = document.querySelector(`[data-tour="${step?.target}"]`);
       if (el) {
-        const rect = el.getBoundingClientRect();
-        setTargetRect(rect);
-        setReady(true);
-        
-        // Scroll element into view if needed (for deep-research button)
-        if (step?.target === 'deep-research' || step?.target === 'exports-area') {
+        // If we need to scroll into view first
+        if (step?.scrollIntoView && attempts === 0) {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          // Re-measure after scroll
+          // Wait for scroll to settle, then re-measure
           setTimeout(() => {
-            const newRect = el.getBoundingClientRect();
-            setTargetRect(newRect);
-          }, 400);
+            if (cancelled) return;
+            const rect = el.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+              setTargetRect(rect);
+              setReady(true);
+            }
+          }, 500);
+          attempts++;
+          return;
         }
-      } else {
-        // Element not rendered yet, retry
-        setReady(false);
+
+        const rect = el.getBoundingClientRect();
+        // Verify the element is actually visible on screen
+        if (rect.width > 0 && rect.height > 0) {
+          setTargetRect(rect);
+          setReady(true);
+          return;
+        }
+      }
+
+      // Retry
+      attempts++;
+      if (attempts < maxAttempts) {
+        setTimeout(measure, 300);
       }
     };
 
-    setReady(false);
-    setTargetRect(null);
-    // Delay to allow tab navigation to render
-    const timer = setTimeout(findTarget, 400);
-    // Also retry a couple more times for slow renders
-    const retry1 = setTimeout(findTarget, 800);
-    const retry2 = setTimeout(findTarget, 1200);
+    // Initial delay to allow tab navigation render
+    const timer = setTimeout(measure, 350);
 
     return () => {
+      cancelled = true;
       clearTimeout(timer);
-      clearTimeout(retry1);
-      clearTimeout(retry2);
     };
-  }, [currentStep, step?.target]);
+  }, [currentStep, step?.target, step?.scrollIntoView]);
 
   // Step 1: auto-advance when entry is logged
   useEffect(() => {
     if (currentStep === 0 && onEntryLogged) {
-      // Delay to let the confirmation message appear
       const t = setTimeout(() => setCurrentStep(1), 600);
       return () => clearTimeout(t);
     }
@@ -136,7 +152,6 @@ export const AppTour = ({ userId, onViewChange, onComplete, onEntryLogged }: App
 
   const completeTour = useCallback(async () => {
     try {
-      // Persist tour_completed in profile metadata
       const { data } = await supabase
         .from('profiles')
         .select('metadata')
