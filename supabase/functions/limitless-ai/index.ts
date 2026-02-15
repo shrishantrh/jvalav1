@@ -424,111 +424,104 @@ serve(async (req) => {
       : null;
     const userSex = profile?.biological_sex || null;
 
-    // Build condition-specific clinical knowledge
+    // Build condition-specific clinical knowledge — expanded with proactive triggers
     const conditionKnowledge: Record<string, string> = {
-      'Asthma': `ASTHMA CLINICAL KNOWLEDGE:
-- Sleep disruption is bidirectional: poor sleep worsens airway inflammation; nocturnal asthma disrupts sleep. Studies show asthma symptoms peak between 4-6 AM due to circadian cortisol dips.
-- Key triggers: cold/dry air, humidity >60%, rapid temp changes (>10°F in 24h), high pollen/AQI, GERD, emotional stress, exercise (especially cold air).
-- Caffeine is a mild bronchodilator (theophylline analog) — 1-2 cups coffee may slightly help, but >4 cups can trigger anxiety/GERD which worsens symptoms.
-- Dehydration thickens airway mucus. Aim for 2-3L water daily.
-- Stress increases cortisol → airway hyperresponsiveness. HRV drops correlate with flare risk within 24-48h.
-- Exercise-induced bronchoconstriction peaks 5-15 min post-exercise; warm-up reduces risk by 50%.
-- Weather: thunderstorms can cause "thunderstorm asthma" (pollen grain rupture). Barometric pressure drops precede flares.`,
-      
-      'Migraine': `MIGRAINE CLINICAL KNOWLEDGE:
-- Sleep is the #1 modifiable trigger. Both too little (<6h) and too much (>9h) increase risk. Irregular sleep schedules are worse than consistent short sleep.
-- The "migraine threshold" model: triggers stack. One trigger alone may not cause an attack, but trigger1 + trigger2 + poor sleep = attack.
-- Common triggers: dehydration, skipped meals (blood sugar drops), alcohol (especially red wine/histamine), aged cheeses (tyramine), MSG, bright/flickering lights, strong scents, weather changes, hormonal fluctuations.
-- Caffeine: paradoxical — small amounts can abort early migraines, but regular >200mg/day creates dependency and withdrawal triggers attacks.
-- Prodrome signs 24-48h before: yawning, food cravings, neck stiffness, mood changes. Tracking these enables early intervention.
-- HRV drops and resting HR increases often precede migraines by 12-24h.
-- Magnesium deficiency is present in 50% of migraine patients. 400mg/day magnesium glycinate is evidence-based prevention.`,
-      
-      'Eczema': `ECZEMA/ATOPIC DERMATITIS CLINICAL KNOWLEDGE:
-- Sleep loss directly impairs skin barrier function and increases inflammatory cytokines (IL-4, IL-13). The itch-scratch-wake cycle is the main quality-of-life issue.
-- Flares correlate with: low humidity (<30%), temperature extremes, sweat, stress, certain fabrics (wool), fragrances, SLS in soaps, dust mites.
-- Stress → cortisol dysregulation → mast cell degranulation → histamine release → itch. This is measurable via HRV.
-- Hot showers (>100°F) strip skin lipids and worsen barrier. Lukewarm <5min showers recommended.
-- Gut-skin axis: emerging evidence links gut microbiome disruption to flares. Probiotics (L. rhamnosus) show moderate benefit.
-- Nocturnal scratching is often unconscious. Core body temp drops at night → itch worsens.
-- Weather: transitions between seasons (especially fall→winter) are highest-risk periods.`,
-      
-      'Acne': `ACNE CLINICAL KNOWLEDGE:
-- Sleep deprivation increases cortisol → stimulates sebaceous glands → excess sebum → breakouts within 48-72h.
-- Hormonal patterns: ${userSex === 'Female' ? 'Flares typically worsen 7-10 days before menstruation due to progesterone spike and androgen sensitivity. Track cycle correlation.' : 'Testosterone fluctuations affect sebum production. Stress-cortisol-androgen axis is key driver.'}
-- Dairy (especially skim milk) contains IGF-1 which stimulates sebocytes. High-glycemic foods spike insulin → androgen production.
-- Stress → cortisol → increased sebum + inflammatory neuropeptides in skin.
-- Gut-skin axis: emerging evidence. Probiotics may help via reducing systemic inflammation.
-- Exercise helps (reduces cortisol, improves circulation) but sweat left on skin can worsen follicular occlusion. Shower within 30 min.
-- Humidity >70% can worsen; very low humidity impairs barrier → compensatory oil production.`,
-
-      'Anxiety': `ANXIETY CLINICAL KNOWLEDGE:
-- Sleep and anxiety are bidirectional: anxiety disrupts sleep onset; sleep deprivation amplifies amygdala reactivity by 60% (Walker et al.).
-- Caffeine >200mg/day significantly worsens anxiety symptoms. Half-life is 5-6h, so afternoon coffee affects sleep and next-day anxiety.
-- HRV is a biomarker: lower HRV correlates with higher anxiety. HRV biofeedback training (6 breaths/min) is evidence-based treatment.
-- Exercise is as effective as SSRIs for mild-moderate anxiety (meta-analysis). 30min moderate activity, 3-5x/week.
-- Blood sugar crashes trigger sympathetic nervous system → mimics/triggers anxiety. Regular meals, protein+fiber.
-- Alcohol: initial anxiolytic effect but rebound anxiety 4-8h later ("hangxiety"). GABA rebound.
-- Weather/seasons: reduced sunlight → lower serotonin. SAD-anxiety comorbidity is common.`,
-      
-      'IBS': `IBS CLINICAL KNOWLEDGE:
-- The gut-brain axis makes IBS uniquely stress-sensitive. Stress directly alters gut motility, secretion, and visceral sensitivity.
-- Sleep disruption worsens symptoms next day via vagal tone reduction. HRV is a proxy for vagal function.
-- FODMAPs are the most evidence-based dietary trigger. Common culprits: onions, garlic, wheat, dairy, apples, beans.
-- Caffeine stimulates colonic motility — can trigger urgency/cramping in IBS-D. May help IBS-C in moderation.
-- Exercise (especially walking, yoga) improves GI transit and reduces bloating. High-intensity can worsen symptoms.
-- Meal timing matters: large meals trigger gastrocolic reflex. Smaller, frequent meals recommended.
-- Menstrual cycle affects motility: progesterone slows transit (bloating/constipation in luteal phase), prostaglandins increase it (diarrhea during menses).`,
-
-      'Lower Back Pain': `LOWER BACK PAIN CLINICAL KNOWLEDGE:
-- Chronic low back pain is strongly linked to sleep quality — poor sleep increases pain sensitivity (central sensitization) by up to 50%.
-- Sedentary behavior >6h/day increases risk. Prolonged sitting compresses lumbar discs. Stand/walk every 30-45 min.
-- Stress → muscle tension (especially erector spinae and psoas). HRV drops correlate with pain flares.
-- Exercise is the #1 evidence-based treatment. Core stabilization, walking, swimming, yoga all show benefit.
-- Cold weather and barometric pressure drops increase muscle stiffness and pain perception.
-- Dehydration reduces disc hydration (discs are ~80% water). Adequate water intake supports spinal health.
-- Sleep position matters: side sleeping with pillow between knees or supine with pillow under knees reduces lumbar strain.
-- Weight: every 10 lbs overweight adds ~40 lbs of force on the lumbar spine.`,
-
-      'Fibromyalgia': `FIBROMYALGIA CLINICAL KNOWLEDGE:
-- Central sensitization is the core mechanism — the pain processing system is amplified. Sleep is THE critical modifier.
-- Non-restorative sleep (alpha-wave intrusion into deep sleep) is present in ~90% of patients. Improving sleep quality reduces pain by 20-30%.
-- Weather sensitivity is well-documented: cold, humidity, and barometric pressure changes worsen symptoms.
-- Exercise paradox: activity worsens symptoms acutely but is the most evidence-based long-term treatment. Start very low, increase very slowly.
-- Stress → HPA axis dysregulation → cortisol abnormalities → widespread pain amplification.
-- Cognitive symptoms ("fibro fog") worsen with poor sleep and stress. Track cognitive function alongside pain.
-- Comorbid conditions: 30-70% have IBS, TMJ, migraine, or anxiety. Track interactions between these.`,
-
-      'Endometriosis': `ENDOMETRIOSIS CLINICAL KNOWLEDGE:
-- Cyclical pain pattern is hallmark but many experience non-cyclical chronic pain due to central sensitization.
-- Inflammatory diet (red meat, trans fats, alcohol) worsens symptoms. Anti-inflammatory diet (omega-3, turmeric, leafy greens) shows benefit.
-- Sleep disruption increases systemic inflammation → worsens endo pain. Prioritize sleep hygiene.
-- Stress → cortisol → inflammatory cascade → pain amplification. HRV tracking can predict flare windows.
-- Exercise reduces estrogen levels and inflammation but high-intensity can increase pain acutely. Moderate exercise recommended.
-- GI symptoms overlap with IBS in 50-80% of patients. Track bowel symptoms separately from pelvic pain.
-- Menstrual cycle tracking is critical: map pain to cycle days to identify personal high-risk windows.`,
-
-      'GERD': `GERD CLINICAL KNOWLEDGE:
-- Nighttime reflux is the most damaging. Elevate head of bed 6-8 inches. Don't eat within 3 hours of bedtime.
-- Trigger foods: coffee, chocolate, alcohol, spicy foods, citrus, tomatoes, fatty foods, mint. Individual triggers vary — tracking is key.
-- Stress directly increases gastric acid secretion and esophageal sensitivity. HRV drops precede symptom worsening.
-- Obesity increases intra-abdominal pressure. Even modest weight loss (5-10%) significantly improves symptoms.
-- Tight clothing around waist increases reflux risk.
-- Caffeine relaxes the lower esophageal sphincter. Reducing coffee may help more than any medication.
-- Sleep position: left-side sleeping reduces reflux episodes by ~75% compared to right-side (anatomical reason: stomach curvature).`,
+      'Asthma': `ASTHMA: Sleep disruption bidirectional. Symptoms peak 4-6 AM (cortisol dip). Triggers: cold/dry air, humidity >60%, AQI, GERD, stress, exercise. Caffeine mild bronchodilator. Thunderstorm asthma risk. Barometric drops precede flares. PROACTIVE: After meals (GERD→bronchospasm), before exercise, weather changes, evening (nocturnal), spring/fall pollen.`,
+      'Migraine': `MIGRAINE: Sleep #1 trigger (<6h and >9h risky). Threshold model: triggers stack. Triggers: dehydration, skipped meals, alcohol, aged cheese, MSG, lights, weather. Caffeine paradoxical. Prodrome 24-48h: yawning, cravings, neck stiffness. HRV drops 12-24h before. Magnesium 400mg/day preventive. PROACTIVE: After skipped meals, dehydration mid-afternoon, after alcohol, pressure changes, cycle days 1-3/24-28, after poor sleep.`,
+      'Eczema': `ECZEMA: Sleep loss impairs barrier (IL-4/IL-13). Triggers: humidity <30%, temp extremes, sweat, stress, wool, SLS, dust mites. Hot showers strip lipids. Gut-skin axis: L. rhamnosus helps. Nocturnal scratching: core temp drops → itch. Fall→winter worst. PROACTIVE: After shower (moisturize), season changes, dry weather, stress, dairy/gluten, evening itch, post-exercise sweat.`,
+      'Acne': `ACNE: Sleep loss → cortisol → sebum → breakouts 48-72h. ${userSex === 'Female' ? 'Flares 7-10d before period (progesterone).' : 'Stress-cortisol-androgen axis.'} Dairy (skim milk IGF-1), high-glycemic foods. Exercise helps but shower within 30 min. PROACTIVE: After dairy/sugar, post-exercise, bedtime skincare, cycle tracking, stress, after touching face.`,
+      'Anxiety': `ANXIETY: Bidirectional with sleep (amygdala +60%). Caffeine >200mg worsens. HRV biomarker. Exercise = SSRIs for mild-moderate. Blood sugar crashes mimic anxiety. Alcohol rebound 4-8h ("hangxiety"). PROACTIVE: Morning (sleep→anxiety), after caffeine, after meals (sugar), before social events, evening wind-down, after alcohol, weather/light changes.`,
+      'IBS': `IBS: Gut-brain axis: stress alters motility. FODMAPs: onions, garlic, wheat, dairy, apples. Large meals = gastrocolic reflex. Caffeine → urgency. Cycle: progesterone slows (luteal bloating), prostaglandins increase (menses diarrhea). PROACTIVE: After every meal (30-90 min window), morning bowels, FODMAP foods, stress, caffeine, cycle days.`,
+      'Lower Back Pain': `LOWER BACK: Poor sleep → +50% pain sensitivity. Sedentary >6h dangerous. Cold/pressure drops increase stiffness. Disc dehydration. 10 lbs overweight = 40 lbs lumbar force. PROACTIVE: After 2h+ sitting, morning stiffness, after exercise, weather changes, after lifting, evening assessment.`,
+      'Fibromyalgia': `FIBROMYALGIA: Central sensitization. Sleep is critical (alpha-wave intrusion in 90%). Weather sensitivity. Exercise paradox: acute worsening but best long-term. Fibro fog. 30-70% comorbid IBS/TMJ/migraine/anxiety. PROACTIVE: Morning pain/fatigue, after sleep, weather changes, after activity (pacing), evening energy, stress.`,
+      'Endometriosis': `ENDO: Cyclical and non-cyclical pain. Anti-inflammatory diet helps. GI overlap 50-80%. Cycle mapping critical. PROACTIVE: Cycle days 1-5/24-28, after meals (GI), post-exercise, evening pain, before/after intimacy, stress.`,
+      'GERD': `GERD: Nighttime worst. No eating 3h before bed. Triggers: coffee, chocolate, alcohol, spicy, citrus, fatty, mint. Left-side sleeping -75% reflux. PROACTIVE: After every meal (20-60 min), before bed, after coffee/alcohol, after spicy/fatty food, morning reflux, lying down after eating.`,
+      'Diabetes': `DIABETES: Postprandial spikes 60-90 min. Dawn phenomenon 4-8 AM. Exercise lowers glucose but intense can spike (stress hormones). One night poor sleep = -25-30% insulin sensitivity. PROACTIVE: Before/after every meal, morning fasting, post-exercise, before bed, after stress, after alcohol, mid-afternoon dip.`,
+      'Hypertension': `HYPERTENSION: Sodium <2300mg/day. DASH diet -8-14 mmHg. 150 min/week exercise -5-8 mmHg. Sleep apnea in 50% resistant HTN. Caffeine acute +5-10 mmHg 2-3h. PROACTIVE: Morning BP, after meals (sodium), post-exercise, stress, medication timing, evening reading, after caffeine.`,
+      'Depression': `DEPRESSION: Consistent wake time > sleep duration. Behavioral activation: small activities counter inertia. Exercise releases BDNF. Social isolation worsens. Alcohol crash 24-48h. Mediterranean diet -30% risk. PROACTIVE: Morning mood, mid-afternoon energy, evening reflection, after social events, activity prompts, meal regularity, sleep consistency.`,
+      'ADHD': `ADHD: Executive function = dopamine. Delayed sleep phase common. Hyperfocus → skipped meals/dehydration. Exercise +dopamine 2-3h. Time blindness. PROACTIVE: Medication timing, meal reminders, hydration during hyperfocus, evening wind-down, sleep routine, activity breaks, emotional check-ins.`,
+      'Psoriasis': `PSORIASIS: T-cell mediated. Stress #1 trigger. Alcohol worsens. Cold/dry flares. UV therapeutic. Obesity → TNF-α. Koebner phenomenon. PROACTIVE: After stress, cold/dry weather, after alcohol, illness onset, skin injury, morning assessment, after shower (moisturize).`,
+      'Rheumatoid Arthritis': `RA: Morning stiffness >30 min = active disease. Worst morning (IL-6 surge). Cold/pressure drops. Omega-3 3g/day. Fatigue in 80%. PROACTIVE: Morning stiffness duration, after meals (inflammatory foods), weather changes, evening fatigue, medication timing, after exercise, infection monitoring.`,
+      'Crohn\'s Disease': `CROHN'S: Stress most consistent trigger. Diet highly individual. Smoking strongest risk. Extra-intestinal: fatigue, joints, skin. Adherence critical in remission. PROACTIVE: After every meal (30-120 min), morning bowels, stress, medication adherence, hydration, sleep, fatigue.`,
+      'Ulcerative Colitis': `UC: NSAIDs trigger flares. Probiotics (VSL#3) maintain remission. Psychoneuroimmunology: vagus→gut inflammation. PROACTIVE: After meals, medication adherence, stress, morning symptoms, NSAID alert, evening assessment, sleep quality.`,
+      'Lupus': `LUPUS: UV triggers flares (60-80% photosensitive). SPF 50+ always. Fatigue most debilitating. Triggers: UV, infection, stress, certain meds. Raynaud's: cold→vasospasm. PROACTIVE: Before sun exposure (sunscreen), morning fatigue, stress, illness onset, medication timing, evening joint/skin, cold weather.`,
+      'PCOS': `PCOS: Insulin resistance 70-80%. Low-glycemic diet critical. 5% weight loss restores ovulation. 150 min/week exercise improves insulin. Anti-inflammatory diet reduces androgens. PROACTIVE: Meal tracking (glycemic), exercise logging, cycle tracking, stress, skin/hair monitoring, weight, energy.`,
+      'Chronic Fatigue Syndrome': `CFS/ME: Post-exertional malaise (PEM) 12-72h after exceeding threshold. Activity pacing critical. HR below anaerobic threshold. Non-restorative sleep. Brain fog worsens with overexertion. PROACTIVE: Morning energy, activity pacing every 2h, post-activity check (24-72h PEM), evening energy, HR alerts, cognitive function.`,
+      'Allergies': `ALLERGIES: Pollen highest 5-10 AM. Priming effect: threshold lowers through season. Cross-reactivity: birch→apples/carrots. Saline irrigation -30-40%. PROACTIVE: Morning symptoms, after outdoor time, pollen/weather alerts, indoor air quality, before/after meds, seasonal transitions.`,
+      'Hypothyroidism': `HYPOTHYROIDISM: Levothyroxine empty stomach, 30-60 min before food. Calcium/iron/coffee reduce absorption (space 4h). Cold intolerance. Track energy, weight trends, hair/skin/bowels. PROACTIVE: Medication timing (morning, empty stomach), energy tracking, cold sensitivity, bowel regularity, mood/brain fog, weight.`,
     };
 
-    // Build condition-specific context for user's actual conditions
+    // ── PROACTIVE INTELLIGENCE ENGINE ──
+    const now_date = new Date();
+    const localHourNow = (() => {
+      try {
+        const parts = new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: userTz }).formatToParts(now_date);
+        return parseInt(parts.find(p => p.type === "hour")?.value || "12", 10);
+      } catch { return 12; }
+    })();
+
+    const timeOfDay = localHourNow < 6 ? 'late_night' : localHourNow < 10 ? 'morning' : localHourNow < 14 ? 'midday' : localHourNow < 18 ? 'afternoon' : localHourNow < 22 ? 'evening' : 'night';
+
+    const currentMealContext = (() => {
+      if (localHourNow >= 7 && localHourNow < 10) return 'Breakfast window. Post-meal symptoms in 30-90 min.';
+      if (localHourNow >= 10 && localHourNow < 12) return 'Post-breakfast. If eating is trigger, symptoms now. Approaching lunch.';
+      if (localHourNow >= 12 && localHourNow < 14) return 'Lunch time. Track food if eating triggers symptoms.';
+      if (localHourNow >= 14 && localHourNow < 16) return 'Post-lunch. Energy dip window.';
+      if (localHourNow >= 16 && localHourNow < 18) return 'Afternoon. Caffeine intake may affect sleep.';
+      if (localHourNow >= 18 && localHourNow < 20) return 'Dinner time. Last meal window.';
+      if (localHourNow >= 20 && localHourNow < 23) return 'Post-dinner/evening. GERD: stop eating 3h before bed.';
+      return 'Late night. Check on sleep issues.';
+    })();
+
+    const userMeds = profile?.metadata && typeof profile.metadata === 'object' && 'medications' in profile.metadata
+      ? (profile.metadata as any).medications || []
+      : [];
+    const medTimingContext = userMeds.length > 0
+      ? `Scheduled meds: ${userMeds.map((m: any) => `${m.name} (${m.frequency || 'as-needed'})`).join(', ')}. Near their scheduled time? Gently ask.`
+      : '';
+
+    const twoHoursAgo = now - 2 * 60 * 60 * 1000;
+    const recentEntries = entries.filter((e: any) => new Date(e.timestamp).getTime() > twoHoursAgo);
+    const recentContext = recentEntries.length > 0
+      ? `Recent (2h): ${recentEntries.map((e: any) => `${e.entry_type}${e.severity ? ` (${e.severity})` : ''}${e.note ? `: "${e.note.substring(0, 40)}"` : ''}`).join('; ')}`
+      : '';
+
+    const conditionProactiveTriggers = userConditions.map((c: string) => {
+      const knowledge = conditionKnowledge[c];
+      if (!knowledge) return '';
+      const match = knowledge.match(/PROACTIVE: (.+)/);
+      return match ? `${c}: ${match[1]}` : '';
+    }).filter(Boolean).join('\n');
+
+    // Build condition knowledge for prompt
     const userConditionKnowledge = userConditions
       .map(c => {
         const exact = conditionKnowledge[c];
         if (exact) return exact;
         const partial = Object.entries(conditionKnowledge).find(([k]) => c.toLowerCase().includes(k.toLowerCase()) || k.toLowerCase().includes(c.toLowerCase()));
-        return partial ? partial[1] : `For ${c}: Track patterns carefully. Sleep quality, stress, diet, and environmental factors commonly influence chronic conditions. Research your specific condition's known triggers and share findings with your doctor.`;
+        return partial ? partial[1] : `For ${c}: Track patterns carefully. Sleep, stress, diet, and environmental factors commonly influence chronic conditions.`;
       })
       .join('\n\n');
 
-    const systemPrompt = `You are Jvala's AI — ${userName}'s personal health companion built into the Jvala flare-tracking app.
+    const systemPrompt = `You are Jvala's AI — ${userName}'s personal health companion.
+
+══ PROACTIVE INTELLIGENCE ══
+Current time: ${timeOfDay} (${localHourNow}:00 ${userTz})
+Meal context: ${currentMealContext}
+${medTimingContext}
+${recentContext}
+
+CONDITION-SPECIFIC PROACTIVE TRIGGERS (use these to anticipate needs):
+${conditionProactiveTriggers || 'No specific conditions set.'}
+
+RULES FOR PROACTIVE BEHAVIOR:
+- If the user just logged food and eating is a known trigger for their condition, mention the post-meal symptom window naturally.
+- If it's near medication time, gently check if they've taken it (only once per session).
+- If they log a trigger that matches a discovery, immediately connect the dots.
+- If it's morning, briefly ask about sleep quality. If evening, ask about the day.
+- If they haven't logged in a while, encourage logging without being pushy.
+- Estimate meal times and check in about post-meal symptoms when relevant to their condition.
+- Be SMART and SPECIFIC to THEIR conditions — not generic health advice.
 
 ══ IDENTITY ══
 - You know EVERYTHING about ${userName}. Their name, conditions, symptoms, triggers, meds, bio sex${userSex ? ` (${userSex})` : ''}, DOB${userAge ? ` (age ${userAge})` : ''} — it's all below.

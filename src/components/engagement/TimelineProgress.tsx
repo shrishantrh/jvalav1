@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ALL_BADGES, BADGE_CATEGORIES, getRarityColor, type Badge as BadgeType } from "@/data/allBadges";
+import { BadgeIconSVG, CategoryIconSVG } from "@/components/engagement/BadgeIconSVG";
 import { FlareEntry } from "@/types/flare";
 import { useEngagement } from "@/hooks/useEngagement";
 import { haptics } from "@/lib/haptics";
@@ -151,9 +152,7 @@ export const TimelineProgress = ({ userId, entries, onBack }: TimelineProgressPr
                   boxShadow: 'inset 0 2px 8px hsl(0 0% 100% / 0.2)',
                 }}
               >
-                <span className="text-4xl">
-                  {engagement.current_streak >= 30 ? '🔥' : engagement.current_streak >= 7 ? '⚡' : '✨'}
-                </span>
+                <BadgeIconSVG badgeId={engagement.current_streak >= 30 ? 'streak_30' : engagement.current_streak >= 7 ? 'streak_7' : 'streak_3'} size={40} />
               </div>
             </div>
             
@@ -200,7 +199,7 @@ export const TimelineProgress = ({ userId, entries, onBack }: TimelineProgressPr
                     background: `linear-gradient(145deg, hsl(var(--primary) / 0.15), hsl(var(--primary) / 0.05))`,
                   }}
                 >
-                  <span className="text-2xl">{nextBadge.badge.icon}</span>
+                  <BadgeIconSVG badgeId={nextBadge.badge.id} size={28} />
                 </div>
                 <div className="flex-1">
                   <p className="text-xs text-muted-foreground mb-0.5">Next Badge</p>
@@ -238,7 +237,7 @@ export const TimelineProgress = ({ userId, entries, onBack }: TimelineProgressPr
                   }}
                   className="w-full p-4 flex items-center gap-3 touch-manipulation"
                 >
-                  <span className="text-2xl">{category.icon}</span>
+                  <CategoryIconSVG categoryId={category.id} size={28} />
                   <div className="flex-1 text-left">
                     <p className="font-medium">{category.name}</p>
                     <p className="text-xs text-muted-foreground">{category.description}</p>
@@ -272,7 +271,7 @@ export const TimelineProgress = ({ userId, entries, onBack }: TimelineProgressPr
                         >
                           {isEarned ? (
                             <>
-                              <span className="text-xl mb-0.5">{badge.icon}</span>
+                              <BadgeIconSVG badgeId={badge.id} size={24} className="mb-0.5" />
                               <span className="text-[9px] text-center leading-tight line-clamp-2">
                                 {badge.name}
                               </span>
@@ -329,7 +328,7 @@ export const TimelineProgress = ({ userId, entries, onBack }: TimelineProgressPr
                         )}
                       >
                         <div className="flex items-center gap-2">
-                          <span className="text-xl">{badge.icon}</span>
+                          <BadgeIconSVG badgeId={badge.id} size={24} />
                           <div>
                             <p className="font-medium text-sm">{badge.name}</p>
                             <p className="text-xs text-muted-foreground">{badge.description}</p>
