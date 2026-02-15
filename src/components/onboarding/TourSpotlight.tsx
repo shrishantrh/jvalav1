@@ -75,10 +75,15 @@ export const TourSpotlight = ({
   const effectivePosition = targetTop > vh * 0.35 ? 'above' : position;
 
   if (effectivePosition === 'above') {
-    // Place bubble so its bottom edge is above the cutout with margin
-    bubbleStyle.top = Math.max(bubbleMargin, targetTop - 110);
+    // Place bubble so its bottom edge is above the cutout with margin, clamped to viewport
+    bubbleStyle.top = Math.max(bubbleMargin, Math.min(targetTop - 110, vh - 140));
   } else {
     bubbleStyle.top = Math.min(targetBottom + bubbleMargin, vh - 140);
+  }
+
+  // Final safety clamp: ensure bubble never goes below viewport
+  if (typeof bubbleStyle.top === 'number' && bubbleStyle.top > vh - 120) {
+    bubbleStyle.top = vh - 120;
   }
 
   return createPortal(

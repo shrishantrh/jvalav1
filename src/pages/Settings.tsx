@@ -266,9 +266,8 @@ export default function Settings() {
                         metadata: restMeta as any,
                       })
                       .eq('id', user.id);
-                    toast({ title: "Tour will replay next time you open the app" });
-                    navigate('/');
-                    // Force reload so Index picks up the reset
+                    toast({ title: "Tour will replay now" });
+                    window.location.href = window.location.pathname + '#/';
                     window.location.reload();
                   } catch (e) {
                     toast({ title: "Failed to reset tour", variant: "destructive" });
