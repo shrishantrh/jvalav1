@@ -538,6 +538,7 @@ export type Database = {
           share_token: string | null
           terms_accepted_at: string | null
           timezone: string | null
+          tour_status: string
           updated_at: string
           weight_kg: number | null
         }
@@ -567,6 +568,7 @@ export type Database = {
           share_token?: string | null
           terms_accepted_at?: string | null
           timezone?: string | null
+          tour_status?: string
           updated_at?: string
           weight_kg?: number | null
         }
@@ -596,6 +598,7 @@ export type Database = {
           share_token?: string | null
           terms_accepted_at?: string | null
           timezone?: string | null
+          tour_status?: string
           updated_at?: string
           weight_kg?: number | null
         }

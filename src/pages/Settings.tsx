@@ -242,6 +242,45 @@ export default function Settings() {
             </CardContent>
           </Card>
 
+          {/* Replay Tour */}
+          <Card className="glass-card">
+            <CardContent className="p-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full h-10"
+                onClick={async () => {
+                  if (!user) return;
+                  try {
+                    const { data } = await supabase
+                      .from('profiles')
+                      .select('metadata')
+                      .eq('id', user.id)
+                      .maybeSingle();
+                    const currentMeta = (data?.metadata as Record<string, any>) || {};
+                    const { tour_completed, ...restMeta } = currentMeta;
+                    await supabase
+                      .from('profiles')
+                      .update({ 
+                        tour_status: 'not_started',
+                        metadata: restMeta as any,
+                      })
+                      .eq('id', user.id);
+                    toast({ title: "Tour will replay next time you open the app" });
+                    navigate('/');
+                    // Force reload so Index picks up the reset
+                    window.location.reload();
+                  } catch (e) {
+                    toast({ title: "Failed to reset tour", variant: "destructive" });
+                  }
+                }}
+              >
+                <HelpCircle className="w-4 h-4 mr-2" />
+                Replay App Tour
+              </Button>
+            </CardContent>
+          </Card>
+
           {/* App version */}
           <p className="text-[10px] text-center text-muted-foreground pt-2">
             Jvala v1.0.0 • Made with 💜
