@@ -1432,7 +1432,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                               context: { mood: `stress:${valStr}` },
                               timestamp: new Date(),
                             });
-                          } else if (fieldLabel.includes('trigger') || fieldLabel.includes('duration') || fieldLabel.includes('frequency') || fieldLabel.includes('long') || fieldLabel.includes('often') || fieldLabel.includes('background') || fieldLabel.includes('how long') || fieldLabel.includes('experiencing')) {
+                          } else if (fieldLabel.includes('trigger') || fieldLabel.includes('duration') || fieldLabel.includes('frequency') || fieldLabel.includes('long') || fieldLabel.includes('often') || fieldLabel.includes('background') || fieldLabel.includes('how long') || fieldLabel.includes('experiencing') || fieldLabel.includes('tried') || fieldLabel.includes('worst') || fieldLabel.includes('time of day') || fieldLabel.includes('treatment')) {
                             // Background/context data — save to profile metadata, NOT as a log entry
                             (async () => {
                               try {
@@ -1449,6 +1449,15 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                                   answer: valStr,
                                   recorded_at: new Date().toISOString(),
                                 });
+                                // Mark context form as complete if this is a multi-field intake form (4+ fields)
+                                if (fields.length >= 4) {
+                                  aiMemory.push({
+                                    key: '_context_form_complete',
+                                    question: 'Initial context form',
+                                    answer: 'completed',
+                                    recorded_at: new Date().toISOString(),
+                                  });
+                                }
                                 await supabase.from('profiles').update({
                                   metadata: { ...existingMeta, ai_memory: aiMemory },
                                 }).eq('id', userId);
