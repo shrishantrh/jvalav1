@@ -9,12 +9,12 @@ interface AIChatPromptsProps {
 
 // Static capability buttons showing what AI can do
 const CAPABILITY_PROMPTS = [
-  { icon: BarChart3, label: "Generate chart", prompt: "Show me a chart of my flares over the last 30 days", color: "text-blue-500" },
-  { icon: TrendingUp, label: "Predict", prompt: "Based on my patterns, predict my flare risk for the next few days", color: "text-purple-500" },
-  { icon: Brain, label: "Find patterns", prompt: "What patterns have you noticed in my health data?", color: "text-pink-500" },
-  { icon: Target, label: "Top triggers", prompt: "What are my top 5 triggers and how often do they cause flares?", color: "text-orange-500" },
-  { icon: Clock, label: "Time patterns", prompt: "When am I most likely to experience flares during the day?", color: "text-cyan-500" },
-  { icon: MapPin, label: "Location analysis", prompt: "How does my location or weather affect my symptoms?", color: "text-green-500" },
+  { icon: BarChart3, label: "30-day chart", prompt: "Show me a chart of my daily flare count over the last 30 days", color: "text-blue-500" },
+  { icon: TrendingUp, label: "Med effectiveness", prompt: "Which of my medications reduced my flare severity the most?", color: "text-purple-500" },
+  { icon: Brain, label: "My patterns", prompt: "What are my strongest confirmed patterns and triggers?", color: "text-pink-500" },
+  { icon: Target, label: "Trigger → symptom", prompt: "Which triggers lead to which symptoms for me, and how often?", color: "text-orange-500" },
+  { icon: Clock, label: "Peak times", prompt: "Show me a chart of what hours and days I flare most", color: "text-cyan-500" },
+  { icon: MapPin, label: "Weekly trend", prompt: "Show me a chart of my weekly flare trend with severity breakdown", color: "text-green-500" },
 ];
 
 export const AIChatPrompts = ({ onSendPrompt, variant = 'capabilities', followUps = [] }: AIChatPromptsProps) => {
@@ -64,42 +64,38 @@ export const generateFollowUps = (aiResponse: string, hasCharts: boolean): strin
   const followUps: string[] = [];
   const lowerResponse = aiResponse.toLowerCase();
   
-  // Context-aware follow-ups based on what the AI just said
   if (lowerResponse.includes('trigger') || lowerResponse.includes('pattern')) {
-    followUps.push("How can I avoid these triggers?");
-    followUps.push("Show me a chart of these patterns");
+    followUps.push("Which triggers lead to my worst symptoms?");
+    followUps.push("Show me a chart of my top triggers");
   }
   
   if (lowerResponse.includes('flare') || lowerResponse.includes('symptom')) {
-    followUps.push("Compare to last month");
-    followUps.push("What medications helped most?");
+    followUps.push("Show me my weekly severity trend");
+    followUps.push("Which medications reduced my flare severity?");
   }
   
   if (lowerResponse.includes('weather') || lowerResponse.includes('temperature')) {
-    followUps.push("Show weather correlation chart");
-    followUps.push("Predict based on forecast");
+    followUps.push("Show me a chart of weather vs flares");
   }
   
   if (lowerResponse.includes('sleep') || lowerResponse.includes('rest')) {
-    followUps.push("How does sleep affect my flares?");
+    followUps.push("How does sleep affect my flare severity?");
   }
   
   if (lowerResponse.includes('medication') || lowerResponse.includes('medicine')) {
-    followUps.push("Track medication effectiveness");
-    followUps.push("When should I take my next dose?");
+    followUps.push("Which medication gave me the most flare-free days?");
+    followUps.push("Show me a chart comparing medication effectiveness");
   }
   
   if (hasCharts) {
-    followUps.push("Explain this in more detail");
-    followUps.push("Show me weekly breakdown");
+    followUps.push("Break this down by severity");
+    followUps.push("Compare to last month");
   }
   
-  // Always add some generic useful ones
   if (followUps.length < 3) {
-    followUps.push("What should I track today?");
-    followUps.push("Give me health tips");
+    followUps.push("Show me my 30-day flare chart");
+    followUps.push("What's my flare risk today?");
   }
   
-  // Limit to 4 suggestions max
   return followUps.slice(0, 4);
 };
