@@ -41,6 +41,7 @@ interface AssistantReply {
   shouldLog: boolean;
   entryData: EntryData | null;
   visualization: Visualization | null;
+  interactiveForm?: any;
   confidence?: number;
   evidenceSources?: string[];
   suggestedFollowUp?: string;
@@ -1089,7 +1090,24 @@ ${correlations.slice(0, 5).map(c => `• ${c.trigger_value} → ${c.outcome_valu
 RESPONSE GUIDELINES
 ═══════════════════════════════════════════════════════════════════════════════
 
-CRITICAL LOGGING RULE: If the user mentions ANY symptom, feeling, or health complaint (e.g. "feeling sick", "sore throat", "headache", "nauseous", "tired"), you MUST set shouldLog=true and populate entryData with type="flare", the detected symptoms, and a severity. NEVER just acknowledge symptoms without logging them. The whole point of this app is to track health data — if they tell you about a symptom, LOG IT.
+CRITICAL LOGGING RULE: If the user mentions ANY symptom, feeling, or health complaint (e.g. "feeling sick", "sore throat", "headache", "nauseous", "tired"), you MUST set shouldLog=true and populate entryData with type="flare", the detected symptoms, and a severity. NEVER just acknowledge symptoms without logging them.
+
+INTERACTIVE FORMS — YOUR SUPERPOWER:
+You MUST use interactiveForm whenever you would otherwise ask a question with a limited set of answers. Examples of when to ALWAYS use a form:
+
+1. BEDTIME: User says "going to sleep", "goodnight", "bouta sleep", "heading to bed" → Show a quick mood check-in form with a warm sign-off like "Sleep well! 💜":
+   interactiveForm: { type: "rating", title: "How was your day overall?", options: [{ label: "Great", value: "great", emoji: "😊" }, { label: "Okay", value: "okay", emoji: "😐" }, { label: "Rough", value: "rough", emoji: "😔" }, { label: "Terrible", value: "terrible", emoji: "😣" }] }
+
+2. MORNING: User says "good morning", "just woke up" → Sleep quality form:
+   interactiveForm: { type: "rating", title: "How did you sleep?", options: [{ label: "Great", value: "great", emoji: "😴" }, { label: "Okay", value: "okay", emoji: "🙂" }, { label: "Poor", value: "poor", emoji: "😩" }, { label: "Awful", value: "awful", emoji: "💀" }] }
+
+3. POST-MEAL CHECK: interactiveForm: { type: "options", title: "Feeling anything after eating?", options: [{ label: "All good", value: "fine", emoji: "👍" }, { label: "Bloated", value: "bloated" }, { label: "Nauseous", value: "nauseous" }, { label: "Pain", value: "pain" }] }
+
+4. FOLLOW-UP: interactiveForm: { type: "severity", title: "How are you now?", options: [{ label: "Better", value: "better", emoji: "💚" }, { label: "Same", value: "same", emoji: "🟡" }, { label: "Worse", value: "worse", emoji: "🔴" }] }
+
+5. YES/NO: Any yes/no question → form with buttons instead of text.
+
+RULE: If you're about to type a question that could be answered by tapping a button, USE A FORM. Plain-text questions for simple choices = lazy and bad UX.
 
 When responding:
 1. ALWAYS use the data above to ground your observations
@@ -1097,12 +1115,12 @@ When responding:
 3. If they're struggling, acknowledge it first, then offer insights
 4. If they're doing well, celebrate it genuinely
 5. Connect dots they might not see
-6. Suggest actionable next steps when appropriate
-7. Ask follow-up questions to deepen understanding
+6. Use FORMS for any question with limited answer choices
+7. Celebrate their wins, even small ones
 
 ${isFirstMessage ? "This is the start of the conversation. Greet them warmly." : `CONVERSATION CONTEXT:\n${recentTopics.map((t, i) => `${i + 1}. ${t}`).join("\n")}`}
 
-Remember: You are their health companion. Be helpful, be specific, be empathetic. Never refuse to share observations - that's what you're here for.`;
+Remember: You are their health companion. Be helpful, be specific, be empathetic. Never refuse to share observations.`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1249,7 +1267,7 @@ async function callModel({
         parameters: {
           type: "object",
           additionalProperties: false,
-          required: ["response", "shouldLog", "entryData", "visualization", "emotionalTone"],
+          required: ["response", "shouldLog", "entryData", "visualization", "interactiveForm", "emotionalTone"],
           properties: {
             response: { 
               type: "string",
@@ -1293,6 +1311,36 @@ async function callModel({
                   },
                 },
               ],
+            },
+            interactiveForm: {
+              anyOf: [
+                { type: "null" },
+                {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["type", "title", "options"],
+                  properties: {
+                    type: { type: "string", enum: ["rating", "options", "severity"], description: "rating = emoji scale, options = quick choices, severity = mild/mod/severe" },
+                    title: { type: "string", description: "Short label above the form buttons" },
+                    options: { 
+                      type: "array", 
+                      items: { 
+                        type: "object", 
+                        additionalProperties: false,
+                        required: ["label", "value"],
+                        properties: {
+                          label: { type: "string" },
+                          value: { type: "string" },
+                          emoji: { type: "string" },
+                        }
+                      },
+                      description: "2-5 tap-able options" 
+                    },
+                    followUpMessage: { type: "string", description: "Optional message to show after selection" },
+                  },
+                },
+              ],
+              description: "Interactive quick-tap form. Use for bedtime check-ins, meal follow-ups, yes/no questions, sleep quality ratings, mood checks, etc. ALWAYS prefer forms over asking questions in plain text when the answer is a simple choice.",
             },
             emotionalTone: {
               type: "string",
@@ -1356,6 +1404,7 @@ async function callModel({
         shouldLog: Boolean(parsed.shouldLog),
         entryData: parsed.entryData ?? null,
         visualization: parsed.visualization ?? null,
+        interactiveForm: parsed.interactiveForm ?? null,
         emotionalTone: parsed.emotionalTone ?? "neutral",
         actionableInsights: parsed.actionableInsights ?? [],
         suggestedFollowUp: parsed.suggestedFollowUp,
