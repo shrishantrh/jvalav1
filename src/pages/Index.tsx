@@ -193,10 +193,22 @@ const Index = () => {
         if (!data.onboarding_completed) {
           setShowOnboarding(true);
         } else {
-          // Check if tour should be shown
+          // Check if tour should be shown — only for new users (<7 days, <5 logs)
           const meta = (data as any).metadata || {};
           if (!meta.tour_completed) {
-            setShowTour(true);
+            const accountCreated = (data as any).created_at ? new Date((data as any).created_at) : new Date();
+            const accountAgeDays = Math.floor((Date.now() - accountCreated.getTime()) / 86400000);
+            
+            // Count logs to check newness
+            const { count } = await supabase
+              .from('flare_entries')
+              .select('id', { count: 'exact', head: true })
+              .eq('user_id', user.id);
+            
+            const totalLogs = count || 0;
+            if (accountAgeDays < 7 && totalLogs < 5) {
+              setShowTour(true);
+            }
           }
         }
       } else {
