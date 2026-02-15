@@ -353,22 +353,22 @@ const Auth = () => {
           <h1 className="text-[26px] tracking-tight" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 700, color: '#fff', textShadow: '0 1px 8px hsl(0 0% 0% / 0.15)' }}>
             {isSignUp ? "Create Account" : "Welcome Back"}
           </h1>
-          <p className="text-base mt-2" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 500, color: 'hsl(0 0% 100% / 0.9)', textShadow: '0 1px 4px hsl(0 0% 0% / 0.1)' }}>
+          <p className="text-sm mt-1.5" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 400, color: 'hsl(0 0% 100% / 0.8)' }}>
             {isSignUp ? "Start your health journey" : "Sign in to continue"}
           </p>
         </div>
 
         {/* Auth form card */}
-        <div className="w-full !rounded-3xl !p-0 animate-in slide-in-from-bottom-4 duration-500" style={{ background: 'hsl(0 0% 100% / 0.82)', backdropFilter: 'blur(24px) saturate(180%)', WebkitBackdropFilter: 'blur(24px) saturate(180%)', border: '1px solid hsl(0 0% 100% / 0.5)', boxShadow: 'inset 0 1px 0 hsl(0 0% 100% / 0.6), 0 8px 32px hsl(0 0% 0% / 0.1), 0 2px 8px hsl(0 0% 0% / 0.06)' }}>
+        <div className="w-full !rounded-3xl !p-0 animate-in slide-in-from-bottom-4 duration-500" style={{ background: 'hsl(0 0% 100% / 0.15)', backdropFilter: 'blur(24px) saturate(180%)', WebkitBackdropFilter: 'blur(24px) saturate(180%)', border: '1px solid hsl(0 0% 100% / 0.25)', boxShadow: 'inset 0 1px 0 hsl(0 0% 100% / 0.3), 0 8px 32px hsl(0 0% 0% / 0.12), 0 2px 8px hsl(0 0% 0% / 0.08)' }}>
           {/* Tab switcher */}
-          <div className="flex p-1.5 mx-5 mt-5 rounded-2xl" style={{ background: 'hsl(260 20% 94%)' }}>
+          <div className="flex p-1.5 mx-5 mt-5 rounded-2xl" style={{ background: 'hsl(0 0% 100% / 0.12)', border: '1px solid hsl(0 0% 100% / 0.1)' }}>
             <button
               type="button"
               onClick={() => resetForm(false)}
               className={cn(
                 "flex-1 py-2.5 text-sm rounded-xl transition-all duration-300"
               )}
-              style={!isSignUp ? { background: '#fff', boxShadow: '0 2px 8px hsl(0 0% 0% / 0.06)', color: 'hsl(260 30% 25%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 700 } : { color: 'hsl(260 15% 50%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}
+              style={!isSignUp ? { background: 'hsl(0 0% 100% / 0.25)', boxShadow: '0 2px 8px hsl(0 0% 0% / 0.08)', color: '#fff', fontFamily: "'Satoshi', sans-serif", fontWeight: 700, backdropFilter: 'blur(8px)' } : { color: 'hsl(0 0% 100% / 0.6)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}
             >
               Sign In
             </button>
@@ -378,7 +378,7 @@ const Auth = () => {
               className={cn(
                 "flex-1 py-2.5 text-sm rounded-xl transition-all duration-300"
               )}
-              style={isSignUp ? { background: '#fff', boxShadow: '0 2px 8px hsl(0 0% 0% / 0.06)', color: 'hsl(260 30% 25%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 700 } : { color: 'hsl(260 15% 50%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}
+              style={isSignUp ? { background: 'hsl(0 0% 100% / 0.25)', boxShadow: '0 2px 8px hsl(0 0% 0% / 0.08)', color: '#fff', fontFamily: "'Satoshi', sans-serif", fontWeight: 700, backdropFilter: 'blur(8px)' } : { color: 'hsl(0 0% 100% / 0.6)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}
             >
               Create Account
             </button>
@@ -387,11 +387,11 @@ const Auth = () => {
           <form onSubmit={handleAuth} className="p-5 pt-5 space-y-4">
             {/* Email */}
             <div className="space-y-1.5">
-              <label htmlFor="email" className="text-xs pl-0.5" style={{ color: 'hsl(260 20% 40%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}>
+              <label htmlFor="email" className="text-xs pl-0.5" style={{ color: 'hsl(0 0% 100% / 0.7)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}>
                 Email
               </label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'hsl(260 25% 55%)' }} />
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'hsl(0 0% 100% / 0.5)' }} />
                 <Input
                   id="email"
                   type="email"
@@ -404,11 +404,11 @@ const Auth = () => {
                   placeholder="your@email.com"
                   required
                   disabled={loading}
-                   className={cn(
-                     "h-12 pl-11 rounded-xl transition-all",
-                     emailError && "border-destructive/50"
-                   )}
-                   style={{ background: 'hsl(260 15% 96%)', border: '1px solid hsl(260 15% 88%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 400, color: 'hsl(260 25% 20%)' }}
+                  className={cn(
+                    "h-12 pl-11 rounded-xl transition-all text-foreground",
+                    emailError && "border-destructive/50"
+                  )}
+                   style={{ background: 'hsl(0 0% 100% / 0.1)', border: '1px solid hsl(0 0% 100% / 0.15)', fontFamily: "'Satoshi', sans-serif", fontWeight: 400, color: '#fff' }}
                 />
               </div>
               {emailError && (
@@ -421,11 +421,11 @@ const Auth = () => {
 
             {/* Password */}
             <div className="space-y-1.5">
-              <label htmlFor="password" className="text-xs pl-0.5" style={{ color: 'hsl(260 20% 40%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}>
+              <label htmlFor="password" className="text-xs pl-0.5" style={{ color: 'hsl(0 0% 100% / 0.7)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}>
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'hsl(260 25% 55%)' }} />
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'hsl(0 0% 100% / 0.5)' }} />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
@@ -436,13 +436,13 @@ const Auth = () => {
                   disabled={loading}
                   minLength={6}
                    className="h-12 pl-11 pr-11 rounded-xl transition-all"
-                   style={{ background: 'hsl(260 15% 96%)', border: '1px solid hsl(260 15% 88%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 400, color: 'hsl(260 25% 20%)' }}
+                   style={{ background: 'hsl(0 0% 100% / 0.1)', border: '1px solid hsl(0 0% 100% / 0.15)', fontFamily: "'Satoshi', sans-serif", fontWeight: 400, color: '#fff' }}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors"
-                   style={{ color: 'hsl(260 20% 50%)' }}
+                   style={{ color: 'hsl(0 0% 100% / 0.5)' }}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -453,11 +453,11 @@ const Auth = () => {
             {/* Confirm Password */}
             {isSignUp && (
               <div className="space-y-1.5 animate-in fade-in-0 slide-in-from-top-2 duration-200">
-                <label htmlFor="confirmPassword" className="text-xs pl-0.5" style={{ color: 'hsl(260 20% 40%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}>
+                <label htmlFor="confirmPassword" className="text-xs pl-0.5" style={{ color: 'hsl(0 0% 100% / 0.7)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}>
                   Confirm Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'hsl(260 25% 55%)' }} />
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'hsl(0 0% 100% / 0.5)' }} />
                   <Input
                     id="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
@@ -470,13 +470,13 @@ const Auth = () => {
                       "h-12 pl-11 pr-11 rounded-xl transition-all text-foreground",
                        confirmPassword && password !== confirmPassword && "border-destructive/50"
                      )}
-                     style={{ background: 'hsl(260 15% 96%)', border: '1px solid hsl(260 15% 88%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 400, color: 'hsl(260 25% 20%)' }}
+                     style={{ background: 'hsl(0 0% 100% / 0.1)', border: '1px solid hsl(0 0% 100% / 0.15)', fontFamily: "'Satoshi', sans-serif", fontWeight: 400, color: '#fff' }}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     className="absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors"
-                    style={{ color: 'hsl(260 20% 50%)' }}
+                    style={{ color: 'hsl(0 0% 100% / 0.5)' }}
                   >
                     {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -496,7 +496,7 @@ const Auth = () => {
                 <button
                   type="button"
                   onClick={() => setShowForgotPassword(true)}
-                  className="text-xs transition-colors" style={{ color: 'hsl(260 40% 55%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}
+                  className="text-xs transition-colors" style={{ color: 'hsl(0 0% 100% / 0.7)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}
                 >
                   Forgot password?
                 </button>
@@ -505,14 +505,14 @@ const Auth = () => {
 
             {/* Age confirmation */}
             {isSignUp && (
-              <div className="space-y-2.5 p-3.5 !rounded-xl animate-in fade-in-0 duration-200" style={{ background: 'hsl(260 15% 96%)', border: '1px solid hsl(260 15% 90%)' }}>
+              <div className="space-y-2.5 p-3.5 !rounded-xl animate-in fade-in-0 duration-200" style={{ background: 'hsl(0 0% 100% / 0.08)', border: '1px solid hsl(0 0% 100% / 0.12)' }}>
                 <div className="flex items-center gap-2.5">
                   <Checkbox
                     id="age"
                     checked={ageConfirmed}
                     onCheckedChange={(checked) => setAgeConfirmed(checked === true)}
                   />
-                  <label htmlFor="age" className="text-xs cursor-pointer flex-1" style={{ color: 'hsl(260 20% 30%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 400 }}>
+                  <label htmlFor="age" className="text-xs cursor-pointer flex-1" style={{ color: 'hsl(0 0% 100% / 0.8)', fontFamily: "'Satoshi', sans-serif", fontWeight: 400 }}>
                     I am at least 13 years old
                     <span className="text-destructive"> *</span>
                   </label>
@@ -526,8 +526,8 @@ const Auth = () => {
               className="w-full h-12 rounded-xl text-sm text-white disabled:opacity-50 active:scale-[0.97] transition-all duration-200 mt-1"
               disabled={loading || !canSubmit}
               style={{
-                 background: 'linear-gradient(135deg, hsl(270 50% 55%) 0%, hsl(290 45% 50%) 100%)',
-                 boxShadow: '0 4px 16px hsl(270 50% 55% / 0.3)',
+                 background: 'linear-gradient(135deg, hsl(0 0% 100% / 0.3) 0%, hsl(0 0% 100% / 0.15) 100%)',
+                 boxShadow: 'inset 0 1px 0 hsl(0 0% 100% / 0.3), 0 4px 16px hsl(0 0% 0% / 0.15)',
                 fontFamily: "'Satoshi', sans-serif",
                 fontWeight: 700,
               }}
@@ -545,10 +545,10 @@ const Auth = () => {
             {/* Divider */}
             <div className="relative py-1">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full" style={{ borderTop: '1px solid hsl(260 15% 88%)' }} />
+                <div className="w-full" style={{ borderTop: '1px solid hsl(0 0% 100% / 0.15)' }} />
               </div>
               <div className="relative flex justify-center">
-                <span className="px-3 text-[11px] uppercase tracking-widest" style={{ color: 'hsl(260 15% 55%)', background: 'hsl(0 0% 100% / 0.82)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}>or</span>
+                <span className="px-3 text-[11px] uppercase tracking-widest" style={{ color: 'hsl(0 0% 100% / 0.5)', background: 'transparent', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}>or</span>
               </div>
             </div>
 
@@ -559,7 +559,7 @@ const Auth = () => {
                 disabled={loading}
                 onClick={handleGoogleLogin}
                 className="w-full h-12 flex items-center justify-center gap-2.5 !rounded-xl text-sm active:scale-[0.97] transition-all duration-200 disabled:opacity-50"
-                 style={{ background: 'hsl(260 15% 96%)', border: '1px solid hsl(260 15% 88%)', color: 'hsl(260 25% 25%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}
+                 style={{ background: 'hsl(0 0% 100% / 0.1)', border: '1px solid hsl(0 0% 100% / 0.15)', color: '#fff', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -575,7 +575,7 @@ const Auth = () => {
                 disabled={loading}
                 onClick={handleAppleLogin}
                 className="w-full h-12 flex items-center justify-center gap-2.5 !rounded-xl text-sm active:scale-[0.97] transition-all duration-200 disabled:opacity-50"
-                style={{ background: 'hsl(260 15% 96%)', border: '1px solid hsl(260 15% 88%)', color: 'hsl(260 25% 25%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}
+                style={{ background: 'hsl(0 0% 100% / 0.1)', border: '1px solid hsl(0 0% 100% / 0.15)', color: '#fff', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
@@ -587,7 +587,7 @@ const Auth = () => {
         </div>
 
         {/* Footer */}
-        <p className="text-sm mt-6 text-center" style={{ color: '#fff', fontFamily: "'Satoshi', sans-serif", fontWeight: 500, textShadow: '0 1px 4px hsl(0 0% 0% / 0.15)' }}>
+        <p className="text-xs mt-6 text-center" style={{ color: 'hsl(0 0% 100% / 0.6)', fontFamily: "'Satoshi', sans-serif", fontWeight: 400 }}>
           Your health data is encrypted and never shared.
         </p>
       </div>
