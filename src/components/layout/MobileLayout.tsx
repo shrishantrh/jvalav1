@@ -108,7 +108,7 @@ export const MobileLayout = ({
                 WebkitOverflowScrolling: 'touch',
               }}
             >
-              <div className="px-5 py-4 pb-28">
+              <div className="px-5 py-4 pb-20">
                 {children}
               </div>
             </div>
