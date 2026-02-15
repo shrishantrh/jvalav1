@@ -23,7 +23,7 @@ import { CONDITIONS } from "@/data/conditions";
 import { useEngagement } from "@/hooks/useEngagement";
 import { useCorrelations } from "@/hooks/useCorrelations";
 import { CorrelationInsights } from "@/components/insights/CorrelationInsights";
-import { WeeklyReportCard } from "@/components/insights/WeeklyReportCard";
+
 import { Activity, ChevronDown, MapPin, Sparkles } from "lucide-react";
 import { MedicationTracker } from "@/components/medication/MedicationTracker";
 import { useMedicationLogs } from "@/hooks/useMedicationLogs";
@@ -696,8 +696,6 @@ const Index = () => {
         {/* Insights/Trends View */}
         {currentView === 'insights' && user && (
           <div className="space-y-4">
-            <WeeklyReportCard userId={user.id} />
-            
             <RevampedInsights 
               entries={entries} 
               userConditions={userProfile?.conditions}

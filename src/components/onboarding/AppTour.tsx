@@ -10,6 +10,7 @@ interface TourStep {
   allowInteraction?: boolean;
   waitForEntry?: boolean;
   scrollIntoView?: boolean; // scroll element into view before measuring
+  delay?: number; // extra ms to wait before first measure (for async-loading content)
 }
 
 const TOUR_STEPS: TourStep[] = [
@@ -37,6 +38,7 @@ const TOUR_STEPS: TourStep[] = [
     message: "Patterns emerge as you log more.",
     position: 'below',
     navigateTo: 'insights',
+    delay: 1500,
   },
   {
     target: 'deep-research',
@@ -141,7 +143,8 @@ export const AppTour = ({ userId, onViewChange, onComplete, onEntryLogged }: App
       }
     };
 
-    const timer = setTimeout(measure, 350);
+    const initialDelay = step?.delay || 350;
+    const timer = setTimeout(measure, initialDelay);
 
     return () => {
       cancelled = true;
@@ -149,7 +152,7 @@ export const AppTour = ({ userId, onViewChange, onComplete, onEntryLogged }: App
       resizeObserver?.disconnect();
       if (liveMeasureInterval) clearInterval(liveMeasureInterval);
     };
-  }, [currentStep, step?.target, step?.scrollIntoView, step?.allowInteraction]);
+  }, [currentStep, step?.target, step?.scrollIntoView, step?.allowInteraction, step?.delay]);
 
   // Step 1: auto-advance when entry is logged
   useEffect(() => {
