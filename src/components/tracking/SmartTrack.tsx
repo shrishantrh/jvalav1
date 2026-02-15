@@ -1416,15 +1416,27 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                               note: `Energy: ${valStr}`,
                               timestamp: new Date(),
                             });
-                          } else if (fieldLabel.includes('symptom') || fieldLabel.includes('pain') || fieldLabel.includes('today')) {
-                            const symptoms = Array.isArray(val) ? val : [valStr];
-                            onSave({
-                              type: 'flare',
-                              severity: 'mild',
-                              symptoms,
-                              note: `[Check-in] ${symptoms.join(', ')}`,
-                              timestamp: new Date(),
-                            });
+                          } else if (fieldLabel.includes('symptom') || fieldLabel.includes('pain') || fieldLabel.includes('today') || fieldLabel.includes('flare') || fieldLabel.includes('signs') || fieldLabel.includes('condition') || fieldLabel.includes('arthritis') || fieldLabel.includes('evening') || fieldLabel.includes('morning')) {
+                            // Check if it's a "no issues" response
+                            const negativeResponses = ['no', 'none', 'nope', 'feeling good', 'all good', 'fine', 'nothing', 'no flare', 'no symptoms', 'good'];
+                            const isNegative = negativeResponses.some(r => valStr.toLowerCase().includes(r));
+                            
+                            if (isNegative) {
+                              onSave({
+                                type: 'wellness',
+                                note: `Feeling good`,
+                                timestamp: new Date(),
+                              });
+                            } else {
+                              const symptoms = Array.isArray(val) ? val : [valStr];
+                              onSave({
+                                type: 'flare',
+                                severity: 'mild',
+                                symptoms,
+                                note: valStr,
+                                timestamp: new Date(),
+                              });
+                            }
                           } else if (fieldLabel.includes('stress')) {
                             onSave({
                               type: 'wellness',
@@ -1466,10 +1478,10 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                               }
                             })();
                           } else {
-                            // Generic — save as wellness with context
+                            // Generic — save as wellness with clean note (no raw question text)
                             onSave({
                               type: 'wellness',
-                              note: `[Check-in] ${field.label}: ${valStr}`,
+                              note: valStr,
                               timestamp: new Date(),
                             });
                           }
