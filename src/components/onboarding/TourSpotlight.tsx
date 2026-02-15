@@ -35,26 +35,25 @@ export const TourSpotlight = ({
 
   if (!targetRect) return null;
 
-  const pad = 12;
-  const cutout = {
-    x: targetRect.x - pad,
-    y: targetRect.y - pad,
-    w: targetRect.width + pad * 2,
-    h: targetRect.height + pad * 2,
-    r: 20,
-  };
-
-  // Clamp cutout to viewport
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  cutout.x = Math.max(0, cutout.x);
-  cutout.y = Math.max(0, cutout.y);
-  if (cutout.x + cutout.w > vw) cutout.w = vw - cutout.x;
-  if (cutout.y + cutout.h > vh) cutout.h = vh - cutout.y;
+  const safeInset = 4; // min distance from viewport edges
+
+  const pad = 8;
+  const cutout = {
+    x: Math.max(safeInset, targetRect.x - pad),
+    y: Math.max(safeInset, targetRect.y - pad),
+    w: 0,
+    h: 0,
+    r: 16,
+  };
+  // Calculate width/height after clamping x/y, then clamp to viewport
+  cutout.w = Math.min(targetRect.width + pad * 2, vw - cutout.x - safeInset);
+  cutout.h = Math.min(targetRect.height + pad * 2, vh - cutout.y - safeInset);
 
   // Bubble positioning — always keep on screen
-  const bubbleWidth = 280;
-  const bubbleMargin = 16;
+  const bubbleWidth = Math.min(280, vw - 32);
+  const bubbleMargin = 12;
   const bubbleLeft = Math.max(
     bubbleMargin,
     Math.min(
@@ -70,17 +69,14 @@ export const TourSpotlight = ({
     zIndex: 10003,
   };
 
-  // Decide position: if target is in lower half, put bubble above. Otherwise below.
-  const targetCenterY = cutout.y + cutout.h / 2;
-  const effectivePosition = targetCenterY > vh * 0.5 ? 'above' : position;
+  // If target bottom half is below 45% of viewport, put bubble above
+  const targetBottom = cutout.y + cutout.h;
+  const effectivePosition = targetBottom > vh * 0.45 ? 'above' : position;
 
   if (effectivePosition === 'above') {
-    // Place bubble above the cutout
-    const topPos = cutout.y - bubbleMargin;
-    bubbleStyle.bottom = vh - topPos;
+    bubbleStyle.top = Math.max(bubbleMargin, cutout.y - 100);
   } else {
-    // Place bubble below the cutout
-    bubbleStyle.top = cutout.y + cutout.h + bubbleMargin;
+    bubbleStyle.top = Math.min(targetBottom + bubbleMargin, vh - 140);
   }
 
   return createPortal(
