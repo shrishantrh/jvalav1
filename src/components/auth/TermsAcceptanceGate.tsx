@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { Shield } from "lucide-react";
 import jvalaLogo from "@/assets/jvala-logo.png";
+import { ShaderGradientCanvas, ShaderGradient } from "@shadergradient/react";
 
 interface TermsAcceptanceGateProps {
   onAccept: () => void;
@@ -13,7 +14,6 @@ export const TermsAcceptanceGate = ({ onAccept }: TermsAcceptanceGateProps) => {
   const handleScroll = useCallback(() => {
     const el = viewportRef.current;
     if (!el) return;
-    // Consider "bottom" when within 40px of the end
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
     if (atBottom && !scrolledToBottom) {
       setScrolledToBottom(true);
@@ -22,48 +22,97 @@ export const TermsAcceptanceGate = ({ onAccept }: TermsAcceptanceGateProps) => {
 
   return (
     <div
-      className="fixed inset-0 flex flex-col max-w-md mx-auto"
-      style={{
-        background: "linear-gradient(165deg, #F8F0FF 0%, #EDE0FA 40%, #E8D5FF 100%)",
-      }}
+      className="fixed inset-0 flex flex-col max-w-[430px] mx-auto"
+      style={{ background: '#000' }}
     >
-      {/* Header */}
-      <div className="flex items-center gap-3 px-5 pt-[max(env(safe-area-inset-top),1.5rem)] pb-4">
-        <div
-          className="w-10 h-10 flex items-center justify-center rounded-xl"
-          style={{
-            background: "hsl(0 0% 100% / 0.9)",
-            boxShadow: "0 2px 8px hsl(270 40% 60% / 0.12)",
-          }}
+      {/* Shader gradient background */}
+      <div className="fixed inset-0 pointer-events-none max-w-[430px] mx-auto" style={{ zIndex: 0 }}>
+        <ShaderGradientCanvas
+          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+          pointerEvents="none"
         >
-          <img src={jvalaLogo} alt="Jvala" className="w-6 h-6 object-contain" />
-        </div>
-        <div>
-          <h1
-            className="text-lg"
-            style={{
-              fontFamily: "'Satoshi', sans-serif",
-              fontWeight: 700,
-              color: "hsl(270 40% 25%)",
-            }}
-          >
-            Terms & Privacy
-          </h1>
-          <p
-            className="text-[11px]"
-            style={{
-              fontFamily: "'Satoshi', sans-serif",
-              fontWeight: 400,
-              color: "hsl(270 20% 50%)",
-            }}
-          >
-            Please read and scroll to the bottom to continue
-          </p>
-        </div>
+          <ShaderGradient
+            animate="on"
+            brightness={1.2}
+            cAzimuthAngle={180}
+            cDistance={3.6}
+            cPolarAngle={90}
+            cameraZoom={1}
+            color1="#ffc573"
+            color2="#db99d7"
+            color3="#baa9e1"
+            envPreset="city"
+            grain="on"
+            lightType="3d"
+            positionX={-1.4}
+            positionY={0}
+            positionZ={0}
+            reflection={0.1}
+            rotationX={0}
+            rotationY={10}
+            rotationZ={50}
+            type="plane"
+            uAmplitude={1}
+            uDensity={0.8}
+            uFrequency={5.5}
+            uSpeed={0.1}
+            uStrength={3.2}
+            uTime={0}
+          />
+        </ShaderGradientCanvas>
       </div>
 
-      {/* Scrollable terms content */}
-      <div className="flex-1 mx-5 mb-3 rounded-2xl overflow-hidden" style={{ background: "hsl(0 0% 100% / 0.95)", border: "1px solid hsl(270 30% 90%)" }}>
+      <div className="flex-1 flex flex-col relative z-10 overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center gap-3 px-5 pt-[max(env(safe-area-inset-top),1.5rem)] pb-4">
+          <div
+            className="w-10 h-10 flex items-center justify-center rounded-xl"
+            style={{
+              background: "hsl(0 0% 100% / 0.2)",
+              backdropFilter: "blur(16px)",
+              border: "1px solid hsl(0 0% 100% / 0.3)",
+              boxShadow: "0 4px 20px hsl(0 0% 0% / 0.1)",
+            }}
+          >
+            <img src={jvalaLogo} alt="Jvala" className="w-6 h-6 object-contain" />
+          </div>
+          <div>
+            <h1
+              className="text-[22px]"
+              style={{
+                fontFamily: "'Satoshi', sans-serif",
+                fontWeight: 800,
+                color: "#fff",
+                textShadow: "0 2px 16px hsl(0 0% 0% / 0.3)",
+              }}
+            >
+              Terms & Privacy
+            </h1>
+            <p
+              className="text-[13px]"
+              style={{
+                fontFamily: "'Satoshi', sans-serif",
+                fontWeight: 600,
+                color: "#fff",
+                textShadow: "0 1px 8px hsl(0 0% 0% / 0.25)",
+              }}
+            >
+              Please read and scroll to the bottom to continue
+            </p>
+          </div>
+        </div>
+
+        {/* Scrollable terms content - frosted glass card */}
+        <div
+          className="flex-1 mx-5 mb-3 rounded-2xl overflow-hidden"
+          style={{
+            background: "hsl(0 0% 100% / 0.15)",
+            backdropFilter: "blur(24px) saturate(180%)",
+            WebkitBackdropFilter: "blur(24px) saturate(180%)",
+            border: "1px solid hsl(0 0% 100% / 0.25)",
+            boxShadow: "inset 0 1px 0 hsl(0 0% 100% / 0.3), 0 8px 32px hsl(0 0% 0% / 0.12)",
+          }}
+        >
           <div
             ref={viewportRef}
             className="h-full overflow-y-auto px-5 py-5 space-y-6"
@@ -76,17 +125,18 @@ export const TermsAcceptanceGate = ({ onAccept }: TermsAcceptanceGateProps) => {
                 style={{
                   fontFamily: "'Satoshi', sans-serif",
                   fontWeight: 700,
-                  color: "hsl(270 40% 25%)",
+                  color: "#fff",
+                  textShadow: "0 1px 4px hsl(0 0% 0% / 0.15)",
                 }}
               >
                 Terms of Service
               </h2>
-              <p className="text-[10px] mb-3" style={{ color: "hsl(270 20% 55%)" }}>
+              <p className="text-[10px] mb-3" style={{ color: "hsl(0 0% 100% / 0.6)" }}>
                 Last Updated: February 13, 2026
               </p>
             </div>
 
-            <p className="text-xs leading-relaxed" style={{ color: "hsl(270 25% 30%)" }}>
+            <p className="text-xs leading-relaxed" style={{ color: "hsl(0 0% 100% / 0.85)" }}>
               These Terms of Service ("Terms") govern your use of the Jvala mobile application and related services (the "Service") operated by Jvala ("we", "our", or "us"). By accessing or using the Service, you agree to be bound by these Terms.
             </p>
 
@@ -132,7 +182,7 @@ export const TermsAcceptanceGate = ({ onAccept }: TermsAcceptanceGateProps) => {
 
             {/* Divider */}
             <div className="py-3">
-              <div style={{ borderTop: "1px solid hsl(270 20% 90%)" }} />
+              <div style={{ borderTop: "1px solid hsl(0 0% 100% / 0.15)" }} />
             </div>
 
             {/* Privacy Policy */}
@@ -142,17 +192,18 @@ export const TermsAcceptanceGate = ({ onAccept }: TermsAcceptanceGateProps) => {
                 style={{
                   fontFamily: "'Satoshi', sans-serif",
                   fontWeight: 700,
-                  color: "hsl(270 40% 25%)",
+                  color: "#fff",
+                  textShadow: "0 1px 4px hsl(0 0% 0% / 0.15)",
                 }}
               >
                 Privacy Policy
               </h2>
-              <p className="text-[10px] mb-3" style={{ color: "hsl(270 20% 55%)" }}>
+              <p className="text-[10px] mb-3" style={{ color: "hsl(0 0% 100% / 0.6)" }}>
                 Last Updated: February 13, 2026
               </p>
             </div>
 
-            <p className="text-xs leading-relaxed" style={{ color: "hsl(270 25% 30%)" }}>
+            <p className="text-xs leading-relaxed" style={{ color: "hsl(0 0% 100% / 0.85)" }}>
               Jvala ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application and related services.
             </p>
 
@@ -196,38 +247,43 @@ export const TermsAcceptanceGate = ({ onAccept }: TermsAcceptanceGateProps) => {
               For questions, contact us at support@jvala.tech or visit https://jvala.tech.
             </Section>
 
-            <p className="text-[10px] text-center pt-4 pb-2" style={{ color: "hsl(270 20% 60%)" }}>
+            <p className="text-[10px] text-center pt-4 pb-2" style={{ color: "hsl(0 0% 100% / 0.5)" }}>
               © {new Date().getFullYear()} Jvala. All rights reserved.
             </p>
           </div>
-      </div>
+        </div>
 
-      {/* Accept button */}
-      <div className="px-5 pb-[max(env(safe-area-inset-bottom),1.25rem)]">
-        {!scrolledToBottom && (
-          <p
-            className="text-[10px] text-center mb-2 animate-pulse"
-            style={{ color: "hsl(270 30% 55%)", fontFamily: "'Satoshi', sans-serif" }}
+        {/* Accept button */}
+        <div className="px-5 pb-[max(env(safe-area-inset-bottom),1.25rem)]">
+          {!scrolledToBottom && (
+            <p
+              className="text-[10px] text-center mb-2 animate-pulse"
+              style={{ color: "hsl(0 0% 100% / 0.7)", fontFamily: "'Satoshi', sans-serif" }}
+            >
+              ↓ Scroll to the bottom to accept
+            </p>
+          )}
+          <button
+            onClick={onAccept}
+            disabled={!scrolledToBottom}
+            className="w-full h-12 rounded-xl text-sm text-white disabled:opacity-40 active:scale-[0.97] transition-all duration-200 flex items-center justify-center gap-2"
+            style={{
+              background: scrolledToBottom
+                ? "linear-gradient(135deg, hsl(0 0% 100% / 0.3) 0%, hsl(0 0% 100% / 0.15) 100%)"
+                : "hsl(0 0% 100% / 0.1)",
+              boxShadow: scrolledToBottom
+                ? "inset 0 1px 0 hsl(0 0% 100% / 0.3), 0 4px 16px hsl(0 0% 0% / 0.15)"
+                : "none",
+              backdropFilter: "blur(12px)",
+              border: "1px solid hsl(0 0% 100% / 0.2)",
+              fontFamily: "'Satoshi', sans-serif",
+              fontWeight: 700,
+            }}
           >
-            ↓ Scroll to the bottom to accept
-          </p>
-        )}
-        <button
-          onClick={onAccept}
-          disabled={!scrolledToBottom}
-          className="w-full h-12 rounded-xl text-sm text-white disabled:opacity-40 active:scale-[0.97] transition-all duration-200 flex items-center justify-center gap-2"
-          style={{
-            background: scrolledToBottom
-              ? "linear-gradient(135deg, hsl(270 50% 55%) 0%, hsl(290 45% 50%) 100%)"
-              : "hsl(270 20% 75%)",
-            boxShadow: scrolledToBottom ? "0 4px 16px hsl(270 50% 55% / 0.25)" : "none",
-            fontFamily: "'Satoshi', sans-serif",
-            fontWeight: 700,
-          }}
-        >
-          <Shield className="w-4 h-4" />
-          I Accept the Terms & Privacy Policy
-        </button>
+            <Shield className="w-4 h-4" />
+            I Accept the Terms & Privacy Policy
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -248,7 +304,7 @@ const Section = ({
       style={{
         fontFamily: "'Satoshi', sans-serif",
         fontWeight: 700,
-        color: "hsl(270 35% 35%)",
+        color: "hsl(0 0% 100% / 0.9)",
       }}
     >
       {title}
@@ -256,11 +312,11 @@ const Section = ({
     <p
       className={`text-xs leading-relaxed rounded-lg ${highlight ? "p-3" : ""}`}
       style={{
-        color: "hsl(270 20% 35%)",
+        color: "hsl(0 0% 100% / 0.8)",
         ...(highlight
           ? {
-              background: "hsl(270 30% 96%)",
-              border: "1px solid hsl(270 25% 90%)",
+              background: "hsl(0 0% 100% / 0.08)",
+              border: "1px solid hsl(0 0% 100% / 0.12)",
             }
           : {}),
       }}
