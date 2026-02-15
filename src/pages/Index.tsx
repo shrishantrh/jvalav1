@@ -589,11 +589,7 @@ const Index = () => {
         {/* Track View - Full height chat */}
         {currentView === 'track' && user && (
           <div 
-            className="flex flex-col -mx-5 -my-4 -mb-28"
-            style={{ 
-              height: 'calc(100vh - env(safe-area-inset-top, 0px) - 140px)',
-              minHeight: '400px',
-            }}
+            className="flex flex-col h-full"
           >
             <SmartTrack
               ref={smartTrackRef}

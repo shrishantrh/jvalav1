@@ -1224,8 +1224,9 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         style={{ 
           scrollbarWidth: 'none', 
           msOverflowStyle: 'none',
-          // Add bottom padding to prevent content hiding behind fixed input
-          paddingBottom: '180px' 
+          paddingBottom: '180px',
+          overscrollBehavior: 'contain',
+          WebkitOverflowScrolling: 'touch',
         }}
       >
         {/* AI Capability buttons - show when no messages or few messages */}

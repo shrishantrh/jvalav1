@@ -55,11 +55,14 @@ export const MobileLayout = ({
   };
 
   return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden max-w-md mx-auto bg-background">
-      {/* Dynamic Island / Notch safe area spacer */}
+    <div className="fixed inset-0 flex flex-col overflow-hidden max-w-md mx-auto bg-background" style={{ overscrollBehavior: 'none' }}>
+      {/* Dynamic Island / Notch safe area spacer - matches header bg */}
       <div 
-        className="flex-shrink-0 bg-background/80 backdrop-blur-xl"
-        style={{ height: 'env(safe-area-inset-top, 0px)' }}
+        className="flex-shrink-0"
+        style={{ 
+          height: 'env(safe-area-inset-top, 0px)',
+          background: 'hsl(var(--background))',
+        }}
       />
       
       {/* Warm gradient overlay - 3D depth effect */}
@@ -74,44 +77,56 @@ export const MobileLayout = ({
         }}
       />
       
-      {/* Header area */}
+      {/* Header area - fixed, never scrolls */}
       {header && (
         <header className="relative flex-shrink-0 z-50 glass-header">
           {header}
         </header>
       )}
       
-      {/* Main content - scrollable area with pull-to-refresh */}
-      <main className="relative flex-1 overflow-hidden">
-        <PullToRefreshIndicator 
-          pullDistance={pullDistance}
-          isRefreshing={isRefreshing}
-        />
-        <div 
-          ref={containerRef}
-          className="h-full overflow-y-auto overflow-x-hidden scrollbar-hide"
-          style={{
-            transform: pullDistance > 0 ? `translateY(${pullDistance * 0.4}px)` : undefined,
-            transition: pullDistance === 0 ? 'transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : undefined,
-          }}
-        >
-          <div className="px-5 py-4 pb-28">
+      {/* Main content area */}
+      <main className="relative flex-1 overflow-hidden" style={{ overscrollBehavior: 'none' }}>
+        {currentView === 'track' ? (
+          /* Track view: children manage their own scroll (SmartTrack has internal scroll) */
+          <div className="h-full overflow-hidden">
             {children}
           </div>
-        </div>
+        ) : (
+          /* Other views: scrollable with pull-to-refresh */
+          <>
+            <PullToRefreshIndicator 
+              pullDistance={pullDistance}
+              isRefreshing={isRefreshing}
+            />
+            <div 
+              ref={containerRef}
+              className="h-full overflow-y-auto overflow-x-hidden scrollbar-hide"
+              style={{
+                transform: pullDistance > 0 ? `translateY(${pullDistance * 0.4}px)` : undefined,
+                transition: pullDistance === 0 ? 'transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : undefined,
+                overscrollBehavior: 'contain',
+                WebkitOverflowScrolling: 'touch',
+              }}
+            >
+              <div className="px-5 py-4 pb-28">
+                {children}
+              </div>
+            </div>
+          </>
+        )}
       </main>
       
-      {/* Bottom Navigation - Premium iOS tab bar with 3D effect */}
+      {/* Bottom Navigation - Fixed, never scrolls */}
       {showNav && onViewChange && (
         <nav 
           className="relative flex-shrink-0 z-50"
           style={{
-            background: 'hsl(var(--glass-bg) / 0.92)',
+            background: 'hsl(var(--glass-bg) / 0.95)',
             backdropFilter: 'blur(30px) saturate(200%)',
             WebkitBackdropFilter: 'blur(30px) saturate(200%)',
             borderTop: '1px solid hsl(var(--border) / 0.3)',
             boxShadow: '0 -8px 32px hsl(var(--foreground) / 0.03)',
-            paddingBottom: 'env(safe-area-inset-bottom, 8px)',
+            paddingBottom: 'calc(env(safe-area-inset-bottom, 8px) + 4px)',
           }}
         >
           {/* Glossy highlight line */}
