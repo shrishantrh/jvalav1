@@ -301,7 +301,7 @@ export const CleanInsights = ({ entries, userConditions = [], onAskAI }: CleanIn
               return (
                 <button
                   key={d.id}
-                  onClick={() => onAskAI?.(`Tell me more about ${d.factor_a} as a trigger. How strong is the evidence and what should I do about it?`)}
+                  onClick={() => onAskAI?.(`Tell me more about "${d.factor_a}" as a trigger. Here's what the discovery engine found: it occurred ${d.occurrence_count} out of ${d.total_exposures} times (${Math.round(d.confidence * 100)}% confidence), with a lift of ${d.lift?.toFixed(1) ?? 'N/A'}x and average delay of ${d.avg_delay_hours?.toFixed(1) ?? 'N/A'} hours. Status: ${d.status}. Relationship: ${d.relationship}. Based on this data, how strong is the evidence and what should I do about it?`)}
                   className={cn(
                     "w-full text-left p-4 rounded-2xl transition-all active:scale-[0.98]",
                     "bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm",
@@ -395,7 +395,7 @@ export const CleanInsights = ({ entries, userConditions = [], onAskAI }: CleanIn
               return (
                 <button
                   key={d.id}
-                  onClick={() => onAskAI?.(`Tell me more about how ${d.factor_a} helps with my condition.`)}
+                  onClick={() => onAskAI?.(`Tell me more about how "${d.factor_a}" helps with my condition. Discovery data: ${d.occurrence_count} out of ${d.total_exposures} exposures (${Math.round(d.confidence * 100)}% confidence), lift ${d.lift?.toFixed(1) ?? 'N/A'}x, relationship: ${d.relationship}, status: ${d.status}. What does this mean and how can I use this?`)}
                   className={cn(
                     "w-full text-left p-3 rounded-2xl transition-all active:scale-[0.98]",
                     "bg-white/60 dark:bg-slate-800/50 backdrop-blur-sm",
@@ -453,7 +453,7 @@ export const CleanInsights = ({ entries, userConditions = [], onAskAI }: CleanIn
               return (
                 <button
                   key={d.id}
-                  onClick={() => onAskAI?.(`What do you know so far about ${d.factor_a} and my health? Is there a connection?`)}
+                  onClick={() => onAskAI?.(`What do you know so far about "${d.factor_a}" and my health? Discovery data: ${d.occurrence_count}/${d.total_exposures} occurrences (${Math.round(d.confidence * 100)}% confidence), lift ${d.lift?.toFixed(1) ?? 'N/A'}x, avg delay ${d.avg_delay_hours?.toFixed(1) ?? 'N/A'}h, status: ${d.status}. Is there a real connection forming?`)}
                   className={cn(
                     "w-full text-left p-3 rounded-xl transition-all active:scale-[0.98]",
                     "bg-muted/30 hover:bg-muted/50"

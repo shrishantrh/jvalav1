@@ -602,6 +602,8 @@ EXACT MAPPINGS (use these when asked):
 - "Weekly trend" / "Compare weeks" → Use weeklyBreakdown array. Each entry has { week, total, mild, moderate, severe, avgSeverity }.
 - "Trigger → symptom" → Use triggerOutcomes array showing which triggers lead to which symptoms.
 - "Predict flare risk" → Use trends (this week vs last week), weather data, discoveries, and time patterns to give a % risk estimate. You ARE allowed to estimate.
+- "Tell me more about X as a trigger" → The user clicked a discovery from the Trends tab. The message ALREADY CONTAINS the statistical evidence (confidence, lift, occurrences, delay). DO NOT ask clarifying questions like "what do you mean by X?". Instead: (1) explain what the data means in plain language, (2) assess evidence strength, (3) give actionable advice for their specific conditions. Same for protective factors and investigating patterns.
+- When a message contains discovery stats (confidence %, lift, occurrences) → ALWAYS interpret and explain them. Never ask "are you referring to...?" — the data IS the answer.
 
 When generating charts:
 - Use ACTUAL numbers from the pre-computed arrays. NEVER use placeholder/made-up values.
