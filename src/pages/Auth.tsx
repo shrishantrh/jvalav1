@@ -319,7 +319,7 @@ const Auth = () => {
             cameraZoom={1}
             color1="#ffc573"
             color2="#db99d7"
-            color3="#bdc3e1"
+            color3="#baa9e1"
             envPreset="city"
             grain="on"
             lightType="3d"
@@ -332,10 +332,10 @@ const Auth = () => {
             rotationZ={50}
             type="plane"
             uAmplitude={1}
-            uDensity={1.3}
+            uDensity={0.8}
             uFrequency={5.5}
-            uSpeed={0.2}
-            uStrength={4}
+            uSpeed={0.1}
+            uStrength={3.2}
             uTime={0}
           />
         </ShaderGradientCanvas>
@@ -350,10 +350,10 @@ const Auth = () => {
               <img src={jvalaLogo} alt="Jvala" className="w-full h-full object-contain" />
             </div>
           </div>
-          <h1 className="text-[28px] tracking-tight" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 700, color: '#fff', textShadow: '0 2px 12px hsl(0 0% 0% / 0.3)' }}>
+          <h1 className="text-[30px] tracking-tight" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 800, color: '#2d1b4e', textShadow: '0 1px 16px hsl(0 0% 100% / 0.5)' }}>
             {isSignUp ? "Create Account" : "Welcome Back"}
           </h1>
-          <p className="text-[15px] mt-1.5" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 500, color: '#fff', textShadow: '0 1px 8px hsl(0 0% 0% / 0.2)', opacity: 0.95 }}>
+          <p className="text-[16px] mt-1.5" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 600, color: '#3d2a5c', textShadow: '0 1px 12px hsl(0 0% 100% / 0.4)' }}>
             {isSignUp ? "Start your health journey" : "Sign in to continue"}
           </p>
         </div>
@@ -587,7 +587,7 @@ const Auth = () => {
         </div>
 
         {/* Footer */}
-        <p className="text-[13px] mt-6 text-center" style={{ color: '#fff', fontFamily: "'Satoshi', sans-serif", fontWeight: 500, opacity: 0.85, textShadow: '0 1px 6px hsl(0 0% 0% / 0.2)' }}>
+        <p className="text-[14px] mt-6 text-center" style={{ color: '#2d1b4e', fontFamily: "'Satoshi', sans-serif", fontWeight: 600, textShadow: '0 1px 8px hsl(0 0% 100% / 0.4)' }}>
           🔒 Your health data is encrypted and never shared.
         </p>
       </div>
