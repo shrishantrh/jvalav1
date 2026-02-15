@@ -263,7 +263,7 @@ export default function Settings() {
                       .from('profiles')
                       .update({ 
                         tour_status: 'not_started',
-                        metadata: restMeta as any,
+                        metadata: { ...restMeta, tour_replay: true } as any,
                       })
                       .eq('id', user.id);
                     toast({ title: "Tour will replay now" });
