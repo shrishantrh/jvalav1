@@ -431,7 +431,10 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
                     : 'bg-muted rounded-tl-md',
                   message.isQuickLog && 'font-medium'
                 )}>
-                  <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0 [&>ul]:mt-1 [&>ul]:mb-0 [&>ol]:mt-1 [&>ol]:mb-0">
+                  <div className={cn(
+                    "prose prose-sm max-w-none [&>p]:m-0 [&>ul]:mt-1 [&>ul]:mb-0 [&>ol]:mt-1 [&>ol]:mb-0",
+                    message.role === 'user' ? "prose-invert" : "dark:prose-invert"
+                  )}>
                     <ReactMarkdown>{message.content}</ReactMarkdown>
                   </div>
                   {message.entryData && message.role === 'assistant' && (
