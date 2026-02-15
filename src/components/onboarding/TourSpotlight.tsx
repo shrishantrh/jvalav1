@@ -35,7 +35,6 @@ export const TourSpotlight = ({
 
   if (!targetRect) return null;
 
-  // Spotlight cutout dimensions with padding
   const pad = 12;
   const cutout = {
     x: targetRect.x - pad,
@@ -45,13 +44,11 @@ export const TourSpotlight = ({
     r: 20,
   };
 
-  // Bubble positioning
   const bubbleStyle: React.CSSProperties = {
     position: 'absolute',
     left: Math.max(16, Math.min(cutout.x, window.innerWidth - 280)),
     maxWidth: 'calc(100vw - 32px)',
     width: 280,
-    zIndex: 10002,
   };
 
   if (position === 'above') {
@@ -61,137 +58,124 @@ export const TourSpotlight = ({
   }
 
   return createPortal(
-    <div
-      className={cn(
-        "fixed inset-0 z-[10000] transition-opacity duration-500",
-        visible ? "opacity-100" : "opacity-0"
-      )}
-      style={{ pointerEvents: allowInteraction ? 'none' : 'auto' }}
-    >
-      {/* SVG overlay with cutout */}
-      <svg
-        className="absolute inset-0 w-full h-full"
+    <>
+      {/* Dark overlay with cutout — blocks clicks unless allowInteraction */}
+      <div
+        className={cn(
+          "fixed inset-0 z-[10000] transition-opacity duration-500",
+          visible ? "opacity-100" : "opacity-0"
+        )}
         style={{ pointerEvents: allowInteraction ? 'none' : 'auto' }}
       >
-        <defs>
-          <mask id="tour-mask">
-            <rect width="100%" height="100%" fill="white" />
-            <rect
-              x={cutout.x}
-              y={cutout.y}
-              width={cutout.w}
-              height={cutout.h}
-              rx={cutout.r}
-              ry={cutout.r}
-              fill="black"
-            />
-          </mask>
-        </defs>
-        <rect
-          width="100%"
-          height="100%"
-          fill="rgba(0,0,0,0.65)"
-          mask="url(#tour-mask)"
-        />
-      </svg>
+        <svg className="absolute inset-0 w-full h-full">
+          <defs>
+            <mask id="tour-mask">
+              <rect width="100%" height="100%" fill="white" />
+              <rect
+                x={cutout.x}
+                y={cutout.y}
+                width={cutout.w}
+                height={cutout.h}
+                rx={cutout.r}
+                ry={cutout.r}
+                fill="black"
+              />
+            </mask>
+          </defs>
+          <rect
+            width="100%"
+            height="100%"
+            fill="rgba(0,0,0,0.65)"
+            mask="url(#tour-mask)"
+          />
+        </svg>
 
-      {/* Neon glow border around cutout */}
-      <div
-        className="absolute tour-glow-border"
-        style={{
-          left: cutout.x,
-          top: cutout.y,
-          width: cutout.w,
-          height: cutout.h,
-          borderRadius: cutout.r,
-          pointerEvents: 'none',
-        }}
-      />
-
-      {/* Interaction hole: allow clicks through to the spotlight area */}
-      {allowInteraction && (
+        {/* Neon glow border */}
         <div
-          className="absolute"
+          className="absolute tour-glow-border"
           style={{
             left: cutout.x,
             top: cutout.y,
             width: cutout.w,
             height: cutout.h,
             borderRadius: cutout.r,
-            pointerEvents: 'auto',
-            zIndex: 10001,
-            // Transparent - just allows clicks to pass through the overlay
-            background: 'transparent',
+            pointerEvents: 'none',
           }}
-          onClick={(e) => e.stopPropagation()}
         />
-      )}
+      </div>
 
-      {/* Speech bubble */}
+      {/* Speech bubble — always interactive */}
       <div
-        style={{ ...bubbleStyle, pointerEvents: 'auto' }}
         className={cn(
-          "animate-in fade-in slide-in-from-bottom-3 duration-500",
+          "fixed inset-0 z-[10002] transition-opacity duration-500",
+          visible ? "opacity-100" : "opacity-0"
         )}
+        style={{ pointerEvents: 'none' }}
       >
         <div
-          className={cn(
-            "relative p-4 rounded-2xl",
-            "bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl",
-            "border border-white/50 dark:border-slate-700/50",
-            "shadow-[0_8px_32px_rgba(0,0,0,0.15)]"
-          )}
+          style={{ ...bubbleStyle, pointerEvents: 'auto' }}
+          className="animate-in fade-in slide-in-from-bottom-3 duration-500"
         >
-          {/* Dismiss X */}
-          <button
-            onClick={onDismiss}
-            className="absolute top-2 right-2 p-1 rounded-full text-muted-foreground/60 hover:text-foreground transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-
-          {/* Message */}
-          <p className="text-sm font-medium text-foreground pr-6 leading-relaxed">
-            {message}
-          </p>
-
-          {/* Footer: step indicator + next button */}
-          <div className="flex items-center justify-between mt-3">
-            {/* Step dots */}
-            <div className="flex gap-1">
-              {Array.from({ length: totalSteps }).map((_, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "w-1.5 h-1.5 rounded-full transition-all duration-300",
-                    i === stepNumber
-                      ? "bg-primary w-4"
-                      : i < stepNumber
-                        ? "bg-primary/40"
-                        : "bg-muted-foreground/20"
-                  )}
-                />
-              ))}
-            </div>
-
-            {/* Next / Done button */}
-            {!allowInteraction && (
-              <button
-                onClick={onNext}
-                className={cn(
-                  "px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200",
-                  "bg-primary text-primary-foreground",
-                  "hover:bg-primary/90 active:scale-95",
-                  "shadow-[0_2px_8px_hsl(330_80%_55%/0.3)]"
-                )}
-              >
-                {isLast ? 'Done' : 'Next →'}
-              </button>
+          <div
+            className={cn(
+              "relative p-4 rounded-2xl",
+              "bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl",
+              "border border-white/50 dark:border-slate-700/50",
+              "shadow-[0_8px_32px_rgba(0,0,0,0.15)]"
             )}
+          >
+            <button
+              onClick={onDismiss}
+              className="absolute top-2 right-2 p-1 rounded-full text-muted-foreground/60 hover:text-foreground transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <p className="text-sm font-medium text-foreground pr-6 leading-relaxed">
+              {message}
+            </p>
+
+            <div className="flex items-center justify-between mt-3">
+              <div className="flex gap-1">
+                {Array.from({ length: totalSteps }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "w-1.5 h-1.5 rounded-full transition-all duration-300",
+                      i === stepNumber
+                        ? "bg-primary w-4"
+                        : i < stepNumber
+                          ? "bg-primary/40"
+                          : "bg-muted-foreground/20"
+                    )}
+                  />
+                ))}
+              </div>
+
+              {!allowInteraction && (
+                <button
+                  onClick={onNext}
+                  className={cn(
+                    "px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200",
+                    "bg-primary text-primary-foreground",
+                    "hover:bg-primary/90 active:scale-95",
+                    "shadow-[0_2px_8px_hsl(330_80%_55%/0.3)]"
+                  )}
+                >
+                  {isLast ? 'Done' : 'Next →'}
+                </button>
+              )}
+
+              {allowInteraction && (
+                <span className="text-[10px] text-muted-foreground animate-pulse">
+                  👆 Tap a button to try
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>,
+    </>,
     document.body
   );
 };
