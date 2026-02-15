@@ -155,7 +155,7 @@ const Index = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('conditions, known_symptoms, known_triggers, physician_name, physician_email, physician_phone, physician_practice, onboarding_completed, metadata, full_name, date_of_birth, biological_sex')
+        .select('conditions, known_symptoms, known_triggers, physician_name, physician_email, physician_phone, physician_practice, onboarding_completed, metadata, full_name, date_of_birth, biological_sex, tour_status, created_at')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -193,20 +193,28 @@ const Index = () => {
         if (!data.onboarding_completed) {
           setShowOnboarding(true);
         } else {
-          // Check if tour should be shown — only for new users (<7 days, <5 logs)
+          // Check if tour should be shown
           const meta = (data as any).metadata || {};
-          if (!meta.tour_completed) {
+          const tourStatus = (data as any).tour_status || 'not_started';
+          
+          if (tourStatus === 'in_progress') {
+            // Tour was interrupted — ask to resume or skip
+            setShowTour(true);
+          } else if (tourStatus === 'not_started' && !meta.tour_completed) {
             const accountCreated = (data as any).created_at ? new Date((data as any).created_at) : new Date();
             const accountAgeDays = Math.floor((Date.now() - accountCreated.getTime()) / 86400000);
             
-            // Count logs to check newness
             const { count } = await supabase
               .from('flare_entries')
               .select('id', { count: 'exact', head: true })
               .eq('user_id', user.id);
             
             const totalLogs = count || 0;
-            if (accountAgeDays < 7 && totalLogs < 5) {
+            // If user has logs but tour wasn't started, they've been using the app — skip tour
+            if (totalLogs > 0) {
+              // Mark as done since they're already using the app
+              await supabase.from('profiles').update({ tour_status: 'done', metadata: { ...meta, tour_completed: true } }).eq('id', user.id);
+            } else if (accountAgeDays < 7) {
               setShowTour(true);
             }
           }

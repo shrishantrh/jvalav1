@@ -3,14 +3,15 @@ import { TourSpotlight } from './TourSpotlight';
 import { supabase } from '@/integrations/supabase/client';
 
 interface TourStep {
-  target: string; // data-tour attribute value
+  target: string;
   message: string;
   position: 'above' | 'below';
   navigateTo?: 'track' | 'history' | 'insights' | 'exports';
   allowInteraction?: boolean;
   waitForEntry?: boolean;
-  scrollIntoView?: boolean; // scroll element into view before measuring
-  delay?: number; // extra ms to wait before first measure (for async-loading content)
+  scrollIntoView?: boolean;
+  delay?: number;
+  triggerAction?: 'open-profile' | 'open-streaks';
 }
 
 const TOUR_STEPS: TourStep[] = [
@@ -24,7 +25,7 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     target: 'log-buttons',
-    message: "Nice! Your first entry is saved. ✨",
+    message: "Nice! Your first entry is saved.",
     position: 'above',
   },
   {
@@ -55,8 +56,20 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     target: 'profile-button',
-    message: "Track your streak and earn badges!",
+    message: "Your profile and health details live here.",
     position: 'below',
+    navigateTo: 'track',
+  },
+  {
+    target: 'streak-pill',
+    message: "Track your streak and earn badges here.",
+    position: 'below',
+    navigateTo: 'track',
+  },
+  {
+    target: 'log-buttons',
+    message: "You're all set. Log daily to unlock insights.",
+    position: 'above',
     navigateTo: 'track',
   },
 ];
@@ -75,6 +88,15 @@ export const AppTour = ({ userId, onViewChange, onComplete, onEntryLogged }: App
 
   const step = TOUR_STEPS[currentStep];
 
+  // Persist in_progress status on mount
+  useEffect(() => {
+    supabase
+      .from('profiles')
+      .update({ tour_status: 'in_progress' })
+      .eq('id', userId)
+      .then(() => {});
+  }, [userId]);
+
   // Navigate to the correct tab for the current step
   useEffect(() => {
     if (step?.navigateTo) {
@@ -82,7 +104,7 @@ export const AppTour = ({ userId, onViewChange, onComplete, onEntryLogged }: App
     }
   }, [currentStep]);
 
-  // Find and measure the target element with robust retry + live re-measure for interactive steps
+  // Find and measure the target element
   useEffect(() => {
     setReady(false);
     setTargetRect(null);
@@ -116,8 +138,6 @@ export const AppTour = ({ userId, onViewChange, onComplete, onEntryLogged }: App
           setTargetRect(rect);
           setReady(true);
 
-          // For interactive steps, keep re-measuring so the highlight
-          // grows/shrinks when panels expand (e.g. flare → severity wheel)
           if (step?.allowInteraction) {
             resizeObserver = new ResizeObserver(() => {
               if (cancelled) return;
@@ -126,7 +146,6 @@ export const AppTour = ({ userId, onViewChange, onComplete, onEntryLogged }: App
             });
             resizeObserver.observe(el);
 
-            // Also poll in case children change without triggering resize
             liveMeasureInterval = setInterval(() => {
               if (cancelled) return;
               const r = el.getBoundingClientRect();
@@ -181,10 +200,38 @@ export const AppTour = ({ userId, onViewChange, onComplete, onEntryLogged }: App
       const currentMeta = (data?.metadata as Record<string, any>) || {};
       await supabase
         .from('profiles')
-        .update({ metadata: { ...currentMeta, tour_completed: true } })
+        .update({ 
+          metadata: { ...currentMeta, tour_completed: true },
+          tour_status: 'done',
+        })
         .eq('id', userId);
     } catch (e) {
       console.error('Failed to persist tour flag:', e);
+    }
+
+    onViewChange('track');
+    onComplete();
+  }, [userId, onComplete, onViewChange]);
+
+  // If user dismisses (X), mark done — they're choosing to skip
+  const handleDismiss = useCallback(async () => {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('metadata')
+        .eq('id', userId)
+        .maybeSingle();
+
+      const currentMeta = (data?.metadata as Record<string, any>) || {};
+      await supabase
+        .from('profiles')
+        .update({ 
+          metadata: { ...currentMeta, tour_completed: true },
+          tour_status: 'done',
+        })
+        .eq('id', userId);
+    } catch (e) {
+      console.error('Failed to persist tour dismiss:', e);
     }
 
     onViewChange('track');
@@ -199,7 +246,7 @@ export const AppTour = ({ userId, onViewChange, onComplete, onEntryLogged }: App
       message={step.message}
       position={step.position}
       onNext={handleNext}
-      onDismiss={completeTour}
+      onDismiss={handleDismiss}
       isLast={currentStep === TOUR_STEPS.length - 1}
       allowInteraction={!!step.allowInteraction && !onEntryLogged}
       stepNumber={currentStep}
