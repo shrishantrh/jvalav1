@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { Shield } from "lucide-react";
 import jvalaLogo from "@/assets/jvala-logo.png";
-import { ShaderGradientCanvas, ShaderGradient } from "@shadergradient/react";
+
 
 interface TermsAcceptanceGateProps {
   onAccept: () => void;
@@ -23,43 +23,8 @@ export const TermsAcceptanceGate = ({ onAccept }: TermsAcceptanceGateProps) => {
   return (
     <div
       className="fixed inset-0 flex flex-col max-w-[430px] mx-auto"
-      style={{ background: 'linear-gradient(135deg, #ffb987, #db93b6, #baabe1)' }}
+      style={{ background: '#EE599F' }}
     >
-      {/* Shader gradient background */}
-      <div className="fixed inset-0 z-0 pointer-events-none max-w-[430px] mx-auto" style={{ height: '100vh' }}>
-        <ShaderGradientCanvas
-          pointerEvents="none"
-          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
-        >
-          <ShaderGradient
-            animate="on"
-            brightness={1.2}
-            cAzimuthAngle={180}
-            cDistance={3.6}
-            cPolarAngle={90}
-            cameraZoom={1}
-            color1="#ffb987"
-            color2="#db93b6"
-            color3="#baabe1"
-            envPreset="city"
-            grain="on"
-            lightType="3d"
-            positionX={-1.4}
-            positionY={0}
-            positionZ={0}
-            reflection={0.1}
-            rotationX={0}
-            rotationY={10}
-            rotationZ={50}
-            type="plane"
-            uAmplitude={1}
-            uDensity={1.3}
-            uFrequency={5.5}
-            uSpeed={0.2}
-            uStrength={4}
-          />
-        </ShaderGradientCanvas>
-      </div>
 
       <div className="flex-1 flex flex-col relative z-10 overflow-hidden">
         {/* Header */}
