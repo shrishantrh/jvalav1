@@ -44,17 +44,43 @@ export const TourSpotlight = ({
     r: 20,
   };
 
+  // Clamp cutout to viewport
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  cutout.x = Math.max(0, cutout.x);
+  cutout.y = Math.max(0, cutout.y);
+  if (cutout.x + cutout.w > vw) cutout.w = vw - cutout.x;
+  if (cutout.y + cutout.h > vh) cutout.h = vh - cutout.y;
+
+  // Bubble positioning — always keep on screen
+  const bubbleWidth = 280;
+  const bubbleMargin = 16;
+  const bubbleLeft = Math.max(
+    bubbleMargin,
+    Math.min(
+      cutout.x + cutout.w / 2 - bubbleWidth / 2,
+      vw - bubbleWidth - bubbleMargin
+    )
+  );
+
   const bubbleStyle: React.CSSProperties = {
-    position: 'absolute',
-    left: Math.max(16, Math.min(cutout.x, window.innerWidth - 280)),
-    maxWidth: 'calc(100vw - 32px)',
-    width: 280,
+    position: 'fixed',
+    left: bubbleLeft,
+    width: bubbleWidth,
+    zIndex: 10003,
   };
 
-  if (position === 'above') {
-    bubbleStyle.bottom = window.innerHeight - cutout.y + 16;
+  // Decide position: if target is in lower half, put bubble above. Otherwise below.
+  const targetCenterY = cutout.y + cutout.h / 2;
+  const effectivePosition = targetCenterY > vh * 0.5 ? 'above' : position;
+
+  if (effectivePosition === 'above') {
+    // Place bubble above the cutout
+    const topPos = cutout.y - bubbleMargin;
+    bubbleStyle.bottom = vh - topPos;
   } else {
-    bubbleStyle.top = cutout.y + cutout.h + 16;
+    // Place bubble below the cutout
+    bubbleStyle.top = cutout.y + cutout.h + bubbleMargin;
   }
 
   return createPortal(
@@ -69,7 +95,7 @@ export const TourSpotlight = ({
       >
         <svg className="absolute inset-0 w-full h-full">
           <defs>
-            <mask id="tour-mask">
+            <mask id={`tour-mask-${stepNumber}`}>
               <rect width="100%" height="100%" fill="white" />
               <rect
                 x={cutout.x}
@@ -86,7 +112,7 @@ export const TourSpotlight = ({
             width="100%"
             height="100%"
             fill="rgba(0,0,0,0.65)"
-            mask="url(#tour-mask)"
+            mask={`url(#tour-mask-${stepNumber})`}
           />
         </svg>
 
@@ -104,74 +130,76 @@ export const TourSpotlight = ({
         />
       </div>
 
-      {/* Speech bubble — always interactive */}
+      {/* Speech bubble — always interactive, on its own layer */}
       <div
+        style={{ ...bubbleStyle, pointerEvents: 'auto' }}
         className={cn(
-          "fixed inset-0 z-[10002] transition-opacity duration-500",
-          visible ? "opacity-100" : "opacity-0"
+          "fixed transition-opacity duration-500",
+          visible ? "opacity-100" : "opacity-0",
+          "animate-in fade-in slide-in-from-bottom-3 duration-500"
         )}
-        style={{ pointerEvents: 'none' }}
       >
         <div
-          style={{ ...bubbleStyle, pointerEvents: 'auto' }}
-          className="animate-in fade-in slide-in-from-bottom-3 duration-500"
+          className={cn(
+            "relative p-4 rounded-2xl",
+            "bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl",
+            "border border-white/60 dark:border-slate-700/50",
+            "shadow-[0_8px_32px_rgba(0,0,0,0.18)]"
+          )}
         >
-          <div
-            className={cn(
-              "relative p-4 rounded-2xl",
-              "bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl",
-              "border border-white/50 dark:border-slate-700/50",
-              "shadow-[0_8px_32px_rgba(0,0,0,0.15)]"
-            )}
+          {/* Dismiss X */}
+          <button
+            onClick={onDismiss}
+            className="absolute top-2 right-2 p-1 rounded-full text-muted-foreground/60 hover:text-foreground transition-colors"
           >
-            <button
-              onClick={onDismiss}
-              className="absolute top-2 right-2 p-1 rounded-full text-muted-foreground/60 hover:text-foreground transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <X className="w-4 h-4" />
+          </button>
 
-            <p className="text-sm font-medium text-foreground pr-6 leading-relaxed">
-              {message}
-            </p>
+          {/* Message */}
+          <p className="text-sm font-medium text-foreground pr-6 leading-relaxed">
+            {message}
+          </p>
 
-            <div className="flex items-center justify-between mt-3">
-              <div className="flex gap-1">
-                {Array.from({ length: totalSteps }).map((_, i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      "w-1.5 h-1.5 rounded-full transition-all duration-300",
-                      i === stepNumber
-                        ? "bg-primary w-4"
-                        : i < stepNumber
-                          ? "bg-primary/40"
-                          : "bg-muted-foreground/20"
-                    )}
-                  />
-                ))}
-              </div>
-
-              {!allowInteraction && (
-                <button
-                  onClick={onNext}
+          {/* Footer */}
+          <div className="flex items-center justify-between mt-3">
+            {/* Step dots */}
+            <div className="flex gap-1">
+              {Array.from({ length: totalSteps }).map((_, i) => (
+                <div
+                  key={i}
                   className={cn(
-                    "px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200",
-                    "bg-primary text-primary-foreground",
-                    "hover:bg-primary/90 active:scale-95",
-                    "shadow-[0_2px_8px_hsl(330_80%_55%/0.3)]"
+                    "w-1.5 h-1.5 rounded-full transition-all duration-300",
+                    i === stepNumber
+                      ? "bg-primary w-4"
+                      : i < stepNumber
+                        ? "bg-primary/40"
+                        : "bg-muted-foreground/20"
                   )}
-                >
-                  {isLast ? 'Done' : 'Next →'}
-                </button>
-              )}
-
-              {allowInteraction && (
-                <span className="text-[10px] text-muted-foreground animate-pulse">
-                  👆 Tap a button to try
-                </span>
-              )}
+                />
+              ))}
             </div>
+
+            {/* Next / Done button */}
+            {!allowInteraction && (
+              <button
+                onClick={onNext}
+                className={cn(
+                  "px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200",
+                  "bg-primary text-primary-foreground",
+                  "hover:bg-primary/90 active:scale-95",
+                  "shadow-[0_2px_8px_hsl(330_80%_55%/0.3)]"
+                )}
+              >
+                {isLast ? 'Done' : 'Next →'}
+              </button>
+            )}
+
+            {/* Hint for interactive step */}
+            {allowInteraction && (
+              <span className="text-[10px] text-muted-foreground animate-pulse">
+                👆 Tap a button to try
+              </span>
+            )}
           </div>
         </div>
       </div>
