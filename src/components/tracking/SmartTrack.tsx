@@ -1487,8 +1487,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                           }
                         }
                       }
-                      // Add closing message + follow-up engagement
-                      setTimeout(async () => {
+                      // Add closing message — NO follow-up form to avoid spam
+                      setTimeout(() => {
                         const closingMsg: ChatMessage = {
                           id: Date.now().toString(),
                           role: 'assistant',
@@ -1497,30 +1497,6 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                         };
                         setMessages(prev2 => [...prev2, closingMsg]);
                         import('@/lib/haptics').then(({ haptics }) => haptics.success());
-                        
-                        // After a brief pause, send a follow-up proactive message
-                        setTimeout(async () => {
-                          try {
-                            const { data: followUp } = await supabase.functions.invoke('proactive-checkin', {
-                              body: { 
-                                clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                                isFollowUp: true,
-                              },
-                            });
-                            if (followUp?.message) {
-                              const followUpMsg: ChatMessage = {
-                                id: (Date.now() + 1).toString(),
-                                role: 'assistant',
-                                content: followUp.message,
-                                timestamp: new Date(),
-                                proactiveForm: followUp.form || undefined,
-                              };
-                              setMessages(prev2 => [...prev2, followUpMsg]);
-                            }
-                          } catch (e) {
-                            console.log('[ProactiveFollowUp] Skipped:', e);
-                          }
-                        }, 2000);
                       }, 400);
                     } else {
                       import('@/lib/haptics').then(({ haptics }) => haptics.light());
