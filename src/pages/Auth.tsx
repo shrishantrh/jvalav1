@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { lovable } from "@/integrations/lovable/index";
 import { isNative } from "@/lib/capacitor";
 import { startNativeOAuth, openInNativeBrowser, setupNativeAuthListener } from "@/lib/nativeAuth";
-import { ShaderGradientCanvas, ShaderGradient } from "@shadergradient/react";
+
 
 const TERMS_ACCEPTED_KEY = 'jvala_terms_accepted';
 
@@ -303,42 +303,7 @@ const Auth = () => {
   };
 
   return (
-    <div className="fixed inset-0 flex flex-col max-w-[430px] mx-auto overflow-y-auto scrollbar-hide" style={{ background: 'linear-gradient(135deg, #ffb987, #db93b6, #baabe1)' }}>
-      {/* Shader gradient background - fixed so it always covers viewport */}
-      <div className="fixed inset-0 z-0 pointer-events-none max-w-[430px] mx-auto" style={{ height: '100vh' }}>
-        <ShaderGradientCanvas
-          pointerEvents="none"
-          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
-        >
-          <ShaderGradient
-            animate="on"
-            brightness={1.2}
-            cAzimuthAngle={180}
-            cDistance={3.6}
-            cPolarAngle={90}
-            cameraZoom={1}
-            color1="#ffb987"
-            color2="#db93b6"
-            color3="#baabe1"
-            envPreset="city"
-            grain="on"
-            lightType="3d"
-            positionX={-1.4}
-            positionY={0}
-            positionZ={0}
-            reflection={0.1}
-            rotationX={0}
-            rotationY={10}
-            rotationZ={50}
-            type="plane"
-            uAmplitude={1}
-            uDensity={1.3}
-            uFrequency={5.5}
-            uSpeed={0.2}
-            uStrength={4}
-          />
-        </ShaderGradientCanvas>
-      </div>
+    <div className="fixed inset-0 flex flex-col max-w-[430px] mx-auto overflow-y-auto scrollbar-hide" style={{ background: '#EE599F' }}>
 
       <div className="flex-1 flex flex-col px-7 pt-[max(env(safe-area-inset-top),2.5rem)] pb-8 relative z-10">
         {/* Logo */}
@@ -586,8 +551,11 @@ const Auth = () => {
         </div>
 
         {/* Footer */}
-        <p className="text-[15px] mt-6 text-center" style={{ color: '#fff', fontFamily: "'Satoshi', sans-serif", fontWeight: 700, textShadow: '0 2px 12px hsl(0 0% 0% / 0.35)' }}>
-          🔒 Your health data is encrypted and never shared.
+        <p className="text-[13px] mt-6 text-center" style={{ color: 'hsl(0 0% 100% / 0.85)', fontFamily: "'Satoshi', sans-serif", fontWeight: 600 }}>
+          Your health data is encrypted and never shared.
+        </p>
+        <p className="text-[11px] mt-1.5 text-center uppercase tracking-wider" style={{ color: 'hsl(0 0% 100% / 0.6)', fontFamily: "'Satoshi', sans-serif", fontWeight: 700 }}>
+          HIPAA Ready
         </p>
       </div>
 
