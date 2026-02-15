@@ -143,7 +143,17 @@ export const CleanInsights = ({ entries, userConditions = [], onAskAI }: CleanIn
     const sortedFlares = [...last30Days].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
     const daysSinceLastFlare = sortedFlares.length > 0 
       ? differenceInDays(now, sortedFlares[0].timestamp) : null;
-    return { flares7d: last7Days.length, flares30d: last30Days.length, avgSeverity, daysSinceLastFlare };
+    
+    // Days logged this week (for consistency %)
+    const weekStart = subDays(now, 7);
+    const daysWithLogs = new Set(
+      entries
+        .filter(e => isWithinInterval(e.timestamp, { start: weekStart, end: now }))
+        .map(e => format(e.timestamp, 'yyyy-MM-dd'))
+    ).size;
+    const daysLoggedPct = Math.round((daysWithLogs / 7) * 100);
+    
+    return { flares7d: last7Days.length, flares30d: last30Days.length, avgSeverity, daysSinceLastFlare, daysLoggedPct };
   }, [entries]);
 
   // Categorize discoveries
@@ -168,7 +178,7 @@ export const CleanInsights = ({ entries, userConditions = [], onAskAI }: CleanIn
   }
 
   return (
-    <div className="space-y-4 pb-6">
+    <div className="space-y-4 pb-2">
       {/* Tomorrow's Forecast */}
       {user && <HealthForecast userId={user.id} />}
 
@@ -212,6 +222,30 @@ export const CleanInsights = ({ entries, userConditions = [], onAskAI }: CleanIn
               )}>
                 {analytics.weeklyTrend.change > 0 ? '+' : ''}{analytics.weeklyTrend.change} vs last week
               </p>
+            </div>
+          </div>
+
+          {/* Quick Stats Row */}
+          <div className="grid grid-cols-3 gap-2 mt-3">
+            <div className="bg-white/40 dark:bg-slate-800/40 rounded-xl p-2 text-center">
+              <div className="flex items-center justify-center gap-1 mb-0.5">
+                <Flame className="w-3 h-3 text-destructive" />
+                <span className="text-lg font-bold text-foreground">{analytics.weeklyTrend.thisWeek}</span>
+              </div>
+              <p className="text-[9px] text-muted-foreground">Flares</p>
+            </div>
+            <div className="bg-white/40 dark:bg-slate-800/40 rounded-xl p-2 text-center">
+              <div className="flex items-center justify-center gap-1 mb-0.5">
+                <Activity className="w-3 h-3 text-primary" />
+                <span className="text-lg font-bold text-foreground">{basicStats.daysLoggedPct}%</span>
+              </div>
+              <p className="text-[9px] text-muted-foreground">Days Logged</p>
+            </div>
+            <div className="bg-white/40 dark:bg-slate-800/40 rounded-xl p-2 text-center">
+              <span className="text-lg font-bold text-foreground">
+                {basicStats.avgSeverity > 0 ? basicStats.avgSeverity.toFixed(1) : '-'}
+              </span>
+              <p className="text-[9px] text-muted-foreground">Avg Severity</p>
             </div>
           </div>
         </div>
