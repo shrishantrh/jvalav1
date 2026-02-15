@@ -294,9 +294,6 @@ const SeverityOrb = ({ severity, type, note }: { severity?: string; type?: strin
             {/* Droopy eyes */}
             <ellipse cx="11" cy="13" rx="2" ry="1.8" fill={config.face} />
             <ellipse cx="21" cy="13" rx="2" ry="1.8" fill={config.face} />
-            {/* Sad inner brows */}
-            <path d="M7 9 Q10 11 14 10" stroke={config.face} strokeWidth="1.3" strokeLinecap="round" fill="none" />
-            <path d="M18 10 Q22 11 25 9" stroke={config.face} strokeWidth="1.3" strokeLinecap="round" fill="none" />
             {/* Downturned mouth */}
             <path d="M10 22 Q16 17 22 22" stroke={config.face} strokeWidth="1.8" strokeLinecap="round" fill="none" />
           </svg>

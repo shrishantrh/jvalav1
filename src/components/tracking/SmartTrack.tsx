@@ -119,6 +119,8 @@ interface SmartTrackProps {
   onAddTrackable?: (trackable: CustomTrackable) => void;
   onRemoveTrackable?: (trackableId: string) => void;
   onReorderTrackables?: (trackables: CustomTrackable[]) => void;
+  onAddMedication?: (med: MedicationDetails) => void;
+  onRemoveMedication?: (medName: string) => void;
   userName?: string | null;
   userDOB?: string | null;
   userBiologicalSex?: string | null;
@@ -411,6 +413,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   onAddTrackable,
   onRemoveTrackable,
   onReorderTrackables,
+  onAddMedication,
+  onRemoveMedication,
   userName,
   userDOB,
   userBiologicalSex,
@@ -1631,6 +1635,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             onAddTrackable={onAddTrackable}
             onRemoveTrackable={onRemoveTrackable}
             onReorderTrackables={onReorderTrackables}
+            onAddMedication={onAddMedication}
+            onRemoveMedication={onRemoveMedication}
             onOpenDetails={onOpenDetails}
           />
         </div>

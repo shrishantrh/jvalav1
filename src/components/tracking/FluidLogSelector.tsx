@@ -8,6 +8,7 @@ import { FlareSeverity } from "@/types/flare";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { Slider } from "@/components/ui/slider";
+import { searchDrugs } from "@/data/whoDrugDictionary";
 
 // ─── Types ───
 
@@ -61,6 +62,8 @@ interface FluidLogSelectorProps {
   onAddTrackable?: (trackable: SmartTrackable) => void;
   onRemoveTrackable?: (trackableId: string) => void;
   onReorderTrackables?: (trackables: SmartTrackable[]) => void;
+  onAddMedication?: (med: MedicationDetails) => void;
+  onRemoveMedication?: (medName: string) => void;
   onOpenDetails?: () => void;
   disabled?: boolean;
 }
@@ -102,6 +105,219 @@ const GlassButton = ({ children, onClick, active, disabled, className = "", styl
     <span className="relative z-10 flex items-center gap-1.5">{children}</span>
   </button>
 );
+
+// ─── Mood Face SVG ───
+
+const MoodFaceSVG = ({ mood, faceColor }: { mood: string; faceColor: string }) => {
+  switch (mood) {
+    case 'happy':
+      return (
+        <svg viewBox="0 0 32 32" className="absolute inset-0 w-full h-full">
+          <path d="M8 12 Q11 9 14 12" stroke={faceColor} strokeWidth="2" strokeLinecap="round" fill="none" />
+          <path d="M18 12 Q21 9 24 12" stroke={faceColor} strokeWidth="2" strokeLinecap="round" fill="none" />
+          <path d="M9 19 Q16 26 23 19" stroke={faceColor} strokeWidth="2" strokeLinecap="round" fill="none" />
+        </svg>
+      );
+    case 'calm':
+      return (
+        <svg viewBox="0 0 32 32" className="absolute inset-0 w-full h-full">
+          <path d="M8 13 L14 13" stroke={faceColor} strokeWidth="2" strokeLinecap="round" />
+          <path d="M18 13 L24 13" stroke={faceColor} strokeWidth="2" strokeLinecap="round" />
+          <path d="M11 20 Q16 23 21 20" stroke={faceColor} strokeWidth="1.8" strokeLinecap="round" fill="none" />
+        </svg>
+      );
+    case 'anxious':
+      return (
+        <svg viewBox="0 0 32 32" className="absolute inset-0 w-full h-full">
+          <circle cx="11" cy="12" r="2.5" fill={faceColor} />
+          <circle cx="21" cy="12" r="2.5" fill={faceColor} />
+          <path d="M8 7 Q11 9 14 8" stroke={faceColor} strokeWidth="1.3" strokeLinecap="round" fill="none" />
+          <path d="M18 8 Q21 9 24 7" stroke={faceColor} strokeWidth="1.3" strokeLinecap="round" fill="none" />
+          <ellipse cx="16" cy="21" rx="3" ry="2" stroke={faceColor} strokeWidth="1.5" fill="none" />
+        </svg>
+      );
+    case 'sad':
+      return (
+        <svg viewBox="0 0 32 32" className="absolute inset-0 w-full h-full">
+          <ellipse cx="11" cy="13" rx="2" ry="1.8" fill={faceColor} />
+          <ellipse cx="21" cy="13" rx="2" ry="1.8" fill={faceColor} />
+          <path d="M10 22 Q16 17 22 22" stroke={faceColor} strokeWidth="1.8" strokeLinecap="round" fill="none" />
+        </svg>
+      );
+    case 'irritable':
+      return (
+        <svg viewBox="0 0 32 32" className="absolute inset-0 w-full h-full">
+          <circle cx="11" cy="13" r="1.8" fill={faceColor} />
+          <circle cx="21" cy="13" r="1.8" fill={faceColor} />
+          <path d="M7 8 L14 11" stroke={faceColor} strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M25 8 L18 11" stroke={faceColor} strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M10 21 L13 19 L16 21 L19 19 L22 21" stroke={faceColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        </svg>
+      );
+    case 'tired':
+      return (
+        <svg viewBox="0 0 32 32" className="absolute inset-0 w-full h-full">
+          <path d="M8 13 Q11 11 14 13" stroke={faceColor} strokeWidth="2" strokeLinecap="round" fill="none" />
+          <path d="M18 13 Q21 11 24 13" stroke={faceColor} strokeWidth="2" strokeLinecap="round" fill="none" />
+          <text x="25" y="9" fontSize="5" fontWeight="bold" fill={faceColor} opacity="0.6">z</text>
+          <ellipse cx="16" cy="21" rx="2.5" ry="1.5" stroke={faceColor} strokeWidth="1.5" fill="none" />
+        </svg>
+      );
+    default:
+      return (
+        <svg viewBox="0 0 32 32" className="absolute inset-0 w-full h-full">
+          <circle cx="11" cy="12" r="2" fill={faceColor} />
+          <circle cx="21" cy="12" r="2" fill={faceColor} />
+          <path d="M11 20 L21 20" stroke={faceColor} strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      );
+  }
+};
+
+// ─── Medication Panel ───
+
+const MedicationPanel = ({ userMedications, onLogMedication, onAddMedication, onRemoveMedication, onClose }: {
+  userMedications: MedicationDetails[];
+  onLogMedication: (name: string) => void;
+  onAddMedication?: (med: MedicationDetails) => void;
+  onRemoveMedication?: (name: string) => void;
+  onClose: () => void;
+}) => {
+  const [showAdd, setShowAdd] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [scheduleTime, setScheduleTime] = useState("");
+
+  const results = searchQuery.length >= 2 ? searchDrugs(searchQuery) : [];
+
+  const handleAddDrug = (drugName: string, drugClass?: string) => {
+    if (onAddMedication) {
+      onAddMedication({
+        name: drugName,
+        dosage: drugClass || undefined,
+        frequency: scheduleTime || 'as-needed',
+      });
+    }
+    setSearchQuery("");
+    setScheduleTime("");
+    setShowAdd(false);
+  };
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-base font-semibold">Medications</span>
+        <button onClick={onClose} className="w-8 h-8 rounded-xl flex items-center justify-center bg-muted/50 hover:bg-muted active:scale-95 transition-all">
+          <X className="w-4 h-4 text-muted-foreground" />
+        </button>
+      </div>
+
+      {userMedications && userMedications.length > 0 && (
+        <div className="space-y-1.5 mb-3">
+          <p className="text-xs text-muted-foreground mb-1">Tap to log dose:</p>
+          <div className="flex flex-wrap gap-2">
+            {userMedications.map((med, i) => (
+              <div key={i} className="flex items-center gap-1">
+                <button onClick={() => onLogMedication(med.name)}
+                  className="px-3 py-2 rounded-xl text-sm font-medium transition-all backdrop-blur-sm hover:scale-[1.02] active:scale-95"
+                  style={{
+                    background: 'linear-gradient(145deg, hsl(230 60% 95% / 0.9), hsl(230 50% 90% / 0.85))',
+                    border: '1px solid hsl(230 50% 80% / 0.5)',
+                  }}
+                >
+                  <Pill className="w-3.5 h-3.5 inline mr-1.5 text-indigo-500" />
+                  {med.name}
+                  {med.frequency && med.frequency !== 'as-needed' && (
+                    <span className="text-[10px] text-muted-foreground ml-1">({med.frequency})</span>
+                  )}
+                </button>
+                {onRemoveMedication && (
+                  <button onClick={() => onRemoveMedication(med.name)}
+                    className="w-6 h-6 rounded-lg flex items-center justify-center bg-destructive/10 hover:bg-destructive/20 active:scale-90 transition-all"
+                  >
+                    <X className="w-3 h-3 text-destructive" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!showAdd ? (
+        <button onClick={() => setShowAdd(true)}
+          className="w-full py-2.5 rounded-xl text-sm font-medium transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+          style={{
+            background: 'linear-gradient(145deg, hsl(0 0% 100% / 0.8), hsl(0 0% 96% / 0.7))',
+            border: '1px dashed hsl(0 0% 80%)',
+          }}
+        >
+          <Plus className="w-4 h-4 text-muted-foreground" />
+          Add Medication
+        </button>
+      ) : (
+        <div className="space-y-2 mt-2 p-3 rounded-xl" style={{
+          background: 'linear-gradient(145deg, hsl(230 40% 97%), hsl(230 30% 95%))',
+          border: '1px solid hsl(230 40% 88%)',
+        }}>
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search WHO Drug Dictionary..."
+            className="h-9 text-sm"
+            autoFocus
+          />
+
+          {results.length > 0 && (
+            <div className="max-h-40 overflow-y-auto space-y-1">
+              {results.slice(0, 8).map((drug) => (
+                <button key={drug.id} onClick={() => handleAddDrug(drug.drugName, drug.drugClass)}
+                  className="w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-primary/10 transition-all flex items-center justify-between"
+                >
+                  <div>
+                    <span className="font-medium">{drug.drugName}</span>
+                    <span className="text-muted-foreground ml-2">{drug.drugClass}</span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">{drug.atcCode}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {searchQuery.length >= 2 && results.length === 0 && (
+            <button onClick={() => handleAddDrug(searchQuery.trim())}
+              className="w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-primary/10 transition-all"
+            >
+              <Plus className="w-3 h-3 inline mr-1" />
+              Add "{searchQuery}" as custom medication
+            </button>
+          )}
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Schedule:</span>
+            <select value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)}
+              className="flex-1 h-8 rounded-lg text-xs bg-background border border-border px-2"
+            >
+              <option value="">As needed</option>
+              <option value="morning">Morning</option>
+              <option value="afternoon">Afternoon</option>
+              <option value="evening">Evening</option>
+              <option value="bedtime">Bedtime</option>
+              <option value="twice-daily">Twice daily</option>
+              <option value="three-times-daily">Three times daily</option>
+              <option value="with-meals">With meals</option>
+            </select>
+          </div>
+
+          <button onClick={() => { setShowAdd(false); setSearchQuery(""); setScheduleTime(""); }}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+    </>
+  );
+};
 
 // ─── Custom Trackable Panel ───
 
@@ -230,7 +446,8 @@ const TrackableInteractionPanel = ({ trackable, onLog, onClose }: {
 export const FluidLogSelector = ({
   userSymptoms, userMedications, aiLogCategories = [], customTrackables = [],
   onLogSymptom, onLogMedication, onLogWellness, onLogMood,
-  onLogEnergy, onLogRecovery, onLogCustom, onAddTrackable, onRemoveTrackable, onReorderTrackables, onOpenDetails, disabled
+  onLogEnergy, onLogRecovery, onLogCustom, onAddTrackable, onRemoveTrackable, onReorderTrackables,
+  onAddMedication, onRemoveMedication, onOpenDetails, disabled
 }: FluidLogSelectorProps) => {
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [activeCondition, setActiveCondition] = useState<AILogCategory | null>(null);
@@ -691,31 +908,13 @@ export const FluidLogSelector = ({
 
           {/* Medication panel */}
           {activePanel === 'medication' && (
-            <>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-base font-semibold">Which medication?</span>
-                <button onClick={closeAll} className="w-8 h-8 rounded-xl flex items-center justify-center bg-muted/50 hover:bg-muted active:scale-95 transition-all">
-                  <X className="w-4 h-4 text-muted-foreground" />
-                </button>
-              </div>
-              {userMedications && userMedications.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {userMedications.map((med, i) => (
-                    <button key={i} onClick={() => handleMedicationClick(med.name)}
-                      className="px-4 py-2 rounded-xl text-sm font-medium transition-all backdrop-blur-sm hover:scale-[1.02] active:scale-95"
-                      style={{
-                        background: 'linear-gradient(145deg, hsl(0 0% 100% / 0.8) 0%, hsl(0 0% 96% / 0.7) 100%)',
-                        border: '1px solid hsl(0 0% 100% / 0.5)',
-                      }}
-                    >
-                      💊 {med.name}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Add medications in Profile → Health</p>
-              )}
-            </>
+            <MedicationPanel
+              userMedications={userMedications}
+              onLogMedication={handleMedicationClick}
+              onAddMedication={onAddMedication}
+              onRemoveMedication={onRemoveMedication}
+              onClose={closeAll}
+            />
           )}
 
           {/* Energy panel */}
@@ -742,12 +941,12 @@ export const FluidLogSelector = ({
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { mood: 'happy', emoji: '😊', label: 'Happy', hue: 145, sat: 60, light: 50 },
-                  { mood: 'calm', emoji: '😌', label: 'Calm', hue: 200, sat: 55, light: 52 },
-                  { mood: 'anxious', emoji: '😰', label: 'Anxious', hue: 35, sat: 80, light: 50 },
-                  { mood: 'sad', emoji: '😢', label: 'Sad', hue: 220, sat: 60, light: 50 },
-                  { mood: 'irritable', emoji: '😤', label: 'Irritable', hue: 0, sat: 70, light: 52 },
-                  { mood: 'tired', emoji: '😴', label: 'Tired', hue: 260, sat: 40, light: 55 },
+                  { mood: 'happy', label: 'Happy', hue: 45, sat: 80, light: 50, face: '#d97706' },
+                  { mood: 'calm', label: 'Calm', hue: 200, sat: 55, light: 52, face: '#0284c7' },
+                  { mood: 'anxious', label: 'Anxious', hue: 35, sat: 80, light: 50, face: '#c2410c' },
+                  { mood: 'sad', label: 'Sad', hue: 230, sat: 60, light: 50, face: '#4338ca' },
+                  { mood: 'irritable', label: 'Irritable', hue: 350, sat: 70, light: 52, face: '#be123c' },
+                  { mood: 'tired', label: 'Tired', hue: 270, sat: 40, light: 55, face: '#6d28d9' },
                 ].map((option) => (
                   <button
                     key={option.mood}
@@ -760,8 +959,15 @@ export const FluidLogSelector = ({
                     }}
                   >
                     <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(180deg, hsl(0 0% 100% / 0.25) 0%, transparent 50%)', borderRadius: 'inherit' }} />
-                    <span className="text-2xl relative">{option.emoji}</span>
-                    <div className="text-xs font-bold mt-1 relative" style={{ color: `hsl(${option.hue} ${option.sat}% ${option.light}%)` }}>{option.label}</div>
+                    {/* Custom SVG face */}
+                    <div className="w-8 h-8 mx-auto rounded-full relative overflow-hidden" style={{
+                      background: `linear-gradient(145deg, hsl(${option.hue} ${option.sat}% 88%), hsl(${option.hue} ${option.sat - 10}% 82%))`,
+                      boxShadow: `0 2px 8px hsl(${option.hue} ${option.sat}% ${option.light}% / 0.25), inset 0 -3px 8px rgba(0,0,0,0.06)`,
+                    }}>
+                      <div className="absolute inset-0" style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.15) 30%, transparent 60%)' }} />
+                      <MoodFaceSVG mood={option.mood} faceColor={option.face} />
+                    </div>
+                    <div className="text-xs font-bold mt-1.5 relative" style={{ color: `hsl(${option.hue} ${option.sat}% ${option.light}%)` }}>{option.label}</div>
                   </button>
                 ))}
               </div>
