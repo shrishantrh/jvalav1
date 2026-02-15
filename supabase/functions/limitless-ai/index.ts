@@ -234,7 +234,7 @@ serve(async (req) => {
       hourSeverity[h].count++;
     });
 
-    // Medication analysis
+    // Medication analysis — basic stats
     const medStats: Record<string, { times: number; flaresAfter: number }> = {};
     medications.forEach((med: any) => {
       const medTime = new Date(med.taken_at).getTime();
@@ -248,6 +248,106 @@ serve(async (req) => {
       medStats[name].flaresAfter += flaresAfter;
     });
 
+    // ═══ PRE-COMPUTED: Daily flares for last 30 days ═══
+    const sevToNum = (s: string) => s === 'mild' ? 1 : s === 'moderate' ? 2 : s === 'severe' ? 3 : 0;
+    const dailyFlares30d: { date: string; flares: number; mild: number; moderate: number; severe: number; avgSeverity: number }[] = [];
+    for (let i = 29; i >= 0; i--) {
+      const dayStart = new Date(now - i * oneDay);
+      dayStart.setUTCHours(0, 0, 0, 0);
+      const dayEnd = new Date(dayStart.getTime() + oneDay);
+      const dayFlares = flares.filter((f: any) => {
+        const t = new Date(f.timestamp).getTime();
+        return t >= dayStart.getTime() && t < dayEnd.getTime();
+      });
+      const mild = dayFlares.filter((f: any) => f.severity === 'mild').length;
+      const moderate = dayFlares.filter((f: any) => f.severity === 'moderate').length;
+      const severe = dayFlares.filter((f: any) => f.severity === 'severe').length;
+      const avgSev = dayFlares.length > 0 ? dayFlares.reduce((a: number, f: any) => a + sevToNum(f.severity || 'mild'), 0) / dayFlares.length : 0;
+      const label = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: userTz }).format(dayStart);
+      dailyFlares30d.push({ date: label, flares: dayFlares.length, mild, moderate, severe, avgSeverity: Math.round(avgSev * 10) / 10 });
+    }
+
+    // ═══ PRE-COMPUTED: Weekly breakdown (last 8 weeks with severity) ═══
+    const weeklyBreakdown: { week: string; total: number; mild: number; moderate: number; severe: number; avgSeverity: number }[] = [];
+    for (let i = 7; i >= 0; i--) {
+      const wStart = new Date(now - (i + 1) * oneWeek);
+      const wEnd = new Date(now - i * oneWeek);
+      const wFlares = flares.filter((f: any) => {
+        const t = new Date(f.timestamp).getTime();
+        return t >= wStart.getTime() && t < wEnd.getTime();
+      });
+      const wMild = wFlares.filter((f: any) => f.severity === 'mild').length;
+      const wMod = wFlares.filter((f: any) => f.severity === 'moderate').length;
+      const wSev = wFlares.filter((f: any) => f.severity === 'severe').length;
+      const wAvg = wFlares.length > 0 ? wFlares.reduce((a: number, f: any) => a + sevToNum(f.severity || 'mild'), 0) / wFlares.length : 0;
+      const startLabel = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: userTz }).format(wStart);
+      const endLabel = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: userTz }).format(wEnd);
+      weeklyBreakdown.push({ week: `${startLabel}–${endLabel}`, total: wFlares.length, mild: wMild, moderate: wMod, severe: wSev, avgSeverity: Math.round(wAvg * 10) / 10 });
+    }
+
+    // ═══ PRE-COMPUTED: Medication effectiveness ═══
+    const medEffectiveness: { name: string; timesTaken: number; avgSeverityBefore: number; avgSeverityAfter: number; severityReduction: string; avgFlareFreeDaysAfter: number }[] = [];
+    const uniqueMeds = [...new Set(medications.map((m: any) => m.medication_name))];
+    for (const medName of uniqueMeds) {
+      const doses = medications.filter((m: any) => m.medication_name === medName);
+      const timesTaken = doses.length;
+      let totalSevBefore = 0, countBefore = 0, totalSevAfter = 0, countAfter = 0;
+      let totalFlareFreeDays = 0;
+
+      for (const dose of doses) {
+        const doseTime = new Date(dose.taken_at).getTime();
+        // Flares in 24h BEFORE dose
+        const before = flares.filter((f: any) => {
+          const t = new Date(f.timestamp).getTime();
+          return t >= doseTime - oneDay && t < doseTime;
+        });
+        before.forEach((f: any) => { totalSevBefore += sevToNum(f.severity || 'mild'); countBefore++; });
+        // Flares in 24h AFTER dose
+        const after = flares.filter((f: any) => {
+          const t = new Date(f.timestamp).getTime();
+          return t > doseTime && t <= doseTime + oneDay;
+        });
+        after.forEach((f: any) => { totalSevAfter += sevToNum(f.severity || 'mild'); countAfter++; });
+        // Flare-free window after dose
+        const nextFlareAfterDose = flares.find((f: any) => new Date(f.timestamp).getTime() > doseTime);
+        if (nextFlareAfterDose) {
+          const gap = (new Date(nextFlareAfterDose.timestamp).getTime() - doseTime) / oneDay;
+          totalFlareFreeDays += Math.min(gap, 14); // cap at 14 days
+        } else {
+          totalFlareFreeDays += 7; // no flare found, assume 7 days
+        }
+      }
+
+      const avgBefore = countBefore > 0 ? Math.round((totalSevBefore / countBefore) * 10) / 10 : 0;
+      const avgAfter = countAfter > 0 ? Math.round((totalSevAfter / countAfter) * 10) / 10 : 0;
+      const reduction = avgBefore > 0 ? Math.round(((avgBefore - avgAfter) / avgBefore) * 100) : 0;
+      const avgFlareFree = Math.round((totalFlareFreeDays / timesTaken) * 10) / 10;
+
+      medEffectiveness.push({
+        name: medName,
+        timesTaken,
+        avgSeverityBefore: avgBefore,
+        avgSeverityAfter: avgAfter,
+        severityReduction: `${reduction}%`,
+        avgFlareFreeDaysAfter: avgFlareFree,
+      });
+    }
+
+    // ═══ PRE-COMPUTED: Trigger-to-symptom analysis ═══
+    const triggerSymptomMap: Record<string, Record<string, number>> = {};
+    flares.forEach((f: any) => {
+      (f.triggers || []).forEach((t: string) => {
+        if (!triggerSymptomMap[t]) triggerSymptomMap[t] = {};
+        (f.symptoms || []).forEach((s: string) => {
+          triggerSymptomMap[t][s] = (triggerSymptomMap[t][s] || 0) + 1;
+        });
+      });
+    });
+    const triggerOutcomes = Object.entries(triggerSymptomMap).map(([trigger, symptoms]) => ({
+      trigger,
+      topSymptoms: Object.entries(symptoms).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([s, c]) => ({ symptom: s, count: c })),
+    })).sort((a, b) => b.topSymptoms.reduce((s, x) => s + x.count, 0) - a.topSymptoms.reduce((s, x) => s + x.count, 0)).slice(0, 10);
+
     // Build data context
     const dataContext = {
       overview: {
@@ -257,6 +357,10 @@ serve(async (req) => {
         thisWeek: stats.thisWeek, lastWeek: stats.lastWeek,
         thisMonth: stats.thisMonth, lastMonth: stats.lastMonth,
       },
+      dailyFlares30d,
+      weeklyBreakdown,
+      medicationEffectiveness: medEffectiveness,
+      triggerOutcomes,
       topSymptoms: topSymptoms.slice(0, 10).map(([name, count]) => ({ name, count })),
       topTriggers: topTriggers.slice(0, 10).map(([name, count]) => ({ name, count })),
       locations: Object.entries(locationCounts).map(([city, data]) => ({
@@ -487,7 +591,25 @@ ${JSON.stringify(dataContext.discoveries?.filter((d: any) => d.confidence >= 25)
 - If they ask "how does X affect my Y" — ANSWER using the clinical knowledge above, citing specific mechanisms. Don't say "I don't have enough info" when you literally have clinical research above.
 - When the user logs a flare RIGHT AFTER logging food/activity, CONNECT THE DOTS using discoveries data. This is what makes you useful.
 
-══ VISUALIZATION RULES — CRITICAL ══
+══ CRITICAL: ANTI-DEFLECTION — READ THIS CAREFULLY ══
+You have PRE-COMPUTED data sections in USER DATA below. NEVER say "I can't filter", "I can't track effectiveness", or "I can only show X".
+
+EXACT MAPPINGS (use these when asked):
+- "Show me flares over 30 days" → Use dailyFlares30d array. Each entry has { date, flares, mild, moderate, severe, avgSeverity }. Create a bar_chart or line_chart with label=date, value=flares for EACH of the 30 days.
+- "Which medications helped most?" → Use medicationEffectiveness array. Rank by severityReduction %. Explain: "X reduced severity by Y%, with Z flare-free days on average after each dose."
+- "Track medication effectiveness" → SAME as above. You CAN track this. The data is RIGHT THERE.
+- "Time patterns" / "When do I flare most?" → Use byHour and byDayOfWeek arrays to identify peak hours and days.
+- "Weekly trend" / "Compare weeks" → Use weeklyBreakdown array. Each entry has { week, total, mild, moderate, severe, avgSeverity }.
+- "Trigger → symptom" → Use triggerOutcomes array showing which triggers lead to which symptoms.
+- "Predict flare risk" → Use trends (this week vs last week), weather data, discoveries, and time patterns to give a % risk estimate. You ARE allowed to estimate.
+
+When generating charts:
+- Use ACTUAL numbers from the pre-computed arrays. NEVER use placeholder/made-up values.
+- For 30-day charts: iterate dailyFlares30d, set label=date, value=flares for each entry.
+- For weekly charts: iterate weeklyBreakdown, set label=week, value=total.
+- For medication comparison: iterate medicationEffectiveness, set label=name, value=severityReduction number.
+
+══ VISUALIZATION RULES ══
 - ONLY create a chart when the user EXPLICITLY asks: "show me a chart", "graph my...", "visualize", "plot", "show me data"
 - For ALL other questions — even data questions — just answer conversationally in text. NO chart.
 
@@ -502,7 +624,7 @@ Chart data format: [{ label: string, value: number, extra?: string, latitude?: n
 - Export data: Insights → Export Reports
 - Set reminders: Profile → Reminder Settings
 
-══ USER DATA ══
+══ USER DATA (PRE-COMPUTED — USE THESE NUMBERS) ══
 ${JSON.stringify(dataContext, null, 2)}
 
 ══ IMPORTANT ══
