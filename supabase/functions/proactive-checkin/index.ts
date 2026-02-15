@@ -59,7 +59,7 @@ serve(async (req) => {
     }
     const userId = claimsData.claims.sub as string;
 
-    const { clientTimezone, isFirstSession, isFollowUp } = await req.json();
+    const { clientTimezone, isFirstSession, isFollowUp } = await req.json().catch(() => ({}));
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
 
@@ -69,7 +69,7 @@ serve(async (req) => {
     );
 
     // Fetch context in parallel
-    const [profileRes, entriesRes, engagementRes, medsRes] = await Promise.all([
+    const [profileRes, entriesRes, engagementRes, medsRes, discoveriesRes] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).single(),
       supabase
         .from("flare_entries")
@@ -84,12 +84,19 @@ serve(async (req) => {
         .eq("user_id", userId)
         .order("taken_at", { ascending: false })
         .limit(10),
+      supabase
+        .from("discoveries")
+        .select("discovery_type, category, factor_a, factor_b, relationship, confidence, status, evidence_summary")
+        .eq("user_id", userId)
+        .order("confidence", { ascending: false })
+        .limit(10),
     ]);
 
     const profile = profileRes.data;
     const entries = entriesRes.data || [];
     const engagement = engagementRes.data;
     const meds = medsRes.data || [];
+    const discoveries = discoveriesRes.data || [];
 
     const userTz = clientTimezone || profile?.timezone || "UTC";
     const now = new Date();
@@ -194,28 +201,40 @@ serve(async (req) => {
         .slice(0, 5),
       biologicalSex: profile?.biological_sex,
       dateOfBirth: profile?.date_of_birth,
-      aiMemory: aiMemory.slice(-10), // Last 10 memory entries for context
+      aiMemory: aiMemory.slice(-10),
       isFollowUp: !!isFollowUp,
+      discoveries: discoveries.slice(0, 5).map((d: any) => ({
+        type: d.discovery_type,
+        factor: d.factor_a,
+        relationship: d.relationship,
+        confidence: Math.round((d.confidence || 0) * 100),
+        status: d.status,
+        summary: d.evidence_summary,
+      })),
     };
 
-    // Classify user: new = account < 7 days old AND fewer than 5 logs
+    // Classify user: new = account < 7 days old AND fewer than 5 logs AND hasn't done context form
+    const contextFormDone = !!(aiMemory.find((m: any) => m.key === '_context_form_complete'));
     const accountCreatedAt = profile?.created_at ? new Date(profile.created_at) : now;
     const accountAgeDays = Math.floor((now.getTime() - accountCreatedAt.getTime()) / 86400000);
-    const isNewUser = accountAgeDays < 7 && totalLogs < 5;
+    const isNewUser = accountAgeDays < 7 && totalLogs < 5 && !contextFormDone;
 
     const systemPrompt = isNewUser
       ? `You are Jvala's AI health companion. ${userName} just created their account. They are tracking: ${conditions.join(', ') || 'health concerns'}.
 
-YOUR JOB: Send ONE short welcome message, then a form to collect their background.
+YOUR JOB: Send ONE short welcome message, then a DETAILED context form. This is the ONLY time you'll ask this many questions, so be thorough.
 
 1. Call "send_message" ONCE with a brief, warm welcome (2 sentences max). Example tone: "Hey ${userName}! Welcome to Jvala — I'm your health companion. Let me get to know you a bit so I can help."
 
-2. Then call "send_form" with a form to collect their condition background. The form MUST have 2-3 fields based on their conditions (${conditions.join(', ') || 'general health'}):
-   - Field 1: How long they've had this condition (options: "Just started", "Few months", "1-2 years", "Years")
-   - Field 2: Main triggers they've noticed (multi_select, 4-5 common triggers for their specific condition with emojis)
-   - Field 3: Current severity / how often (options: "Rarely", "Weekly", "Few times a week", "Daily")
-   Use condition-specific language. For depression: "low mood episodes". For asthma: "attacks". Etc.
-   closingMessage should be warm, like "thanks, this helps a lot! 💜"
+2. Then call "send_form" with a DETAILED intake form. This is the initial context-gathering form — make it thorough (4-6 fields) because this is the only time you'll do a deep intake. Fields should include:
+   - Field 1: How long they've had this condition (options: "Just started", "Few weeks", "Few months", "1-2 years", "5+ years")
+   - Field 2: Current frequency (options: "Rarely", "Weekly", "Few times a week", "Daily", "Multiple times daily")
+   - Field 3: Main triggers they've noticed (multi_select, 5-6 common triggers for their specific condition ${conditions.join(', ')} with emojis)
+   - Field 4: What they've tried so far (multi_select, 4-5 treatment options relevant to their condition: medication, therapy, lifestyle changes, supplements, etc.)
+   - Field 5: What time of day symptoms are worst (options: "Morning", "Afternoon", "Evening", "Night", "No pattern")
+   - Field 6: Current stress level (options: "Low 😌", "Moderate 😐", "High 😰", "Very high 🥵")
+   Use condition-specific language. For depression: "low mood episodes". For cough: "coughing bouts". For asthma: "attacks". Etc.
+   closingMessage should be warm, like "thanks, this really helps me understand your situation 💜"
 
 STYLE: Brief, warm, conversational. NO bullet points, NO medical disclaimers, NO "I'm an AI".
 You MUST call "send_message" once, then "send_form" once.`
@@ -228,6 +247,8 @@ CONTEXT:
 ${JSON.stringify({ ...contextSummary, accountAgeDays }, null, 2)}
 
 ${aiMemory.length > 0 ? `\nAI MEMORY (background info the user previously shared):\n${aiMemory.map((m: any) => `- ${m.question}: ${m.answer}`).join('\n')}\nUse this knowledge naturally. Don't re-ask things already answered.\n` : ''}
+
+${discoveries.length > 0 ? `\nDISCOVERIES (patterns the engine has found — use these to ask SMART questions):\n${discoveries.slice(0, 5).map((d: any) => `- ${d.discovery_type}: ${d.factor_a} ${d.relationship} (${Math.round((d.confidence || 0) * 100)}% confidence, ${d.status})`).join('\n')}\nUse discoveries to ask targeted questions. E.g. if "cold_air increases_risk", ask "Did you go outside in the cold today?" If "poor_sleep increases_risk", ask about last night's sleep.\n` : ''}
 
 RULES:
 1. You MUST call exactly ONE tool: either "send_message" or "send_form".
@@ -249,7 +270,9 @@ RULES:
 17. If daysSinceLastLog > 2, gently ask how things have been via form — mention their condition by name.
 18. If they have recent flares, include a form field about their most frequent symptom.
 19. Forms should have 1-3 fields max. Each field 3-5 options with emojis. Make it effortless.
-20. Every question you ask must serve a PURPOSE — either it becomes a trackable data point (mood, sleep, energy, symptoms, stress) or it informs the AI model. Never ask just to fill space.`;
+20. Every question you ask must serve a PURPOSE — either it becomes a trackable data point (mood, sleep, energy, symptoms, stress) or it informs the AI model. Never ask just to fill space.
+21. If there are DISCOVERIES, use them to ask TARGETED questions. Probe leads the engine has found. E.g. "I noticed cold air might be a trigger for you — were you outside in the cold today?" This makes you feel smart and evidence-based.
+22. Be investigative — if the user hasn't logged certain data types (sleep, stress, diet) in a while, ask about those gaps via form to fill in missing data for better correlations.`;
 
     const tools = [
       {

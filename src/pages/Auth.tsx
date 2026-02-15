@@ -16,9 +16,14 @@ import { lovable } from "@/integrations/lovable/index";
 import { isNative } from "@/lib/capacitor";
 import { startNativeOAuth, openInNativeBrowser, setupNativeAuthListener } from "@/lib/nativeAuth";
 
+const TERMS_ACCEPTED_KEY = 'jvala_terms_accepted';
+
 const Auth = () => {
   const [showSplash, setShowSplash] = useState(true);
-  const [termsAccepted, setTermsAccepted] = useState(false);
+  // Persist terms acceptance in localStorage so the gate only shows once per device install
+  const [termsAccepted, setTermsAccepted] = useState(() => {
+    try { return localStorage.getItem(TERMS_ACCEPTED_KEY) === 'true'; } catch { return false; }
+  });
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -277,7 +282,11 @@ const Auth = () => {
 
   // Must accept terms before seeing auth form
   if (!termsAccepted) {
-    return <TermsAcceptanceGate onAccept={() => { setTermsAccepted(true); termsAcceptedRef.current = true; }} />;
+    return <TermsAcceptanceGate onAccept={() => {
+      setTermsAccepted(true);
+      termsAcceptedRef.current = true;
+      try { localStorage.setItem(TERMS_ACCEPTED_KEY, 'true'); } catch {}
+    }} />;
   }
 
   const canSubmit = isSignUp 
