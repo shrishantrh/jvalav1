@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { lovable } from "@/integrations/lovable/index";
 import { isNative } from "@/lib/capacitor";
 import { startNativeOAuth, openInNativeBrowser, setupNativeAuthListener } from "@/lib/nativeAuth";
+import { ShaderGradientCanvas, ShaderGradient } from "@shadergradient/react";
 
 const TERMS_ACCEPTED_KEY = 'jvala_terms_accepted';
 
@@ -302,16 +303,49 @@ const Auth = () => {
   };
 
   return (
-    <div className="fixed inset-0 flex flex-col max-w-md mx-auto overflow-y-auto scrollbar-hide" style={{ background: 'linear-gradient(165deg, #F8F0FF 0%, #EDE0FA 40%, #E8D5FF 100%)' }}>
-      {/* Soft ambient orbs */}
-      <div className="absolute top-[-80px] left-1/2 -translate-x-1/2 w-[400px] h-[400px] rounded-full blur-[130px] pointer-events-none" style={{ background: 'hsl(280 50% 85% / 0.4)' }} />
-      <div className="absolute bottom-[-40px] right-[-40px] w-[250px] h-[250px] rounded-full blur-[100px] pointer-events-none" style={{ background: 'hsl(300 40% 82% / 0.3)' }} />
+    <div className="fixed inset-0 flex flex-col max-w-md mx-auto overflow-y-auto scrollbar-hide" style={{ background: '#000' }}>
+      {/* Shader gradient background */}
+      <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+        <ShaderGradientCanvas
+          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+          pointerEvents="none"
+        >
+          <ShaderGradient
+            animate="on"
+            brightness={1.2}
+            cAzimuthAngle={180}
+            cDistance={3.6}
+            cPolarAngle={90}
+            cameraZoom={1}
+            color1="#ffc573"
+            color2="#db99d7"
+            color3="#bdc3e1"
+            envPreset="city"
+            grain="on"
+            lightType="3d"
+            positionX={-1.4}
+            positionY={0}
+            positionZ={0}
+            reflection={0.1}
+            rotationX={0}
+            rotationY={10}
+            rotationZ={50}
+            type="plane"
+            uAmplitude={1}
+            uDensity={1.3}
+            uFrequency={5.5}
+            uSpeed={0.2}
+            uStrength={4}
+            uTime={0}
+          />
+        </ShaderGradientCanvas>
+      </div>
 
       <div className="flex-1 flex flex-col px-7 pt-[max(env(safe-area-inset-top),2.5rem)] pb-8 relative z-10">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8 animate-in fade-in-0 zoom-in-95 duration-700">
           <div className="relative w-16 h-16 mb-4">
-            <div className="absolute -inset-2 rounded-2xl blur-lg" style={{ background: 'hsl(280 40% 80% / 0.4)' }} />
+            <div className="absolute -inset-2 rounded-2xl blur-lg" style={{ background: 'hsl(0 0% 100% / 0.3)' }} />
             <div className="relative w-full h-full flex items-center justify-center !p-3 !rounded-2xl" style={{ background: 'hsl(0 0% 100% / 0.9)', boxShadow: '0 4px 20px hsl(280 40% 60% / 0.12)' }}>
               <img src={jvalaLogo} alt="Jvala" className="w-full h-full object-contain" />
             </div>
