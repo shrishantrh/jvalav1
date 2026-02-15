@@ -27,6 +27,16 @@ interface ProactiveForm {
   closingMessage: string;
 }
 
+interface DiscoveryCard {
+  factor: string;
+  confidence: number;
+  lift: number;
+  occurrences: number;
+  total: number;
+  category: 'trigger' | 'protective' | 'investigating';
+  summary?: string;
+}
+
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -76,6 +86,9 @@ interface ChatMessage {
   // Research & citations
   citations?: Array<{ index: number; title: string; url: string }>;
   wasResearched?: boolean;
+
+  // Discovery cards
+  discoveryCards?: DiscoveryCard[];
 
   updateInfo?: {
     entryId: string;
@@ -127,6 +140,7 @@ interface SmartTrackProps {
   recentEntries?: any[];
   userId: string;
   onOpenDetails?: () => void;
+  onNavigateToTrends?: () => void;
 }
 
 export interface SmartTrackRef {
@@ -420,7 +434,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   userBiologicalSex,
   recentEntries = [],
   userId,
-  onOpenDetails
+  onOpenDetails,
+  onNavigateToTrends,
 }, ref) => {
   const [messages, _setMessages] = useState<ChatMessage[]>(() => chatCache.get(userId) || []);
   // Wrap setMessages to also update the module-level cache
@@ -468,33 +483,34 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
           body: { action: 'mark_surfaced', data: { discoveryIds } },
         });
 
-        // Show discovery cards in chat
-        for (const disc of newDiscoveries.slice(0, 2)) {
-          const emoji = disc.discovery_type === 'trigger' ? '🔍' : 
-                       disc.discovery_type === 'protective_factor' ? '🛡️' :
-                       disc.discovery_type === 'pattern' ? '📊' : '💡';
-          const statusLabel = disc.status === 'strong' ? 'Strong evidence' :
-                             disc.status === 'confirmed' ? 'Confirmed' :
-                             disc.status === 'investigating' ? 'Investigating' : 'Emerging';
+        // Show discovery cards in chat as structured visual cards
+        const cards: DiscoveryCard[] = newDiscoveries.slice(0, 3).map((disc: any) => {
           const confPct = Math.round((disc.confidence || 0) * 100);
+          const category: 'trigger' | 'protective' | 'investigating' = 
+            disc.relationship === 'decreases_risk' ? 'protective' :
+            disc.status === 'investigating' || disc.status === 'emerging' ? 'investigating' : 'trigger';
           
-          let title = '';
-          if (disc.discovery_type === 'trigger') {
-            title = `New trigger detected: ${disc.factor_a}`;
-          } else if (disc.discovery_type === 'protective_factor') {
-            title = `Protective factor: ${disc.factor_a}`;
-          } else if (disc.discovery_type === 'pattern') {
-            title = `Pattern found: ${disc.factor_a}`;
-          } else {
-            title = `Discovery: ${disc.factor_a}`;
-          }
+          return {
+            factor: disc.factor_a?.replace(/^(tod:|dow:|pressure:|temperature:|weather_condition:)/, '').replace(/_/g, ' '),
+            confidence: confPct,
+            lift: disc.lift || 1,
+            occurrences: disc.occurrence_count,
+            total: disc.total_exposures,
+            category,
+            summary: disc.evidence_summary?.split('.')[0] || `${disc.occurrence_count}/${disc.total_exposures} times a flare followed`,
+          };
+        });
 
+        if (cards.length > 0) {
           const discoveryMessage: ChatMessage = {
             id: Date.now().toString() + Math.random(),
             role: 'assistant',
-            content: `${emoji} **${title}**\n\n${disc.evidence_summary}\n\n_${statusLabel} • ${confPct}% confidence • ${disc.occurrence_count} occurrences_`,
+            content: cards.length === 1 
+              ? `New pattern detected — **${cards[0].factor}** is linked to your flares.`
+              : `Found ${cards.length} new patterns in your data:`,
             timestamp: new Date(),
             isAIGenerated: true,
+            discoveryCards: cards,
           };
           setMessages(prev => [...prev, discoveryMessage]);
         }
@@ -1138,6 +1154,16 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         // Research & citations
         citations: limitlessData?.citations || [],
         wasResearched: limitlessData?.wasResearched || false,
+        // Discovery cards from limitless-ai
+        discoveryCards: (limitlessData?.discoveries || []).map((d: any) => ({
+          factor: d.factor,
+          confidence: d.confidence,
+          lift: d.lift || 1,
+          occurrences: d.occurrences,
+          total: d.total,
+          category: d.category || 'trigger',
+          summary: d.summary,
+        })).filter((d: any) => d.factor),
       };
       setMessages(prev => [...prev, assistantMessage]);
 
@@ -1349,6 +1375,49 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                 </div>
               )}
               
+              {/* Discovery Cards */}
+              {msg.discoveryCards && msg.discoveryCards.length > 0 && msg.role === 'assistant' && (
+                <div className="mt-2 space-y-1.5 relative z-10">
+                  {msg.discoveryCards.map((disc, idx) => {
+                    const categoryStyles = {
+                      trigger: { bg: 'hsl(350 80% 95%)', border: 'hsl(350 60% 85%)', accent: 'hsl(350 70% 50%)', bar: 'hsl(350 70% 55%)' },
+                      protective: { bg: 'hsl(150 60% 95%)', border: 'hsl(150 40% 85%)', accent: 'hsl(150 50% 40%)', bar: 'hsl(150 50% 45%)' },
+                      investigating: { bg: 'hsl(220 60% 95%)', border: 'hsl(220 40% 85%)', accent: 'hsl(220 50% 50%)', bar: 'hsl(220 50% 55%)' },
+                    };
+                    const s = categoryStyles[disc.category];
+                    const IconComponent = disc.category === 'trigger' ? TrendingUp : disc.category === 'protective' ? Activity : Search;
+                    return (
+                      <div key={idx} className="rounded-xl p-2.5" style={{ background: s.bg, border: `1px solid ${s.border}` }}>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ background: `${s.accent}20` }}>
+                            <IconComponent className="w-3 h-3" style={{ color: s.accent }} />
+                          </div>
+                          <span className="text-xs font-semibold capitalize">{disc.factor}</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mb-1.5 line-clamp-2">{disc.summary}</p>
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <div className="flex-1 h-1 rounded-full bg-background/60 overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: `${disc.confidence}%`, background: s.bar }} />
+                          </div>
+                          <span className="text-[9px] font-medium" style={{ color: s.accent }}>{disc.confidence}%</span>
+                          {disc.lift > 1 && <span className="text-[9px] font-medium" style={{ color: s.accent }}>{disc.lift.toFixed(1)}×</span>}
+                        </div>
+                        {onNavigateToTrends && (
+                          <button
+                            onClick={onNavigateToTrends}
+                            className="flex items-center gap-1 text-[10px] font-medium transition-colors hover:opacity-80"
+                            style={{ color: s.accent }}
+                          >
+                            View in Trends
+                            <ExternalLink className="w-2.5 h-2.5" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               {/* iMessage-style reaction overlay — top-left corner of user bubble */}
               {msg.reaction && msg.role === 'user' && (
                 <div 
