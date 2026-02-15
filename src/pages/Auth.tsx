@@ -304,8 +304,8 @@ const Auth = () => {
 
   return (
     <div className="fixed inset-0 flex flex-col max-w-md mx-auto overflow-y-auto scrollbar-hide" style={{ background: '#000' }}>
-      {/* Shader gradient background */}
-      <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+      {/* Shader gradient background - fixed so it covers full scroll */}
+      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0, maxWidth: '430px', margin: '0 auto' }}>
         <ShaderGradientCanvas
           style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
           pointerEvents="none"
@@ -350,10 +350,10 @@ const Auth = () => {
               <img src={jvalaLogo} alt="Jvala" className="w-full h-full object-contain" />
             </div>
           </div>
-          <h1 className="text-[26px] tracking-tight" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 700, color: '#fff', textShadow: '0 1px 8px hsl(0 0% 0% / 0.15)' }}>
+          <h1 className="text-[28px] tracking-tight" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 700, color: '#fff', textShadow: '0 2px 12px hsl(0 0% 0% / 0.3)' }}>
             {isSignUp ? "Create Account" : "Welcome Back"}
           </h1>
-          <p className="text-sm mt-1.5" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 400, color: 'hsl(0 0% 100% / 0.8)' }}>
+          <p className="text-[15px] mt-1.5" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 500, color: '#fff', textShadow: '0 1px 8px hsl(0 0% 0% / 0.2)', opacity: 0.95 }}>
             {isSignUp ? "Start your health journey" : "Sign in to continue"}
           </p>
         </div>
@@ -387,7 +387,7 @@ const Auth = () => {
           <form onSubmit={handleAuth} className="p-5 pt-5 space-y-4">
             {/* Email */}
             <div className="space-y-1.5">
-              <label htmlFor="email" className="text-xs pl-0.5" style={{ color: 'hsl(0 0% 100% / 0.7)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}>
+              <label htmlFor="email" className="text-[13px] pl-0.5" style={{ color: '#fff', fontFamily: "'Satoshi', sans-serif", fontWeight: 600, opacity: 0.9 }}>
                 Email
               </label>
               <div className="relative">
@@ -421,7 +421,7 @@ const Auth = () => {
 
             {/* Password */}
             <div className="space-y-1.5">
-              <label htmlFor="password" className="text-xs pl-0.5" style={{ color: 'hsl(0 0% 100% / 0.7)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}>
+              <label htmlFor="password" className="text-[13px] pl-0.5" style={{ color: '#fff', fontFamily: "'Satoshi', sans-serif", fontWeight: 600, opacity: 0.9 }}>
                 Password
               </label>
               <div className="relative">
@@ -453,7 +453,7 @@ const Auth = () => {
             {/* Confirm Password */}
             {isSignUp && (
               <div className="space-y-1.5 animate-in fade-in-0 slide-in-from-top-2 duration-200">
-                <label htmlFor="confirmPassword" className="text-xs pl-0.5" style={{ color: 'hsl(0 0% 100% / 0.7)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}>
+                <label htmlFor="confirmPassword" className="text-[13px] pl-0.5" style={{ color: '#fff', fontFamily: "'Satoshi', sans-serif", fontWeight: 600, opacity: 0.9 }}>
                   Confirm Password
                 </label>
                 <div className="relative">
@@ -496,7 +496,7 @@ const Auth = () => {
                 <button
                   type="button"
                   onClick={() => setShowForgotPassword(true)}
-                  className="text-xs transition-colors" style={{ color: 'hsl(0 0% 100% / 0.7)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}
+                  className="text-[13px] transition-colors" style={{ color: '#fff', fontFamily: "'Satoshi', sans-serif", fontWeight: 500, opacity: 0.85 }}
                 >
                   Forgot password?
                 </button>
@@ -512,7 +512,7 @@ const Auth = () => {
                     checked={ageConfirmed}
                     onCheckedChange={(checked) => setAgeConfirmed(checked === true)}
                   />
-                  <label htmlFor="age" className="text-xs cursor-pointer flex-1" style={{ color: 'hsl(0 0% 100% / 0.8)', fontFamily: "'Satoshi', sans-serif", fontWeight: 400 }}>
+                  <label htmlFor="age" className="text-[13px] cursor-pointer flex-1" style={{ color: '#fff', fontFamily: "'Satoshi', sans-serif", fontWeight: 500, opacity: 0.9 }}>
                     I am at least 13 years old
                     <span className="text-destructive"> *</span>
                   </label>
@@ -587,8 +587,8 @@ const Auth = () => {
         </div>
 
         {/* Footer */}
-        <p className="text-xs mt-6 text-center" style={{ color: 'hsl(0 0% 100% / 0.6)', fontFamily: "'Satoshi', sans-serif", fontWeight: 400 }}>
-          Your health data is encrypted and never shared.
+        <p className="text-[13px] mt-6 text-center" style={{ color: '#fff', fontFamily: "'Satoshi', sans-serif", fontWeight: 500, opacity: 0.85, textShadow: '0 1px 6px hsl(0 0% 0% / 0.2)' }}>
+          🔒 Your health data is encrypted and never shared.
         </p>
       </div>
 
