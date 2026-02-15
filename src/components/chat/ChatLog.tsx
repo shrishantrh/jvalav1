@@ -20,6 +20,13 @@ interface Visualization {
   insight?: string;
 }
 
+interface InteractiveForm {
+  type: 'rating' | 'options' | 'severity';
+  title: string;
+  options: { label: string; value: string; emoji?: string }[];
+  followUpMessage?: string;
+}
+
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -28,6 +35,7 @@ interface ChatMessage {
   entryData?: Partial<FlareEntry>;
   isQuickLog?: boolean;
   visualization?: Visualization;
+  interactiveForm?: InteractiveForm;
   confidence?: number;
   evidenceSources?: string[];
   suggestedFollowUp?: string;
@@ -344,6 +352,7 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
         timestamp: new Date(),
         entryData: data.entryData,
         visualization: data.visualization,
+        interactiveForm: data.interactiveForm,
         confidence: data.confidence,
         evidenceSources: data.evidenceSources,
         suggestedFollowUp: data.suggestedFollowUp,
@@ -445,6 +454,40 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
                   )}
                   {message.visualization && (
                     <VisualizationRenderer visualization={message.visualization} />
+                  )}
+                  {/* Interactive Form */}
+                  {message.interactiveForm && (
+                    <div className="mt-2.5 space-y-2">
+                      <p className="text-[11px] font-medium text-muted-foreground">{message.interactiveForm.title}</p>
+                      <div className={cn(
+                        "flex flex-wrap gap-1.5",
+                        message.interactiveForm.type === 'rating' && "gap-2"
+                      )}>
+                        {message.interactiveForm.options.map((opt, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => {
+                              // Send the selection as a user message
+                              const response = `${opt.emoji ? opt.emoji + ' ' : ''}${opt.label}`;
+                              setInput(response);
+                              setTimeout(() => {
+                                const fakeEvent = { preventDefault: () => {} } as React.KeyboardEvent;
+                                handleSend();
+                              }, 50);
+                            }}
+                            className={cn(
+                              "px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                              "bg-background/80 hover:bg-primary/10 hover:text-primary",
+                              "border border-border/50 hover:border-primary/30",
+                              message.interactiveForm?.type === 'rating' && "px-4 py-2 text-base"
+                            )}
+                          >
+                            {opt.emoji && <span className="mr-1">{opt.emoji}</span>}
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   )}
                   {/* Confidence & Evidence */}
                   {message.role === 'assistant' && message.confidence != null && (
