@@ -303,9 +303,9 @@ const Auth = () => {
   };
 
   return (
-    <div className="fixed inset-0 flex flex-col max-w-md mx-auto overflow-y-auto scrollbar-hide" style={{ background: '#000' }}>
-      {/* Shader gradient background - fixed so it covers full scroll */}
-      <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+    <div className="fixed inset-0 flex flex-col max-w-[430px] mx-auto overflow-y-auto scrollbar-hide" style={{ background: '#000' }}>
+      {/* Shader gradient background - fixed within the phone container */}
+      <div className="fixed inset-0 pointer-events-none max-w-[430px] mx-auto" style={{ zIndex: 0 }}>
         <ShaderGradientCanvas
           style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
           pointerEvents="none"
