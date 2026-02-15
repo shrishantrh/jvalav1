@@ -455,12 +455,12 @@ export const FluidLogSelector = ({
             <GlassButton key={cat.id} onClick={() => handleConditionClick(cat)} disabled={disabled} active={isActive} className="flex-shrink-0"
               style={{
                 background: isActive
-                  ? `linear-gradient(145deg, ${cat.color || 'hsl(0 70% 95%)'}, ${cat.color ? cat.color.replace(/\d+%\)/, '90%)') : 'hsl(0 70% 90%)'})`
+                  ? `linear-gradient(145deg, ${cat.color ? cat.color.replace(/[\d.]+%\s*\)/, '92%)') : 'hsl(0 70% 92%)'}, ${cat.color ? cat.color.replace(/[\d.]+%\s*\)/, '86%)') : 'hsl(0 70% 86%)'})`
                   : 'linear-gradient(145deg, hsl(0 0% 100% / 0.85) 0%, hsl(0 0% 98% / 0.8) 100%)',
                 backgroundClip: 'padding-box',
-                border: isActive ? `2px solid ${cat.color || 'hsl(0 70% 50%)'}` : '1px solid hsl(0 0% 100% / 0.6)',
+                border: isActive ? `2px solid ${cat.color ? cat.color.replace(/[\d.]+%\s*\)/, '60%)') : 'hsl(0 70% 60%)'}` : '1px solid hsl(0 0% 100% / 0.6)',
                 boxShadow: isActive
-                  ? `inset 0 1px 2px hsl(0 0% 100% / 0.5), 0 4px 12px ${cat.color || 'hsl(0 70% 50%)'}`
+                  ? `inset 0 1px 2px hsl(0 0% 100% / 0.5), 0 4px 12px ${cat.color ? cat.color.replace(/[\d.]+%\s*\)/, '50% / 0.2)') : 'hsl(0 70% 50% / 0.2)'}`
                   : 'inset 0 1px 2px hsl(0 0% 100% / 0.4), 0 2px 8px hsl(0 0% 0% / 0.04)',
               }}
             >
