@@ -307,36 +307,34 @@ const Auth = () => {
       {/* Shader gradient background - fixed within the phone container */}
       <div className="fixed inset-0 pointer-events-none max-w-[430px] mx-auto" style={{ zIndex: 0 }}>
         <ShaderGradientCanvas
-          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
-          pointerEvents="none"
+          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
         >
           <ShaderGradient
+            type="waterPlane"
             animate="on"
-            brightness={1.2}
-            cAzimuthAngle={180}
-            cDistance={3.6}
-            cPolarAngle={90}
-            cameraZoom={1}
-            color1="#ffc573"
-            color2="#db99d7"
-            color3="#baa9e1"
-            envPreset="city"
-            grain="on"
-            lightType="3d"
-            positionX={-1.4}
-            positionY={0}
+            uTime={0.2}
+            uSpeed={0.3}
+            uStrength={1.5}
+            uDensity={1.3}
+            uFrequency={5.5}
+            uAmplitude={2.5}
+            positionX={-0.1}
+            positionY={0.2}
             positionZ={0}
-            reflection={0.1}
             rotationX={0}
             rotationY={10}
             rotationZ={50}
-            type="plane"
-            uAmplitude={1}
-            uDensity={0.8}
-            uFrequency={5.5}
-            uSpeed={0.1}
-            uStrength={3.2}
-            uTime={0}
+            color1="#ff7a33"
+            color2="#ffb366"
+            color3="#ff5c5c"
+            reflection={0.1}
+            wireframe={false}
+            shader="defaults"
+            cAzimuthAngle={180}
+            cPolarAngle={115}
+            cDistance={3.5}
+            cameraZoom={1}
+            grain="on"
           />
         </ShaderGradientCanvas>
       </div>
