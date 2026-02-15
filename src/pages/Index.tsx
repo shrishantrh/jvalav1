@@ -13,6 +13,7 @@ import { ClinicalRecordGenerator } from "@/components/history/ClinicalRecordGene
 import { ProfileManager } from "@/components/profile/ProfileManager";
 import { TimelineProgress } from "@/components/engagement/TimelineProgress";
 import { RevolutionaryOnboarding } from "@/components/onboarding/RevolutionaryOnboarding";
+import { AppTour } from "@/components/onboarding/AppTour";
 import { HealthForecast } from "@/components/forecast/HealthForecast";
 import { CycleTracker } from "@/components/tracking/CycleTracker";
 import { StreakBadge } from "@/components/engagement/StreakBadge";
@@ -66,6 +67,8 @@ const Index = () => {
   const [entries, setEntries] = useState<FlareEntry[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showTour, setShowTour] = useState(false);
+  const [tourEntryLogged, setTourEntryLogged] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showDetailedEntry, setShowDetailedEntry] = useState(false);
@@ -189,6 +192,12 @@ const Index = () => {
 
         if (!data.onboarding_completed) {
           setShowOnboarding(true);
+        } else {
+          // Check if tour should be shown
+          const meta = (data as any).metadata || {};
+          if (!meta.tour_completed) {
+            setShowTour(true);
+          }
         }
       } else {
         setShowOnboarding(true);
@@ -259,6 +268,7 @@ const Index = () => {
       });
 
       setShowOnboarding(false);
+      setShowTour(true);
 
       toast({
         title: `Welcome${data.firstName ? `, ${data.firstName}` : ''}! ✨`,
@@ -433,6 +443,11 @@ const Index = () => {
             description: `You earned: ${allNewBadges.join(', ')}`,
           });
         }
+      }
+
+      // Notify tour that an entry was logged
+      if (showTour) {
+        setTourEntryLogged(true);
       }
 
       return true;
@@ -704,6 +719,20 @@ const Index = () => {
           />
         )}
       </MobileLayout>
+
+      {/* App Tour */}
+      {showTour && user && (
+        <AppTour
+          userId={user.id}
+          onViewChange={setCurrentView}
+          onComplete={() => {
+            setShowTour(false);
+            setTourEntryLogged(false);
+            setCurrentView('track');
+          }}
+          onEntryLogged={tourEntryLogged}
+        />
+      )}
 
       {/* Profile Sheet - iOS style bottom sheet */}
       {showProfile && (

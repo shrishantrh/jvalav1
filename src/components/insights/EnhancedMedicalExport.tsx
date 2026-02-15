@@ -362,7 +362,7 @@ Export System: Jvala Health Monitoring Platform
   };
 
   return (
-    <Card className="p-5 bg-gradient-card border shadow-soft animate-fade-in overflow-hidden relative">
+    <Card className="p-5 bg-gradient-card border shadow-soft animate-fade-in overflow-hidden relative" data-tour="exports-area">
       {/* Decorative gradient */}
       <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-primary/10 to-transparent rounded-bl-full" />
       

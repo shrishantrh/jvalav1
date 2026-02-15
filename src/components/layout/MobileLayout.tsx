@@ -138,6 +138,7 @@ export const MobileLayout = ({
               return (
                 <button
                   key={item.id}
+                  data-tour={`nav-${item.id}`}
                   onClick={() => handleNavClick(item.id)}
                   className={cn(
                     "relative flex flex-col items-center justify-center gap-0.5 px-4 py-2 rounded-2xl transition-all duration-300",

@@ -516,6 +516,7 @@ export const CleanInsights = ({ entries, userConditions = [], onAskAI }: CleanIn
 
       {/* Action Button */}
       <Button
+        data-tour="deep-research"
         onClick={() => onAskAI?.("Give me a deep analysis of all my triggers, protective factors, and patterns. What's statistically significant?")}
         className={cn(
           "w-full h-14 rounded-2xl text-base font-semibold",
