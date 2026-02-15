@@ -701,6 +701,7 @@ const Index = () => {
               recentEntries={entries}
               userId={user.id}
               onOpenDetails={() => setShowDetailedEntry(true)}
+              onNavigateToTrends={() => setCurrentView('insights')}
             />
             
             {/* Detailed Entry Dialog */}

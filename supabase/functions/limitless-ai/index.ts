@@ -829,11 +829,38 @@ ${JSON.stringify(dataContext, null, 2)}
           }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
         
-        // respond_text_only
+        // respond_text_only — strip any leftover discovery text blocks the AI ignored instructions about
+        let cleanedResponse = parsed.response || "";
+        // Strip "💡 **Discovery: X**\n...\n_Status • confidence • occurrences_" blocks
+        cleanedResponse = cleanedResponse
+          .replace(/(?:💡\s*)?(?:\*{1,2})?Discovery:\s*[^\n]+\*{0,2}\n[\s\S]*?(?=(?:💡\s*)?(?:\*{1,2})?Discovery:|$)/gi, '')
+          .replace(/_[A-Za-z]+\s*•\s*\d+%?\s*confidence\s*•\s*\d+\s*occurrences?_/gi, '')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim();
+        
+        // Also extract discoveries from text if AI put them in response but not in discoveries array
+        let discoveries = parsed.discoveries || [];
+        if (discoveries.length === 0) {
+          const discoveryRegex = /(?:💡\s*)?(?:\*{1,2})?Discovery:\s*([^\n*]+?)(?:\*{0,2})\n+(\d+)\s*out\s*of\s*(\d+)\s*times?\s*\((\d+)%\).*?(\d+\.?\d*)x\s*more\s*likely/gi;
+          let match;
+          const rawResponse = parsed.response || "";
+          while ((match = discoveryRegex.exec(rawResponse)) !== null) {
+            discoveries.push({
+              factor: match[1].trim(),
+              occurrences: parseInt(match[2]),
+              total: parseInt(match[3]),
+              confidence: parseInt(match[4]),
+              lift: parseFloat(match[5]),
+              category: "trigger",
+              summary: `${match[2]}/${match[3]} times a flare followed`,
+            });
+          }
+        }
+        
         return new Response(JSON.stringify({
-          response: parsed.response,
+          response: cleanedResponse,
           visualization: null,
-          discoveries: parsed.discoveries || [],
+          discoveries,
           dynamicFollowUps: parsed.dynamicFollowUps,
           citations: [],
           wasResearched: false,
@@ -843,11 +870,32 @@ ${JSON.stringify(dataContext, null, 2)}
       }
     }
 
-    // Fallback to direct content (no tool call)
-    const content = data.choices?.[0]?.message?.content;
+    // Fallback to direct content (no tool call) — also strip discovery text
+    let fallbackContent = data.choices?.[0]?.message?.content || "I'm here to help with your health data.";
+    const fallbackDiscoveries: any[] = [];
+    const discoveryRegex2 = /(?:💡\s*)?(?:\*{1,2})?Discovery:\s*([^\n*]+?)(?:\*{0,2})\n+(\d+)\s*out\s*of\s*(\d+)\s*times?\s*\((\d+)%\).*?(\d+\.?\d*)x\s*more\s*likely/gi;
+    let m2;
+    while ((m2 = discoveryRegex2.exec(fallbackContent)) !== null) {
+      fallbackDiscoveries.push({
+        factor: m2[1].trim(),
+        occurrences: parseInt(m2[2]),
+        total: parseInt(m2[3]),
+        confidence: parseInt(m2[4]),
+        lift: parseFloat(m2[5]),
+        category: "trigger",
+        summary: `${m2[2]}/${m2[3]} times a flare followed`,
+      });
+    }
+    fallbackContent = fallbackContent
+      .replace(/(?:💡\s*)?(?:\*{1,2})?Discovery:\s*[^\n]+\*{0,2}\n[\s\S]*?(?=(?:💡\s*)?(?:\*{1,2})?Discovery:|$)/gi, '')
+      .replace(/_[A-Za-z]+\s*•\s*\d+%?\s*confidence\s*•\s*\d+\s*occurrences?_/gi, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    
     return new Response(JSON.stringify({ 
-      response: content || "I'm here to help with your health data.", 
+      response: fallbackContent,
       visualization: null,
+      discoveries: fallbackDiscoveries,
       citations: [],
       wasResearched: false,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });

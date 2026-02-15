@@ -93,8 +93,14 @@ const DiscoveryCard = ({ discovery, onViewTrends }: { discovery: StructuredDisco
 // Also clean any leftover raw discovery blocks from text (fallback)
 function cleanDiscoveryText(text: string): string {
   return text
-    .replace(/(?:💡\s*)?(?:\*{1,2})?Discovery:\s*.+?(?:\*{1,2})?\n+[\s\S]*?(?=(?:💡\s*)?(?:\*{1,2})?Discovery:|$)/gi, '')
-    .replace(/^_.*?_$/gm, '')
+    // Strip "💡 **Discovery: X**" blocks with their stat paragraphs
+    .replace(/(?:💡\s*)?(?:\*{1,2})?Discovery:\s*[^\n]+\*{0,2}\n[\s\S]*?(?=(?:💡\s*)?(?:\*{1,2})?Discovery:|$)/gi, '')
+    // Strip italic status lines like "_Confirmed • 63% confidence • 18 occurrences_"
+    .replace(/_[A-Za-z]+\s*•\s*\d+%?\s*confidence\s*•\s*\d+\s*occurrences?_/gi, '')
+    // Strip standalone "X out of Y times..." stat lines
+    .replace(/^\d+\s*out\s*of\s*\d+\s*times?\s*\(\d+%\).*$/gm, '')
+    // Clean up excessive newlines
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
 
