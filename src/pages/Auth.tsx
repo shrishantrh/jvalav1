@@ -228,13 +228,14 @@ const Auth = () => {
           body: { type: 'signup', email, password },
         });
 
-        if (fnError) throw fnError;
+        // Handle "already registered" — edge function returns 409
+        const isAlreadyRegistered = fnData?.error === 'already_registered' || 
+          (fnError && (fnError.message?.includes('already_registered') || fnError.message?.includes('409')));
 
-        // Check if email is already registered
-        if (fnData?.error === 'already_registered') {
+        if (isAlreadyRegistered) {
           toast({
-            title: "Email already registered",
-            description: "This email is already in use. Please sign in instead, or use Google/Apple if that's how you originally signed up.",
+            title: "You already have an account 💜",
+            description: "This email is already registered. Try signing in instead, or use Google/Apple if that's how you originally signed up.",
           });
           setIsSignUp(false);
           setPassword("");
@@ -243,6 +244,7 @@ const Auth = () => {
           return;
         }
 
+        if (fnError) throw fnError;
         if (fnData?.error) throw new Error(fnData.error);
 
         toast({
