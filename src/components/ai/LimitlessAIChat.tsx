@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
-import { Brain, Send, Sparkles, Loader2, X, Bell, CheckCircle2, Calendar } from "lucide-react";
+import { Brain, Send, Sparkles, Loader2, X, Bell, CheckCircle2, Calendar, TrendingUp, Shield, Search, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AIVisualization, AIVisualizationRenderer } from "@/components/chat/AIVisualization";
 import { useToast } from "@/hooks/use-toast";
@@ -21,8 +22,135 @@ interface LimitlessAIChatProps {
   userId: string;
   initialPrompt?: string;
   onClose?: () => void;
+  onNavigateToTrends?: () => void;
   isProtocolMode?: boolean;
 }
+
+// ─── Discovery Card ───
+// Detects discovery blocks in AI text and renders them as compact visual cards
+
+const DISCOVERY_REGEX = /\*{0,2}Discovery:\s*(.+?)\*{0,2}\n+([\s\S]*?)(?=\n\*{0,2}Discovery:|\n💡|\n$|$)/gi;
+
+interface ParsedDiscovery {
+  factor: string;
+  confidence: number;
+  lift: number;
+  occurrences: number;
+  total: number;
+  category: 'trigger' | 'protective' | 'investigating';
+  summary: string;
+}
+
+function parseDiscoveries(text: string): { discoveries: ParsedDiscovery[]; cleanText: string } {
+  const discoveries: ParsedDiscovery[] = [];
+  
+  // Match patterns like "**Discovery: temperature:cold**" or "Discovery: humidity:high_humidity"
+  const discoveryPattern = /(?:💡\s*)?(?:\*{1,2})?Discovery:\s*(.+?)(?:\*{1,2})?\n+([\s\S]*?)(?=(?:💡\s*)?(?:\*{1,2})?Discovery:|$)/gi;
+  
+  let match;
+  while ((match = discoveryPattern.exec(text)) !== null) {
+    const factor = match[1].trim().replace(/\*+/g, '');
+    const body = match[2].trim();
+    
+    // Extract numbers
+    const occMatch = body.match(/(\d+)\s*out of\s*(\d+)\s*times/);
+    const liftMatch = body.match(/([\d.]+)x\s*more likely/);
+    const confMatch = body.match(/(\d+)%\s*confidence/);
+    
+    discoveries.push({
+      factor: factor.replace(/:/g, ' → ').replace(/_/g, ' '),
+      confidence: confMatch ? parseInt(confMatch[1]) : 0,
+      lift: liftMatch ? parseFloat(liftMatch[1]) : 1,
+      occurrences: occMatch ? parseInt(occMatch[1]) : 0,
+      total: occMatch ? parseInt(occMatch[2]) : 0,
+      category: body.toLowerCase().includes('protect') ? 'protective' : 
+                body.toLowerCase().includes('investigat') ? 'investigating' : 'trigger',
+      summary: occMatch ? `${occMatch[1]}/${occMatch[2]} times a flare followed` : body.slice(0, 60),
+    });
+  }
+
+  // Remove discovery blocks from text
+  let cleanText = text
+    .replace(/(?:💡\s*)?(?:\*{1,2})?Discovery:\s*.+?(?:\*{1,2})?\n+[\s\S]*?(?=(?:💡\s*)?(?:\*{1,2})?Discovery:|$)/gi, '')
+    .replace(/^_.*?_$/gm, '') // Remove italic-only lines like "_Strong evidence..."
+    .trim();
+
+  return { discoveries, cleanText };
+}
+
+const DiscoveryCard = ({ discovery, onViewTrends }: { discovery: ParsedDiscovery; onViewTrends?: () => void }) => {
+  const icon = discovery.category === 'trigger' ? TrendingUp : 
+               discovery.category === 'protective' ? Shield : Search;
+  const Icon = icon;
+  const categoryColors = {
+    trigger: { bg: 'hsl(350 80% 95%)', border: 'hsl(350 60% 85%)', icon: 'hsl(350 70% 50%)', bar: 'hsl(350 70% 55%)' },
+    protective: { bg: 'hsl(150 60% 95%)', border: 'hsl(150 40% 85%)', icon: 'hsl(150 50% 40%)', bar: 'hsl(150 50% 45%)' },
+    investigating: { bg: 'hsl(220 60% 95%)', border: 'hsl(220 40% 85%)', icon: 'hsl(220 50% 50%)', bar: 'hsl(220 50% 55%)' },
+  };
+  const colors = categoryColors[discovery.category];
+
+  return (
+    <div className="rounded-xl p-3 my-2" style={{ background: colors.bg, border: `1px solid ${colors.border}` }}>
+      <div className="flex items-center gap-2 mb-1.5">
+        <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: `${colors.icon}20` }}>
+          <Icon className="w-3.5 h-3.5" style={{ color: colors.icon }} />
+        </div>
+        <span className="text-sm font-semibold capitalize">{discovery.factor}</span>
+      </div>
+      
+      {/* Stats row */}
+      <div className="flex items-center gap-3 text-[11px] text-muted-foreground mb-2">
+        <span>{discovery.summary}</span>
+        {discovery.lift > 1 && <span className="font-medium" style={{ color: colors.icon }}>{discovery.lift}× likely</span>}
+      </div>
+
+      {/* Confidence bar */}
+      <div className="flex items-center gap-2 mb-2">
+        <div className="flex-1 h-1.5 rounded-full bg-background/60 overflow-hidden">
+          <div className="h-full rounded-full transition-all" style={{ width: `${discovery.confidence}%`, background: colors.bar }} />
+        </div>
+        <span className="text-[10px] font-medium" style={{ color: colors.icon }}>{discovery.confidence}%</span>
+      </div>
+
+      {/* View in Trends button */}
+      {onViewTrends && (
+        <button
+          onClick={onViewTrends}
+          className="flex items-center gap-1.5 text-[11px] font-medium transition-colors hover:opacity-80"
+          style={{ color: colors.icon }}
+        >
+          View in Trends
+          <ArrowRight className="w-3 h-3" />
+        </button>
+      )}
+    </div>
+  );
+};
+
+const MessageContent = ({ content, role, onNavigateToTrends }: { content: string; role: string; onNavigateToTrends?: () => void }) => {
+  const { discoveries, cleanText } = parseDiscoveries(content);
+
+  if (discoveries.length > 0) {
+    return (
+      <div className="text-sm">
+        {cleanText && (
+          <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0 [&>ul]:mt-1 [&>ul]:mb-0 [&>ol]:mt-1 [&>ol]:mb-0 mb-1">
+            <ReactMarkdown>{cleanText}</ReactMarkdown>
+          </div>
+        )}
+        {discoveries.map((d, i) => (
+          <DiscoveryCard key={i} discovery={d} onViewTrends={onNavigateToTrends} />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0 [&>ul]:mt-1 [&>ul]:mb-0 [&>ol]:mt-1 [&>ol]:mb-0 text-sm">
+      <ReactMarkdown>{content}</ReactMarkdown>
+    </div>
+  );
+};
 
 // Google Calendar logo as SVG
 const GoogleCalendarIcon = () => (
@@ -36,7 +164,7 @@ const GoogleCalendarIcon = () => (
   </svg>
 );
 
-export const LimitlessAIChat = ({ userId, initialPrompt, onClose, isProtocolMode = false }: LimitlessAIChatProps) => {
+export const LimitlessAIChat = ({ userId, initialPrompt, onClose, onNavigateToTrends, isProtocolMode = false }: LimitlessAIChatProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -238,7 +366,7 @@ Make it practical and personalized to my data.`;
                     msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
                   )}
                 >
-                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                  <MessageContent content={msg.content} role={msg.role} onNavigateToTrends={onClose} />
 
                   {msg.visualization && <AIVisualizationRenderer viz={msg.visualization} />}
 
