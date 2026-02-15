@@ -105,6 +105,23 @@ const parseColor = (color?: string): { h: number; s: number; l: number } | null 
   return null;
 };
 
+// Parse mood from note field (e.g., "Mood: 😊 Happy")
+const parseMood = (note?: string): string | null => {
+  if (!note) return null;
+  const match = note.match(/^Mood:\s*(?:[\u{1F600}-\u{1FAD6}\u{2600}-\u{27BF}]\s*)?(\w+)$/u);
+  return match ? match[1].toLowerCase() : null;
+};
+
+// Mood-specific configs
+const MOOD_CONFIGS: Record<string, { gradient: string; glow: string; face: string; faceType: string }> = {
+  happy: { gradient: 'from-yellow-200 via-amber-100 to-orange-50', glow: 'rgba(251, 191, 36, 0.35)', face: '#d97706', faceType: 'mood_happy' },
+  calm: { gradient: 'from-sky-200 via-cyan-100 to-blue-50', glow: 'rgba(56, 189, 248, 0.35)', face: '#0284c7', faceType: 'mood_calm' },
+  anxious: { gradient: 'from-orange-200 via-amber-100 to-yellow-50', glow: 'rgba(251, 146, 60, 0.35)', face: '#c2410c', faceType: 'mood_anxious' },
+  sad: { gradient: 'from-indigo-200 via-blue-100 to-slate-50', glow: 'rgba(99, 102, 241, 0.35)', face: '#4338ca', faceType: 'mood_sad' },
+  irritable: { gradient: 'from-rose-200 via-red-100 to-pink-50', glow: 'rgba(244, 63, 94, 0.35)', face: '#be123c', faceType: 'mood_irritable' },
+  tired: { gradient: 'from-violet-200 via-purple-100 to-indigo-50', glow: 'rgba(139, 92, 246, 0.35)', face: '#6d28d9', faceType: 'mood_tired' },
+};
+
 // 3D orb component
 const SeverityOrb = ({ severity, type, note }: { severity?: string; type?: string; note?: string }) => {
   const getConfig = () => {
@@ -126,8 +143,23 @@ const SeverityOrb = ({ severity, type, note }: { severity?: string; type?: strin
       };
     }
 
-    // Special entry types
-    if (type === 'wellness' || type === 'recovery') {
+    // Mood entries — check note for mood type
+    if (type === 'wellness') {
+      const mood = parseMood(note);
+      if (mood && MOOD_CONFIGS[mood]) {
+        return MOOD_CONFIGS[mood];
+      }
+      // Default wellness (non-mood)
+      return { 
+        gradient: 'from-emerald-200 via-emerald-100 to-teal-50',
+        glow: 'rgba(52, 211, 153, 0.35)',
+        face: '#059669',
+        faceType: 'happy' as const
+      };
+    }
+
+    // Recovery
+    if (type === 'recovery') {
       return { 
         gradient: 'from-emerald-200 via-emerald-100 to-teal-50',
         glow: 'rgba(52, 211, 153, 0.35)',
@@ -222,6 +254,78 @@ const SeverityOrb = ({ severity, type, note }: { severity?: string; type?: strin
             <path d="M10 22 Q16 17 22 22" stroke={config.face} strokeWidth="1.8" strokeLinecap="round" fill="none" />
           </svg>
         );
+      // ── Mood faces ──
+      case 'mood_happy':
+        return (
+          <svg viewBox="0 0 32 32" className="absolute inset-0 w-full h-full">
+            {/* Upward arc eyes (squinting with joy) */}
+            <path d="M8 12 Q11 9 14 12" stroke={config.face} strokeWidth="2" strokeLinecap="round" fill="none" />
+            <path d="M18 12 Q21 9 24 12" stroke={config.face} strokeWidth="2" strokeLinecap="round" fill="none" />
+            {/* Big smile */}
+            <path d="M9 19 Q16 26 23 19" stroke={config.face} strokeWidth="2" strokeLinecap="round" fill="none" />
+          </svg>
+        );
+      case 'mood_calm':
+        return (
+          <svg viewBox="0 0 32 32" className="absolute inset-0 w-full h-full">
+            {/* Closed relaxed eyes (horizontal lines) */}
+            <path d="M8 13 L14 13" stroke={config.face} strokeWidth="2" strokeLinecap="round" />
+            <path d="M18 13 L24 13" stroke={config.face} strokeWidth="2" strokeLinecap="round" />
+            {/* Gentle content smile */}
+            <path d="M11 20 Q16 23 21 20" stroke={config.face} strokeWidth="1.8" strokeLinecap="round" fill="none" />
+          </svg>
+        );
+      case 'mood_anxious':
+        return (
+          <svg viewBox="0 0 32 32" className="absolute inset-0 w-full h-full">
+            {/* Wide open eyes */}
+            <circle cx="11" cy="12" r="2.5" fill={config.face} />
+            <circle cx="21" cy="12" r="2.5" fill={config.face} />
+            {/* Raised inner eyebrows */}
+            <path d="M8 7 Q11 9 14 8" stroke={config.face} strokeWidth="1.3" strokeLinecap="round" fill="none" />
+            <path d="M18 8 Q21 9 24 7" stroke={config.face} strokeWidth="1.3" strokeLinecap="round" fill="none" />
+            {/* Small open mouth (o shape) */}
+            <ellipse cx="16" cy="21" rx="3" ry="2" stroke={config.face} strokeWidth="1.5" fill="none" />
+          </svg>
+        );
+      case 'mood_sad':
+        return (
+          <svg viewBox="0 0 32 32" className="absolute inset-0 w-full h-full">
+            {/* Droopy eyes */}
+            <ellipse cx="11" cy="13" rx="2" ry="1.8" fill={config.face} />
+            <ellipse cx="21" cy="13" rx="2" ry="1.8" fill={config.face} />
+            {/* Sad inner brows */}
+            <path d="M7 9 Q10 11 14 10" stroke={config.face} strokeWidth="1.3" strokeLinecap="round" fill="none" />
+            <path d="M18 10 Q22 11 25 9" stroke={config.face} strokeWidth="1.3" strokeLinecap="round" fill="none" />
+            {/* Downturned mouth */}
+            <path d="M10 22 Q16 17 22 22" stroke={config.face} strokeWidth="1.8" strokeLinecap="round" fill="none" />
+          </svg>
+        );
+      case 'mood_irritable':
+        return (
+          <svg viewBox="0 0 32 32" className="absolute inset-0 w-full h-full">
+            {/* Angry/narrowed eyes */}
+            <circle cx="11" cy="13" r="1.8" fill={config.face} />
+            <circle cx="21" cy="13" r="1.8" fill={config.face} />
+            {/* V-shaped angry brows */}
+            <path d="M7 8 L14 11" stroke={config.face} strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M25 8 L18 11" stroke={config.face} strokeWidth="1.5" strokeLinecap="round" />
+            {/* Tight grimace */}
+            <path d="M10 21 L13 19 L16 21 L19 19 L22 21" stroke={config.face} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+          </svg>
+        );
+      case 'mood_tired':
+        return (
+          <svg viewBox="0 0 32 32" className="absolute inset-0 w-full h-full">
+            {/* Heavy droopy eyes (half-closed) */}
+            <path d="M8 13 Q11 11 14 13" stroke={config.face} strokeWidth="2" strokeLinecap="round" fill="none" />
+            <path d="M18 13 Q21 11 24 13" stroke={config.face} strokeWidth="2" strokeLinecap="round" fill="none" />
+            {/* Tiny "z" for sleep */}
+            <text x="25" y="9" fontSize="5" fontWeight="bold" fill={config.face} opacity="0.6">z</text>
+            {/* Slack slightly open mouth */}
+            <ellipse cx="16" cy="21" rx="2.5" ry="1.5" stroke={config.face} strokeWidth="1.5" fill="none" />
+          </svg>
+        );
       default:
         return (
           <svg viewBox="0 0 32 32" className="absolute inset-0 w-full h-full">
@@ -278,7 +382,18 @@ export const CompactFlareCard = ({
 
   const getLabel = () => {
     if (trackableMeta?.trackableLabel) return trackableMeta.trackableLabel;
-    if (entry.type === 'wellness' || entry.type === 'recovery') return entry.type === 'recovery' ? 'Recovery' : 'Feeling Good';
+    if (entry.type === 'wellness') {
+      const mood = parseMood(entry.note);
+      if (mood) {
+        const moodLabels: Record<string, string> = {
+          happy: 'Happy', calm: 'Calm', anxious: 'Anxious',
+          sad: 'Sad', irritable: 'Irritable', tired: 'Tired',
+        };
+        return moodLabels[mood] || 'Feeling Good';
+      }
+      return 'Feeling Good';
+    }
+    if (entry.type === 'recovery') return 'Recovery';
     if (entry.type === 'energy') return 'Energy';
     if (entry.type === 'medication') return 'Medication';
     switch (entry.severity) {
