@@ -80,7 +80,7 @@ export const AppTour = ({ userId, onViewChange, onComplete, onEntryLogged }: App
     }
   }, [currentStep]);
 
-  // Find and measure the target element with robust retry
+  // Find and measure the target element with robust retry + live re-measure for interactive steps
   useEffect(() => {
     setReady(false);
     setTargetRect(null);
@@ -88,15 +88,15 @@ export const AppTour = ({ userId, onViewChange, onComplete, onEntryLogged }: App
     let cancelled = false;
     let attempts = 0;
     const maxAttempts = 15;
+    let resizeObserver: ResizeObserver | null = null;
+    let liveMeasureInterval: ReturnType<typeof setInterval> | null = null;
 
     const measure = () => {
       if (cancelled) return;
       const el = document.querySelector(`[data-tour="${step?.target}"]`);
       if (el) {
-        // If we need to scroll into view first
         if (step?.scrollIntoView && attempts === 0) {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          // Wait for scroll to settle, then re-measure
           setTimeout(() => {
             if (cancelled) return;
             const rect = el.getBoundingClientRect();
@@ -110,29 +110,46 @@ export const AppTour = ({ userId, onViewChange, onComplete, onEntryLogged }: App
         }
 
         const rect = el.getBoundingClientRect();
-        // Verify the element is actually visible on screen
         if (rect.width > 0 && rect.height > 0) {
           setTargetRect(rect);
           setReady(true);
+
+          // For interactive steps, keep re-measuring so the highlight
+          // grows/shrinks when panels expand (e.g. flare → severity wheel)
+          if (step?.allowInteraction) {
+            resizeObserver = new ResizeObserver(() => {
+              if (cancelled) return;
+              const r = el.getBoundingClientRect();
+              if (r.width > 0 && r.height > 0) setTargetRect(r);
+            });
+            resizeObserver.observe(el);
+
+            // Also poll in case children change without triggering resize
+            liveMeasureInterval = setInterval(() => {
+              if (cancelled) return;
+              const r = el.getBoundingClientRect();
+              if (r.width > 0 && r.height > 0) setTargetRect(r);
+            }, 300);
+          }
           return;
         }
       }
 
-      // Retry
       attempts++;
       if (attempts < maxAttempts) {
         setTimeout(measure, 300);
       }
     };
 
-    // Initial delay to allow tab navigation render
     const timer = setTimeout(measure, 350);
 
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      resizeObserver?.disconnect();
+      if (liveMeasureInterval) clearInterval(liveMeasureInterval);
     };
-  }, [currentStep, step?.target, step?.scrollIntoView]);
+  }, [currentStep, step?.target, step?.scrollIntoView, step?.allowInteraction]);
 
   // Step 1: auto-advance when entry is logged
   useEffect(() => {
