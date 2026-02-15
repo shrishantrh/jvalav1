@@ -444,7 +444,7 @@ export const FluidLogSelector = ({
   const conditionSymptoms = activeCondition?.symptoms || userSymptoms;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" data-tour="log-buttons">
       {/* Main action buttons row */}
       <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-0.5">
         {/* Condition-specific buttons */}
