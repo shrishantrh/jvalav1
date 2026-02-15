@@ -23,10 +23,10 @@ export const TermsAcceptanceGate = ({ onAccept }: TermsAcceptanceGateProps) => {
   return (
     <div
       className="fixed inset-0 flex flex-col max-w-[430px] mx-auto"
-      style={{ background: '#000' }}
+      style={{ background: 'linear-gradient(135deg, #ffb987, #db93b6, #baabe1)' }}
     >
       {/* Shader gradient background */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
+      <div className="fixed inset-0 z-0 pointer-events-none max-w-[430px] mx-auto" style={{ height: '100vh' }}>
         <ShaderGradientCanvas
           pointerEvents="none"
           style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
