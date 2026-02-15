@@ -21,44 +21,35 @@ export const TermsAcceptanceGate = ({ onAccept }: TermsAcceptanceGateProps) => {
   }, [scrolledToBottom]);
 
   return (
-    <div
-      className="fixed inset-0 flex flex-col max-w-[430px] mx-auto"
-      style={{ background: '#EE599F' }}
-    >
+    <div className="fixed inset-0 flex flex-col max-w-[430px] mx-auto bg-background">
 
       <div className="flex-1 flex flex-col relative z-10 overflow-hidden">
         {/* Header */}
         <div className="flex items-center gap-3 px-5 pt-[max(env(safe-area-inset-top),1.5rem)] pb-4">
           <div
-            className="w-10 h-10 flex items-center justify-center rounded-xl"
+            className="w-10 h-10 flex items-center justify-center rounded-xl border border-border/50"
             style={{
-              background: "hsl(0 0% 100% / 0.2)",
-              backdropFilter: "blur(16px)",
-              border: "1px solid hsl(0 0% 100% / 0.3)",
-              boxShadow: "0 4px 20px hsl(0 0% 0% / 0.1)",
+              background: "hsl(0 0% 98%)",
+              boxShadow: "0 4px 20px hsl(0 0% 0% / 0.06)",
             }}
           >
             <img src={jvalaLogo} alt="Jvala" className="w-6 h-6 object-contain" />
           </div>
           <div>
             <h1
-              className="text-[22px]"
+              className="text-[22px] text-foreground"
               style={{
                 fontFamily: "'Satoshi', sans-serif",
                 fontWeight: 800,
-                color: "#fff",
-                textShadow: "0 2px 16px hsl(0 0% 0% / 0.3)",
               }}
             >
               Terms & Privacy
             </h1>
             <p
-              className="text-[13px]"
+              className="text-[13px] text-muted-foreground"
               style={{
                 fontFamily: "'Satoshi', sans-serif",
                 fontWeight: 600,
-                color: "#fff",
-                textShadow: "0 1px 8px hsl(0 0% 0% / 0.25)",
               }}
             >
               Please read and scroll to the bottom to continue
@@ -66,15 +57,12 @@ export const TermsAcceptanceGate = ({ onAccept }: TermsAcceptanceGateProps) => {
           </div>
         </div>
 
-        {/* Scrollable terms content - frosted glass card */}
+        {/* Scrollable terms content */}
         <div
-          className="flex-1 mx-5 mb-3 rounded-2xl overflow-hidden"
+          className="flex-1 mx-5 mb-3 rounded-2xl overflow-hidden border border-border/50"
           style={{
-            background: "hsl(0 0% 100% / 0.15)",
-            backdropFilter: "blur(24px) saturate(180%)",
-            WebkitBackdropFilter: "blur(24px) saturate(180%)",
-            border: "1px solid hsl(0 0% 100% / 0.25)",
-            boxShadow: "inset 0 1px 0 hsl(0 0% 100% / 0.3), 0 8px 32px hsl(0 0% 0% / 0.12)",
+            background: "hsl(0 0% 98%)",
+            boxShadow: "0 8px 32px hsl(0 0% 0% / 0.06)",
           }}
         >
           <div
@@ -85,22 +73,20 @@ export const TermsAcceptanceGate = ({ onAccept }: TermsAcceptanceGateProps) => {
             {/* Terms of Service */}
             <div>
               <h2
-                className="text-base mb-1"
+                className="text-base mb-1 text-foreground"
                 style={{
                   fontFamily: "'Satoshi', sans-serif",
                   fontWeight: 700,
-                  color: "#fff",
-                  textShadow: "0 1px 4px hsl(0 0% 0% / 0.15)",
                 }}
               >
                 Terms of Service
               </h2>
-              <p className="text-[10px] mb-3" style={{ color: "hsl(0 0% 100% / 0.6)" }}>
+              <p className="text-[10px] text-muted-foreground">
                 Last Updated: February 13, 2026
               </p>
             </div>
 
-            <p className="text-xs leading-relaxed" style={{ color: "hsl(0 0% 100% / 0.85)" }}>
+            <p className="text-xs leading-relaxed text-muted-foreground">
               These Terms of Service ("Terms") govern your use of the Jvala mobile application and related services (the "Service") operated by Jvala ("we", "our", or "us"). By accessing or using the Service, you agree to be bound by these Terms.
             </p>
 
@@ -146,28 +132,26 @@ export const TermsAcceptanceGate = ({ onAccept }: TermsAcceptanceGateProps) => {
 
             {/* Divider */}
             <div className="py-3">
-              <div style={{ borderTop: "1px solid hsl(0 0% 100% / 0.15)" }} />
+              <div className="border-t border-border/40" />
             </div>
 
             {/* Privacy Policy */}
             <div>
               <h2
-                className="text-base mb-1"
+                className="text-base mb-1 text-foreground"
                 style={{
                   fontFamily: "'Satoshi', sans-serif",
                   fontWeight: 700,
-                  color: "#fff",
-                  textShadow: "0 1px 4px hsl(0 0% 0% / 0.15)",
                 }}
               >
                 Privacy Policy
               </h2>
-              <p className="text-[10px] mb-3" style={{ color: "hsl(0 0% 100% / 0.6)" }}>
+              <p className="text-[10px] text-muted-foreground">
                 Last Updated: February 13, 2026
               </p>
             </div>
 
-            <p className="text-xs leading-relaxed" style={{ color: "hsl(0 0% 100% / 0.85)" }}>
+            <p className="text-xs leading-relaxed text-muted-foreground">
               Jvala ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application and related services.
             </p>
 
@@ -211,7 +195,7 @@ export const TermsAcceptanceGate = ({ onAccept }: TermsAcceptanceGateProps) => {
               For questions, contact us at support@jvala.tech or visit https://jvala.tech.
             </Section>
 
-            <p className="text-[10px] text-center pt-4 pb-2" style={{ color: "hsl(0 0% 100% / 0.5)" }}>
+            <p className="text-[10px] text-center pt-4 pb-2 text-muted-foreground/50">
               © {new Date().getFullYear()} Jvala. All rights reserved.
             </p>
           </div>
@@ -221,8 +205,8 @@ export const TermsAcceptanceGate = ({ onAccept }: TermsAcceptanceGateProps) => {
         <div className="px-5 pb-[max(env(safe-area-inset-bottom),1.25rem)]">
           {!scrolledToBottom && (
             <p
-              className="text-[10px] text-center mb-2 animate-pulse"
-              style={{ color: "hsl(0 0% 100% / 0.7)", fontFamily: "'Satoshi', sans-serif" }}
+              className="text-[10px] text-center mb-2 animate-pulse text-muted-foreground"
+              style={{ fontFamily: "'Satoshi', sans-serif" }}
             >
               ↓ Scroll to the bottom to accept
             </p>
@@ -232,14 +216,10 @@ export const TermsAcceptanceGate = ({ onAccept }: TermsAcceptanceGateProps) => {
             disabled={!scrolledToBottom}
             className="w-full h-12 rounded-xl text-sm text-white disabled:opacity-40 active:scale-[0.97] transition-all duration-200 flex items-center justify-center gap-2"
             style={{
-              background: scrolledToBottom
-                ? "linear-gradient(135deg, hsl(0 0% 100% / 0.3) 0%, hsl(0 0% 100% / 0.15) 100%)"
-                : "hsl(0 0% 100% / 0.1)",
+              background: scrolledToBottom ? '#EE599F' : 'hsl(0 0% 85%)',
               boxShadow: scrolledToBottom
-                ? "inset 0 1px 0 hsl(0 0% 100% / 0.3), 0 4px 16px hsl(0 0% 0% / 0.15)"
+                ? "0 4px 16px hsl(340 82% 52% / 0.25)"
                 : "none",
-              backdropFilter: "blur(12px)",
-              border: "1px solid hsl(0 0% 100% / 0.2)",
               fontFamily: "'Satoshi', sans-serif",
               fontWeight: 700,
             }}
@@ -264,26 +244,16 @@ const Section = ({
 }) => (
   <div className="space-y-1.5">
     <h3
-      className="text-[11px] uppercase tracking-wide"
+      className="text-[11px] uppercase tracking-wide text-foreground/80"
       style={{
         fontFamily: "'Satoshi', sans-serif",
         fontWeight: 700,
-        color: "hsl(0 0% 100% / 0.9)",
       }}
     >
       {title}
     </h3>
     <p
-      className={`text-xs leading-relaxed rounded-lg ${highlight ? "p-3" : ""}`}
-      style={{
-        color: "hsl(0 0% 100% / 0.8)",
-        ...(highlight
-          ? {
-              background: "hsl(0 0% 100% / 0.08)",
-              border: "1px solid hsl(0 0% 100% / 0.12)",
-            }
-          : {}),
-      }}
+      className={`text-xs leading-relaxed text-muted-foreground rounded-lg ${highlight ? "p-3 bg-muted/50 border border-border/30" : ""}`}
     >
       {children}
     </p>
