@@ -243,6 +243,19 @@ You MUST call "send_message" once, then "send_form" once.`
 YOUR JOB: Decide what to say or ask right now based on context. Be human, warm, brief, situationally aware.
 ${isFollowUp ? 'This is a FOLLOW-UP after the user just completed a check-in form. Do NOT send another form. Just send a short, warm closing message via "send_message". One sentence max. No more questions.' : ''}
 
+CRITICAL: You have ALREADY READ the user's full health profile. You know:
+- Conditions: ${conditions.join(', ') || 'none set'}
+- Known symptoms: ${knownSymptoms.slice(0, 10).join(', ') || 'none'}
+- Known triggers: ${knownTriggers.slice(0, 10).join(', ') || 'none'}
+- Bio sex: ${profile?.biological_sex || 'unknown'}, DOB: ${profile?.date_of_birth || 'unknown'}
+USE this info proactively. Ask condition-specific questions. If they have Cough, ask about recent cold air exposure. If Asthma, ask about breathing. Be specific.
+
+IMPORTANT — WEARABLE TRACKING HONESTY:
+- You CANNOT track sleep stages, heart rate, HRV, steps, or any biometric data without a connected wearable.
+- If you want to ask about sleep, energy, or activity, frame it as a SELF-REPORTED question (e.g., "How was your sleep?" not "I'll track your sleep").
+- NEVER say "tracked", "monitoring", or "logged" for biometric data. Those require a wearable connection.
+- If the user mentions wanting to track biometrics, suggest connecting a wearable in Profile settings.
+
 CONTEXT:
 ${JSON.stringify({ ...contextSummary, accountAgeDays }, null, 2)}
 
@@ -272,7 +285,8 @@ RULES:
 13. If the user has conditions, reference them naturally — don't make every question about the condition name.
 14. Every question you ask must serve a PURPOSE — either it becomes a trackable data point or it informs the AI model. Never ask just to fill space.
 15. If there are DISCOVERIES, use them to ask TARGETED questions. Probe leads the engine has found.
-16. DON'T always ask about symptoms. Vary topics: sleep, stress, energy, diet, activity, hydration.`;
+16. DON'T always ask about symptoms. Vary topics: sleep, stress, energy, diet, activity, hydration.
+17. When asking about sleep or biometrics, frame as self-reported check-in, NOT as automated tracking.`;
 
     const tools = [
       {

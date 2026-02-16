@@ -393,11 +393,14 @@ export const CompactFlareCard = ({
     if (entry.type === 'recovery') return 'Recovery';
     if (entry.type === 'energy') return 'Energy';
     if (entry.type === 'medication') return 'Medication';
+    // For actual flare entries, prefix with (F) to distinguish from other logs
+    const isFlare = entry.type === 'flare' || (!entry.type?.startsWith('trackable:') && !['wellness', 'recovery', 'energy', 'medication'].includes(entry.type || ''));
+    const flarePrefix = isFlare && entry.severity ? '(F) ' : '';
     switch (entry.severity) {
-      case 'none': return 'Great';
-      case 'mild': return 'Mild';
-      case 'moderate': return 'Moderate';
-      case 'severe': return 'Severe';
+      case 'none': return `${flarePrefix}Mild`;
+      case 'mild': return `${flarePrefix}Mild`;
+      case 'moderate': return `${flarePrefix}Moderate`;
+      case 'severe': return `${flarePrefix}Severe`;
       default: return 'Note';
     }
   };
