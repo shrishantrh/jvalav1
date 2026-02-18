@@ -20,8 +20,8 @@ const CHART_COLORS = [
   "hsl(var(--muted-foreground))",
 ];
 
-export function AIVisualizationRenderer({ viz }: { viz?: AIVisualization | null }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+export function AIVisualizationRenderer({ viz, autoExpand = false }: { viz?: AIVisualization | null; autoExpand?: boolean }) {
+  const [isExpanded, setIsExpanded] = useState(autoExpand);
   
   if (!viz || !viz.data || viz.data.length === 0) return null;
 
