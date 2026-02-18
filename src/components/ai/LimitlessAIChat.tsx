@@ -339,7 +339,7 @@ Make it practical and personalized to my data.`;
                 >
                   <MessageContent content={msg.content} role={msg.role} discoveries={msg.discoveries} onNavigateToTrends={onClose} />
 
-                  {msg.visualization && <AIVisualizationRenderer viz={msg.visualization} />}
+                  {msg.visualization && <AIVisualizationRenderer viz={msg.visualization} autoExpand={true} />}
 
                   {/* Protocol Steps with Reminder & Calendar Buttons */}
                   {msg.protocolSteps && msg.protocolSteps.length > 0 && (
