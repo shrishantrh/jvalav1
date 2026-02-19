@@ -4,11 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { FlareEntry } from "@/types/flare";
-import { Send, Mic, MicOff, Bot, User, Check, Flame, BarChart3 } from "lucide-react";
+import { Send, Mic, Bot, User, Check, Flame, BarChart3, Camera } from "lucide-react";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { 
+import { VoiceOverlay } from "@/components/chat/VoiceOverlay";
+import { PhotoAnalyzer } from "@/components/chat/PhotoAnalyzer";
+import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
@@ -255,6 +257,7 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
   ]);
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [voiceOverlayOpen, setVoiceOverlayOpen] = useState(false);
   const { isRecording, transcript, startRecording, stopRecording, clearRecording } = useVoiceRecording();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -441,8 +444,8 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
                   message.isQuickLog && 'font-medium'
                 )}>
                   <div className={cn(
-                    "prose prose-sm max-w-none [&>p]:m-0 [&>ul]:mt-1 [&>ul]:mb-0 [&>ol]:mt-1 [&>ol]:mb-0",
-                    message.role === 'user' ? "prose-invert" : "dark:prose-invert"
+                    "prose prose-sm max-w-none [&>p]:m-0 [&>ul]:mt-1 [&>ul]:mb-0 [&>ol]:mt-1 [&>ol]:mb-0 [&_strong]:font-bold",
+                    message.role === 'user' ? "prose-invert [&_strong]:text-primary-foreground" : "dark:prose-invert [&_strong]:text-foreground"
                   )}>
                     <ReactMarkdown>{message.content}</ReactMarkdown>
                   </div>
@@ -570,31 +573,34 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
       </div>
 
       {/* Input */}
-      <div className="flex gap-2 items-center border-t pt-3">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={isRecording ? stopRecording : startRecording}
-          className={cn(
-            "h-9 w-9 flex-shrink-0 rounded-full transition-all",
-            isRecording && "bg-destructive/10 border-destructive animate-pulse"
-          )}
-        >
-          {isRecording ? (
-            <MicOff className="w-4 h-4 text-destructive" />
-          ) : (
-            <Mic className="w-4 h-4" />
-          )}
-        </Button>
+      <div className="relative flex gap-2 items-center border-t pt-3">
+        <PhotoAnalyzer 
+          onPhotoMessage={(text, imageUrl) => {
+            // Send as a message with image context
+            setInput(`[Photo attached] ${text}`);
+            setTimeout(() => handleSend(), 50);
+          }}
+          disabled={isProcessing}
+        />
         
         <Input
-          placeholder={isRecording ? "Listening..." : "Ask about your data, meds, patterns..."}
+          placeholder="Ask about your data, meds, patterns..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={handleKeyPress}
           className="flex-1 rounded-full h-9 text-sm"
-          disabled={isRecording || isProcessing}
+          disabled={isProcessing}
         />
+
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setVoiceOverlayOpen(true)}
+          className="h-9 w-9 flex-shrink-0 rounded-full"
+          disabled={isProcessing}
+        >
+          <Mic className="w-4 h-4" />
+        </Button>
 
         <Button
           onClick={handleSend}
@@ -605,6 +611,17 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
           <Send className="w-4 h-4" />
         </Button>
       </div>
+
+      {/* Voice Overlay */}
+      <VoiceOverlay
+        isOpen={voiceOverlayOpen}
+        onClose={() => setVoiceOverlayOpen(false)}
+        onTranscriptSend={(text) => {
+          setInput(text);
+          setVoiceOverlayOpen(false);
+          setTimeout(() => handleSend(), 50);
+        }}
+      />
     </div>
   );
 };
