@@ -111,7 +111,7 @@ const MessageContent = ({ content, role, discoveries, onNavigateToTrends }: { co
   return (
     <div className="text-sm">
       {cleanText && (
-        <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0 [&>ul]:mt-1 [&>ul]:mb-0 [&>ol]:mt-1 [&>ol]:mb-0">
+        <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0 [&>ul]:mt-1 [&>ul]:mb-0 [&>ol]:mt-1 [&>ol]:mb-0 [&_strong]:font-bold [&_strong]:text-foreground">
           <ReactMarkdown>{cleanText}</ReactMarkdown>
         </div>
       )}
