@@ -6,10 +6,12 @@ import { PremiumInsightsCharts } from "@/components/insights/PremiumInsightsChar
 import { CleanInsights } from "@/components/insights/CleanInsights";
 import { CommunityHotspots } from "@/components/insights/CommunityHotspots";
 import { UserFlareMap } from "@/components/insights/UserFlareMap";
+import { PharmacovigilanceDashboard } from "@/components/pharmacovigilance/PharmacovigilanceDashboard";
 import {
   BarChart3,
   Brain,
   MapPin,
+  Shield,
   Sparkles
 } from 'lucide-react';
 import { useAuth } from "@/hooks/useAuth";
@@ -58,10 +60,14 @@ export const RevampedInsights = ({
     <div className="space-y-3">
       {/* Tabs - now 3 tabs without Export */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList data-tour="trends-area" className="grid w-full grid-cols-3 h-10 bg-card/80 backdrop-blur-sm">
+        <TabsList data-tour="trends-area" className="grid w-full grid-cols-4 h-10 bg-card/80 backdrop-blur-sm">
           <TabsTrigger value="ai" className="text-xs gap-1.5">
             <Brain className="w-4 h-4" />
             Insights
+          </TabsTrigger>
+          <TabsTrigger value="safety" className="text-xs gap-1.5">
+            <Shield className="w-4 h-4" />
+            Safety
           </TabsTrigger>
           <TabsTrigger value="charts" className="text-xs gap-1.5">
             <BarChart3 className="w-4 h-4" />
@@ -80,6 +86,10 @@ export const RevampedInsights = ({
               userConditions={userConditions}
               onAskAI={onAskAI || onStartProtocol}
             />
+          </TabsContent>
+
+          <TabsContent value="safety" className="mt-0">
+            {user && <PharmacovigilanceDashboard userId={user.id} />}
           </TabsContent>
 
           <TabsContent value="charts" className="mt-0">
