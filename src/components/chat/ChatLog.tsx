@@ -15,6 +15,19 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 
+/** Fix escaped markdown from AI responses — unescape \*\* back to ** etc. */
+const unescapeMarkdown = (text: string): string => {
+  return text
+    .replace(/\\\*\\\*/g, '**')
+    .replace(/\\\*/g, '*')
+    .replace(/\\_/g, '_')
+    .replace(/\\~/g, '~')
+    .replace(/\\#/g, '#')
+    .replace(/\\`/g, '`')
+    .replace(/\\\[/g, '[')
+    .replace(/\\\]/g, ']');
+};
+
 interface Visualization {
   type: string;
   title: string;
@@ -351,7 +364,7 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: data.response || "Got it!",
+        content: unescapeMarkdown(data.response || "Got it!"),
         timestamp: new Date(),
         entryData: data.entryData,
         visualization: data.visualization,
@@ -454,7 +467,7 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
                         strong: ({ children }) => <strong style={{ fontWeight: 700 }}>{children}</strong>,
                       }}
                     >
-                      {message.content}
+                      {unescapeMarkdown(message.content)}
                     </ReactMarkdown>
                   </div>
                   {message.entryData && message.role === 'assistant' && (
