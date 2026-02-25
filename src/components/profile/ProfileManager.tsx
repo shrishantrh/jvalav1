@@ -448,51 +448,7 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
             </CardContent>
           </Card>
 
-          {/* Physician Info */}
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <Stethoscope className="w-4 h-4 text-muted-foreground" />
-                <CardTitle className="text-base">Physician Information</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
-                  <Label className="text-xs">Physician Name</Label>
-                  <Input
-                    value={profile.physician_name || ''}
-                    onChange={(e) => updateField('physician_name', e.target.value)}
-                    placeholder="Dr. John Smith"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label className="text-xs">Practice/Clinic</Label>
-                  <Input
-                    value={profile.physician_practice || ''}
-                    onChange={(e) => updateField('physician_practice', e.target.value)}
-                    placeholder="Medical Center Name"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Phone</Label>
-                  <Input
-                    value={profile.physician_phone || ''}
-                    onChange={(e) => updateField('physician_phone', e.target.value)}
-                    placeholder="+1 (555) 000-0000"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Email</Label>
-                  <Input
-                    value={profile.physician_email || ''}
-                    onChange={(e) => updateField('physician_email', e.target.value)}
-                    placeholder="doctor@clinic.com"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Physician Info removed - not needed yet */}
 
           <Button onClick={handleSave} disabled={saving} className="w-full">
             {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

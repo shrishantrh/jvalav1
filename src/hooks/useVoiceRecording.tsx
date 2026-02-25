@@ -42,8 +42,8 @@ export const useVoiceRecording = () => {
     
     if (!SpeechRecognition) {
       toast({
-        title: 'Speech recognition not supported',
-        description: 'Please use a modern browser like Chrome or Safari',
+        title: 'Speech recognition not available',
+        description: 'Voice input requires a browser with speech recognition support (Chrome, Safari). This feature may not work inside native app WebViews.',
         variant: 'destructive',
       });
       // Clean up the stream
@@ -80,14 +80,27 @@ export const useVoiceRecording = () => {
       };
 
       recognition.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
+        console.error('Speech recognition error:', event.error, event);
         setIsRecording(false);
         // Clean up mic stream
         streamRef.current?.getTracks().forEach(t => t.stop());
         streamRef.current = null;
+        
+        // Provide specific error messages
+        const errorMessages: Record<string, string> = {
+          'not-allowed': 'Microphone permission denied. Check your device settings.',
+          'no-speech': 'No speech detected. Please try again and speak clearly.',
+          'network': 'Network error. Speech recognition requires an internet connection.',
+          'aborted': 'Recording was cancelled.',
+          'audio-capture': 'No microphone found. Please check your device.',
+          'service-not-allowed': 'Speech recognition is not available in this environment.',
+        };
+        
+        const description = errorMessages[event.error] || `Error: ${event.error}. Please try again.`;
+        
         toast({
           title: 'Recording error',
-          description: 'Please try again',
+          description,
           variant: 'destructive',
         });
       };

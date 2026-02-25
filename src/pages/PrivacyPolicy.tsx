@@ -31,7 +31,7 @@ const PrivacyPolicy = () => {
               <li><strong>Account Information:</strong> Email address, name, and authentication credentials when you create an account.</li>
               <li><strong>Health Condition Data:</strong> Your selected health condition(s) provided during onboarding.</li>
               <li><strong>Flare Log Entries:</strong> Severity ratings, symptoms, triggers, medications, notes, timestamps, and energy levels you record.</li>
-              <li><strong>Voice Notes:</strong> Audio recordings you choose to attach to log entries. Voice notes are transcribed using AI and the audio is stored securely.</li>
+              <li><strong>Voice Notes:</strong> Audio recordings are processed in real-time for speech-to-text transcription only. <strong>Audio files are not stored, uploaded, or retained.</strong> Only the resulting text transcript is saved alongside your log entry.</li>
               <li><strong>Medication Information:</strong> Medications, dosages, and frequencies you track.</li>
               <li><strong>Profile Information:</strong> Optional details such as name, date of birth, biological sex, height, weight, blood type, emergency contacts, and physician information.</li>
             </ul>
