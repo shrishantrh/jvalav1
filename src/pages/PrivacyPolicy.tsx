@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 const PrivacyPolicy = () => {
   const navigate = useNavigate();
-  const lastUpdated = 'February 13, 2026';
+  const lastUpdated = 'February 25, 2026';
 
   return (
     <div className="fixed inset-0 bg-background overflow-y-auto z-[9999]" style={{ position: 'fixed', overflow: 'auto' }}>
@@ -31,9 +31,9 @@ const PrivacyPolicy = () => {
               <li><strong>Account Information:</strong> Email address, name, and authentication credentials when you create an account.</li>
               <li><strong>Health Condition Data:</strong> Your selected health condition(s) provided during onboarding.</li>
               <li><strong>Flare Log Entries:</strong> Severity ratings, symptoms, triggers, medications, notes, timestamps, and energy levels you record.</li>
-              <li><strong>Photos &amp; Voice Notes:</strong> Images and audio recordings you choose to attach to log entries. Voice notes are transcribed using AI and the audio is stored securely.</li>
+              <li><strong>Voice Notes:</strong> Audio recordings you choose to attach to log entries. Voice notes are transcribed using AI and the audio is stored securely.</li>
               <li><strong>Medication Information:</strong> Medications, dosages, and frequencies you track.</li>
-              <li><strong>Profile Information:</strong> Optional details such as date of birth, biological sex, height, weight, blood type, emergency contacts, and physician information.</li>
+              <li><strong>Profile Information:</strong> Optional details such as name, date of birth, biological sex, height, weight, blood type, emergency contacts, and physician information.</li>
             </ul>
           </div>
 
@@ -63,7 +63,7 @@ const PrivacyPolicy = () => {
           <div className="space-y-2">
             <h3 className="font-medium text-foreground">1.3 Location Data</h3>
             <p className="text-foreground/80 text-sm leading-relaxed">
-              With your permission, we collect <strong>coarse (city-level) location data</strong> to correlate environmental factors (weather, air quality, UV index, pollen) with your flare entries. We do not collect precise GPS coordinates for tracking purposes. Location data is stored only as city name alongside your log entries.
+              With your permission, we collect <strong>precise location data</strong> (latitude and longitude coordinates) to correlate environmental factors (weather, air quality, UV index, pollen) with your flare entries and to display flare locations on your personal insights map. Your location coordinates and city name are stored alongside your log entries. Location data is used solely for your personal health analysis and is never shared with advertisers or third parties for tracking purposes.
             </p>
           </div>
 
@@ -75,11 +75,28 @@ const PrivacyPolicy = () => {
           </div>
 
           <div className="space-y-2">
-            <h3 className="font-medium text-foreground">1.5 Automatically Collected Data</h3>
+            <h3 className="font-medium text-foreground">1.5 Wearable Data (Fitbit)</h3>
+            <p className="text-foreground/80 text-sm leading-relaxed">
+              With your explicit permission via OAuth authentication, Jvala reads the following data from your Fitbit account:
+            </p>
+            <ul className="list-disc pl-5 space-y-1 text-foreground/80 text-sm leading-relaxed">
+              <li>Heart rate, heart rate variability (HRV), and resting heart rate</li>
+              <li>Blood oxygen saturation (SpO2) and breathing rate</li>
+              <li>Skin temperature and VO2 max</li>
+              <li>Sleep stages and duration</li>
+              <li>Steps, calories, distance, and active zone minutes</li>
+            </ul>
+            <p className="text-foreground/80 text-sm leading-relaxed">
+              Fitbit data is used solely to correlate physiological metrics with your flare entries. You can disconnect your Fitbit account at any time in Settings.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="font-medium text-foreground">1.6 Automatically Collected Data</h3>
             <ul className="list-disc pl-5 space-y-1 text-foreground/80 text-sm leading-relaxed">
               <li>Device type and operating system version</li>
-              <li>App usage timestamps</li>
-              <li>Crash reports and performance metrics</li>
+              <li>App usage timestamps and interaction patterns (streaks, engagement)</li>
+              <li>Crash reports and performance metrics (via Sentry)</li>
             </ul>
           </div>
         </section>
@@ -157,8 +174,10 @@ const PrivacyPolicy = () => {
           <ul className="list-disc pl-5 space-y-1 text-foreground/80 text-sm leading-relaxed">
             <li><strong>Supabase:</strong> Database hosting, authentication, file storage, and serverless functions.</li>
             <li><strong>Google Gemini AI:</strong> AI-powered insights, voice transcription, and content generation.</li>
-            <li><strong>Weather APIs:</strong> Environmental data retrieval based on city-level location.</li>
-            <li><strong>Apple HealthKit / Google Fit:</strong> Physiological data reading with user consent.</li>
+            <li><strong>Sentry:</strong> Crash reporting, error tracking, and performance monitoring.</li>
+            <li><strong>Fitbit (Web API):</strong> Physiological and fitness data via OAuth-authenticated API.</li>
+            <li><strong>Open-Meteo:</strong> Environmental and weather data retrieval based on location coordinates.</li>
+            <li><strong>Apple HealthKit / Google Fit:</strong> Physiological data reading with user consent on native mobile devices.</li>
           </ul>
         </section>
 

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 const TermsOfService = () => {
   const navigate = useNavigate();
-  const lastUpdated = 'February 13, 2026';
+  const lastUpdated = 'February 25, 2026';
 
   return (
     <div className="fixed inset-0 bg-background overflow-y-auto z-[9999]" style={{ position: 'fixed', overflow: 'auto' }}>
@@ -42,10 +42,17 @@ const TermsOfService = () => {
           <h2 className="text-lg font-semibold text-foreground">3. Your Account</h2>
           <ul className="list-disc pl-5 space-y-1 text-foreground/80 text-sm leading-relaxed">
             <li>You are responsible for maintaining the confidentiality of your account credentials.</li>
-            <li>You agree to provide accurate and complete information when creating your account.</li>
+            <li>You agree to provide accurate and complete information, including your name and email address, when creating your account.</li>
             <li>You are responsible for all activities that occur under your account.</li>
             <li>You may delete your account at any time through Settings &gt; Delete Account, which permanently removes all your data.</li>
           </ul>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold text-foreground">4. Data Collection &amp; Location</h2>
+          <p className="text-foreground/80 text-sm leading-relaxed">
+            The Service collects precise location data (GPS coordinates) with your permission to correlate environmental conditions with your health entries and display flare locations on your personal map. The Service also collects health and fitness data from wearable integrations (Apple HealthKit, Google Fit, Fitbit) and uses voice recording for note transcription. For full details on data collection practices, please refer to our Privacy Policy.
+          </p>
         </section>
 
         <section className="space-y-3">
@@ -78,7 +85,7 @@ const TermsOfService = () => {
         <section className="space-y-3">
           <h2 className="text-lg font-semibold text-foreground">7. Third-Party Integrations</h2>
           <p className="text-foreground/80 text-sm leading-relaxed">
-            The Service integrates with Apple HealthKit, Google Fit, and other third-party services. Your use of these integrations is subject to the respective third-party terms and privacy policies. We are not responsible for the availability, accuracy, or conduct of third-party services.
+            The Service integrates with Apple HealthKit, Google Fit, Fitbit, Sentry, Google Gemini AI, and Open-Meteo weather services. Your use of these integrations is subject to the respective third-party terms and privacy policies. We are not responsible for the availability, accuracy, or conduct of third-party services.
           </p>
         </section>
 
