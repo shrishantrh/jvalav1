@@ -12,6 +12,7 @@ import {
   Send
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { haptics } from "@/lib/haptics";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { useEntryContext } from "@/hooks/useEntryContext";
 import { cn } from "@/lib/utils";
@@ -91,10 +92,7 @@ export const SmartQuickLog = ({ onSave, userSymptoms = [], recentSymptoms = [] }
     setNote("");
     setIsProcessing(false);
 
-    toast({
-      title: "Logged",
-      description: `${selectedSeverity} flare with ${selectedSymptoms.length} symptoms`,
-    });
+    haptics.success();
   };
 
   const handleVoiceLog = async () => {
@@ -112,10 +110,7 @@ export const SmartQuickLog = ({ onSave, userSymptoms = [], recentSymptoms = [] }
       if (data?.success && data.result) {
         onSave({ ...data.result, note: transcript.trim(), timestamp: new Date() });
         clearRecording();
-        toast({
-          title: "Voice entry logged",
-          description: `AI detected: ${data.result.type} - ${data.result.severity || 'noted'}`,
-        });
+        haptics.success();
       }
     } catch (error) {
       console.error('Voice processing error:', error);

@@ -28,6 +28,7 @@ import { Activity, ChevronDown, MapPin, Sparkles } from "lucide-react";
 import { MedicationTracker } from "@/components/medication/MedicationTracker";
 import { useMedicationLogs } from "@/hooks/useMedicationLogs";
 import { useToast } from "@/hooks/use-toast";
+import { haptics } from "@/lib/haptics";
 import { format, isSameDay } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -97,10 +98,7 @@ const Index = () => {
       
       const newBadges = await checkCorrelationBadges(user.id);
       if (newBadges.length > 0) {
-        toast({
-          title: "🏆 Badge Earned!",
-          description: `You earned: ${newBadges.map(b => b === 'pattern_detective' ? 'Pattern Detective' : 'Health Analyst').join(', ')}`,
-        });
+        haptics.success();
       }
     };
     checkBadges();
@@ -295,10 +293,7 @@ const Index = () => {
       setShowOnboarding(false);
       setShowTour(true);
 
-      toast({
-        title: `Welcome${data.firstName ? `, ${data.firstName}` : ''}! ✨`,
-        description: "Your AI health companion is ready.",
-      });
+      haptics.success();
     } catch (error) {
       console.error('Failed to save onboarding:', error);
       toast({
@@ -419,12 +414,8 @@ const Index = () => {
         // Replace the optimistic row with the real one from the backend
         setEntries(prev => prev.map(e => (e.id === optimisticId ? savedEntry : e)));
 
-        // Explicit, honest confirmation: only after the backend insert succeeds.
-        toast({
-          title: 'Saved to History',
-          description: savedEntry.type === 'flare' ? 'Flare logged.' : 'Entry logged.',
-          duration: 2000,
-        });
+        // Haptic confirmation instead of toast
+        haptics.success();
 
         const isDetailed = !!(
           entryData.symptoms?.length ||
@@ -463,10 +454,7 @@ const Index = () => {
         }
 
         if (allNewBadges.length > 0) {
-          toast({
-            title: '🏆 Badge Earned!',
-            description: `You earned: ${allNewBadges.join(', ')}`,
-          });
+          haptics.success();
         }
       }
 
@@ -523,7 +511,7 @@ const Index = () => {
         entry.id === entryId ? { ...entry, ...updates } : entry
       ));
 
-      toast({ title: "Entry updated" });
+      haptics.success();
     } catch (error) {
       console.error('Failed to update entry:', error);
       toast({ title: "Error updating entry", variant: "destructive" });
@@ -543,7 +531,7 @@ const Index = () => {
       if (error) throw error;
 
       setEntries(prev => prev.filter(entry => entry.id !== entryId));
-      toast({ title: "Entry deleted" });
+      haptics.success();
     } catch (error) {
       console.error('Failed to delete entry:', error);
       toast({ title: "Error deleting entry", variant: "destructive" });
@@ -576,7 +564,7 @@ const Index = () => {
         e.id === entryId ? { ...e, followUps: updatedFollowUps } : e
       ));
 
-      toast({ title: "Follow-up added" });
+      haptics.success();
     } catch (error) {
       console.error('Failed to add follow-up:', error);
     }

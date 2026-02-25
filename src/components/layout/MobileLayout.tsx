@@ -56,14 +56,6 @@ export const MobileLayout = ({
 
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden max-w-md mx-auto bg-background" style={{ overscrollBehavior: 'none' }}>
-      {/* Dynamic Island / Notch safe area spacer - matches header bg */}
-      <div 
-        className="flex-shrink-0"
-        style={{ 
-          height: 'env(safe-area-inset-top, 0px)',
-          background: 'hsl(var(--background))',
-        }}
-      />
       
       {/* Warm gradient overlay - 3D depth effect */}
       <div 
@@ -79,7 +71,10 @@ export const MobileLayout = ({
       
       {/* Header area - fixed, never scrolls */}
       {header && (
-        <header className="relative flex-shrink-0 z-50 glass-header">
+        <header 
+          className="relative flex-shrink-0 z-50 glass-header"
+          style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+        >
           {header}
         </header>
       )}
@@ -126,7 +121,7 @@ export const MobileLayout = ({
             WebkitBackdropFilter: 'blur(30px) saturate(200%)',
             borderTop: '1px solid hsl(var(--border) / 0.3)',
             boxShadow: '0 -8px 32px hsl(var(--foreground) / 0.03)',
-            paddingBottom: 'calc(env(safe-area-inset-bottom, 8px) + 4px)',
+            paddingBottom: 'env(safe-area-inset-bottom, 8px)',
           }}
         >
           {/* Glossy highlight line */}
