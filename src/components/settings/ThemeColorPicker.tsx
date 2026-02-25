@@ -2,10 +2,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useThemeColor, THEME_COLORS, ThemeColor } from "@/hooks/useThemeColor";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
-import { Palette, Check } from "lucide-react";
+import { Palette, Check, Sun, Moon } from "lucide-react";
 
 export const ThemeColorPicker = () => {
-  const { themeColor, setThemeColor } = useThemeColor();
+  const { themeColor, setThemeColor, isDark, toggleDarkMode } = useThemeColor();
 
   const handleColorChange = (color: ThemeColor) => {
     haptics.selection();
@@ -15,9 +15,49 @@ export const ThemeColorPicker = () => {
   return (
     <Card className="glass-card overflow-hidden">
       <CardHeader className="p-3 pb-2">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <Palette className="w-4 h-4 text-primary" />
-          Accent Color
+        <CardTitle className="text-sm flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <Palette className="w-4 h-4 text-primary" />
+            Appearance
+          </span>
+          {/* Dark mode toggle */}
+          <button
+            onClick={() => {
+              haptics.selection();
+              toggleDarkMode();
+            }}
+            className={cn(
+              "relative w-14 h-7 rounded-full transition-all duration-300 flex-shrink-0",
+              "active:scale-95 touch-manipulation",
+              isDark
+                ? "bg-primary/20 border border-primary/30"
+                : "bg-muted border border-border/50"
+            )}
+          >
+            {/* Track icons */}
+            <Sun className={cn(
+              "absolute left-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 transition-opacity duration-300",
+              isDark ? "opacity-30 text-muted-foreground" : "opacity-80 text-amber-500"
+            )} />
+            <Moon className={cn(
+              "absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 transition-opacity duration-300",
+              isDark ? "opacity-80 text-primary" : "opacity-30 text-muted-foreground"
+            )} />
+            {/* Thumb */}
+            <div
+              className={cn(
+                "absolute top-0.5 w-6 h-6 rounded-full shadow-md transition-all duration-300",
+                isDark
+                  ? "left-[calc(100%-1.625rem)] bg-primary"
+                  : "left-0.5 bg-white"
+              )}
+              style={{
+                boxShadow: isDark
+                  ? `0 2px 8px hsl(var(--primary) / 0.4)`
+                  : '0 1px 4px rgba(0,0,0,0.15)',
+              }}
+            />
+          </button>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-3 pt-0">
@@ -41,7 +81,6 @@ export const ThemeColorPicker = () => {
                   boxShadow: isSelected ? `0 4px 20px ${bgColor}40` : undefined,
                 }}
               >
-                {/* Color circle with 3D effect */}
                 <div 
                   className={cn(
                     "relative w-10 h-10 rounded-full transition-all duration-300",
@@ -61,7 +100,6 @@ export const ThemeColorPicker = () => {
                     `,
                   }}
                 >
-                  {/* Inner highlight */}
                   <div 
                     className="absolute inset-0.5 rounded-full"
                     style={{
@@ -71,16 +109,12 @@ export const ThemeColorPicker = () => {
                       )`,
                     }}
                   />
-                  
-                  {/* Check mark */}
                   {isSelected && (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <Check className="w-5 h-5 text-white drop-shadow-md" strokeWidth={3} />
                     </div>
                   )}
                 </div>
-                
-                {/* Label */}
                 <span className={cn(
                   "text-[10px] font-medium transition-colors",
                   isSelected ? "text-primary" : "text-muted-foreground"

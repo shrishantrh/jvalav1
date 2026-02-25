@@ -122,7 +122,81 @@
     --sidebar-ring: 330 80% 55%;
   }
 
-  /* Dark mode removed — Jvala is light-only */
+  /* === DARK MODE === */
+  .dark {
+    /* Deep warm charcoal backgrounds */
+    --background: 25 12% 10%;
+    --foreground: 35 15% 90%;
+
+    /* Card surfaces — slightly elevated */
+    --card: 25 10% 13%;
+    --card-foreground: 35 15% 90%;
+
+    /* Popover surfaces */
+    --popover: 25 10% 14%;
+    --popover-foreground: 35 15% 90%;
+
+    /* Primary stays the same hue, slightly brighter for dark */
+    --primary-foreground: 25 10% 8%;
+
+    /* Secondary */
+    --secondary: 25 10% 16%;
+    --secondary-foreground: 35 15% 82%;
+
+    /* Muted */
+    --muted: 25 8% 18%;
+    --muted-foreground: 25 10% 55%;
+
+    /* Accent */
+    --accent: 80 15% 18%;
+    --accent-foreground: 80 30% 75%;
+
+    /* Destructive */
+    --destructive: 0 65% 48%;
+    --destructive-foreground: 0 0% 98%;
+
+    /* Borders */
+    --border: 25 8% 20%;
+    --input: 25 10% 18%;
+    --ring: 330 80% 55%;
+
+    /* Glass — dark mode variants */
+    --glass-bg: 25 10% 12%;
+    --glass-border: 25 8% 22%;
+    --glass-highlight: 25 15% 28%;
+    --glass-opacity-primary: 0.92;
+    --glass-opacity-secondary: 0.82;
+    --glass-opacity-tertiary: 0.70;
+
+    /* Severity — slightly muted for dark backgrounds */
+    --severity-none: 145 50% 48%;
+    --severity-mild: 50 80% 52%;
+    --severity-moderate: 28 85% 54%;
+    --severity-severe: 0 65% 55%;
+
+    --severity-none-bg: 145 30% 16%;
+    --severity-mild-bg: 50 30% 16%;
+    --severity-moderate-bg: 28 30% 16%;
+    --severity-severe-bg: 0 25% 16%;
+
+    /* Shadows — deeper, more subtle for dark */
+    --shadow-sm: 0 1px 3px hsl(0 0% 0% / 0.3);
+    --shadow-md: 0 4px 12px hsl(0 0% 0% / 0.4);
+    --shadow-lg: 0 8px 24px hsl(0 0% 0% / 0.5);
+    --shadow-xl: 0 16px 48px hsl(0 0% 0% / 0.6);
+
+    /* Gradients — dark equivalents */
+    --gradient-subtle: linear-gradient(180deg, hsl(25 10% 12%) 0%, hsl(25 8% 10%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(25 10% 14%) 0%, hsl(25 8% 12%) 100%);
+    --gradient-background: linear-gradient(170deg, hsl(25 12% 10%) 0%, hsl(330 8% 9%) 50%, hsl(25 10% 10%) 100%);
+
+    /* Sidebar */
+    --sidebar-background: 25 10% 11%;
+    --sidebar-foreground: 35 15% 90%;
+    --sidebar-accent: 25 10% 16%;
+    --sidebar-accent-foreground: 35 15% 82%;
+    --sidebar-border: 25 8% 20%;
+  }
 }
 
 @layer base {
