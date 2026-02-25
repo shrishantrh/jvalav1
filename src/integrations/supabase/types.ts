@@ -670,6 +670,24 @@ export type Database = {
         }
         Relationships: []
       }
+      temp_auth_relay: {
+        Row: {
+          created_at: string | null
+          nonce: string
+          tokens: Json
+        }
+        Insert: {
+          created_at?: string | null
+          nonce: string
+          tokens: Json
+        }
+        Update: {
+          created_at?: string | null
+          nonce?: string
+          tokens?: Json
+        }
+        Relationships: []
+      }
       weekly_reports: {
         Row: {
           avg_severity: number | null

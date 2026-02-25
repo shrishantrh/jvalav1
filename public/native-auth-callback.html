@@ -33,64 +33,99 @@
       margin: 0 auto 20px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .btn {
-      display: none; width: 100%; padding: 14px 24px;
-      border: none; border-radius: 12px;
-      background: linear-gradient(135deg, #D6006C, #892EFF);
-      color: white; font-size: 16px; font-weight: 600;
-      cursor: pointer; margin-top: 16px;
-    }
-    .btn:active { opacity: 0.9; transform: scale(0.98); }
-    .hint { display: none; font-size: 12px; color: #666; margin-top: 12px; }
+    .success { display: none; font-size: 14px; color: #4ade80; margin-bottom: 16px; }
+    .hint { display: none; font-size: 13px; color: #999; margin-top: 12px; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="logo">🔥</div>
-    <h1>Signed in successfully!</h1>
-    <p class="subtitle" id="status">Returning to Jvala...</p>
+    <h1 id="title">Signing you in...</h1>
+    <p class="subtitle" id="status">Securely transferring your session</p>
     <div class="spinner" id="spinner"></div>
-    <button class="btn" id="returnBtn" onclick="returnToApp()">Return to Jvala</button>
-    <p class="hint" id="hint">Tap the button above to go back to the app</p>
+    <p class="success" id="successMsg">✓ Done! You can close this window and return to Jvala.</p>
+    <p class="hint" id="hint"></p>
   </div>
 
   <script>
-    var hash = window.location.hash;
-    var targetUrl = 'jvala://auth-callback' + (hash || '');
+    (function() {
+      var hash = window.location.hash;
+      var search = window.location.search;
+      var params = new URLSearchParams(search);
+      var nonce = params.get('nonce');
 
-    function returnToApp() {
-      window.location.replace(targetUrl);
-    }
+      // Supabase project URL for edge function
+      var SUPABASE_URL = 'https://rvhpwjhemwvvdtnzmobs.supabase.co';
+      var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2aHB3amhlbXd2dmR0bnptb2JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3ODAyMDgsImV4cCI6MjA3NTM1NjIwOH0.2g2DDjiaxZh9TDRLPm8OhyxeNj4NkSX91YoJbdgFvNM';
 
-    function showButton() {
-      document.getElementById('spinner').style.display = 'none';
-      document.getElementById('returnBtn').style.display = 'block';
-      document.getElementById('hint').style.display = 'block';
-      document.getElementById('status').textContent = 'Tap below to return to the app';
-    }
+      function showSuccess() {
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('title').textContent = 'Signed in!';
+        document.getElementById('status').textContent = '';
+        document.getElementById('successMsg').style.display = 'block';
+        document.getElementById('hint').style.display = 'block';
+        document.getElementById('hint').textContent = 'Close this window to return to Jvala';
+      }
 
-    if (hash && hash.length > 1) {
-      // Try 1: location.replace
-      window.location.replace(targetUrl);
+      function showError(msg) {
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('title').textContent = 'Something went wrong';
+        document.getElementById('status').textContent = msg || 'Please close this window and try again.';
+      }
 
-      // Try 2: location.href after delay
-      setTimeout(function() { window.location.href = targetUrl; }, 300);
+      function parseTokens(hashStr) {
+        if (!hashStr || hashStr.length < 2) return null;
+        var p = new URLSearchParams(hashStr.substring(1));
+        var at = p.get('access_token');
+        var rt = p.get('refresh_token');
+        if (at && rt) return { access_token: at, refresh_token: rt };
+        return null;
+      }
 
-      // Try 3: anchor click
-      setTimeout(function() {
-        var a = document.createElement('a');
-        a.href = targetUrl;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-      }, 600);
+      var tokens = parseTokens(hash);
 
-      // Fallback: show manual return button after 2s
-      setTimeout(showButton, 2000);
-    } else {
-      document.getElementById('status').textContent = 'Authentication failed. Please try again.';
-      document.getElementById('spinner').style.display = 'none';
-    }
+      if (!tokens) {
+        showError('No authentication tokens received.');
+        return;
+      }
+
+      if (!nonce) {
+        showError('Missing session nonce. Please try again.');
+        return;
+      }
+
+      // POST tokens to edge function for the native app to retrieve
+      fetch(SUPABASE_URL + '/functions/v1/native-token-relay', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({
+          nonce: nonce,
+          access_token: tokens.access_token,
+          refresh_token: tokens.refresh_token,
+        }),
+      })
+      .then(function(res) {
+        if (!res.ok) throw new Error('Relay failed: ' + res.status);
+        return res.json();
+      })
+      .then(function() {
+        showSuccess();
+        // Try to close the browser window (works in some contexts)
+        try { window.close(); } catch(e) {}
+      })
+      .catch(function(err) {
+        console.error('Token relay error:', err);
+        // Even if relay fails, try the custom scheme as fallback
+        var targetUrl = 'jvala://auth-callback' + hash;
+        try { window.location.replace(targetUrl); } catch(e) {}
+        setTimeout(function() {
+          showError('Could not relay tokens. Please close this window and try signing in again.');
+        }, 1500);
+      });
+    })();
   </script>
 </body>
 </html>

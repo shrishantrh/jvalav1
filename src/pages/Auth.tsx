@@ -73,13 +73,23 @@ const Auth = () => {
     // Set up deep link listener for native OAuth callbacks
     const cleanupDeepLink = setupNativeAuthListener();
 
-    // Listen for native auth completion (browser closed without session = reset loading)
+    // Listen for native auth completion
     const handleNativeAuthComplete = () => setLoading(false);
     window.addEventListener('native-auth-complete', handleNativeAuthComplete);
 
+    // Listen for native auth error
+    const handleNativeAuthError = () => {
+      setLoading(false);
+      toast({
+        title: "Sign-in failed",
+        description: "Could not complete authentication. Please try again.",
+        variant: "destructive",
+      });
+    };
+    window.addEventListener('native-auth-error', handleNativeAuthError);
+
     // Listen for browser close without session (reset stuck loading state)
     const handleBrowserFinishedNoSession = () => {
-      // Give a moment for deep link to fire, then reset if still loading
       setTimeout(() => {
         supabase.auth.getSession().then(({ data }) => {
           if (!data.session) {
@@ -94,6 +104,7 @@ const Auth = () => {
       subscription.unsubscribe();
       cleanupDeepLink();
       window.removeEventListener('native-auth-complete', handleNativeAuthComplete);
+      window.removeEventListener('native-auth-error', handleNativeAuthError);
       window.removeEventListener('native-browser-closed', handleBrowserFinishedNoSession);
     };
   }, [navigate]);
@@ -531,7 +542,7 @@ const Auth = () => {
                 <div className="w-full border-t border-border/40" />
               </div>
               <div className="relative flex justify-center">
-                <span className="px-3 text-[11px] uppercase tracking-widest text-muted-foreground bg-[hsl(0_0%_98%)]" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}>or</span>
+                <span className="px-3 text-[11px] uppercase tracking-widest text-muted-foreground bg-card" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}>or</span>
               </div>
             </div>
 
