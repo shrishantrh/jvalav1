@@ -1,32 +1,26 @@
 /**
  * Native OAuth for Capacitor
  *
- * On native iOS/Android, OAuth flows need special handling because the
- * WebView runs on capacitor://localhost. We:
+ * Uses a token-relay edge function to securely pass OAuth tokens
+ * from the in-app browser (SFSafariViewController) back to the app.
  *
- * 1. Build the Lovable Cloud OAuth broker URL with the native callback as redirect_uri
- * 2. Open the URL in the system browser (SFSafariViewController)
- * 3. The broker handles Google/Apple OAuth and redirects to native-auth-callback.html#tokens
- * 4. The callback page redirects to jvala://auth-callback#tokens
- * 5. iOS/Android intercepts the custom scheme and reopens the app
- * 6. We capture the deep link, extract tokens, and set the Supabase session
- *
- * FALLBACK: If the custom scheme redirect is blocked, the callback page shows
- * a "Return to Jvala" button. Additionally, we listen for the browser close
- * event and check for tokens.
+ * Flow:
+ * 1. Generate a one-time nonce
+ * 2. Build the OAuth broker URL with nonce in the callback URL
+ * 3. Open in SFSafariViewController
+ * 4. After OAuth, callback page POSTs tokens to edge function keyed by nonce
+ * 5. When browser closes, app fetches tokens from edge function and sets session
  */
 
 import { supabase } from '@/integrations/supabase/client';
 import { isNative } from '@/lib/capacitor';
 
-// The Lovable-published URL where the ~oauth broker is available.
-// app.jvala.tech is GitHub Pages and does NOT have the broker.
 const PUBLISHED_URL = 'https://jvalav1.lovable.app';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-/**
- * Generate a cryptographic random state parameter for CSRF protection.
- */
-const generateState = (): string => {
+/** Generate a cryptographic random nonce */
+const generateNonce = (): string => {
   if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
     return [...crypto.getRandomValues(new Uint8Array(16))]
       .map((b) => b.toString(16).padStart(2, '0'))
@@ -35,26 +29,27 @@ const generateState = (): string => {
   return Math.random().toString(36).substring(2) + Date.now().toString(36);
 };
 
+/** Store the current nonce so we can retrieve tokens later */
+let activeNonce: string | null = null;
+
 /**
  * Start native OAuth flow for a provider.
- * Uses the Lovable Cloud OAuth broker instead of direct Supabase auth,
- * so that managed Google/Apple credentials are used.
  */
 export const startNativeOAuth = async (
   provider: 'google' | 'apple'
 ): Promise<{ url: string } | { error: string }> => {
   try {
-    const state = generateState();
-    // Store state for validation when tokens come back
-    sessionStorage.setItem('native_oauth_state', state);
+    const nonce = generateNonce();
+    activeNonce = nonce;
+
+    // Include nonce as a query parameter in the callback URL
+    const callbackUrl = `${PUBLISHED_URL}/native-auth-callback.html?nonce=${nonce}`;
 
     const params = new URLSearchParams({
       provider,
-      redirect_uri: `${PUBLISHED_URL}/native-auth-callback.html`,
-      state,
+      redirect_uri: callbackUrl,
     });
 
-    // Use the Lovable Cloud OAuth broker on the published URL
     const brokerUrl = `${PUBLISHED_URL}/~oauth/initiate?${params.toString()}`;
 
     return { url: brokerUrl };
@@ -65,7 +60,6 @@ export const startNativeOAuth = async (
 
 /**
  * Open the OAuth URL in the native system browser.
- * Uses the Capacitor Browser plugin (SFSafariViewController on iOS).
  */
 export const openInNativeBrowser = async (url: string): Promise<void> => {
   try {
@@ -85,35 +79,47 @@ export const openInNativeBrowser = async (url: string): Promise<void> => {
 };
 
 /**
- * Parse tokens from a deep link URL like:
- * jvala://auth-callback#access_token=...&refresh_token=...
+ * Fetch tokens from the relay edge function using the active nonce.
+ * Returns the tokens or null if not found.
  */
-const parseTokensFromUrl = (
-  url: string
-): { access_token: string; refresh_token: string } | null => {
+const fetchRelayedTokens = async (): Promise<{
+  access_token: string;
+  refresh_token: string;
+} | null> => {
+  if (!activeNonce) return null;
+
   try {
-    const hashIndex = url.indexOf('#');
-    if (hashIndex === -1) return null;
+    const res = await fetch(
+      `${SUPABASE_URL}/functions/v1/native-token-relay?nonce=${activeNonce}`,
+      {
+        method: 'GET',
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
-    const hash = url.substring(hashIndex + 1);
-    const params = new URLSearchParams(hash);
+    if (!res.ok) {
+      console.log('[nativeAuth] No relayed tokens found (status ' + res.status + ')');
+      return null;
+    }
 
-    const access_token = params.get('access_token');
-    const refresh_token = params.get('refresh_token');
-
-    if (access_token && refresh_token) {
-      return { access_token, refresh_token };
+    const data = await res.json();
+    if (data.access_token && data.refresh_token) {
+      return { access_token: data.access_token, refresh_token: data.refresh_token };
     }
     return null;
-  } catch {
+  } catch (e) {
+    console.error('[nativeAuth] Error fetching relayed tokens:', e);
     return null;
   }
 };
 
 /**
- * Set up the deep link listener for OAuth callbacks.
- * Also sets up a browser-close listener as fallback to check session.
- * Returns a cleanup function to remove the listeners.
+ * Set up the browser-close listener to retrieve tokens from the relay.
+ * Also listens for deep links as a fallback.
+ * Returns a cleanup function.
  */
 export const setupNativeAuthListener = (): (() => void) => {
   if (!isNative) return () => {};
@@ -132,7 +138,7 @@ export const setupNativeAuthListener = (): (() => void) => {
 
       const listeners: (() => void)[] = [];
 
-      // Listen for deep links (jvala://auth-callback#tokens)
+      // Deep link fallback (for devices where custom scheme works)
       if (appPlugin) {
         const listener = await appPlugin.addListener(
           'appUrlOpen',
@@ -141,50 +147,85 @@ export const setupNativeAuthListener = (): (() => void) => {
 
             if (!event.url.startsWith('jvala://auth-callback')) return;
 
-            const tokens = parseTokensFromUrl(event.url);
-            if (!tokens) {
+            const hashIndex = event.url.indexOf('#');
+            if (hashIndex === -1) return;
+
+            const hash = event.url.substring(hashIndex + 1);
+            const params = new URLSearchParams(hash);
+            const access_token = params.get('access_token');
+            const refresh_token = params.get('refresh_token');
+
+            if (!access_token || !refresh_token) {
               console.error('[nativeAuth] Could not parse tokens from deep link');
               return;
             }
 
             console.log('[nativeAuth] Setting session from deep link tokens');
-            const { error } = await supabase.auth.setSession(tokens);
+            const { error } = await supabase.auth.setSession({
+              access_token,
+              refresh_token,
+            });
             if (error) {
               console.error('[nativeAuth] Failed to set session:', error.message);
             } else {
-              console.log('[nativeAuth] Session set successfully');
+              console.log('[nativeAuth] Session set successfully via deep link');
+              activeNonce = null;
             }
 
-            // Close the in-app browser
             try {
               if (browserPlugin) await browserPlugin.close();
-            } catch { /* ignore */ }
+            } catch {
+              /* ignore */
+            }
           }
         );
         listeners.push(() => listener?.remove?.());
       }
 
-      // Fallback: when browser closes, check if there's a session
+      // Primary mechanism: when browser closes, fetch tokens from relay
       if (browserPlugin) {
         const browserListener = await browserPlugin.addListener(
           'browserFinished',
           async () => {
-            console.log('[nativeAuth] Browser closed, checking for session...');
-            await new Promise(r => setTimeout(r, 500));
-            const { data } = await supabase.auth.getSession();
-            if (data.session) {
-              console.log('[nativeAuth] Session found after browser close');
-              window.dispatchEvent(new Event('native-auth-complete'));
+            console.log('[nativeAuth] Browser closed, fetching relayed tokens...');
+
+            // Small delay to ensure the callback page had time to POST
+            await new Promise((r) => setTimeout(r, 800));
+
+            const tokens = await fetchRelayedTokens();
+
+            if (tokens) {
+              console.log('[nativeAuth] Got tokens from relay, setting session');
+              const { error } = await supabase.auth.setSession(tokens);
+              if (error) {
+                console.error('[nativeAuth] Failed to set session from relay:', error.message);
+                window.dispatchEvent(new Event('native-auth-error'));
+              } else {
+                console.log('[nativeAuth] Session set successfully via relay');
+                window.dispatchEvent(new Event('native-auth-complete'));
+              }
+              activeNonce = null;
             } else {
-              console.log('[nativeAuth] No session after browser close — user likely cancelled');
-              window.dispatchEvent(new Event('native-browser-closed'));
+              // No tokens = user likely cancelled or relay failed
+              console.log('[nativeAuth] No relayed tokens found');
+
+              // Last resort: check if session exists (might have been set via deep link)
+              const { data } = await supabase.auth.getSession();
+              if (data.session) {
+                console.log('[nativeAuth] Session found after browser close');
+                window.dispatchEvent(new Event('native-auth-complete'));
+              } else {
+                console.log('[nativeAuth] No session — user likely cancelled');
+                window.dispatchEvent(new Event('native-browser-closed'));
+              }
+              activeNonce = null;
             }
           }
         );
         listeners.push(() => browserListener?.remove?.());
       }
 
-      cleanup = () => listeners.forEach(remove => remove());
+      cleanup = () => listeners.forEach((remove) => remove());
     } catch (e) {
       console.error('[nativeAuth] Failed to set up listeners:', e);
     }

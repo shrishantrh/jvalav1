@@ -18,7 +18,7 @@ export const SplashScreen = ({ onComplete }: SplashScreenProps) => {
   }, [onComplete]);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white dark:bg-slate-950">
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background">
       {/* Logo container with entrance animation */}
       <div className="flex flex-col items-center space-y-4 animate-in fade-in-0 zoom-in-95 duration-500">
         {/* Logo */}

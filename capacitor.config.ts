@@ -16,9 +16,9 @@ const config: CapacitorConfig = {
       splashImmersive: true
     },
     StatusBar: {
-      style: 'LIGHT',
+      style: 'DARK',
       backgroundColor: '#F5F0EB',
-      overlaysWebView: true
+      overlaysWebView: false
     },
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert']

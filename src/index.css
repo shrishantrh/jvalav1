@@ -211,6 +211,8 @@
     -webkit-overflow-scrolling: touch;
     overflow: hidden;
     height: 100%;
+    /* Match safe area background to app background */
+    background-color: hsl(var(--background));
   }
 
   body {

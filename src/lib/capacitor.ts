@@ -401,8 +401,18 @@ export const initializeCapacitor = async () => {
       await splashScreen.hide();
     }, 300);
     
-    // Set status bar style
-    await statusBar.setDark();
+    // Set status bar style based on current theme
+    const isDark = document.documentElement.classList.contains('dark');
+    if (isDark) {
+      await statusBar.setLight(); // Light text on dark background
+    } else {
+      await statusBar.setDark(); // Dark text on light background
+    }
+
+    // Ensure status bar background matches on Android
+    if (platform === 'android') {
+      await statusBar.setBackgroundColor(isDark ? '#1C1917' : '#F5F0EB');
+    }
   } catch (e) {
     console.log('Capacitor initialization error (this is normal for remote preview):', e);
   }
