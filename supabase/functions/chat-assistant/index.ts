@@ -1277,7 +1277,7 @@ async function callModel({
           properties: {
             response: { 
               type: "string",
-              description: "Your response to the user. Be specific, use their data, be empathetic.",
+              description: "Your response to the user. Use markdown for formatting. Use **bold** for emphasis (raw double asterisks, NOT escaped). Do NOT escape asterisks with backslashes.",
             },
             shouldLog: { 
               type: "boolean",
