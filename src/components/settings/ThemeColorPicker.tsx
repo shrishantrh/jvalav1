@@ -2,21 +2,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useThemeColor, THEME_COLORS, ThemeColor, ThemeMode } from "@/hooks/useThemeColor";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
-import { Palette, Check, Sun, Moon, Smartphone } from "lucide-react";
+import { Palette, Check } from "lucide-react";
 
 export const ThemeColorPicker = () => {
-  const { themeColor, setThemeColor, themeMode, setThemeMode, isDark } = useThemeColor();
+  const { themeColor, setThemeColor } = useThemeColor();
 
   const handleColorChange = (color: ThemeColor) => {
     haptics.selection();
     setThemeColor(color);
   };
-
-  const modes: { value: ThemeMode; icon: typeof Sun; label: string }[] = [
-    { value: 'light', icon: Sun, label: 'Light' },
-    { value: 'dark', icon: Moon, label: 'Dark' },
-    { value: 'auto', icon: Smartphone, label: 'Auto' },
-  ];
 
   return (
     <Card className="glass-card overflow-hidden">
@@ -27,32 +21,6 @@ export const ThemeColorPicker = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="p-3 pt-0 space-y-3">
-        {/* Mode selector — 3-way segmented control */}
-        <div className="flex rounded-xl bg-muted/60 p-0.5 gap-0.5">
-          {modes.map(({ value, icon: Icon, label }) => {
-            const isActive = themeMode === value;
-            return (
-              <button
-                key={value}
-                onClick={() => {
-                  haptics.selection();
-                  setThemeMode(value);
-                }}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[10px] text-xs font-medium transition-all duration-300",
-                  "active:scale-95 touch-manipulation",
-                  isActive
-                    ? "bg-card shadow-sm text-foreground"
-                    : "text-muted-foreground hover:text-foreground/70"
-                )}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {label}
-              </button>
-            );
-          })}
-        </div>
-
         {/* Accent color grid */}
         <div className="grid grid-cols-4 gap-2">
           {(Object.entries(THEME_COLORS) as [ThemeColor, typeof THEME_COLORS[ThemeColor]][]).map(([key, config]) => {
