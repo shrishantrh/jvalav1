@@ -73,9 +73,28 @@ const Auth = () => {
     // Set up deep link listener for native OAuth callbacks
     const cleanupDeepLink = setupNativeAuthListener();
 
+    // Listen for native auth completion (browser closed without session = reset loading)
+    const handleNativeAuthComplete = () => setLoading(false);
+    window.addEventListener('native-auth-complete', handleNativeAuthComplete);
+
+    // Listen for browser close without session (reset stuck loading state)
+    const handleBrowserFinishedNoSession = () => {
+      // Give a moment for deep link to fire, then reset if still loading
+      setTimeout(() => {
+        supabase.auth.getSession().then(({ data }) => {
+          if (!data.session) {
+            setLoading(false);
+          }
+        });
+      }, 1500);
+    };
+    window.addEventListener('native-browser-closed', handleBrowserFinishedNoSession);
+
     return () => {
       subscription.unsubscribe();
       cleanupDeepLink();
+      window.removeEventListener('native-auth-complete', handleNativeAuthComplete);
+      window.removeEventListener('native-browser-closed', handleBrowserFinishedNoSession);
     };
   }, [navigate]);
 

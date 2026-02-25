@@ -19,8 +19,9 @@
 import { supabase } from '@/integrations/supabase/client';
 import { isNative } from '@/lib/capacitor';
 
-// The published web URL where the broker and bridge page are served
-const PUBLISHED_URL = 'https://app.jvala.tech';
+// The Lovable-published URL where the ~oauth broker is available.
+// app.jvala.tech is GitHub Pages and does NOT have the broker.
+const PUBLISHED_URL = 'https://jvalav1.lovable.app';
 
 /**
  * Generate a cryptographic random state parameter for CSRF protection.
@@ -174,6 +175,9 @@ export const setupNativeAuthListener = (): (() => void) => {
             if (data.session) {
               console.log('[nativeAuth] Session found after browser close');
               window.dispatchEvent(new Event('native-auth-complete'));
+            } else {
+              console.log('[nativeAuth] No session after browser close — user likely cancelled');
+              window.dispatchEvent(new Event('native-browser-closed'));
             }
           }
         );
