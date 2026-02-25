@@ -211,13 +211,22 @@
     -webkit-overflow-scrolling: touch;
     overflow: hidden;
     height: 100%;
-    /* Match safe area background to app background */
+    /* Match safe area background to app background — must match Capacitor StatusBar backgroundColor */
+    background-color: hsl(var(--background));
+  }
+
+  html::before {
+    /* Fill the entire viewport including safe areas with the background color */
+    content: '';
+    position: fixed;
+    inset: -100px;
+    z-index: -1;
     background-color: hsl(var(--background));
   }
 
   body {
     @apply text-foreground antialiased;
-    background: var(--gradient-background);
+    background: hsl(var(--background));
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

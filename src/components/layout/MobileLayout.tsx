@@ -74,8 +74,9 @@ export const MobileLayout = ({
         <header 
           className="relative flex-shrink-0 z-50 glass-header"
           style={{ 
-            marginTop: 'calc(-1 * env(safe-area-inset-top, 0px) - 20px)',
-            paddingTop: 'calc(env(safe-area-inset-top, 0px) + 20px)',
+            marginTop: 'calc(-1 * env(safe-area-inset-top, 0px) - 60px)',
+            paddingTop: 'calc(env(safe-area-inset-top, 0px) + 60px)',
+            backgroundColor: 'hsl(var(--background))',
           }}
         >
           {header}
@@ -124,8 +125,8 @@ export const MobileLayout = ({
             WebkitBackdropFilter: 'blur(30px) saturate(200%)',
             borderTop: '1px solid hsl(var(--border) / 0.3)',
             boxShadow: '0 -8px 32px hsl(var(--foreground) / 0.03)',
-            paddingBottom: 'calc(env(safe-area-inset-bottom, 8px) + 20px)',
-            marginBottom: 'calc(-1 * env(safe-area-inset-bottom, 0px) - 20px)',
+            paddingBottom: 'calc(env(safe-area-inset-bottom, 8px) + 40px)',
+            marginBottom: 'calc(-1 * env(safe-area-inset-bottom, 0px) - 40px)',
           }}
         >
           {/* Glossy highlight line */}
