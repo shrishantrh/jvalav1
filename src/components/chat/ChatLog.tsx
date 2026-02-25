@@ -444,10 +444,18 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
                   message.isQuickLog && 'font-medium'
                 )}>
                   <div className={cn(
-                    "prose prose-sm max-w-none [&>p]:m-0 [&>ul]:mt-1 [&>ul]:mb-0 [&>ol]:mt-1 [&>ol]:mb-0 [&_strong]:font-bold",
-                    message.role === 'user' ? "prose-invert [&_strong]:text-primary-foreground" : "dark:prose-invert [&_strong]:text-foreground"
+                    "prose prose-sm max-w-none [&>p]:m-0 [&>ul]:mt-1 [&>ul]:mb-0 [&>ol]:mt-1 [&>ol]:mb-0",
+                    "[&_strong]:font-bold [&_strong]:!font-bold [&_strong]:!text-inherit",
+                    "[&_em]:italic [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm",
+                    message.role === 'user' ? "prose-invert [&_strong]:!text-primary-foreground" : "dark:prose-invert [&_strong]:!text-foreground"
                   )}>
-                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                    <ReactMarkdown
+                      components={{
+                        strong: ({ children }) => <strong style={{ fontWeight: 700 }}>{children}</strong>,
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
                   </div>
                   {message.entryData && message.role === 'assistant' && (
                     <div className="mt-1.5 pt-1.5 border-t border-current/10 text-xs opacity-75">
