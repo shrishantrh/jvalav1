@@ -1,66 +1,59 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useThemeColor, THEME_COLORS, ThemeColor } from "@/hooks/useThemeColor";
+import { useThemeColor, THEME_COLORS, ThemeColor, ThemeMode } from "@/hooks/useThemeColor";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
-import { Palette, Check, Sun, Moon } from "lucide-react";
+import { Palette, Check, Sun, Moon, Smartphone } from "lucide-react";
 
 export const ThemeColorPicker = () => {
-  const { themeColor, setThemeColor, isDark, toggleDarkMode } = useThemeColor();
+  const { themeColor, setThemeColor, themeMode, setThemeMode, isDark } = useThemeColor();
 
   const handleColorChange = (color: ThemeColor) => {
     haptics.selection();
     setThemeColor(color);
   };
 
+  const modes: { value: ThemeMode; icon: typeof Sun; label: string }[] = [
+    { value: 'light', icon: Sun, label: 'Light' },
+    { value: 'dark', icon: Moon, label: 'Dark' },
+    { value: 'auto', icon: Smartphone, label: 'Auto' },
+  ];
+
   return (
     <Card className="glass-card overflow-hidden">
       <CardHeader className="p-3 pb-2">
-        <CardTitle className="text-sm flex items-center justify-between">
-          <span className="flex items-center gap-2">
-            <Palette className="w-4 h-4 text-primary" />
-            Appearance
-          </span>
-          {/* Dark mode toggle */}
-          <button
-            onClick={() => {
-              haptics.selection();
-              toggleDarkMode();
-            }}
-            className={cn(
-              "relative w-14 h-7 rounded-full transition-all duration-300 flex-shrink-0",
-              "active:scale-95 touch-manipulation",
-              isDark
-                ? "bg-primary/20 border border-primary/30"
-                : "bg-muted border border-border/50"
-            )}
-          >
-            {/* Track icons */}
-            <Sun className={cn(
-              "absolute left-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 transition-opacity duration-300",
-              isDark ? "opacity-30 text-muted-foreground" : "opacity-80 text-amber-500"
-            )} />
-            <Moon className={cn(
-              "absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 transition-opacity duration-300",
-              isDark ? "opacity-80 text-primary" : "opacity-30 text-muted-foreground"
-            )} />
-            {/* Thumb */}
-            <div
-              className={cn(
-                "absolute top-0.5 w-6 h-6 rounded-full shadow-md transition-all duration-300",
-                isDark
-                  ? "left-[calc(100%-1.625rem)] bg-primary"
-                  : "left-0.5 bg-white"
-              )}
-              style={{
-                boxShadow: isDark
-                  ? `0 2px 8px hsl(var(--primary) / 0.4)`
-                  : '0 1px 4px rgba(0,0,0,0.15)',
-              }}
-            />
-          </button>
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Palette className="w-4 h-4 text-primary" />
+          Appearance
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-3 pt-0">
+      <CardContent className="p-3 pt-0 space-y-3">
+        {/* Mode selector — 3-way segmented control */}
+        <div className="flex rounded-xl bg-muted/60 p-0.5 gap-0.5">
+          {modes.map(({ value, icon: Icon, label }) => {
+            const isActive = themeMode === value;
+            return (
+              <button
+                key={value}
+                onClick={() => {
+                  haptics.selection();
+                  setThemeMode(value);
+                }}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[10px] text-xs font-medium transition-all duration-300",
+                  "active:scale-95 touch-manipulation",
+                  isActive
+                    ? "bg-card shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground/70"
+                )}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Accent color grid */}
         <div className="grid grid-cols-4 gap-2">
           {(Object.entries(THEME_COLORS) as [ThemeColor, typeof THEME_COLORS[ThemeColor]][]).map(([key, config]) => {
             const isSelected = themeColor === key;
@@ -83,21 +76,18 @@ export const ThemeColorPicker = () => {
               >
                 <div 
                   className={cn(
-                    "relative w-10 h-10 rounded-full transition-all duration-300",
-                    "shadow-lg",
+                    "relative w-10 h-10 rounded-full transition-all duration-300 shadow-lg",
                     isSelected && "scale-110"
                   )}
                   style={{
                     background: `linear-gradient(135deg, 
                       hsl(${config.hue} ${config.saturation}% ${config.lightness + 15}%) 0%, 
                       hsl(${config.hue} ${config.saturation}% ${config.lightness}%) 50%,
-                      hsl(${config.hue} ${config.saturation}% ${config.lightness - 10}%) 100%
-                    )`,
+                      hsl(${config.hue} ${config.saturation}% ${config.lightness - 10}%) 100%)`,
                     boxShadow: `
                       inset 0 2px 4px hsl(${config.hue} ${config.saturation}% ${config.lightness + 30}% / 0.4),
                       inset 0 -2px 4px hsl(${config.hue} ${config.saturation}% ${config.lightness - 20}% / 0.3),
-                      0 4px 12px hsl(${config.hue} ${config.saturation}% ${config.lightness}% / 0.35)
-                    `,
+                      0 4px 12px hsl(${config.hue} ${config.saturation}% ${config.lightness}% / 0.35)`,
                   }}
                 >
                   <div 
@@ -105,8 +95,7 @@ export const ThemeColorPicker = () => {
                     style={{
                       background: `linear-gradient(145deg, 
                         hsl(${config.hue} ${config.saturation}% ${config.lightness + 25}% / 0.3) 0%, 
-                        transparent 50%
-                      )`,
+                        transparent 50%)`,
                     }}
                   />
                   {isSelected && (

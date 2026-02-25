@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
 export type ThemeColor = 'amber' | 'pink' | 'blue' | 'purple' | 'red' | 'green' | 'teal';
-export type ThemeMode = 'light' | 'dark';
+export type ThemeMode = 'light' | 'dark' | 'auto';
 
 interface ThemeColorConfig {
   name: string;
@@ -25,19 +25,25 @@ export const THEME_COLORS: Record<ThemeColor, ThemeColorConfig> = {
 const COLOR_STORAGE_KEY = 'jvala-theme-color';
 const MODE_STORAGE_KEY = 'jvala-theme-mode';
 
+/** Resolve 'auto' to actual light/dark based on system preference */
+function resolveMode(mode: ThemeMode): 'light' | 'dark' {
+  if (mode === 'auto') {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  return mode;
+}
+
 function applyThemeColor(color: ThemeColor, mode: ThemeMode) {
   const config = THEME_COLORS[color];
   const root = document.documentElement;
-  const isDark = mode === 'dark';
+  const isDark = resolveMode(mode) === 'dark';
 
-  // Apply dark class
   if (isDark) {
     root.classList.add('dark');
   } else {
     root.classList.remove('dark');
   }
 
-  // Primary color — slightly boost lightness in dark mode for visibility
   const primaryL = isDark ? Math.min(config.lightness + 8, 70) : config.lightness;
   
   root.style.setProperty('--primary', `${config.hue} ${config.saturation}% ${primaryL}%`);
@@ -45,7 +51,6 @@ function applyThemeColor(color: ThemeColor, mode: ThemeMode) {
   root.style.setProperty('--primary-glow', `${config.hue} ${config.saturation + 10}% ${primaryL + 10}%`);
   root.style.setProperty('--ring', `${config.hue} ${config.saturation}% ${primaryL}%`);
   
-  // Update gradients
   root.style.setProperty(
     '--gradient-primary', 
     `linear-gradient(145deg, hsl(${config.hue} ${config.saturation}% ${primaryL + 5}%) 0%, hsl(${config.hue + 10} ${config.saturation - 5}% ${primaryL}%) 100%)`
@@ -59,19 +64,11 @@ function applyThemeColor(color: ThemeColor, mode: ThemeMode) {
     `linear-gradient(160deg, hsl(${config.hue + 5} ${config.saturation - 5}% ${primaryL + 5}%) 0%, hsl(${config.hue} ${config.saturation}% ${primaryL - 2}%) 50%, hsl(${config.hue - 5} ${config.saturation + 5}% ${primaryL - 8}%) 100%)`
   );
   
-  // Shadow with theme color
   const shadowAlpha = isDark ? 0.35 : 0.25;
   const glowAlpha = isDark ? 0.2 : 0.15;
-  root.style.setProperty(
-    '--shadow-primary', 
-    `0 4px 16px hsl(${config.hue} ${config.saturation}% ${primaryL}% / ${shadowAlpha})`
-  );
-  root.style.setProperty(
-    '--shadow-glow', 
-    `0 0 24px hsl(${config.hue} ${config.saturation}% ${primaryL}% / ${glowAlpha})`
-  );
+  root.style.setProperty('--shadow-primary', `0 4px 16px hsl(${config.hue} ${config.saturation}% ${primaryL}% / ${shadowAlpha})`);
+  root.style.setProperty('--shadow-glow', `0 0 24px hsl(${config.hue} ${config.saturation}% ${primaryL}% / ${glowAlpha})`);
 
-  // Sidebar primary
   root.style.setProperty('--sidebar-primary', `${config.hue} ${config.saturation}% ${primaryL}%`);
   root.style.setProperty('--sidebar-ring', `${config.hue} ${config.saturation}% ${primaryL}%`);
 }
@@ -88,13 +85,21 @@ export function useThemeColor() {
   const [themeMode, setThemeModeState] = useState<ThemeMode>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(MODE_STORAGE_KEY);
-      if (saved === 'dark' || saved === 'light') return saved;
+      if (saved === 'dark' || saved === 'light' || saved === 'auto') return saved;
     }
-    return 'light';
+    return 'auto';
   });
 
+  // Listen for system theme changes when mode is 'auto'
   useEffect(() => {
     applyThemeColor(themeColor, themeMode);
+
+    if (themeMode === 'auto') {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      const handler = () => applyThemeColor(themeColor, 'auto');
+      mq.addEventListener('change', handler);
+      return () => mq.removeEventListener('change', handler);
+    }
   }, [themeColor, themeMode]);
 
   const setThemeColor = useCallback((color: ThemeColor) => {
@@ -109,10 +114,7 @@ export function useThemeColor() {
     applyThemeColor(themeColor, mode);
   }, [themeColor]);
 
-  const toggleDarkMode = useCallback(() => {
-    const next = themeMode === 'dark' ? 'light' : 'dark';
-    setThemeMode(next);
-  }, [themeMode, setThemeMode]);
+  const isDark = resolveMode(themeMode) === 'dark';
 
   return {
     themeColor,
@@ -120,24 +122,20 @@ export function useThemeColor() {
     themeColors: THEME_COLORS,
     themeMode,
     setThemeMode,
-    toggleDarkMode,
-    isDark: themeMode === 'dark',
+    isDark,
   };
 }
 
-// Initialize theme on app load
 export function initializeThemeColor() {
   if (typeof window !== 'undefined') {
     const savedColor = localStorage.getItem(COLOR_STORAGE_KEY);
     const savedMode = localStorage.getItem(MODE_STORAGE_KEY);
     
-    const color: ThemeColor = (savedColor && savedColor in THEME_COLORS) 
-      ? savedColor as ThemeColor 
-      : 'pink';
-    const mode: ThemeMode = (savedMode === 'dark') ? 'dark' : 'light';
+    const color: ThemeColor = (savedColor && savedColor in THEME_COLORS) ? savedColor as ThemeColor : 'pink';
+    const mode: ThemeMode = (savedMode === 'dark' || savedMode === 'light' || savedMode === 'auto') ? savedMode : 'auto';
     
     if (!savedColor) localStorage.setItem(COLOR_STORAGE_KEY, 'pink');
-    if (!savedMode) localStorage.setItem(MODE_STORAGE_KEY, 'light');
+    if (!savedMode) localStorage.setItem(MODE_STORAGE_KEY, 'auto');
     
     applyThemeColor(color, mode);
   }
