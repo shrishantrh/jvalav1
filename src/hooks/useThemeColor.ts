@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
 export type ThemeColor = 'amber' | 'pink' | 'blue' | 'purple' | 'red' | 'green' | 'teal';
-export type ThemeMode = 'light' | 'dark' | 'auto';
+export type ThemeMode = 'light';
 
 interface ThemeColorConfig {
   name: string;
@@ -25,26 +25,17 @@ export const THEME_COLORS: Record<ThemeColor, ThemeColorConfig> = {
 const COLOR_STORAGE_KEY = 'jvala-theme-color';
 const MODE_STORAGE_KEY = 'jvala-theme-mode';
 
-/** Resolve 'auto' to actual light/dark based on system preference */
-function resolveMode(mode: ThemeMode): 'light' | 'dark' {
-  if (mode === 'auto') {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-  return mode;
+/** Always light */
+function resolveMode(_mode: ThemeMode): 'light' {
+  return 'light';
 }
 
 function applyThemeColor(color: ThemeColor, mode: ThemeMode) {
   const config = THEME_COLORS[color];
   const root = document.documentElement;
-  const isDark = resolveMode(mode) === 'dark';
+  root.classList.remove('dark');
 
-  if (isDark) {
-    root.classList.add('dark');
-  } else {
-    root.classList.remove('dark');
-  }
-
-  const primaryL = isDark ? Math.min(config.lightness + 8, 70) : config.lightness;
+  const primaryL = config.lightness;
   
   root.style.setProperty('--primary', `${config.hue} ${config.saturation}% ${primaryL}%`);
   root.style.setProperty('--primary-hover', `${config.hue} ${config.saturation + 5}% ${primaryL - 5}%`);
@@ -64,8 +55,8 @@ function applyThemeColor(color: ThemeColor, mode: ThemeMode) {
     `linear-gradient(160deg, hsl(${config.hue + 5} ${config.saturation - 5}% ${primaryL + 5}%) 0%, hsl(${config.hue} ${config.saturation}% ${primaryL - 2}%) 50%, hsl(${config.hue - 5} ${config.saturation + 5}% ${primaryL - 8}%) 100%)`
   );
   
-  const shadowAlpha = isDark ? 0.35 : 0.25;
-  const glowAlpha = isDark ? 0.2 : 0.15;
+  const shadowAlpha = 0.25;
+  const glowAlpha = 0.15;
   root.style.setProperty('--shadow-primary', `0 4px 16px hsl(${config.hue} ${config.saturation}% ${primaryL}% / ${shadowAlpha})`);
   root.style.setProperty('--shadow-glow', `0 0 24px hsl(${config.hue} ${config.saturation}% ${primaryL}% / ${glowAlpha})`);
 
@@ -82,25 +73,11 @@ export function useThemeColor() {
     return 'pink';
   });
 
-  const [themeMode, setThemeModeState] = useState<ThemeMode>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(MODE_STORAGE_KEY);
-      if (saved === 'dark' || saved === 'light' || saved === 'auto') return saved;
-    }
-    return 'auto';
-  });
+  const [themeMode] = useState<ThemeMode>('light');
 
-  // Listen for system theme changes when mode is 'auto'
   useEffect(() => {
-    applyThemeColor(themeColor, themeMode);
-
-    if (themeMode === 'auto') {
-      const mq = window.matchMedia('(prefers-color-scheme: dark)');
-      const handler = () => applyThemeColor(themeColor, 'auto');
-      mq.addEventListener('change', handler);
-      return () => mq.removeEventListener('change', handler);
-    }
-  }, [themeColor, themeMode]);
+    applyThemeColor(themeColor, 'light');
+  }, [themeColor]);
 
   const setThemeColor = useCallback((color: ThemeColor) => {
     setThemeColorState(color);
@@ -108,13 +85,11 @@ export function useThemeColor() {
     applyThemeColor(color, themeMode);
   }, [themeMode]);
 
-  const setThemeMode = useCallback((mode: ThemeMode) => {
-    setThemeModeState(mode);
-    localStorage.setItem(MODE_STORAGE_KEY, mode);
-    applyThemeColor(themeColor, mode);
-  }, [themeColor]);
+  const setThemeMode = useCallback((_mode: ThemeMode) => {
+    // No-op: dark mode removed
+  }, []);
 
-  const isDark = resolveMode(themeMode) === 'dark';
+  const isDark = false;
 
   return {
     themeColor,
@@ -132,11 +107,8 @@ export function initializeThemeColor() {
     const savedMode = localStorage.getItem(MODE_STORAGE_KEY);
     
     const color: ThemeColor = (savedColor && savedColor in THEME_COLORS) ? savedColor as ThemeColor : 'pink';
-    const mode: ThemeMode = (savedMode === 'dark' || savedMode === 'light' || savedMode === 'auto') ? savedMode : 'auto';
-    
     if (!savedColor) localStorage.setItem(COLOR_STORAGE_KEY, 'pink');
-    if (!savedMode) localStorage.setItem(MODE_STORAGE_KEY, 'auto');
     
-    applyThemeColor(color, mode);
+    applyThemeColor(color, 'light');
   }
 }
