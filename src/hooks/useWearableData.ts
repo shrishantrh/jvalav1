@@ -251,19 +251,22 @@ export const useWearableData = () => {
       setHealthAvailable(true);
 
       // Trust localStorage — checkAuthorization consistently hangs on iOS.
-      // If user previously connected, mark as connected immediately.
       if (getPersistedHealthConnection()) {
         console.log('[wearables] Apple Health previously connected (localStorage)');
         const healthType = platform === 'ios' ? 'apple_health' : 'google_fit';
-        setConnections(prev =>
-          prev.map(c => (c.type === healthType ? { ...c, connected: true, comingSoon: false } : c))
-        );
+        setConnections(prev => {
+          // Bail out if already connected to avoid re-render loop
+          const existing = prev.find(c => c.type === healthType);
+          if (existing?.connected) return prev;
+          return prev.map(c => (c.type === healthType ? { ...c, connected: true, comingSoon: false } : c));
+        });
 
         // Restore cached data so getDataForEntry() works immediately
+        // Only set if we don't already have data (avoid re-render loop)
         const cached = getCachedHealthData();
         if (cached) {
           console.log('[wearables] Restoring cached health data');
-          setData(cached);
+          setData(prev => prev ?? cached);
         }
 
         return true;
@@ -482,19 +485,21 @@ export const useWearableData = () => {
     };
   }, [checkFitbitConnection, syncData, toast]);
 
-  // Check connections on mount
+  // Check connections on mount — run ONCE via ref guard to prevent infinite re-render
+  const hasInitRef = useRef(false);
   useEffect(() => {
+    if (hasInitRef.current) return;
+    hasInitRef.current = true;
+
     let mounted = true;
     
     const init = async () => {
-      // Check Fitbit connection
       const fitbitConnected = await checkFitbitConnection();
       if (fitbitConnected && mounted && !hasSyncedRef.current) {
         hasSyncedRef.current = true;
         await syncData('fitbit');
       }
       
-      // Check native health connection (Apple Health / Health Connect)
       if (isNative && mounted) {
         const nativeConnected = await checkNativeHealthConnection();
         if (nativeConnected && !hasSyncedRef.current) {
@@ -507,10 +512,8 @@ export const useWearableData = () => {
     
     init();
     
-    return () => {
-      mounted = false;
-    };
-  }, [checkFitbitConnection, checkNativeHealthConnection, syncData]);
+    return () => { mounted = false; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const connectDevice = useCallback(async (type: 'fitbit' | 'apple_health' | 'google_fit' | 'oura'): Promise<boolean> => {
     setIsLoading(true);

@@ -365,11 +365,14 @@ ${JSON.stringify(dataContext)}`;
         }
 
         if (toolCall.function.name === "respond_with_visualization") {
-          return new Response(JSON.stringify({ response: parsed.response, visualization: parsed.chart, dynamicFollowUps: parsed.dynamicFollowUps, citations: [], wasResearched: false }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          const vizResponse = (parsed.response || "").replace(/\\\*/g, '*');
+          return new Response(JSON.stringify({ response: vizResponse, visualization: parsed.chart, dynamicFollowUps: parsed.dynamicFollowUps, citations: [], wasResearched: false }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
 
         // respond_text_only — strip leftover discovery blocks
         let cleaned = (parsed.response || "")
+          // Unescape backslash-escaped asterisks from AI tool output
+          .replace(/\\\*/g, '*')
           .replace(/(?:💡\s*)?(?:\*{1,2})?Discovery:\s*[^\n]+\*{0,2}\n[\s\S]*?(?=(?:💡\s*)?(?:\*{1,2})?Discovery:|$)/gi, '')
           .replace(/_[A-Za-z]+\s*•\s*\d+%?\s*confidence\s*•\s*\d+\s*occurrences?_/gi, '')
           .replace(/\n{3,}/g, '\n\n').trim();
@@ -388,7 +391,7 @@ ${JSON.stringify(dataContext)}`;
     }
 
     // Fallback
-    let fb = data.choices?.[0]?.message?.content || "I'm here to help.";
+    let fb = (data.choices?.[0]?.message?.content || "I'm here to help.").replace(/\\\*/g, '*');
     const fbDisc: any[] = [];
     const rx2 = /(?:💡\s*)?(?:\*{1,2})?Discovery:\s*([^\n*]+?)(?:\*{0,2})\n+(\d+)\s*out\s*of\s*(\d+)\s*times?\s*\((\d+)%\).*?(\d+\.?\d*)x\s*more\s*likely/gi;
     let m2;
