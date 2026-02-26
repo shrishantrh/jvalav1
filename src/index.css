@@ -334,10 +334,9 @@
   
   /* Glass header style */
   .glass-header {
-    background: hsl(var(--card) / 0.85);
+    background: hsl(var(--background));
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border-bottom: 1px solid hsl(var(--border) / 0.4);
   }
   
   /* Gradient backgrounds */
