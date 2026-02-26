@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { parseBold } from '@/lib/renderBold';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -299,7 +300,7 @@ export const PharmacovigilanceDashboard = ({ userId }: PharmacovigilanceDashboar
               {data.predictiveRisk.recommendations.map((rec, i) => (
                 <div key={i} className="flex items-start gap-2 py-1">
                   <ChevronRight className="w-3 h-3 text-primary mt-0.5 shrink-0" />
-                  <p className="text-xs">{rec}</p>
+                  <p className="text-xs">{parseBold(rec)}</p>
                 </div>
               ))}
             </Card>

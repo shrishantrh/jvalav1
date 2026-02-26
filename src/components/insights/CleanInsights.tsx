@@ -1,4 +1,5 @@
 import React, { useMemo, useEffect, useState } from 'react';
+import { parseBold } from '@/lib/renderBold';
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -501,7 +502,7 @@ export const CleanInsights = ({ entries, userConditions = [], onAskAI }: CleanIn
               {analytics.correlations.slice(0, 5).map((corr, i) => (
                 <div key={i} className="p-3 rounded-2xl bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm border border-white/40 dark:border-slate-700/40">
                   <p className="text-sm font-semibold">{corr.factor}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{corr.description}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{parseBold(corr.description)}</p>
                   <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                     <span>{corr.occurrences} occurrences</span>
                     <span>•</span>

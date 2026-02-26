@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { parseBold } from '@/lib/renderBold';
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -482,7 +483,7 @@ export const UsefulInsights = ({
                 <span className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center text-xs font-medium flex-shrink-0">
                   {idx + 1}
                 </span>
-                <span className="text-xs leading-relaxed">{rec}</span>
+                <span className="text-xs leading-relaxed">{parseBold(rec)}</span>
               </div>
             ))}
           </div>
