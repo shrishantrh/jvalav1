@@ -1340,7 +1340,25 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                         <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: '300ms' }} />
                       </div>
                     ) : (
-                      <p className="text-sm whitespace-pre-wrap relative z-10">{displayContent}</p>
+                      <div className="text-sm whitespace-pre-wrap relative z-10">
+                        {displayContent.split('\n').filter(Boolean).map((line: string, li: number) => {
+                          // Parse **bold** markers into <strong> tags
+                          const unescaped = line.replace(/\\\*/g, '*');
+                          const parts = unescaped.split(/\*\*(.*?)\*\*/g);
+                          return (
+                            <p key={li} className="m-0 leading-relaxed">
+                              {parts.length === 1
+                                ? unescaped
+                                : parts.map((part: string, pi: number) =>
+                                    pi % 2 === 1
+                                      ? <strong key={pi} style={{ fontWeight: 700 }}>{part}</strong>
+                                      : <span key={pi}>{part}</span>
+                                  )
+                              }
+                            </p>
+                          );
+                        })}
+                      </div>
                     )}
                     {inlineChart && <DynamicChartRenderer chart={inlineChart} />}
                   </>
