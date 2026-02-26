@@ -125,7 +125,7 @@ export const MobileLayout = ({
             WebkitBackdropFilter: 'blur(30px) saturate(200%)',
             borderTop: '1px solid hsl(var(--border) / 0.3)',
             boxShadow: '0 -8px 32px hsl(var(--foreground) / 0.03)',
-            paddingBottom: 'calc(env(safe-area-inset-bottom, 8px) + 8px)',
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           }}
         >
           {/* Glossy highlight line */}
