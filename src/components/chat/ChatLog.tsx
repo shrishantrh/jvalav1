@@ -15,9 +15,14 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 
-/** Fix escaped markdown from AI responses — unescape \*\* back to ** etc. */
-const unescapeMarkdown = (text: string): string => {
-  return text
+/**
+ * Clean AI response text:
+ * 1. Unescape markdown (AI sometimes escapes **, *, _ etc.)
+ * 2. Convert **text** to <strong>text</strong> for reliable rendering
+ */
+const cleanAIResponse = (text: string): string => {
+  let cleaned = text
+    // Unescape doubled-escaped markdown
     .replace(/\\\*\\\*/g, '**')
     .replace(/\\\*/g, '*')
     .replace(/\\_/g, '_')
@@ -26,6 +31,36 @@ const unescapeMarkdown = (text: string): string => {
     .replace(/\\`/g, '`')
     .replace(/\\\[/g, '[')
     .replace(/\\\]/g, ']');
+  return cleaned;
+};
+
+/** Render text with **bold** support, splitting into fragments */
+const RichText = ({ text }: { text: string }) => {
+  // Split on **...** patterns and render bold inline
+  const parts = text.split(/\*\*(.*?)\*\*/g);
+  if (parts.length === 1) return <>{text}</>;
+  return (
+    <>
+      {parts.map((part, i) =>
+        i % 2 === 1 ? <strong key={i} style={{ fontWeight: 700 }}>{part}</strong> : <span key={i}>{part}</span>
+      )}
+    </>
+  );
+};
+
+/** Render a message with paragraph splits and bold support (no ReactMarkdown dependency for bold) */
+const MessageRenderer = ({ content }: { content: string }) => {
+  const cleaned = cleanAIResponse(content);
+  const paragraphs = cleaned.split('\n').filter(Boolean);
+  return (
+    <div className="space-y-1.5">
+      {paragraphs.map((p, i) => (
+        <p key={i} className="m-0 leading-relaxed">
+          <RichText text={p} />
+        </p>
+      ))}
+    </div>
+  );
 };
 
 interface Visualization {
@@ -364,7 +399,7 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: unescapeMarkdown(data.response || "Got it!"),
+        content: data.response || "Got it!",
         timestamp: new Date(),
         entryData: data.entryData,
         visualization: data.visualization,
@@ -456,19 +491,8 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
                     : 'bg-muted rounded-tl-md',
                   message.isQuickLog && 'font-medium'
                 )}>
-                  <div className={cn(
-                    "prose prose-sm max-w-none [&>p]:m-0 [&>ul]:mt-1 [&>ul]:mb-0 [&>ol]:mt-1 [&>ol]:mb-0",
-                    "[&_strong]:font-bold [&_strong]:!font-bold [&_strong]:!text-inherit",
-                    "[&_em]:italic [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm",
-                    message.role === 'user' ? "prose-invert [&_strong]:!text-primary-foreground" : "dark:prose-invert [&_strong]:!text-foreground"
-                  )}>
-                    <ReactMarkdown
-                      components={{
-                        strong: ({ children }) => <strong style={{ fontWeight: 700 }}>{children}</strong>,
-                      }}
-                    >
-                      {unescapeMarkdown(message.content)}
-                    </ReactMarkdown>
+                  <div className="text-sm leading-relaxed">
+                    <MessageRenderer content={message.content} />
                   </div>
                   {message.entryData && message.role === 'assistant' && (
                     <div className="mt-1.5 pt-1.5 border-t border-current/10 text-xs opacity-75">
