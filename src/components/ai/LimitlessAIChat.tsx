@@ -104,15 +104,36 @@ function cleanDiscoveryText(text: string): string {
     .trim();
 }
 
+/** Render text with **bold** parsed reliably (not via ReactMarkdown) */
+const RichTextLine = ({ text }: { text: string }) => {
+  const parts = text.split(/\*\*(.*?)\*\*/g);
+  if (parts.length === 1) return <>{text}</>;
+  return (
+    <>
+      {parts.map((part, i) =>
+        i % 2 === 1 ? <strong key={i} style={{ fontWeight: 700 }}>{part}</strong> : <span key={i}>{part}</span>
+      )}
+    </>
+  );
+};
+
 const MessageContent = ({ content, role, discoveries, onNavigateToTrends }: { content: string; role: string; discoveries?: StructuredDiscovery[]; onNavigateToTrends?: () => void }) => {
   // Clean any leftover raw discovery blocks from text
-  const cleanText = cleanDiscoveryText(content);
+  let cleanText = cleanDiscoveryText(content)
+    // Unescape individually-escaped asterisks: \* → *
+    .replace(/\\\*/g, '*');
+
+  const paragraphs = cleanText.split('\n').filter(Boolean);
 
   return (
     <div className="text-sm">
       {cleanText && (
-        <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0 [&>ul]:mt-1 [&>ul]:mb-0 [&>ol]:mt-1 [&>ol]:mb-0 [&_strong]:font-bold [&_strong]:text-foreground">
-          <ReactMarkdown>{cleanText}</ReactMarkdown>
+        <div className="space-y-1.5">
+          {paragraphs.map((p, i) => (
+            <p key={i} className="m-0 leading-relaxed">
+              <RichTextLine text={p} />
+            </p>
+          ))}
         </div>
       )}
       {discoveries && discoveries.length > 0 && discoveries.map((d, i) => (
