@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { parseBold } from '@/lib/renderBold';
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -277,7 +278,7 @@ export const InsightsPanel = ({ entries }: InsightsPanelProps) => {
                       )}
                       <div>
                         <p className="text-sm font-medium">{insight.title}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{insight.description}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{parseBold(insight.description)}</p>
                       </div>
                     </div>
                   </div>

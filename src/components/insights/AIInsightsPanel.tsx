@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { parseBold } from '@/lib/renderBold';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -266,7 +267,7 @@ export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol,
                 <span className="text-sm font-medium capitalize">{analysis.trend}</span>
               </div>
               <p className="text-[10px] text-muted-foreground max-w-[180px] line-clamp-2">
-                {analysis.summary}
+                {parseBold(analysis.summary)}
               </p>
             </div>
           </div>
@@ -303,7 +304,7 @@ export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol,
                     <span className={cn("mt-0.5", colors.text)}>{getInsightIcon(insight.type)}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium leading-tight">{insight.title}</p>
-                      <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{insight.description}</p>
+                      <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">{parseBold(insight.description)}</p>
                     </div>
                     <Badge variant="outline" className="text-[8px] px-1 py-0 shrink-0">
                       {insight.confidence}
@@ -371,7 +372,7 @@ export const AIInsightsPanel = ({ entries, userConditions = [], onStartProtocol,
                   <div className="p-1 rounded-full bg-primary/10 mt-0.5 shrink-0">
                     <Heart className="w-2.5 h-2.5 text-primary" />
                   </div>
-                  <p className="text-xs text-foreground flex-1">{rec}</p>
+                  <p className="text-xs text-foreground flex-1">{parseBold(rec)}</p>
                 </div>
                 
                 {/* Action buttons */}

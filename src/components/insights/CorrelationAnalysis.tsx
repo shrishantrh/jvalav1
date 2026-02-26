@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { parseBold } from '@/lib/renderBold';
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -258,7 +259,7 @@ export const CorrelationAnalysis = ({ entries, userConditions = [] }: Correlatio
                       {corr.confidence}
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground truncate">{corr.description}</p>
+                  <p className="text-xs text-muted-foreground truncate">{parseBold(corr.description)}</p>
                 </div>
 
                 <div className="text-right">

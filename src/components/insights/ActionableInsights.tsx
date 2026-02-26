@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
+import { parseBold } from '@/lib/renderBold';
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -254,7 +255,7 @@ export const ActionableInsights = ({
         {/* AI Summary */}
         {aiInsights?.summary && (
           <p className="mt-4 text-sm text-muted-foreground border-t border-white/10 pt-4">
-            {aiInsights.summary}
+            {parseBold(aiInsights.summary)}
           </p>
         )}
       </Card>
@@ -312,7 +313,7 @@ export const ActionableInsights = ({
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mb-2">
-                    {insight.description}
+                    {parseBold(insight.description)}
                   </p>
                   {insight.actionable && onAskAI && (
                     <Button
@@ -402,7 +403,7 @@ export const ActionableInsights = ({
                 className="flex items-start gap-2 text-sm"
               >
                 <CheckCircle2 className="w-4 h-4 mt-0.5 text-severity-none flex-shrink-0" />
-                <span>{rec}</span>
+                <span>{parseBold(rec)}</span>
               </div>
             ))}
           </div>
