@@ -396,22 +396,24 @@ export const initializeCapacitor = async () => {
     // Pre-load plugins
     plugins = await loadPlugins();
     
+    // Ensure status bar overlays web view for edge-to-edge
+    if (plugins?.statusBar) {
+      try {
+        await plugins.statusBar.StatusBar.setOverlaysWebView({ overlay: true });
+      } catch {}
+    }
+    
     // Hide splash screen after a short delay to ensure UI is ready
     setTimeout(async () => {
       await splashScreen.hide();
     }, 300);
     
-    // Set status bar style based on current theme
-    const isDark = document.documentElement.classList.contains('dark');
-    if (isDark) {
-      await statusBar.setLight(); // Light text on dark background
-    } else {
-      await statusBar.setDark(); // Dark text on light background
-    }
+    // Always light mode - dark text on light background
+    await statusBar.setDark();
 
     // Ensure status bar background matches on Android
     if (platform === 'android') {
-      await statusBar.setBackgroundColor(isDark ? '#1C1917' : '#F5F0EB');
+      await statusBar.setBackgroundColor('#F5F0EB');
     }
   } catch (e) {
     console.log('Capacitor initialization error (this is normal for remote preview):', e);
