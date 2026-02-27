@@ -55,7 +55,15 @@ export const MobileLayout = ({
   };
 
   return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden max-w-md mx-auto bg-background" style={{ overscrollBehavior: 'none', top: 0, bottom: 0, left: 0, right: 0 }}>
+    <div className="flex flex-col overflow-hidden max-w-md mx-auto bg-background" style={{ 
+      overscrollBehavior: 'none', 
+      position: 'fixed',
+      top: 0, 
+      bottom: 0, 
+      left: 0, 
+      right: 0,
+      minHeight: '100dvh',
+    }}>
       
       {/* Warm gradient overlay - 3D depth effect */}
       <div 
