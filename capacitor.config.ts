@@ -28,9 +28,10 @@ const config: CapacitorConfig = {
     }
   },
   ios: {
-    contentInset: 'automatic',
+    contentInset: 'never',
     preferredContentMode: 'mobile',
-    scheme: 'jvala'
+    scheme: 'jvala',
+    scrollEnabled: false
   },
   android: {
     allowMixedContent: true,
