@@ -183,7 +183,7 @@ export const useWearableData = () => {
     const isAndroid = isNative && platform === 'android';
     
     return [
-      { id: 'fitbit', name: 'Fitbit', type: 'fitbit', connected: false },
+      { id: 'fitbit', name: 'Fitbit', type: 'fitbit', connected: false, comingSoon: true },
       { id: 'oura', name: 'Oura Ring', type: 'oura', connected: false, comingSoon: true },
       { 
         id: 'apple-health', 
