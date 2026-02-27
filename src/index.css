@@ -231,8 +231,6 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
-    min-height: 100vh;
-    min-height: 100dvh;
     /* Prevent pull-to-refresh and rubber banding */
     overscroll-behavior: none;
     overflow: hidden;
@@ -252,9 +250,6 @@
     left: 0;
     right: 0;
     bottom: 0;
-    /* Extend behind safe areas on native iOS */
-    min-height: 100vh;
-    min-height: 100dvh;
   }
   
   /* Typography with transparency layering */
