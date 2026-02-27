@@ -62,7 +62,6 @@ export const MobileLayout = ({
       bottom: 0, 
       left: 0, 
       right: 0,
-      minHeight: '100dvh',
     }}>
       
       {/* Warm gradient overlay - 3D depth effect */}
