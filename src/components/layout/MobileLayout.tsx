@@ -133,8 +133,7 @@ export const MobileLayout = ({
             WebkitBackdropFilter: 'blur(30px) saturate(200%)',
             borderTop: '1px solid hsl(var(--border) / 0.3)',
             boxShadow: '0 -8px 32px hsl(var(--foreground) / 0.03)',
-            /* Use max() to ensure at least 34px even if env() returns 0 */
-            paddingBottom: 'max(env(safe-area-inset-bottom, 34px), 34px)',
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           }}
         >
           {/* Extend nav background color below into any remaining gap */}
