@@ -133,9 +133,19 @@ export const MobileLayout = ({
             WebkitBackdropFilter: 'blur(30px) saturate(200%)',
             borderTop: '1px solid hsl(var(--border) / 0.3)',
             boxShadow: '0 -8px 32px hsl(var(--foreground) / 0.03)',
-            paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 20px)',
+            /* Use max() to ensure at least 34px even if env() returns 0 */
+            paddingBottom: 'max(env(safe-area-inset-bottom, 34px), 34px)',
           }}
         >
+          {/* Extend nav background color below into any remaining gap */}
+          <div 
+            className="absolute left-0 right-0 bottom-0 translate-y-full z-[-1]"
+            style={{
+              height: '100px',
+              background: 'hsl(var(--glass-bg) / 0.95)',
+            }}
+          />
+          
           {/* Glossy highlight line */}
           <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-primary/25 to-transparent" />
           
@@ -155,7 +165,6 @@ export const MobileLayout = ({
                       : "text-muted-foreground/60 hover:text-foreground"
                   )}
                 >
-                  {/* Active background with 3D effect */}
                   {isActive && (
                     <>
                       <div 
@@ -168,7 +177,6 @@ export const MobileLayout = ({
                           `,
                         }}
                       />
-                      {/* Glow underneath */}
                       <div 
                         className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 h-3 rounded-full blur-md"
                         style={{ background: 'hsl(var(--primary) / 0.4)' }}
