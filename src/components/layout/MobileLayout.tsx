@@ -76,13 +76,12 @@ export const MobileLayout = ({
         }}
       />
       
-      {/* Header area - extends into top safe area to eliminate black slivers */}
+      {/* Header area - safe area padding pushes content below dynamic island */}
       {header && (
         <header 
           className="relative flex-shrink-0 z-50 glass-header"
           style={{ 
-            marginTop: 'calc(-1 * env(safe-area-inset-top, 0px) - 60px)',
-            paddingTop: 'calc(env(safe-area-inset-top, 0px) + 60px)',
+            paddingTop: 'env(safe-area-inset-top, 0px)',
             backgroundColor: 'hsl(var(--background))',
           }}
         >
@@ -90,15 +89,16 @@ export const MobileLayout = ({
         </header>
       )}
       
-      {/* Main content area */}
-      <main className="relative flex-1 overflow-hidden" style={{ overscrollBehavior: 'none' }}>
+      {/* Main content area - bottom padding accounts for absolute nav */}
+      <main className="relative flex-1 overflow-hidden" style={{ 
+        overscrollBehavior: 'none',
+        paddingBottom: showNav && onViewChange ? 'calc(72px + env(safe-area-inset-bottom, 0px))' : undefined,
+      }}>
         {currentView === 'track' ? (
-          /* Track view: children manage their own scroll (SmartTrack has internal scroll) */
           <div className="h-full overflow-hidden">
             {children}
           </div>
         ) : (
-          /* Other views: scrollable with pull-to-refresh */
           <>
             <PullToRefreshIndicator 
               pullDistance={pullDistance}
@@ -114,7 +114,7 @@ export const MobileLayout = ({
                 WebkitOverflowScrolling: 'touch',
               }}
             >
-              <div className="px-5 py-4 pb-20">
+              <div className="px-5 py-4">
                 {children}
               </div>
             </div>
