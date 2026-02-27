@@ -55,13 +55,11 @@ export const MobileLayout = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-background" style={{ overscrollBehavior: 'none' }}>
-    {/* Inner constrained layout */}
-    <div className="flex flex-col h-full max-w-md mx-auto overflow-hidden">
+    <div className="fixed inset-0 flex flex-col overflow-hidden max-w-md mx-auto bg-background" style={{ overscrollBehavior: 'none', top: 0, bottom: 0, left: 0, right: 0 }}>
       
       {/* Warm gradient overlay - 3D depth effect */}
       <div 
-        className="absolute inset-0 pointer-events-none z-0"
+        className="absolute inset-0 pointer-events-none"
         style={{
           background: `
             radial-gradient(ellipse 100% 60% at 50% -10%, hsl(var(--primary) / 0.08), transparent 50%),
@@ -71,12 +69,16 @@ export const MobileLayout = ({
         }}
       />
       
-      {/* Safe area top spacer - fills with background color */}
-      <div className="flex-shrink-0" style={{ height: 'env(safe-area-inset-top, 0px)' }} />
-      
-      {/* Header area */}
+      {/* Header area - extends into top safe area to eliminate black slivers */}
       {header && (
-        <header className="relative flex-shrink-0 z-50 glass-header">
+        <header 
+          className="relative flex-shrink-0 z-50 glass-header"
+          style={{ 
+            marginTop: 'calc(-1 * env(safe-area-inset-top, 0px) - 60px)',
+            paddingTop: 'calc(env(safe-area-inset-top, 0px) + 60px)',
+            backgroundColor: 'hsl(var(--background))',
+          }}
+        >
           {header}
         </header>
       )}
@@ -123,6 +125,7 @@ export const MobileLayout = ({
             WebkitBackdropFilter: 'blur(30px) saturate(200%)',
             borderTop: '1px solid hsl(var(--border) / 0.3)',
             boxShadow: '0 -8px 32px hsl(var(--foreground) / 0.03)',
+            paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 20px)',
           }}
         >
           {/* Glossy highlight line */}
@@ -185,12 +188,8 @@ export const MobileLayout = ({
               );
             })}
           </div>
-          
-          {/* Safe area bottom spacer - pushes nav content above home indicator */}
-          <div style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
         </nav>
       )}
-    </div>
     </div>
   );
 };
