@@ -5,11 +5,12 @@ const config: CapacitorConfig = {
   appName: 'Jvala',
   webDir: 'dist',
   // No server.url = loads local bundled assets from dist/
+  backgroundColor: '#F3F0EA',
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,
       launchAutoHide: true,
-      backgroundColor: '#F5F0EB',
+      backgroundColor: '#F3F0EA',
       showSpinner: false,
       androidScaleType: 'CENTER_CROP',
       splashFullScreen: true,
@@ -17,7 +18,7 @@ const config: CapacitorConfig = {
     },
     StatusBar: {
       style: 'DARK',
-      backgroundColor: '#F5F0EB',
+      backgroundColor: '#F3F0EA',
       overlaysWebView: true
     },
     PushNotifications: {
@@ -30,11 +31,12 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: 'automatic',
     preferredContentMode: 'mobile',
-    scheme: 'jvala'
+    scheme: 'jvala',
+    backgroundColor: '#F3F0EA'
   },
   android: {
     allowMixedContent: true,
-    backgroundColor: '#F5F0EB'
+    backgroundColor: '#F3F0EA'
   }
 };
 
