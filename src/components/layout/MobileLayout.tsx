@@ -125,7 +125,7 @@ export const MobileLayout = ({
       {/* Bottom Navigation - Fixed, never scrolls */}
       {showNav && onViewChange && (
         <nav 
-          className="relative flex-shrink-0 z-50"
+          className="absolute bottom-0 left-0 right-0 z-50"
           style={{
             background: 'hsl(var(--glass-bg) / 0.95)',
             backdropFilter: 'blur(30px) saturate(200%)',
@@ -135,14 +135,6 @@ export const MobileLayout = ({
             paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           }}
         >
-          {/* Extend nav background color below into any remaining gap */}
-          <div 
-            className="absolute left-0 right-0 bottom-0 translate-y-full z-[-1]"
-            style={{
-              height: '100px',
-              background: 'hsl(var(--glass-bg) / 0.95)',
-            }}
-          />
           
           {/* Glossy highlight line */}
           <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-primary/25 to-transparent" />
