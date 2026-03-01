@@ -15,6 +15,7 @@ import ClinicianDashboard from "./pages/ClinicianDashboard";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
+import Butterfly from "./pages/Butterfly";
 import { OfflineIndicator } from "./components/pwa/OfflineIndicator";
 import { InstallPrompt } from "./components/pwa/InstallPrompt";
 
@@ -59,6 +60,7 @@ const App = () => (
             <Route path="/install" element={<Install />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/butterfly" element={<Butterfly />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </SentryRoutes>
