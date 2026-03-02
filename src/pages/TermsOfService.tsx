@@ -56,7 +56,7 @@ const TermsOfService = () => {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">4. Acceptable Use</h2>
+          <h2 className="text-lg font-semibold text-foreground">5. Acceptable Use</h2>
           <p className="text-foreground/80 text-sm leading-relaxed">You agree not to:</p>
           <ul className="list-disc pl-5 space-y-1 text-foreground/80 text-sm leading-relaxed">
             <li>Use the Service for any unlawful purpose</li>
@@ -69,70 +69,70 @@ const TermsOfService = () => {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">5. Intellectual Property</h2>
+          <h2 className="text-lg font-semibold text-foreground">6. Intellectual Property</h2>
           <p className="text-foreground/80 text-sm leading-relaxed">
             The Service, including its design, features, and content (excluding your personal data), is owned by Jvala and protected by intellectual property laws. You retain ownership of the health data you input into the Service. You grant us a limited license to process your data solely for the purpose of providing the Service to you.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">6. AI-Generated Content</h2>
+          <h2 className="text-lg font-semibold text-foreground">7. AI-Generated Content</h2>
           <p className="text-foreground/80 text-sm leading-relaxed">
             The Service uses artificial intelligence to generate health insights, correlations, voice transcriptions, and export narratives. AI-generated content may be inaccurate, incomplete, or misleading. You acknowledge that AI outputs are provided "as-is" and should not be relied upon as a substitute for professional medical judgment.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">7. Third-Party Integrations</h2>
+          <h2 className="text-lg font-semibold text-foreground">8. Third-Party Integrations</h2>
           <p className="text-foreground/80 text-sm leading-relaxed">
             The Service integrates with Apple HealthKit, Google Fit, Fitbit, Sentry, Google Gemini AI, and Open-Meteo weather services. Your use of these integrations is subject to the respective third-party terms and privacy policies. We are not responsible for the availability, accuracy, or conduct of third-party services.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">8. Limitation of Liability</h2>
+          <h2 className="text-lg font-semibold text-foreground">9. Limitation of Liability</h2>
           <p className="text-foreground/80 text-sm leading-relaxed">
-            To the fullest extent permitted by law, Jvala shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of data, health complications, or damages arising from reliance on AI-generated content. Our total liability shall not exceed the amount you paid for the Service in the twelve months preceding the claim.
+            To the fullest extent permitted by law, Jvala shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of data, health complications, or damages arising from reliance on AI-generated content. The Service is provided free of charge, and our total aggregate liability shall not exceed one hundred US dollars (USD $100).
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">9. Disclaimer of Warranties</h2>
+          <h2 className="text-lg font-semibold text-foreground">10. Disclaimer of Warranties</h2>
           <p className="text-foreground/80 text-sm leading-relaxed">
             The Service is provided "AS IS" and "AS AVAILABLE" without warranties of any kind, whether express or implied, including but not limited to implied warranties of merchantability, fitness for a particular purpose, and non-infringement. We do not warrant that the Service will be uninterrupted, error-free, or secure.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">10. Indemnification</h2>
+          <h2 className="text-lg font-semibold text-foreground">11. Indemnification</h2>
           <p className="text-foreground/80 text-sm leading-relaxed">
             You agree to indemnify and hold harmless Jvala, its officers, directors, employees, and agents from any claims, damages, losses, or expenses arising from your use of the Service, violation of these Terms, or infringement of any third-party rights.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">11. Termination</h2>
+          <h2 className="text-lg font-semibold text-foreground">12. Termination</h2>
           <p className="text-foreground/80 text-sm leading-relaxed">
             We may suspend or terminate your access to the Service at any time for violation of these Terms or for any other reason at our discretion. You may terminate your account at any time by using the Delete Account feature in Settings. Upon termination, your right to use the Service ceases immediately and your data will be permanently deleted.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">12. Governing Law</h2>
+          <h2 className="text-lg font-semibold text-foreground">13. Governing Law</h2>
           <p className="text-foreground/80 text-sm leading-relaxed">
             These Terms shall be governed by and construed in accordance with applicable laws, without regard to conflict of law principles. Any disputes arising from these Terms shall be resolved through binding arbitration or in the courts of competent jurisdiction.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">13. Changes to These Terms</h2>
+          <h2 className="text-lg font-semibold text-foreground">14. Changes to These Terms</h2>
           <p className="text-foreground/80 text-sm leading-relaxed">
             We reserve the right to modify these Terms at any time. We will notify you of material changes via in-app notification or email. Your continued use of the Service after changes constitutes acceptance of the updated Terms.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">14. Contact Us</h2>
+          <h2 className="text-lg font-semibold text-foreground">15. Contact Us</h2>
           <p className="text-foreground/80 text-sm leading-relaxed">
             For questions about these Terms, contact us at:
           </p>
