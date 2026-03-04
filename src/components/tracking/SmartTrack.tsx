@@ -141,6 +141,8 @@ interface SmartTrackProps {
   userId: string;
   onOpenDetails?: () => void;
   onNavigateToTrends?: () => void;
+  aiConsented?: boolean;
+  onRequestAIConsent?: () => void;
 }
 
 export interface SmartTrackRef {
@@ -436,6 +438,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   userId,
   onOpenDetails,
   onNavigateToTrends,
+  aiConsented,
+  onRequestAIConsent,
 }, ref) => {
   const [messages, _setMessages] = useState<ChatMessage[]>(() => chatCache.get(userId) || []);
   // Wrap setMessages to also update the module-level cache
@@ -527,13 +531,24 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     analysisTimerRef.current = window.setTimeout(runDiscoveryAnalysis, 5000);
   };
 
-  // Proactive checkin — call edge function on first load
+  // Proactive checkin — call edge function on first load (only if AI consented)
   useEffect(() => {
     if (hasLoadedMessages.current) return;
     hasLoadedMessages.current = true;
     
     const cached = chatCache.get(userId);
     if (cached && cached.length > 0) return;
+    
+    // If user hasn't consented to AI, show a simple greeting without calling AI
+    if (!aiConsented) {
+      setMessages([{
+        id: Date.now().toString(),
+        role: 'assistant',
+        content: getPersonalizedGreeting(userConditions, recentEntries),
+        timestamp: new Date(),
+      }]);
+      return;
+    }
     
     // Show typing indicator while AI loads
     setMessages([{
@@ -581,7 +596,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
 
     // Small delay to show typing indicator
     setTimeout(fetchProactive, 300);
-  }, [userId, userConditions, recentEntries]);
+  }, [userId, userConditions, recentEntries, aiConsented]);
 
   useEffect(() => {
     const getLocation = async () => {
@@ -1026,6 +1041,12 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   const handleSend = async (messageText?: string) => {
     const text = messageText || input.trim();
     if (!text || isProcessing) return;
+
+    // Gate AI chat behind consent
+    if (!aiConsented) {
+      onRequestAIConsent?.();
+      return;
+    }
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),

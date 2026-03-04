@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 const PrivacyPolicy = () => {
   const navigate = useNavigate();
-  const lastUpdated = 'February 25, 2026';
+  const lastUpdated = 'March 4, 2026';
 
   return (
     <div className="fixed inset-0 bg-background overflow-y-auto z-[9999]" style={{ position: 'fixed', overflow: 'auto' }}>
@@ -114,7 +114,46 @@ const PrivacyPolicy = () => {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">3. AI-Generated Content Disclaimer</h2>
+          <h2 className="text-lg font-semibold text-foreground">3. Third-Party AI Data Sharing</h2>
+          <div className="bg-accent/50 rounded-lg p-4 border border-accent space-y-3">
+            <p className="text-sm text-foreground leading-relaxed">
+              Jvala uses <strong>Google Gemini AI</strong>, a third-party artificial intelligence service operated by <strong>Google LLC</strong>, to provide AI-powered features. Before any data is sent to Google Gemini, the app asks for your <strong>explicit permission</strong>.
+            </p>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-foreground">What data is shared with Google Gemini:</p>
+              <ul className="list-disc pl-5 space-y-1 text-foreground/80 text-sm">
+                <li>Flare log entries (severity ratings, symptoms, triggers)</li>
+                <li>Text notes and voice transcriptions you enter</li>
+                <li>Medication names you track</li>
+                <li>Environmental data (weather, air quality) associated with your entries</li>
+                <li>Aggregate health patterns for correlation analysis</li>
+              </ul>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-foreground">When data is shared:</p>
+              <ul className="list-disc pl-5 space-y-1 text-foreground/80 text-sm">
+                <li>When you use the AI chat assistant</li>
+                <li>When you view AI-generated health insights</li>
+                <li>When you use voice note analysis</li>
+                <li>When you generate AI health forecasts</li>
+                <li>When you generate AI export narratives</li>
+              </ul>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-foreground">Protections in place:</p>
+              <ul className="list-disc pl-5 space-y-1 text-foreground/80 text-sm">
+                <li>All data is transmitted via encrypted connections (TLS 1.2+)</li>
+                <li>Your data is <strong>not used to train Google's AI models</strong></li>
+                <li>Data is processed on-demand and not permanently stored by Google beyond processing</li>
+                <li>You can revoke AI data sharing permission at any time in Settings</li>
+                <li>The app functions fully for logging and tracking without AI features enabled</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold text-foreground">4. AI-Generated Content Disclaimer</h2>
           <div className="bg-destructive/10 rounded-lg p-4 border border-destructive/20">
             <p className="text-sm text-foreground leading-relaxed">
               Jvala uses artificial intelligence (Google Gemini) to generate health insights, pattern analysis, voice transcription, and export narratives. <strong>AI-generated content is not medical advice</strong> and may contain inaccuracies. Always consult a qualified healthcare professional before making medical decisions. Jvala is a tracking and correlation tool, not a diagnostic or treatment platform.
@@ -123,7 +162,7 @@ const PrivacyPolicy = () => {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">4. Data Sharing &amp; Disclosure</h2>
+          <h2 className="text-lg font-semibold text-foreground">5. Data Sharing &amp; Disclosure</h2>
           <p className="text-foreground/80 text-sm leading-relaxed">We do <strong>not</strong> sell your personal data. We may share data only in these limited circumstances:</p>
           <ul className="list-disc pl-5 space-y-1 text-foreground/80 text-sm leading-relaxed">
             <li><strong>With Your Healthcare Providers:</strong> Only when you explicitly generate and share a report or enable profile sharing via a secure link.</li>
@@ -133,7 +172,7 @@ const PrivacyPolicy = () => {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">5. Data Security</h2>
+          <h2 className="text-lg font-semibold text-foreground">6. Data Security</h2>
           <ul className="list-disc pl-5 space-y-1 text-foreground/80 text-sm leading-relaxed">
             <li>All data is encrypted in transit (TLS 1.2+) and at rest (AES-256).</li>
             <li>Authentication tokens are stored securely using platform-native secure storage.</li>
@@ -144,33 +183,33 @@ const PrivacyPolicy = () => {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">6. Data Retention &amp; Deletion</h2>
+          <h2 className="text-lg font-semibold text-foreground">7. Data Retention &amp; Deletion</h2>
           <p className="text-foreground/80 text-sm leading-relaxed">
             Your data is retained for as long as your account is active. You may <strong>delete your account at any time</strong> from Settings &gt; Delete Account. Upon deletion, all your personal data — including profile information, flare entries, medication logs, engagement data, wearable tokens, exports, and stored files — is permanently and irreversibly removed from our systems within 30 days.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">7. Your Rights</h2>
+          <h2 className="text-lg font-semibold text-foreground">8. Your Rights</h2>
           <p className="text-foreground/80 text-sm leading-relaxed">Depending on your jurisdiction, you may have the right to:</p>
           <ul className="list-disc pl-5 space-y-1 text-foreground/80 text-sm leading-relaxed">
             <li>Access and export your personal data (available via in-app export features)</li>
             <li>Correct inaccurate information (editable in your profile and log history)</li>
             <li>Delete your account and all associated data</li>
-            <li>Withdraw consent for optional data collection (HealthKit, location, notifications)</li>
+            <li>Withdraw consent for optional data collection (HealthKit, location, notifications, AI data sharing)</li>
             <li>Lodge a complaint with your local data protection authority</li>
           </ul>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">8. Children's Privacy</h2>
+          <h2 className="text-lg font-semibold text-foreground">9. Children's Privacy</h2>
           <p className="text-foreground/80 text-sm leading-relaxed">
             Jvala is not intended for use by children under 13 years of age. We do not knowingly collect personal information from children under 13. If we discover that a child under 13 has provided us with personal information, we will delete it immediately.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">9. Third-Party Services</h2>
+          <h2 className="text-lg font-semibold text-foreground">10. Third-Party Services</h2>
           <ul className="list-disc pl-5 space-y-1 text-foreground/80 text-sm leading-relaxed">
             <li><strong>Supabase:</strong> Database hosting, authentication, file storage, and serverless functions.</li>
             <li><strong>Google Gemini AI:</strong> AI-powered insights, voice transcription, and content generation.</li>
@@ -182,14 +221,14 @@ const PrivacyPolicy = () => {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">10. Changes to This Policy</h2>
+          <h2 className="text-lg font-semibold text-foreground">11. Changes to This Policy</h2>
           <p className="text-foreground/80 text-sm leading-relaxed">
             We may update this Privacy Policy from time to time. We will notify you of material changes via in-app notification or email. Your continued use of the Service after changes constitutes acceptance of the updated policy.
           </p>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">11. Contact Us</h2>
+          <h2 className="text-lg font-semibold text-foreground">12. Contact Us</h2>
           <p className="text-foreground/80 text-sm leading-relaxed">
             If you have questions about this Privacy Policy or your data, contact us at:
           </p>
