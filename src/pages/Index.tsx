@@ -33,8 +33,10 @@ import { format, isSameDay } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { LimitlessAIChat } from "@/components/ai/LimitlessAIChat";
+import { AIConsentDialog } from "@/components/ai/AIConsentDialog";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useSmartNotifications } from "@/hooks/useSmartNotifications";
+import { useAIConsent } from "@/hooks/useAIConsent";
 import type { SmartTrackable } from "@/components/tracking/FluidLogSelector";
 
 interface MedicationDetails {
@@ -90,6 +92,8 @@ const Index = () => {
   const { topCorrelations, recentActivities } = useCorrelations(user?.id || null);
   const { logs: medicationLogs, addLog: addMedicationLog } = useMedicationLogs(user?.id);
   const { schedulePostFlareFollowUps, checkStreakMilestone, checkEnvironmentalChanges } = useSmartNotifications();
+  const { hasConsented: aiConsented, grantConsent: grantAIConsent } = useAIConsent();
+  const [showAIConsentDialog, setShowAIConsentDialog] = useState(false);
 
   // Check for special badges when correlations change
   useEffect(() => {
@@ -690,6 +694,8 @@ const Index = () => {
               userId={user.id}
               onOpenDetails={() => setShowDetailedEntry(true)}
               onNavigateToTrends={() => setCurrentView('insights')}
+              aiConsented={aiConsented === true}
+              onRequestAIConsent={() => setShowAIConsentDialog(true)}
             />
             
             {/* Detailed Entry Dialog */}
@@ -824,6 +830,16 @@ const Index = () => {
         entry={clinicalRecordEntry}
         open={showClinicalRecord}
         onOpenChange={setShowClinicalRecord}
+      />
+
+      {/* AI Data Consent Dialog */}
+      <AIConsentDialog
+        open={showAIConsentDialog}
+        onConsent={async () => {
+          await grantAIConsent();
+          setShowAIConsentDialog(false);
+        }}
+        onDecline={() => setShowAIConsentDialog(false)}
       />
     </>
   );
