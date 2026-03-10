@@ -167,24 +167,11 @@ const Auth = () => {
         return;
       }
 
-      if (isCustomDomain()) {
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider: "apple",
-          options: {
-            redirectTo: window.location.origin,
-            skipBrowserRedirect: true,
-          },
-        });
-        if (error) throw error;
-        if (data?.url) {
-          window.location.href = data.url;
-        }
-      } else {
-        const { error } = await lovable.auth.signInWithOAuth("apple", {
-          redirect_uri: window.location.origin,
-        });
-        if (error) throw error;
-      }
+      // Web: always use Lovable managed OAuth
+      const { error } = await lovable.auth.signInWithOAuth("apple", {
+        redirect_uri: window.location.origin,
+      });
+      if (error) throw error;
     } catch (error: any) {
       toast({
         title: "Apple login failed",
