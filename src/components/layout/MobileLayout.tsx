@@ -126,11 +126,9 @@ export const MobileLayout = ({
         <nav 
           className="absolute bottom-0 left-0 right-0 z-50"
           style={{
-            background: 'hsl(var(--glass-bg) / 0.95)',
-            backdropFilter: 'blur(30px) saturate(200%)',
-            WebkitBackdropFilter: 'blur(30px) saturate(200%)',
-            borderTop: '1px solid hsl(var(--border) / 0.3)',
-            boxShadow: '0 -8px 32px hsl(var(--foreground) / 0.03)',
+            background: 'hsl(var(--card))',
+            borderTop: '1px solid hsl(var(--border) / 0.4)',
+            boxShadow: '0 -4px 20px hsl(230 20% 20% / 0.04)',
             paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           }}
         >
