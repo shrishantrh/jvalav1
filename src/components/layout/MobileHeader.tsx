@@ -75,12 +75,10 @@ export const MobileHeader = ({
             onClick={handleStreakClick}
             data-tour="streak-pill"
             className={cn(
-              "relative flex items-center gap-1.5 px-4 py-2 rounded-2xl transition-all duration-300 overflow-hidden",
-              "bg-card/70 backdrop-blur-xl",
-              "border border-glass-border/30",
-              "before:absolute before:inset-0 before:rounded-2xl before:pointer-events-none",
-              "before:bg-gradient-to-b before:from-glass-highlight/30 before:to-transparent",
-              "shadow-soft",
+              "relative flex items-center gap-1.5 px-4 py-2 rounded-2xl transition-all duration-300",
+              "bg-card",
+              "border border-border/40",
+              "shadow-[0_2px_8px_hsl(230_20%_20%/0.05)]",
               "active:scale-95 touch-manipulation"
             )}
           >
