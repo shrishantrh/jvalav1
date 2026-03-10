@@ -6,18 +6,10 @@ const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElemen
   <div 
     ref={ref} 
     className={cn(
-      // Premium frosted glass card
-      "relative rounded-3xl overflow-hidden transition-all duration-300",
-      // Glass effect
-      "bg-white/70 dark:bg-slate-900/70",
-      "backdrop-blur-xl",
-      // Border with subtle gradient effect
-      "border border-white/50 dark:border-slate-700/50",
-      // Inner highlight for 3D effect
-      "before:absolute before:inset-0 before:rounded-3xl before:pointer-events-none",
-      "before:bg-gradient-to-br before:from-white/30 before:via-transparent before:to-transparent",
-      // Subtle shadow
-      "shadow-[0_8px_32px_rgba(0,0,0,0.06)]",
+      "relative rounded-2xl overflow-hidden transition-all duration-300",
+      "bg-card",
+      "border border-border/40",
+      "shadow-[0_2px_12px_hsl(230_20%_20%/0.05)]",
       className
     )} 
     {...props} 

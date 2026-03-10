@@ -64,14 +64,13 @@ export const MobileLayout = ({
       right: 0,
     }}>
       
-      {/* Warm gradient overlay - 3D depth effect */}
+      {/* Soft gradient overlay for depth */}
       <div 
         className="absolute inset-0 pointer-events-none"
         style={{
           background: `
-            radial-gradient(ellipse 100% 60% at 50% -10%, hsl(var(--primary) / 0.08), transparent 50%),
-            radial-gradient(ellipse 80% 40% at 80% 0%, hsl(var(--primary) / 0.05), transparent 40%),
-            radial-gradient(ellipse 60% 30% at 20% 10%, hsl(var(--primary) / 0.04), transparent 35%)
+            radial-gradient(ellipse 100% 50% at 50% -5%, hsl(var(--primary) / 0.04), transparent 45%),
+            radial-gradient(ellipse 70% 35% at 80% 0%, hsl(260 30% 60% / 0.03), transparent 35%)
           `,
         }}
       />
@@ -127,11 +126,9 @@ export const MobileLayout = ({
         <nav 
           className="absolute bottom-0 left-0 right-0 z-50"
           style={{
-            background: 'hsl(var(--glass-bg) / 0.95)',
-            backdropFilter: 'blur(30px) saturate(200%)',
-            WebkitBackdropFilter: 'blur(30px) saturate(200%)',
-            borderTop: '1px solid hsl(var(--border) / 0.3)',
-            boxShadow: '0 -8px 32px hsl(var(--foreground) / 0.03)',
+            background: 'hsl(var(--card))',
+            borderTop: '1px solid hsl(var(--border) / 0.4)',
+            boxShadow: '0 -4px 20px hsl(230 20% 20% / 0.04)',
             paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           }}
         >

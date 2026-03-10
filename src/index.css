@@ -13,55 +13,55 @@
 
 @layer base {
   :root {
-    /* Warm cream/beige background like Qura app */
-    --background: 35 30% 96%;
-    --foreground: 25 25% 15%;
+    /* Cool light gray/lavender background — clean, airy */
+    --background: 240 14% 95%;
+    --foreground: 230 20% 15%;
 
-    /* Card surfaces - warm off-white */
-    --card: 40 40% 99%;
-    --card-foreground: 25 25% 15%;
+    /* Card surfaces — pure white */
+    --card: 0 0% 100%;
+    --card-foreground: 230 20% 15%;
 
     /* Popover surfaces */
-    --popover: 40 40% 99%;
-    --popover-foreground: 25 25% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 230 20% 15%;
 
     /* Primary - Pink brand color from Jvala logo */
     --primary: 330 80% 55%;
-    --primary-foreground: 40 40% 99%;
+    --primary-foreground: 0 0% 100%;
     --primary-hover: 330 85% 50%;
     --primary-glow: 330 90% 65%;
     
-    /* Secondary - Soft cream */
-    --secondary: 35 35% 95%;
-    --secondary-foreground: 25 35% 25%;
+    /* Secondary - Cool light gray */
+    --secondary: 240 10% 94%;
+    --secondary-foreground: 230 25% 25%;
 
-    /* Muted - Warm gray */
-    --muted: 30 20% 93%;
-    --muted-foreground: 25 15% 45%;
+    /* Muted - Cool gray */
+    --muted: 240 8% 92%;
+    --muted-foreground: 230 10% 46%;
 
-    /* Accent - Warm sage/olive like references */
-    --accent: 80 25% 92%;
-    --accent-foreground: 80 40% 30%;
+    /* Accent - Soft lavender */
+    --accent: 260 20% 94%;
+    --accent-foreground: 260 30% 35%;
 
     /* Error/destructive states */
     --destructive: 0 72% 55%;
-    --destructive-foreground: 40 40% 99%;
+    --destructive-foreground: 0 0% 100%;
 
-    /* Borders - warm subtle */
-    --border: 35 25% 90%;
-    --input: 35 30% 94%;
+    /* Borders - cool subtle */
+    --border: 240 10% 90%;
+    --input: 240 12% 94%;
     --ring: 330 80% 55%;
 
-    /* Glass-specific variables - warmer tints */
-    --glass-bg: 40 35% 99%;
-    --glass-border: 35 30% 92%;
-    --glass-highlight: 40 50% 98%;
+    /* Glass-specific variables — cleaner tints */
+    --glass-bg: 0 0% 100%;
+    --glass-border: 240 10% 90%;
+    --glass-highlight: 0 0% 100%;
     --glass-blur: 24px;
-    --glass-opacity-primary: 0.96;
-    --glass-opacity-secondary: 0.88;
-    --glass-opacity-tertiary: 0.78;
+    --glass-opacity-primary: 1;
+    --glass-opacity-secondary: 0.96;
+    --glass-opacity-tertiary: 0.90;
 
-    /* Clinical severity system - warmer organic colors */
+    /* Clinical severity system */
     --severity-none: 145 55% 42%;
     --severity-mild: 50 85% 48%;
     --severity-moderate: 28 90% 50%;
@@ -86,7 +86,7 @@
     --radius: 1.25rem;
     --radius-medical: 1.5rem;
     --radius-full: 9999px;
-    --radius-glass: 1.75rem;
+    --radius-glass: 1.5rem;
 
     /* iOS spring animations */
     --transition-smooth: all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
@@ -94,81 +94,81 @@
     --transition-swift: all 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
     --transition-spring: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     
-    /* Subtle shadows for depth */
-    --shadow-sm: 0 1px 2px hsl(330 20% 20% / 0.04);
-    --shadow-md: 0 4px 12px hsl(330 20% 20% / 0.06);
-    --shadow-lg: 0 8px 24px hsl(330 20% 20% / 0.08);
-    --shadow-xl: 0 16px 48px hsl(330 20% 20% / 0.10);
-    --shadow-primary: 0 4px 16px hsl(330 80% 55% / 0.25);
-    --shadow-glow: 0 0 24px hsl(330 80% 55% / 0.15);
+    /* Clean shadows — subtle and modern */
+    --shadow-sm: 0 1px 3px hsl(230 20% 20% / 0.04);
+    --shadow-md: 0 4px 12px hsl(230 20% 20% / 0.06);
+    --shadow-lg: 0 8px 28px hsl(230 20% 20% / 0.08);
+    --shadow-xl: 0 16px 48px hsl(230 20% 20% / 0.10);
+    --shadow-primary: 0 4px 16px hsl(330 80% 55% / 0.20);
+    --shadow-glow: 0 0 24px hsl(330 80% 55% / 0.12);
     
-    /* Gradient system - warm organic gradients */
+    /* Gradient system */
     --gradient-primary: linear-gradient(145deg, hsl(330 80% 60%) 0%, hsl(340 75% 55%) 100%);
     --gradient-warm: linear-gradient(145deg, hsl(335 85% 57%) 0%, hsl(325 80% 53%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(40 35% 98%) 0%, hsl(35 30% 95%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(40 40% 99%) 0%, hsl(35 35% 97%) 100%);
-    --gradient-accent: linear-gradient(145deg, hsl(80 35% 50%) 0%, hsl(100 30% 45%) 100%);
-    --gradient-background: linear-gradient(170deg, hsl(340 25% 97%) 0%, hsl(335 20% 95%) 50%, hsl(330 15% 96%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(240 14% 96%) 0%, hsl(240 12% 94%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(240 10% 99%) 100%);
+    --gradient-accent: linear-gradient(145deg, hsl(260 40% 55%) 0%, hsl(280 35% 50%) 100%);
+    --gradient-background: linear-gradient(170deg, hsl(250 18% 96%) 0%, hsl(240 14% 95%) 50%, hsl(330 10% 95%) 100%);
     --gradient-hero: linear-gradient(160deg, hsl(335 60% 58%) 0%, hsl(330 65% 52%) 50%, hsl(325 70% 46%) 100%);
 
-    /* Sidebar - warm style */
-    --sidebar-background: 40 35% 98%;
-    --sidebar-foreground: 25 25% 15%;
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 230 20% 15%;
     --sidebar-primary: 330 80% 55%;
-    --sidebar-primary-foreground: 40 40% 99%;
-    --sidebar-accent: 35 30% 95%;
-    --sidebar-accent-foreground: 25 35% 25%;
-    --sidebar-border: 35 25% 90%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 10% 95%;
+    --sidebar-accent-foreground: 230 25% 25%;
+    --sidebar-border: 240 10% 90%;
     --sidebar-ring: 330 80% 55%;
   }
 
   /* === DARK MODE === */
   .dark {
-    /* Deep warm charcoal backgrounds */
-    --background: 25 12% 10%;
-    --foreground: 35 15% 90%;
+    /* Deep cool backgrounds */
+    --background: 230 15% 10%;
+    --foreground: 240 10% 90%;
 
-    /* Card surfaces — slightly elevated */
-    --card: 25 10% 13%;
-    --card-foreground: 35 15% 90%;
+    /* Card surfaces */
+    --card: 230 12% 14%;
+    --card-foreground: 240 10% 90%;
 
     /* Popover surfaces */
-    --popover: 25 10% 14%;
-    --popover-foreground: 35 15% 90%;
+    --popover: 230 12% 15%;
+    --popover-foreground: 240 10% 90%;
 
-    /* Primary stays the same hue, slightly brighter for dark */
-    --primary-foreground: 25 10% 8%;
+    /* Primary stays same hue */
+    --primary-foreground: 230 12% 8%;
 
     /* Secondary */
-    --secondary: 25 10% 16%;
-    --secondary-foreground: 35 15% 82%;
+    --secondary: 230 10% 18%;
+    --secondary-foreground: 240 10% 82%;
 
     /* Muted */
-    --muted: 25 8% 18%;
-    --muted-foreground: 25 10% 55%;
+    --muted: 230 8% 20%;
+    --muted-foreground: 230 8% 55%;
 
     /* Accent */
-    --accent: 80 15% 18%;
-    --accent-foreground: 80 30% 75%;
+    --accent: 260 12% 20%;
+    --accent-foreground: 260 25% 75%;
 
     /* Destructive */
     --destructive: 0 65% 48%;
     --destructive-foreground: 0 0% 98%;
 
     /* Borders */
-    --border: 25 8% 20%;
-    --input: 25 10% 18%;
+    --border: 230 8% 22%;
+    --input: 230 10% 20%;
     --ring: 330 80% 55%;
 
-    /* Glass — dark mode variants */
-    --glass-bg: 25 10% 12%;
-    --glass-border: 25 8% 22%;
-    --glass-highlight: 25 15% 28%;
-    --glass-opacity-primary: 0.92;
-    --glass-opacity-secondary: 0.82;
-    --glass-opacity-tertiary: 0.70;
+    /* Glass */
+    --glass-bg: 230 12% 13%;
+    --glass-border: 230 8% 24%;
+    --glass-highlight: 230 12% 30%;
+    --glass-opacity-primary: 0.95;
+    --glass-opacity-secondary: 0.88;
+    --glass-opacity-tertiary: 0.78;
 
-    /* Severity — slightly muted for dark backgrounds */
+    /* Severity */
     --severity-none: 145 50% 48%;
     --severity-mild: 50 80% 52%;
     --severity-moderate: 28 85% 54%;
@@ -179,23 +179,23 @@
     --severity-moderate-bg: 28 30% 16%;
     --severity-severe-bg: 0 25% 16%;
 
-    /* Shadows — deeper, more subtle for dark */
+    /* Shadows */
     --shadow-sm: 0 1px 3px hsl(0 0% 0% / 0.3);
     --shadow-md: 0 4px 12px hsl(0 0% 0% / 0.4);
     --shadow-lg: 0 8px 24px hsl(0 0% 0% / 0.5);
     --shadow-xl: 0 16px 48px hsl(0 0% 0% / 0.6);
 
-    /* Gradients — dark equivalents */
-    --gradient-subtle: linear-gradient(180deg, hsl(25 10% 12%) 0%, hsl(25 8% 10%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(25 10% 14%) 0%, hsl(25 8% 12%) 100%);
-    --gradient-background: linear-gradient(170deg, hsl(25 12% 10%) 0%, hsl(330 8% 9%) 50%, hsl(25 10% 10%) 100%);
+    /* Gradients */
+    --gradient-subtle: linear-gradient(180deg, hsl(230 12% 12%) 0%, hsl(230 10% 10%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(230 12% 15%) 0%, hsl(230 10% 13%) 100%);
+    --gradient-background: linear-gradient(170deg, hsl(230 15% 10%) 0%, hsl(260 10% 9%) 50%, hsl(230 12% 10%) 100%);
 
     /* Sidebar */
-    --sidebar-background: 25 10% 11%;
-    --sidebar-foreground: 35 15% 90%;
-    --sidebar-accent: 25 10% 16%;
-    --sidebar-accent-foreground: 35 15% 82%;
-    --sidebar-border: 25 8% 20%;
+    --sidebar-background: 230 12% 11%;
+    --sidebar-foreground: 240 10% 90%;
+    --sidebar-accent: 230 10% 18%;
+    --sidebar-accent-foreground: 240 10% 82%;
+    --sidebar-border: 230 8% 22%;
   }
 }
 
