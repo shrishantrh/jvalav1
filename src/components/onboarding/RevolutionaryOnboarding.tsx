@@ -967,8 +967,73 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
           </div>
         );
 
-      // ─── Step 7: Health Data Permission ─────────────────────────────────
+      // ─── Step 7: Notifications Permission ─────────────────────────────
       case 7:
+        return (
+          <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
+            <div className="w-full max-w-sm space-y-6">
+              <div className="text-center space-y-3">
+                <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-primary flex items-center justify-center">
+                  <Bell className="w-8 h-8 text-primary-foreground" />
+                </div>
+                <h2 className="text-2xl font-bold">Stay on Track</h2>
+                <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                  Jvala sends smart, context-aware notifications to help you build a tracking habit and catch flares early.
+                </p>
+              </div>
+
+              {/* What notifications do */}
+              <div className="space-y-2">
+                {[
+                  { label: "Morning & evening check-ins", desc: "Gentle reminders based on your schedule" },
+                  { label: "Post-flare follow-ups", desc: "Track how you recover over hours" },
+                  { label: "Environmental alerts", desc: "Weather shifts that may trigger symptoms" },
+                  { label: "Streak celebrations", desc: "Stay motivated with milestones" },
+                ].map((item, i) => (
+                  <div key={i} className="glass-card flex items-center gap-3 py-3">
+                    <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{item.label}</p>
+                      <p className="text-[11px] text-muted-foreground">{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Permission button */}
+              <button
+                onClick={requestNotificationPermission}
+                disabled={notificationPermissionStatus === 'requesting' || notificationPermissionStatus === 'granted'}
+                className={cn(
+                  "w-full py-4 rounded-2xl text-sm font-semibold transition-all press-effect flex items-center justify-center gap-2",
+                  notificationPermissionStatus === 'granted'
+                    ? "bg-green-500/15 text-green-600 border border-green-500/20"
+                    : notificationPermissionStatus === 'denied'
+                      ? "bg-muted text-muted-foreground border border-border"
+                      : "bg-primary/10 text-primary border border-primary/20 hover:bg-primary/15"
+                )}
+              >
+                {notificationPermissionStatus === 'requesting' && <Loader2 className="w-4 h-4 animate-spin" />}
+                {notificationPermissionStatus === 'granted' && <CheckCircle2 className="w-4 h-4" />}
+                {notificationPermissionStatus === 'idle' && <Bell className="w-4 h-4" />}
+                {notificationPermissionStatus === 'idle' && "Allow Notifications"}
+                {notificationPermissionStatus === 'requesting' && "Requesting..."}
+                {notificationPermissionStatus === 'granted' && "Notifications Enabled"}
+                {notificationPermissionStatus === 'denied' && "Permission Denied — Enable in Settings"}
+              </button>
+
+              <div className="glass-card flex items-start gap-3 bg-primary/5">
+                <Shield className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  You can customize notification types and timing in Settings anytime.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+
+      // ─── Step 8: Health Data Permission ─────────────────────────────────
+      case 8:
         return (
           <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
             <div className="w-full max-w-sm space-y-6">
