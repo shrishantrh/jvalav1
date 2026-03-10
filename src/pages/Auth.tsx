@@ -111,7 +111,7 @@ const Auth = () => {
 
   // Slow connection detection
   useEffect(() => {
-    let timeout: NodeJS.Timeout;
+    let timeout: ReturnType<typeof setTimeout>;
     if (loading) {
       timeout = setTimeout(() => setSlowConnection(true), 5000);
     } else {
