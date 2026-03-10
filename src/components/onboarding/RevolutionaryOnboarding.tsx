@@ -19,11 +19,14 @@ import {
   Plus,
   X,
   AlertCircle,
-  Zap
+  Zap,
+  TrendingUp,
+  CheckCircle2
 } from "lucide-react";
 import jvalaLogo from "@/assets/jvala-logo.png";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
+import { isNative, platform } from "@/lib/capacitor";
 
 interface OnboardingData {
   conditions: string[];
@@ -47,7 +50,7 @@ interface RevolutionaryOnboardingProps {
   onComplete: (data: OnboardingData) => void;
 }
 
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 9;
 
 // Animated dot background for hero
 const FloatingOrbs = () => (
@@ -286,6 +289,43 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
   const displaySymptoms = aiSymptoms.length > 0 ? aiSymptoms : fallbackSymptoms;
   const displayTriggers = aiTriggers.length > 0 ? aiTriggers : fallbackTriggers;
 
+  // Permission request state
+  const [healthPermissionStatus, setHealthPermissionStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied' | 'unavailable'>('idle');
+  const [locationPermissionStatus, setLocationPermissionStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle');
+
+  const requestHealthPermission = async () => {
+    setHealthPermissionStatus('requesting');
+    haptics.selection();
+    try {
+      const { requestHealthPermissions, isHealthAvailable } = await import('@/services/appleHealthService');
+      const available = await isHealthAvailable();
+      if (!available) {
+        setHealthPermissionStatus('unavailable');
+        return;
+      }
+      const result = await requestHealthPermissions({ mode: 'full' });
+      setHealthPermissionStatus(result.ok ? 'granted' : 'denied');
+      if (result.ok) haptics.success();
+    } catch (e) {
+      console.error('Health permission error:', e);
+      setHealthPermissionStatus('unavailable');
+    }
+  };
+
+  const requestLocationPermission = async () => {
+    setLocationPermissionStatus('requesting');
+    haptics.selection();
+    try {
+      await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
+      });
+      setLocationPermissionStatus('granted');
+      haptics.success();
+    } catch {
+      setLocationPermissionStatus('denied');
+    }
+  };
+
   const canProceed = () => {
     switch (step) {
       case 0: return true;
@@ -296,7 +336,9 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
         return true;
       case 4: return true; // Symptoms/triggers optional
       case 5: return true; // Medications optional
-      case 6: return true; // Permissions optional
+      case 6: return true; // Value prop
+      case 7: return true; // Health permission
+      case 8: return true; // Location permission
       default: return true;
     }
   };
@@ -791,58 +833,241 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
           </div>
         );
 
-      // ─── Step 6: Permissions ─────────────────────────────────
+      // ─── Step 6: Value Prop — "Tracking Compounds" (Bevel-inspired) ──────
       case 6:
         return (
           <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
-            <div className="w-full max-w-sm space-y-6">
-              <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold">Make Your AI Smarter</h2>
-                <p className="text-sm text-muted-foreground">
-                  These help your AI detect environmental and physiological triggers automatically.
+            <div className="w-full max-w-sm space-y-6 text-center">
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold">Track to transform your health</h2>
+                <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                  Jvala learns your patterns over time. The more you track, the smarter your predictions become.
                 </p>
               </div>
 
-              {/* Location - informational card, not a button */}
-              <div className="w-full glass-card flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-primary flex items-center justify-center flex-shrink-0">
-                  <MapPin className="w-6 h-6 text-primary-foreground" />
+              {/* Chart visualization */}
+              <div className="relative w-full aspect-[4/3] mx-auto">
+                {/* Grid lines */}
+                <div className="absolute inset-0 flex flex-col justify-between opacity-10">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="border-t border-foreground" />
+                  ))}
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold">Location</p>
-                  <p className="text-xs text-muted-foreground leading-snug">
-                    Track weather, air quality, pollen & barometric pressure — key flare triggers for many conditions.
-                  </p>
+
+                {/* "Without tracking" line - orange, flat/declining */}
+                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 300" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="withTrackingGrad" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.6" />
+                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="1" />
+                    </linearGradient>
+                    <linearGradient id="withTrackingFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.15" />
+                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  {/* Without tracking - orange declining curve */}
+                  <path
+                    d="M 0 180 Q 100 170 200 190 Q 300 210 400 250"
+                    fill="none"
+                    stroke="hsl(25, 95%, 55%)"
+                    strokeWidth="3"
+                    strokeDasharray="8 4"
+                    className="animate-in fade-in-0 duration-1000"
+                    style={{ animationDelay: '500ms' }}
+                  />
+                  {/* Arrow at end of orange line */}
+                  <polygon points="395,245 400,255 390,252" fill="hsl(25, 95%, 55%)" className="animate-in fade-in-0 duration-500" style={{ animationDelay: '1200ms' }} />
+
+                  {/* With tracking - primary color ascending curve */}
+                  <path
+                    d="M 0 220 Q 80 200 160 170 Q 240 130 320 70 Q 360 45 400 20"
+                    fill="none"
+                    stroke="url(#withTrackingGrad)"
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                    className="animate-in fade-in-0 duration-1000"
+                    style={{ animationDelay: '300ms' }}
+                  />
+                  {/* Fill under curve */}
+                  <path
+                    d="M 0 220 Q 80 200 160 170 Q 240 130 320 70 Q 360 45 400 20 L 400 300 L 0 300 Z"
+                    fill="url(#withTrackingFill)"
+                    className="animate-in fade-in-0 duration-1000"
+                    style={{ animationDelay: '300ms' }}
+                  />
+                  {/* Arrow at end of primary line */}
+                  <polygon points="395,15 400,25 390,22" fill="hsl(var(--primary))" className="animate-in fade-in-0 duration-500" style={{ animationDelay: '1000ms' }} />
+                </svg>
+
+                {/* Labels */}
+                <div
+                  className="absolute flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium shadow-primary animate-in fade-in-0 zoom-in-90 duration-500"
+                  style={{ top: '25%', left: '30%', animationDelay: '600ms' }}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  With tracking
                 </div>
+                <div
+                  className="absolute px-3 py-1.5 rounded-full bg-muted text-muted-foreground text-xs font-medium border animate-in fade-in-0 zoom-in-90 duration-500"
+                  style={{ bottom: '15%', left: '35%', animationDelay: '900ms' }}
+                >
+                  Without tracking
+                </div>
+
+                {/* Axis labels */}
+                <span className="absolute right-0 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground/50 writing-mode-vertical" style={{ writingMode: 'vertical-rl' }}>
+                  Health
+                </span>
+                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground/50">
+                  Timeline
+                </span>
               </div>
 
-              {/* Health Data - informational card, not a button */}
-              <div className="w-full glass-card flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-accent flex items-center justify-center flex-shrink-0">
-                  <Activity className="w-6 h-6 text-accent-foreground" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold">Health Data</p>
-                  <p className="text-xs text-muted-foreground leading-snug">
-                    Heart rate, HRV, sleep & steps from Apple Health or wearables. Your AI correlates these with flares.
-                  </p>
-                </div>
-              </div>
-
-              {/* Privacy note */}
-              <div className="glass-card flex items-start gap-3 bg-primary/5">
-                <Shield className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-xs font-medium">Your data stays yours</p>
-                  <p className="text-[11px] text-muted-foreground leading-snug">
-                    Everything is encrypted and stored securely. We never sell your data. Location is city-level only.
-                  </p>
-                </div>
-              </div>
-
-              <p className="text-xs text-center text-muted-foreground/50">
-                You can enable these anytime in Settings
+              <p className="text-xs text-muted-foreground/60">
+                Let's connect your health data for the best experience.
               </p>
+            </div>
+          </div>
+        );
+
+      // ─── Step 7: Health Data Permission ─────────────────────────────────
+      case 7:
+        return (
+          <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
+            <div className="w-full max-w-sm space-y-6">
+              <div className="text-center space-y-3">
+                <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-pink-500/20 to-red-400/20 flex items-center justify-center">
+                  <Heart className="w-8 h-8 text-pink-500" />
+                </div>
+                <h2 className="text-2xl font-bold">Connect Health Data</h2>
+                <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                  Jvala needs your health data to detect patterns, predict flares, and provide personalized insights.
+                </p>
+              </div>
+
+              {/* What we'll track */}
+              <div className="space-y-2">
+                {[
+                  { label: "Heart rate & HRV", desc: "Stress and flare detection" },
+                  { label: "Sleep quality", desc: "Sleep-flare correlations" },
+                  { label: "Activity & steps", desc: "Movement impact on symptoms" },
+                  { label: "Blood oxygen & respiratory", desc: "Physiological baselines" },
+                ].map((item, i) => (
+                  <div key={i} className="glass-card flex items-center gap-3 py-3">
+                    <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{item.label}</p>
+                      <p className="text-[11px] text-muted-foreground">{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Permission button */}
+              {isNative ? (
+                <button
+                  onClick={requestHealthPermission}
+                  disabled={healthPermissionStatus === 'requesting' || healthPermissionStatus === 'granted'}
+                  className={cn(
+                    "w-full py-4 rounded-2xl text-sm font-semibold transition-all press-effect flex items-center justify-center gap-2",
+                    healthPermissionStatus === 'granted'
+                      ? "bg-green-500/15 text-green-600 border border-green-500/20"
+                      : healthPermissionStatus === 'denied' || healthPermissionStatus === 'unavailable'
+                        ? "bg-muted text-muted-foreground border border-border"
+                        : "bg-primary/10 text-primary border border-primary/20 hover:bg-primary/15"
+                  )}
+                >
+                  {healthPermissionStatus === 'requesting' && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {healthPermissionStatus === 'granted' && <CheckCircle2 className="w-4 h-4" />}
+                  {healthPermissionStatus === 'idle' && <Heart className="w-4 h-4" />}
+                  {healthPermissionStatus === 'idle' && "Allow Health Access"}
+                  {healthPermissionStatus === 'requesting' && "Requesting..."}
+                  {healthPermissionStatus === 'granted' && "Health Connected"}
+                  {healthPermissionStatus === 'denied' && "Permission Denied — Enable in Settings"}
+                  {healthPermissionStatus === 'unavailable' && "Health Data Not Available"}
+                </button>
+              ) : (
+                <div className="glass-card text-center py-4 space-y-2">
+                  <Activity className="w-6 h-6 text-primary mx-auto" />
+                  <p className="text-sm font-medium">Available on Mobile</p>
+                  <p className="text-xs text-muted-foreground">
+                    Health data integration is available when using the Jvala app on your phone.
+                  </p>
+                </div>
+              )}
+
+              <div className="glass-card flex items-start gap-3 bg-primary/5">
+                <Shield className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Read-only access. We never write to or modify your health data. All data stays encrypted on your device.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+
+      // ─── Step 8: Location Permission ─────────────────────────────────
+      case 8:
+        return (
+          <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
+            <div className="w-full max-w-sm space-y-6">
+              <div className="text-center space-y-3">
+                <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-primary flex items-center justify-center">
+                  <MapPin className="w-8 h-8 text-primary-foreground" />
+                </div>
+                <h2 className="text-2xl font-bold">Enable Location</h2>
+                <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                  Jvala uses your location to capture environmental data that may trigger your flares.
+                </p>
+              </div>
+
+              {/* What we track */}
+              <div className="space-y-2">
+                {[
+                  { label: "Weather conditions", desc: "Temperature, humidity, pressure changes" },
+                  { label: "Air quality (AQI)", desc: "Pollution and particulate matter" },
+                  { label: "Pollen levels", desc: "Seasonal allergy triggers" },
+                  { label: "Barometric pressure", desc: "Known migraine & joint pain trigger" },
+                ].map((item, i) => (
+                  <div key={i} className="glass-card flex items-center gap-3 py-3">
+                    <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{item.label}</p>
+                      <p className="text-[11px] text-muted-foreground">{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Permission button */}
+              <button
+                onClick={requestLocationPermission}
+                disabled={locationPermissionStatus === 'requesting' || locationPermissionStatus === 'granted'}
+                className={cn(
+                  "w-full py-4 rounded-2xl text-sm font-semibold transition-all press-effect flex items-center justify-center gap-2",
+                  locationPermissionStatus === 'granted'
+                    ? "bg-green-500/15 text-green-600 border border-green-500/20"
+                    : locationPermissionStatus === 'denied'
+                      ? "bg-muted text-muted-foreground border border-border"
+                      : "bg-primary/10 text-primary border border-primary/20 hover:bg-primary/15"
+                )}
+              >
+                {locationPermissionStatus === 'requesting' && <Loader2 className="w-4 h-4 animate-spin" />}
+                {locationPermissionStatus === 'granted' && <CheckCircle2 className="w-4 h-4" />}
+                {locationPermissionStatus === 'idle' && <MapPin className="w-4 h-4" />}
+                {locationPermissionStatus === 'idle' && "Allow Location Access"}
+                {locationPermissionStatus === 'requesting' && "Requesting..."}
+                {locationPermissionStatus === 'granted' && "Location Enabled"}
+                {locationPermissionStatus === 'denied' && "Permission Denied — Enable in Settings"}
+              </button>
+
+              <div className="glass-card flex items-start gap-3 bg-primary/5">
+                <Shield className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  City-level only. We never track your exact location or share it with anyone.
+                </p>
+              </div>
             </div>
           </div>
         );
@@ -906,12 +1131,12 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
           <ChevronRight className="w-5 h-5" />
         </button>
 
-        {(step === 3 || step === 4 || step === 5) && (
+        {(step === 3 || step === 4 || step === 5 || step === 7 || step === 8) && (
           <button
             onClick={handleNext}
             className="w-full mt-2 py-2 text-sm text-muted-foreground"
           >
-            Skip for now
+            {step === 7 || step === 8 ? "Skip" : "Skip for now"}
           </button>
         )}
       </div>
