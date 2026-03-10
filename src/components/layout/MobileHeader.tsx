@@ -95,12 +95,10 @@ export const MobileHeader = ({
             onClick={handleProfileClick}
             data-tour="profile-button"
             className={cn(
-              "relative h-10 w-10 rounded-2xl flex items-center justify-center transition-all overflow-hidden",
-              "bg-card/70 backdrop-blur-xl",
-              "border border-glass-border/30",
-              "before:absolute before:inset-0 before:rounded-2xl before:pointer-events-none",
-              "before:bg-gradient-to-b before:from-glass-highlight/30 before:to-transparent",
-              "shadow-soft",
+              "relative h-10 w-10 rounded-2xl flex items-center justify-center transition-all",
+              "bg-card",
+              "border border-border/40",
+              "shadow-[0_2px_8px_hsl(230_20%_20%/0.05)]",
               "active:scale-95 touch-manipulation"
             )}
           >
