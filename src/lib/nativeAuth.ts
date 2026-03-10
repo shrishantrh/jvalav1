@@ -200,8 +200,8 @@ export const setupNativeAuthListener = (): (() => void) => {
           async () => {
             console.log('[nativeAuth] Browser closed, fetching relayed tokens...');
 
-            // Small delay to ensure the callback page had time to POST
-            await new Promise((r) => setTimeout(r, 800));
+            // Brief initial delay, then retry logic handles the rest
+            await new Promise((r) => setTimeout(r, 300));
 
             const tokens = await fetchRelayedTokens();
 
