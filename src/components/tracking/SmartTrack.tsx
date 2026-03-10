@@ -1758,8 +1758,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
               className="shrink-0 h-9 w-9"
               onClick={toggleRecording}
               style={{
-                background: isRecording ? undefined : 'hsl(0 0% 100% / 0.8)',
-                borderColor: isRecording ? undefined : 'hsl(0 0% 100% / 0.6)',
+                background: isRecording ? undefined : 'hsl(var(--card) / 0.9)',
+                borderColor: isRecording ? undefined : 'hsl(var(--border) / 0.5)',
               }}
             >
               {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
