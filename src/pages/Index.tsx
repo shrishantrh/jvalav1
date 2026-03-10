@@ -36,6 +36,7 @@ import { LimitlessAIChat } from "@/components/ai/LimitlessAIChat";
 import { AIConsentDialog } from "@/components/ai/AIConsentDialog";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useSmartNotifications } from "@/hooks/useSmartNotifications";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useAIConsent } from "@/hooks/useAIConsent";
 import type { SmartTrackable } from "@/components/tracking/FluidLogSelector";
 
@@ -92,8 +93,17 @@ const Index = () => {
   const { topCorrelations, recentActivities } = useCorrelations(user?.id || null);
   const { logs: medicationLogs, addLog: addMedicationLog } = useMedicationLogs(user?.id);
   const { schedulePostFlareFollowUps, checkStreakMilestone, checkEnvironmentalChanges } = useSmartNotifications();
+  const { permission: notifPermission, requestPermission: requestNotifPermission, isSubscribed } = usePushNotifications();
   const { hasConsented: aiConsented, grantConsent: grantAIConsent } = useAIConsent();
   const [showAIConsentDialog, setShowAIConsentDialog] = useState(false);
+
+  // Auto-subscribe to push notifications if permission already granted but not subscribed
+  useEffect(() => {
+    if (user && notifPermission === 'granted' && !isSubscribed) {
+      // Re-trigger subscription
+      requestNotifPermission();
+    }
+  }, [user, notifPermission, isSubscribed]);
 
   // Check for special badges when correlations change
   useEffect(() => {
