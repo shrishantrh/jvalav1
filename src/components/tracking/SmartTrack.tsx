@@ -237,7 +237,7 @@ const ProactiveFormCard = ({
             onClick={() => setShowCustom(true)}
             className={cn(
               "px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200",
-              "bg-white/80 dark:bg-slate-800/80 border border-dashed border-border/50",
+              "bg-card/80 border border-dashed border-border/50",
               "hover:bg-primary/10 hover:border-primary/30 active:scale-95",
               "shadow-sm text-muted-foreground"
             )}
