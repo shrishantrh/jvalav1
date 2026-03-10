@@ -1463,7 +1463,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                   className="absolute -top-3 -left-2 z-20 animate-reaction-pop"
                   style={{ animationDelay: '300ms', animationFillMode: 'both' }}
                 >
-                  <div className="bg-white dark:bg-slate-800 rounded-full px-1.5 py-0.5 shadow-lg border border-border/50 text-sm">
+                  <div className="bg-card rounded-full px-1.5 py-0.5 shadow-lg border border-border/50 text-sm">
                     {msg.reaction}
                   </div>
                 </div>
