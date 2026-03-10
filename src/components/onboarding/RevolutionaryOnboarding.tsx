@@ -292,6 +292,41 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
   // Permission request state
   const [healthPermissionStatus, setHealthPermissionStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied' | 'unavailable'>('idle');
   const [locationPermissionStatus, setLocationPermissionStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle');
+  const [notificationPermissionStatus, setNotificationPermissionStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle');
+
+  const requestNotificationPermission = async () => {
+    setNotificationPermissionStatus('requesting');
+    haptics.selection();
+    try {
+      if (isNative) {
+        // Use Capacitor Push Notifications
+        const { PushNotifications } = await import('@capacitor/push-notifications');
+        const result = await PushNotifications.requestPermissions();
+        if (result.receive === 'granted') {
+          await PushNotifications.register();
+          setNotificationPermissionStatus('granted');
+          haptics.success();
+        } else {
+          setNotificationPermissionStatus('denied');
+        }
+      } else if ('Notification' in window) {
+        const result = await Notification.requestPermission();
+        setNotificationPermissionStatus(result === 'granted' ? 'granted' : 'denied');
+        if (result === 'granted') {
+          haptics.success();
+          // Also subscribe to web push
+          try {
+            const { usePushNotifications } = await import('@/hooks/usePushNotifications');
+          } catch {}
+        }
+      } else {
+        setNotificationPermissionStatus('denied');
+      }
+    } catch (e) {
+      console.error('Notification permission error:', e);
+      setNotificationPermissionStatus('denied');
+    }
+  };
 
   const requestHealthPermission = async () => {
     setHealthPermissionStatus('requesting');
