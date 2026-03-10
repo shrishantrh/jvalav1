@@ -289,6 +289,43 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
   const displaySymptoms = aiSymptoms.length > 0 ? aiSymptoms : fallbackSymptoms;
   const displayTriggers = aiTriggers.length > 0 ? aiTriggers : fallbackTriggers;
 
+  // Permission request state
+  const [healthPermissionStatus, setHealthPermissionStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied' | 'unavailable'>('idle');
+  const [locationPermissionStatus, setLocationPermissionStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle');
+
+  const requestHealthPermission = async () => {
+    setHealthPermissionStatus('requesting');
+    haptics.selection();
+    try {
+      const { requestHealthPermissions, isHealthAvailable } = await import('@/services/appleHealthService');
+      const available = await isHealthAvailable();
+      if (!available) {
+        setHealthPermissionStatus('unavailable');
+        return;
+      }
+      const result = await requestHealthPermissions({ mode: 'full' });
+      setHealthPermissionStatus(result.ok ? 'granted' : 'denied');
+      if (result.ok) haptics.success();
+    } catch (e) {
+      console.error('Health permission error:', e);
+      setHealthPermissionStatus('unavailable');
+    }
+  };
+
+  const requestLocationPermission = async () => {
+    setLocationPermissionStatus('requesting');
+    haptics.selection();
+    try {
+      await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
+      });
+      setLocationPermissionStatus('granted');
+      haptics.success();
+    } catch {
+      setLocationPermissionStatus('denied');
+    }
+  };
+
   const canProceed = () => {
     switch (step) {
       case 0: return true;
@@ -299,7 +336,9 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
         return true;
       case 4: return true; // Symptoms/triggers optional
       case 5: return true; // Medications optional
-      case 6: return true; // Permissions optional
+      case 6: return true; // Value prop
+      case 7: return true; // Health permission
+      case 8: return true; // Location permission
       default: return true;
     }
   };
