@@ -1109,8 +1109,8 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
           </div>
         );
 
-      // ─── Step 8: Location Permission ─────────────────────────────────
-      case 8:
+      // ─── Step 9: Location Permission ─────────────────────────────────
+      case 9:
         return (
           <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
             <div className="w-full max-w-sm space-y-6">
