@@ -1727,7 +1727,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         )}
 
         {/* Quick actions - compact */}
-        <div className="px-3 py-2 border-b border-white/20">
+        <div className="px-3 py-2 border-b border-glass-border/20">
           <FluidLogSelector
             userSymptoms={userSymptoms}
             userMedications={userMedications}
