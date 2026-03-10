@@ -76,14 +76,11 @@ export const MobileHeader = ({
             data-tour="streak-pill"
             className={cn(
               "relative flex items-center gap-1.5 px-4 py-2 rounded-2xl transition-all duration-300 overflow-hidden",
-              // Frosted glass
-              "bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl",
-              "border border-white/50 dark:border-slate-700/50",
-              // Inner highlight
+              "bg-card/70 backdrop-blur-xl",
+              "border border-glass-border/30",
               "before:absolute before:inset-0 before:rounded-2xl before:pointer-events-none",
-              "before:bg-gradient-to-b before:from-white/40 before:to-transparent",
-              // Shadow
-              "shadow-[0_4px_16px_rgba(0,0,0,0.06)]",
+              "before:bg-gradient-to-b before:from-glass-highlight/30 before:to-transparent",
+              "shadow-soft",
               "active:scale-95 touch-manipulation"
             )}
           >
@@ -101,14 +98,11 @@ export const MobileHeader = ({
             data-tour="profile-button"
             className={cn(
               "relative h-10 w-10 rounded-2xl flex items-center justify-center transition-all overflow-hidden",
-              // Frosted glass
-              "bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl",
-              "border border-white/50 dark:border-slate-700/50",
-              // Inner highlight
+              "bg-card/70 backdrop-blur-xl",
+              "border border-glass-border/30",
               "before:absolute before:inset-0 before:rounded-2xl before:pointer-events-none",
-              "before:bg-gradient-to-b before:from-white/40 before:to-transparent",
-              // Shadow
-              "shadow-[0_4px_16px_rgba(0,0,0,0.06)]",
+              "before:bg-gradient-to-b before:from-glass-highlight/30 before:to-transparent",
+              "shadow-soft",
               "active:scale-95 touch-manipulation"
             )}
           >
@@ -124,14 +118,11 @@ export const MobileHeader = ({
             onClick={handleSettingsClick}
             className={cn(
               "relative h-10 w-10 rounded-2xl flex items-center justify-center transition-all overflow-hidden",
-              // Frosted glass
-              "bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl",
-              "border border-white/50 dark:border-slate-700/50",
-              // Inner highlight
+              "bg-card/70 backdrop-blur-xl",
+              "border border-glass-border/30",
               "before:absolute before:inset-0 before:rounded-2xl before:pointer-events-none",
-              "before:bg-gradient-to-b before:from-white/40 before:to-transparent",
-              // Shadow
-              "shadow-[0_4px_16px_rgba(0,0,0,0.06)]",
+              "before:bg-gradient-to-b before:from-glass-highlight/30 before:to-transparent",
+              "shadow-soft",
               "active:scale-95 touch-manipulation"
             )}
           >

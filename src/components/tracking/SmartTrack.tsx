@@ -218,14 +218,14 @@ const ProactiveFormCard = ({
       
       <div className="flex flex-wrap gap-1.5">
         {currentField.options.map(opt => (
-          <button
-            key={opt.value}
-            onClick={() => { setShowCustom(false); onRespond(currentField.id, opt.value); }}
-            className={cn(
-              "px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200",
-              "bg-white/80 dark:bg-slate-800/80 border border-border/50",
-              "hover:bg-primary/10 hover:border-primary/30 active:scale-95",
-              "shadow-sm"
+            <button
+              key={opt.value}
+              onClick={() => { setShowCustom(false); onRespond(currentField.id, opt.value); }}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200",
+                "bg-card/80 border border-border/50",
+                "hover:bg-primary/10 hover:border-primary/30 active:scale-95",
+                "shadow-sm"
             )}
           >
             {opt.emoji && <span className="mr-1">{opt.emoji}</span>}
@@ -237,7 +237,7 @@ const ProactiveFormCard = ({
             onClick={() => setShowCustom(true)}
             className={cn(
               "px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200",
-              "bg-white/80 dark:bg-slate-800/80 border border-dashed border-border/50",
+              "bg-card/80 border border-dashed border-border/50",
               "hover:bg-primary/10 hover:border-primary/30 active:scale-95",
               "shadow-sm text-muted-foreground"
             )}
@@ -1312,7 +1312,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                 msg.role === 'assistant' && !msg.content && msg.entryData ? "hidden" : "",
                 msg.role === 'user' 
                   ? "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground border border-primary/50 shadow-[inset_0_1px_2px_rgba(255,255,255,0.2),0_4px_12px_hsl(var(--primary)/0.25)]"
-                  : "bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-white/60 dark:border-slate-700/60 shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_12px_rgba(0,0,0,0.04)]"
+                  : "bg-card/90 backdrop-blur-xl border border-glass-border/40 shadow-[inset_0_1px_2px_hsl(var(--glass-highlight)/0.3),0_4px_12px_hsl(var(--foreground)/0.04)]"
               )}
             >
               {/* Glass highlight overlay */}
@@ -1463,7 +1463,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                   className="absolute -top-3 -left-2 z-20 animate-reaction-pop"
                   style={{ animationDelay: '300ms', animationFillMode: 'both' }}
                 >
-                  <div className="bg-white dark:bg-slate-800 rounded-full px-1.5 py-0.5 shadow-lg border border-border/50 text-sm">
+                  <div className="bg-card rounded-full px-1.5 py-0.5 shadow-lg border border-border/50 text-sm">
                     {msg.reaction}
                   </div>
                 </div>
@@ -1708,16 +1708,16 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       <div 
         className="absolute bottom-0 left-0 right-0 flex-shrink-0"
         style={{
-          background: 'linear-gradient(180deg, hsl(0 0% 100% / 0.92) 0%, hsl(0 0% 98% / 0.98) 100%)',
+          background: 'linear-gradient(180deg, hsl(var(--glass-bg) / 0.92) 0%, hsl(var(--glass-bg) / 0.98) 100%)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          borderTop: '1px solid hsl(0 0% 100% / 0.5)',
-          boxShadow: '0 -4px 20px rgba(0,0,0,0.03)',
+          borderTop: '1px solid hsl(var(--glass-border) / 0.3)',
+          boxShadow: '0 -4px 20px hsl(var(--foreground) / 0.03)',
         }}
       >
         {/* Dynamic follow-up suggestions after AI responds */}
         {dynamicFollowUps.length > 0 && messages.length > 2 && !isProcessing && (
-          <div className="px-3 py-2 border-b border-white/20">
+           <div className="px-3 py-2 border-b border-glass-border/20">
             <AIChatPrompts 
               onSendPrompt={handlePromptClick} 
               variant="followups" 
@@ -1727,7 +1727,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         )}
 
         {/* Quick actions - compact */}
-        <div className="px-3 py-2 border-b border-white/20">
+        <div className="px-3 py-2 border-b border-glass-border/20">
           <FluidLogSelector
             userSymptoms={userSymptoms}
             userMedications={userMedications}
@@ -1758,8 +1758,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
               className="shrink-0 h-9 w-9"
               onClick={toggleRecording}
               style={{
-                background: isRecording ? undefined : 'hsl(0 0% 100% / 0.8)',
-                borderColor: isRecording ? undefined : 'hsl(0 0% 100% / 0.6)',
+                background: isRecording ? undefined : 'hsl(var(--card) / 0.9)',
+                borderColor: isRecording ? undefined : 'hsl(var(--border) / 0.5)',
               }}
             >
               {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
@@ -1773,8 +1773,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
               className="flex-1 h-9"
               disabled={isProcessing}
               style={{
-                background: 'hsl(0 0% 100% / 0.7)',
-                borderColor: 'hsl(0 0% 100% / 0.5)',
+                background: 'hsl(var(--card) / 0.8)',
+                borderColor: 'hsl(var(--border) / 0.4)',
               }}
             />
             
