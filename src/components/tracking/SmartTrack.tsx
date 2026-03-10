@@ -1717,7 +1717,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       >
         {/* Dynamic follow-up suggestions after AI responds */}
         {dynamicFollowUps.length > 0 && messages.length > 2 && !isProcessing && (
-          <div className="px-3 py-2 border-b border-white/20">
+           <div className="px-3 py-2 border-b border-glass-border/20">
             <AIChatPrompts 
               onSendPrompt={handlePromptClick} 
               variant="followups" 
