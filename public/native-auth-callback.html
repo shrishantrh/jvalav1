@@ -43,7 +43,7 @@
     <h1 id="title">Signing you in...</h1>
     <p class="subtitle" id="status">Securely transferring your session</p>
     <div class="spinner" id="spinner"></div>
-    <p class="success" id="successMsg">✓ Done! You can close this window and return to Jvala.</p>
+    <p class="success" id="successMsg">✓ Done! Returning to Jvala...</p>
     <p class="hint" id="hint"></p>
   </div>
 
@@ -54,7 +54,6 @@
       var params = new URLSearchParams(search);
       var nonce = params.get('nonce');
 
-      // Supabase project URL for edge function
       var SUPABASE_URL = 'https://rvhpwjhemwvvdtnzmobs.supabase.co';
       var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2aHB3amhlbXd2dmR0bnptb2JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3ODAyMDgsImV4cCI6MjA3NTM1NjIwOH0.2g2DDjiaxZh9TDRLPm8OhyxeNj4NkSX91YoJbdgFvNM';
 
@@ -63,14 +62,28 @@
         document.getElementById('title').textContent = 'Signed in!';
         document.getElementById('status').textContent = '';
         document.getElementById('successMsg').style.display = 'block';
-        document.getElementById('hint').style.display = 'block';
-        document.getElementById('hint').textContent = 'Close this window to return to Jvala';
       }
 
       function showError(msg) {
         document.getElementById('spinner').style.display = 'none';
         document.getElementById('title').textContent = 'Something went wrong';
         document.getElementById('status').textContent = msg || 'Please close this window and try again.';
+      }
+
+      function returnToApp(hashStr) {
+        // Try custom URL scheme to auto-return to native app
+        var targetUrl = 'jvala://auth-callback' + (hashStr || '');
+        console.log('[callback] Redirecting to:', targetUrl);
+        try { window.location.replace(targetUrl); } catch(e) {}
+        // Fallback: try window.close after a brief delay
+        setTimeout(function() {
+          try { window.close(); } catch(e) {}
+        }, 500);
+        // Show manual close hint after 2s if still here
+        setTimeout(function() {
+          document.getElementById('hint').style.display = 'block';
+          document.getElementById('hint').textContent = 'If the app didn\'t open, close this window and return to Jvala.';
+        }, 2000);
       }
 
       function parseTokens(hashStr) {
@@ -90,11 +103,13 @@
       }
 
       if (!nonce) {
-        showError('Missing session nonce. Please try again.');
+        // No nonce = not a native flow, just redirect via custom scheme
+        showSuccess();
+        returnToApp(hash);
         return;
       }
 
-      // POST tokens to edge function for the native app to retrieve
+      // POST tokens to edge function, then redirect back to app
       fetch(SUPABASE_URL + '/functions/v1/native-token-relay', {
         method: 'POST',
         headers: {
@@ -113,17 +128,14 @@
       })
       .then(function() {
         showSuccess();
-        // Try to close the browser window (works in some contexts)
-        try { window.close(); } catch(e) {}
+        // Always try to return to the app via deep link after relay succeeds
+        returnToApp(hash);
       })
       .catch(function(err) {
         console.error('Token relay error:', err);
-        // Even if relay fails, try the custom scheme as fallback
-        var targetUrl = 'jvala://auth-callback' + hash;
-        try { window.location.replace(targetUrl); } catch(e) {}
-        setTimeout(function() {
-          showError('Could not relay tokens. Please close this window and try signing in again.');
-        }, 1500);
+        // Even if relay fails, try returning to app with tokens via deep link
+        showSuccess();
+        returnToApp(hash);
       });
     })();
   </script>
