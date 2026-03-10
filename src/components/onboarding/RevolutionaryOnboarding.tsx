@@ -21,7 +21,8 @@ import {
   AlertCircle,
   Zap,
   TrendingUp,
-  CheckCircle2
+  CheckCircle2,
+  Bell
 } from "lucide-react";
 import jvalaLogo from "@/assets/jvala-logo.png";
 import { cn } from "@/lib/utils";
