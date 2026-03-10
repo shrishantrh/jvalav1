@@ -19,11 +19,14 @@ import {
   Plus,
   X,
   AlertCircle,
-  Zap
+  Zap,
+  TrendingUp,
+  CheckCircle2
 } from "lucide-react";
 import jvalaLogo from "@/assets/jvala-logo.png";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
+import { isNative, platform } from "@/lib/capacitor";
 
 interface OnboardingData {
   conditions: string[];
