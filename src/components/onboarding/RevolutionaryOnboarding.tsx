@@ -372,8 +372,9 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
       case 4: return true; // Symptoms/triggers optional
       case 5: return true; // Medications optional
       case 6: return true; // Value prop
-      case 7: return true; // Health permission
-      case 8: return true; // Location permission
+      case 7: return true; // Notifications permission
+      case 8: return true; // Health permission
+      case 9: return true; // Location permission
       default: return true;
     }
   };
