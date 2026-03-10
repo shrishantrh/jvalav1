@@ -1131,12 +1131,12 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
           <ChevronRight className="w-5 h-5" />
         </button>
 
-        {(step === 3 || step === 4 || step === 5) && (
+        {(step === 3 || step === 4 || step === 5 || step === 7 || step === 8) && (
           <button
             onClick={handleNext}
             className="w-full mt-2 py-2 text-sm text-muted-foreground"
           >
-            Skip for now
+            {step === 7 || step === 8 ? "Skip" : "Skip for now"}
           </button>
         )}
       </div>
