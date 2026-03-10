@@ -50,7 +50,7 @@ interface RevolutionaryOnboardingProps {
   onComplete: (data: OnboardingData) => void;
 }
 
-const TOTAL_STEPS = 9;
+const TOTAL_STEPS = 10;
 
 // Animated dot background for hero
 const FloatingOrbs = () => (
