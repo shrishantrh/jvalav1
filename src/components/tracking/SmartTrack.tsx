@@ -218,14 +218,14 @@ const ProactiveFormCard = ({
       
       <div className="flex flex-wrap gap-1.5">
         {currentField.options.map(opt => (
-          <button
-            key={opt.value}
-            onClick={() => { setShowCustom(false); onRespond(currentField.id, opt.value); }}
-            className={cn(
-              "px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200",
-              "bg-white/80 dark:bg-slate-800/80 border border-border/50",
-              "hover:bg-primary/10 hover:border-primary/30 active:scale-95",
-              "shadow-sm"
+            <button
+              key={opt.value}
+              onClick={() => { setShowCustom(false); onRespond(currentField.id, opt.value); }}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200",
+                "bg-card/80 border border-border/50",
+                "hover:bg-primary/10 hover:border-primary/30 active:scale-95",
+                "shadow-sm"
             )}
           >
             {opt.emoji && <span className="mr-1">{opt.emoji}</span>}
