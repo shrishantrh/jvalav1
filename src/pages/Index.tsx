@@ -93,8 +93,17 @@ const Index = () => {
   const { topCorrelations, recentActivities } = useCorrelations(user?.id || null);
   const { logs: medicationLogs, addLog: addMedicationLog } = useMedicationLogs(user?.id);
   const { schedulePostFlareFollowUps, checkStreakMilestone, checkEnvironmentalChanges } = useSmartNotifications();
+  const { permission: notifPermission, requestPermission: requestNotifPermission, isSubscribed } = usePushNotifications();
   const { hasConsented: aiConsented, grantConsent: grantAIConsent } = useAIConsent();
   const [showAIConsentDialog, setShowAIConsentDialog] = useState(false);
+
+  // Auto-subscribe to push notifications if permission already granted but not subscribed
+  useEffect(() => {
+    if (user && notifPermission === 'granted' && !isSubscribed) {
+      // Re-trigger subscription
+      requestNotifPermission();
+    }
+  }, [user, notifPermission, isSubscribed]);
 
   // Check for special badges when correlations change
   useEffect(() => {
