@@ -80,7 +80,7 @@ export const openInNativeBrowser = async (url: string): Promise<void> => {
 
 /**
  * Fetch tokens from the relay edge function using the active nonce.
- * Returns the tokens or null if not found.
+ * Retries a few times with delays since the callback page may still be POSTing.
  */
 const fetchRelayedTokens = async (): Promise<{
   access_token: string;
@@ -88,32 +88,43 @@ const fetchRelayedTokens = async (): Promise<{
 } | null> => {
   if (!activeNonce) return null;
 
-  try {
-    const res = await fetch(
-      `${SUPABASE_URL}/functions/v1/native-token-relay?nonce=${activeNonce}`,
-      {
-        method: 'GET',
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          'Content-Type': 'application/json',
-        },
+  const maxAttempts = 5;
+  const delayMs = 1200;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      console.log(`[nativeAuth] Fetching relay tokens (attempt ${attempt}/${maxAttempts})`);
+      const res = await fetch(
+        `${SUPABASE_URL}/functions/v1/native-token-relay?nonce=${activeNonce}`,
+        {
+          method: 'GET',
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.access_token && data.refresh_token) {
+          return { access_token: data.access_token, refresh_token: data.refresh_token };
+        }
       }
-    );
 
-    if (!res.ok) {
-      console.log('[nativeAuth] No relayed tokens found (status ' + res.status + ')');
-      return null;
+      if (attempt < maxAttempts) {
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
+    } catch (e) {
+      console.error('[nativeAuth] Error fetching relayed tokens:', e);
+      if (attempt < maxAttempts) {
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
     }
-
-    const data = await res.json();
-    if (data.access_token && data.refresh_token) {
-      return { access_token: data.access_token, refresh_token: data.refresh_token };
-    }
-    return null;
-  } catch (e) {
-    console.error('[nativeAuth] Error fetching relayed tokens:', e);
-    return null;
   }
+
+  console.log('[nativeAuth] No relayed tokens found after all attempts');
+  return null;
 };
 
 /**
