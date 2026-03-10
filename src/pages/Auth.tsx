@@ -130,21 +130,6 @@ const Auth = () => {
     return true;
   };
 
-  /**
-   * Detect if we're running on a custom domain (not *.lovable.app).
-   * On custom domains the Lovable auth-bridge redirect URI may not be
-   * registered with Google, so we fall back to direct Supabase OAuth
-   * with skipBrowserRedirect to avoid the redirect_uri_mismatch error.
-   */
-  const isCustomDomain = () => {
-    const host = window.location.hostname;
-    return (
-      !host.includes("lovable.app") &&
-      !host.includes("lovableproject.com") &&
-      !host.includes("localhost")
-    );
-  };
-
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
@@ -153,28 +138,14 @@ const Auth = () => {
         const result = await startNativeOAuth('google');
         if ('error' in result) throw new Error(result.error);
         await openInNativeBrowser(result.url);
-        // Session will be set via deep link listener — don't setLoading(false) here
         return;
       }
 
-      if (isCustomDomain()) {
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: {
-            redirectTo: window.location.origin,
-            skipBrowserRedirect: true,
-          },
-        });
-        if (error) throw error;
-        if (data?.url) {
-          window.location.href = data.url;
-        }
-      } else {
-        const { error } = await lovable.auth.signInWithOAuth("google", {
-          redirect_uri: window.location.origin,
-        });
-        if (error) throw error;
-      }
+      // Web: always use Lovable managed OAuth (handles redirect URIs automatically)
+      const { error } = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      if (error) throw error;
     } catch (error: any) {
       toast({
         title: "Google login failed",
@@ -196,24 +167,11 @@ const Auth = () => {
         return;
       }
 
-      if (isCustomDomain()) {
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider: "apple",
-          options: {
-            redirectTo: window.location.origin,
-            skipBrowserRedirect: true,
-          },
-        });
-        if (error) throw error;
-        if (data?.url) {
-          window.location.href = data.url;
-        }
-      } else {
-        const { error } = await lovable.auth.signInWithOAuth("apple", {
-          redirect_uri: window.location.origin,
-        });
-        if (error) throw error;
-      }
+      // Web: always use Lovable managed OAuth
+      const { error } = await lovable.auth.signInWithOAuth("apple", {
+        redirect_uri: window.location.origin,
+      });
+      if (error) throw error;
     } catch (error: any) {
       toast({
         title: "Apple login failed",
