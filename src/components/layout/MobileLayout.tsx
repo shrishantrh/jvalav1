@@ -64,14 +64,13 @@ export const MobileLayout = ({
       right: 0,
     }}>
       
-      {/* Warm gradient overlay - 3D depth effect */}
+      {/* Soft gradient overlay for depth */}
       <div 
         className="absolute inset-0 pointer-events-none"
         style={{
           background: `
-            radial-gradient(ellipse 100% 60% at 50% -10%, hsl(var(--primary) / 0.08), transparent 50%),
-            radial-gradient(ellipse 80% 40% at 80% 0%, hsl(var(--primary) / 0.05), transparent 40%),
-            radial-gradient(ellipse 60% 30% at 20% 10%, hsl(var(--primary) / 0.04), transparent 35%)
+            radial-gradient(ellipse 100% 50% at 50% -5%, hsl(var(--primary) / 0.04), transparent 45%),
+            radial-gradient(ellipse 70% 35% at 80% 0%, hsl(260 30% 60% / 0.03), transparent 35%)
           `,
         }}
       />
