@@ -1773,8 +1773,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
               className="flex-1 h-9"
               disabled={isProcessing}
               style={{
-                background: 'hsl(0 0% 100% / 0.7)',
-                borderColor: 'hsl(0 0% 100% / 0.5)',
+                background: 'hsl(var(--card) / 0.8)',
+                borderColor: 'hsl(var(--border) / 0.4)',
               }}
             />
             
