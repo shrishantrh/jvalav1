@@ -1708,11 +1708,11 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       <div 
         className="absolute bottom-0 left-0 right-0 flex-shrink-0"
         style={{
-          background: 'linear-gradient(180deg, hsl(0 0% 100% / 0.92) 0%, hsl(0 0% 98% / 0.98) 100%)',
+          background: 'linear-gradient(180deg, hsl(var(--glass-bg) / 0.92) 0%, hsl(var(--glass-bg) / 0.98) 100%)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          borderTop: '1px solid hsl(0 0% 100% / 0.5)',
-          boxShadow: '0 -4px 20px rgba(0,0,0,0.03)',
+          borderTop: '1px solid hsl(var(--glass-border) / 0.3)',
+          boxShadow: '0 -4px 20px hsl(var(--foreground) / 0.03)',
         }}
       >
         {/* Dynamic follow-up suggestions after AI responds */}
