@@ -1312,7 +1312,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                 msg.role === 'assistant' && !msg.content && msg.entryData ? "hidden" : "",
                 msg.role === 'user' 
                   ? "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground border border-primary/50 shadow-[inset_0_1px_2px_rgba(255,255,255,0.2),0_4px_12px_hsl(var(--primary)/0.25)]"
-                  : "bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-white/60 dark:border-slate-700/60 shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_4px_12px_rgba(0,0,0,0.04)]"
+                  : "bg-card/90 backdrop-blur-xl border border-glass-border/40 shadow-[inset_0_1px_2px_hsl(var(--glass-highlight)/0.3),0_4px_12px_hsl(var(--foreground)/0.04)]"
               )}
             >
               {/* Glass highlight overlay */}

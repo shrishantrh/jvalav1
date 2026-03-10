@@ -93,13 +93,13 @@ const GlassButton = ({ children, onClick, active, disabled, className = "", styl
     )}
     style={style || {
       background: active 
-        ? 'linear-gradient(145deg, hsl(25 75% 95% / 0.95) 0%, hsl(25 70% 92% / 0.9) 100%)'
-        : 'linear-gradient(145deg, hsl(0 0% 100% / 0.85) 0%, hsl(0 0% 98% / 0.8) 100%)',
+        ? 'linear-gradient(145deg, hsl(var(--primary) / 0.12) 0%, hsl(var(--primary) / 0.08) 100%)'
+        : 'linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--card) / 0.9) 100%)',
       backgroundClip: 'padding-box',
-      border: active ? '2px solid hsl(25 75% 50% / 0.4)' : '1px solid hsl(0 0% 100% / 0.6)',
+      border: active ? '2px solid hsl(var(--primary) / 0.35)' : '1px solid hsl(var(--glass-border) / 0.4)',
       boxShadow: active
-        ? 'inset 0 1px 2px hsl(0 0% 100% / 0.5), 0 4px 12px hsl(25 75% 50% / 0.15)'
-        : 'inset 0 1px 2px hsl(0 0% 100% / 0.4), 0 2px 8px hsl(0 0% 0% / 0.04)',
+        ? 'inset 0 1px 2px hsl(var(--glass-highlight) / 0.4), 0 4px 12px hsl(var(--primary) / 0.12)'
+        : 'inset 0 1px 2px hsl(var(--glass-highlight) / 0.3), 0 2px 8px hsl(var(--foreground) / 0.04)',
     }}
   >
     <span className="relative z-10 flex items-center gap-1.5">{children}</span>
