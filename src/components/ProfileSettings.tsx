@@ -192,6 +192,22 @@ export const ProfileSettings = () => {
               placeholder="Enter your full name"
             />
           </div>
+          <div>
+            <Label htmlFor="phoneNumber">Phone Number</Label>
+            <div className="flex items-center gap-2">
+              <Phone className="w-4 h-4 text-muted-foreground" />
+              <Input
+                id="phoneNumber"
+                type="tel"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                placeholder="+1 (555) 123-4567"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
+              <MessageSquare className="w-3 h-3" />
+              Link your number to text Jvala directly from iMessage or SMS
+            </p>
           <Button onClick={handleSaveProfile} disabled={saving}>
             {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
             Save Profile
