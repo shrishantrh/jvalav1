@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[0.96] touch-manipulation relative overflow-hidden",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl text-sm font-semibold transition-all duration-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[0.96] touch-manipulation relative overflow-hidden",
   {
     variants: {
       variant: {
@@ -17,7 +17,14 @@ const buttonVariants = cva(
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-sm",
         ghost: "hover:bg-muted text-foreground",
         link: "text-primary underline-offset-4 hover:underline",
-        glass: "bg-card/90 backdrop-blur-xl text-foreground border border-border/50 hover:bg-card shadow-sm",
+        glass: [
+          "text-foreground",
+          "border border-[hsl(var(--glass-highlight)/0.18)]",
+          "[backdrop-filter:blur(20px)_saturate(200%)]",
+          "[-webkit-backdrop-filter:blur(20px)_saturate(200%)]",
+          "[background:hsl(var(--glass-bg)/0.55)]",
+          "[box-shadow:var(--glass-shadow),inset_0_1px_0_hsl(var(--glass-specular)/0.3)]",
+        ].join(" "),
       },
       size: {
         default: "h-12 px-6 py-3",
