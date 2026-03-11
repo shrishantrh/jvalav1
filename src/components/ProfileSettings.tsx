@@ -63,12 +63,15 @@ export const ProfileSettings = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      const normalizedPhone = phoneNumber ? phoneNumber.replace(/[\s\-\(\)]/g, '').replace(/^(\d{10})$/, '+1$1') : null;
+      
       const { error } = await supabase
         .from('profiles')
         .update({ 
           full_name: fullName,
+          phone_number: normalizedPhone,
           metadata: { medications: currentMedications } as any
-        })
+        } as any)
         .eq('id', user.id);
 
       if (error) throw error;
