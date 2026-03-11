@@ -12,6 +12,7 @@ import { ProfileMedicationInput, type MedicationDetails } from "@/components/Pro
 
 export const ProfileSettings = () => {
   const [fullName, setFullName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [shareEnabled, setShareEnabled] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [currentMedications, setCurrentMedications] = useState<MedicationDetails[]>([]);
