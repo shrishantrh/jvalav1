@@ -39,6 +39,7 @@ export const ProfileSettings = () => {
 
       if (profile) {
         setFullName(profile.full_name || '');
+        setPhoneNumber((profile as any).phone_number || '');
         setShareEnabled(profile.share_enabled || false);
         // Load current medications from profile metadata or separate field
         const profileData = profile as any; // Type assertion for metadata
