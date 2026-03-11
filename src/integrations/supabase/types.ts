@@ -529,6 +529,7 @@ export type Database = {
           known_triggers: string[] | null
           metadata: Json | null
           onboarding_completed: boolean | null
+          phone_number: string | null
           physician_email: string | null
           physician_name: string | null
           physician_phone: string | null
@@ -559,6 +560,7 @@ export type Database = {
           known_triggers?: string[] | null
           metadata?: Json | null
           onboarding_completed?: boolean | null
+          phone_number?: string | null
           physician_email?: string | null
           physician_name?: string | null
           physician_phone?: string | null
@@ -589,6 +591,7 @@ export type Database = {
           known_triggers?: string[] | null
           metadata?: Json | null
           onboarding_completed?: boolean | null
+          phone_number?: string | null
           physician_email?: string | null
           physician_name?: string | null
           physician_phone?: string | null
@@ -666,6 +669,33 @@ export type Database = {
           metadata?: Json | null
           password_hash?: string | null
           share_token?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sms_conversations: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          phone_number: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          phone_number: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          phone_number?: string
+          role?: string
           user_id?: string
         }
         Relationships: []
