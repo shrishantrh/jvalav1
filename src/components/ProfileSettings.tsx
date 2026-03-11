@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, User, Share2, Copy, Check, Pill, Upload, Sparkles } from 'lucide-react';
+import { Loader2, User, Share2, Copy, Check, Pill, Upload, Sparkles, MessageSquare, Phone } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ProfileMedicationInput, type MedicationDetails } from "@/components/ProfileMedicationInput";
