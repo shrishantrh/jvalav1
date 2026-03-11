@@ -208,6 +208,7 @@ export const ProfileSettings = () => {
               <MessageSquare className="w-3 h-3" />
               Link your number to text Jvala directly from iMessage or SMS
             </p>
+          </div>
           <Button onClick={handleSaveProfile} disabled={saving}>
             {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
             Save Profile
