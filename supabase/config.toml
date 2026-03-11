@@ -92,3 +92,6 @@ verify_jwt = false
 
 [functions.native-token-relay]
 verify_jwt = false
+
+[functions.sms-webhook]
+verify_jwt = false
