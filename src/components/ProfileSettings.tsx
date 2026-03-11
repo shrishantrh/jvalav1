@@ -5,14 +5,13 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, User, Share2, Copy, Check, Pill, Upload, Sparkles, MessageSquare, Phone } from 'lucide-react';
+import { Loader2, User, Share2, Copy, Check, Pill, Upload, Sparkles } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ProfileMedicationInput, type MedicationDetails } from "@/components/ProfileMedicationInput";
 
 export const ProfileSettings = () => {
   const [fullName, setFullName] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
   const [shareEnabled, setShareEnabled] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [currentMedications, setCurrentMedications] = useState<MedicationDetails[]>([]);
@@ -39,7 +38,6 @@ export const ProfileSettings = () => {
 
       if (profile) {
         setFullName(profile.full_name || '');
-        setPhoneNumber((profile as any).phone_number || '');
         setShareEnabled(profile.share_enabled || false);
         // Load current medications from profile metadata or separate field
         const profileData = profile as any; // Type assertion for metadata
@@ -63,15 +61,12 @@ export const ProfileSettings = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const normalizedPhone = phoneNumber ? phoneNumber.replace(/[\s\-\(\)]/g, '').replace(/^(\d{10})$/, '+1$1') : null;
-      
       const { error } = await supabase
         .from('profiles')
         .update({ 
           full_name: fullName,
-          phone_number: normalizedPhone,
           metadata: { medications: currentMedications } as any
-        } as any)
+        })
         .eq('id', user.id);
 
       if (error) throw error;
@@ -191,23 +186,6 @@ export const ProfileSettings = () => {
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Enter your full name"
             />
-          </div>
-          <div>
-            <Label htmlFor="phoneNumber">Phone Number</Label>
-            <div className="flex items-center gap-2">
-              <Phone className="w-4 h-4 text-muted-foreground" />
-              <Input
-                id="phoneNumber"
-                type="tel"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="+1 (555) 123-4567"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
-              <MessageSquare className="w-3 h-3" />
-              Link your number to text Jvala directly from iMessage or SMS
-            </p>
           </div>
           <Button onClick={handleSaveProfile} disabled={saving}>
             {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}

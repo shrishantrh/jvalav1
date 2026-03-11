@@ -67,25 +67,22 @@ export const MobileHeader = ({
         </div>
       </div>
       
-      {/* Right: Actions — Liquid Glass buttons */}
+      {/* Right: Actions */}
       <div className="flex items-center gap-2">
-        {/* Streak pill — Liquid Glass */}
+        {/* Streak pill - Frosted glass style */}
         {onStreakClick && (
           <button
             onClick={handleStreakClick}
             data-tour="streak-pill"
             className={cn(
-              "relative flex items-center gap-1.5 px-4 py-2 rounded-2xl overflow-hidden",
+              "relative flex items-center gap-1.5 px-4 py-2 rounded-2xl transition-all duration-300 overflow-hidden",
+              "bg-card/70 backdrop-blur-xl",
+              "border border-glass-border/30",
+              "before:absolute before:inset-0 before:rounded-2xl before:pointer-events-none",
+              "before:bg-gradient-to-b before:from-glass-highlight/30 before:to-transparent",
+              "shadow-soft",
               "active:scale-95 touch-manipulation"
             )}
-            style={{
-              background: 'hsl(var(--glass-bg) / 0.55)',
-              backdropFilter: 'blur(20px) saturate(200%)',
-              WebkitBackdropFilter: 'blur(20px) saturate(200%)',
-              border: '1px solid hsl(var(--glass-highlight) / 0.18)',
-              boxShadow: 'var(--glass-shadow), inset 0 1px 0 hsl(var(--glass-specular) / 0.3)',
-              transition: 'var(--transition-liquid)',
-            }}
           >
             <Flame className="w-4 h-4 text-primary relative z-10" strokeWidth={2.5} />
             <span className="text-sm font-bold text-primary tabular-nums relative z-10">
@@ -94,23 +91,20 @@ export const MobileHeader = ({
           </button>
         )}
         
-        {/* Profile button — Liquid Glass */}
+        {/* Profile button - Frosted glass button */}
         {onProfileClick && (
           <button
             onClick={handleProfileClick}
             data-tour="profile-button"
             className={cn(
-              "relative h-10 w-10 rounded-2xl flex items-center justify-center overflow-hidden",
+              "relative h-10 w-10 rounded-2xl flex items-center justify-center transition-all overflow-hidden",
+              "bg-card/70 backdrop-blur-xl",
+              "border border-glass-border/30",
+              "before:absolute before:inset-0 before:rounded-2xl before:pointer-events-none",
+              "before:bg-gradient-to-b before:from-glass-highlight/30 before:to-transparent",
+              "shadow-soft",
               "active:scale-95 touch-manipulation"
             )}
-            style={{
-              background: 'hsl(var(--glass-bg) / 0.55)',
-              backdropFilter: 'blur(20px) saturate(200%)',
-              WebkitBackdropFilter: 'blur(20px) saturate(200%)',
-              border: '1px solid hsl(var(--glass-highlight) / 0.18)',
-              boxShadow: 'var(--glass-shadow), inset 0 1px 0 hsl(var(--glass-specular) / 0.3)',
-              transition: 'var(--transition-liquid)',
-            }}
           >
             <User className="w-5 h-5 text-muted-foreground relative z-10" />
           </button>
@@ -118,22 +112,19 @@ export const MobileHeader = ({
         
         {rightAction}
         
-        {/* Settings — Liquid Glass */}
+        {/* Settings - Frosted glass button */}
         {showSettings && (
           <button
             onClick={handleSettingsClick}
             className={cn(
-              "relative h-10 w-10 rounded-2xl flex items-center justify-center overflow-hidden",
+              "relative h-10 w-10 rounded-2xl flex items-center justify-center transition-all overflow-hidden",
+              "bg-card/70 backdrop-blur-xl",
+              "border border-glass-border/30",
+              "before:absolute before:inset-0 before:rounded-2xl before:pointer-events-none",
+              "before:bg-gradient-to-b before:from-glass-highlight/30 before:to-transparent",
+              "shadow-soft",
               "active:scale-95 touch-manipulation"
             )}
-            style={{
-              background: 'hsl(var(--glass-bg) / 0.55)',
-              backdropFilter: 'blur(20px) saturate(200%)',
-              WebkitBackdropFilter: 'blur(20px) saturate(200%)',
-              border: '1px solid hsl(var(--glass-highlight) / 0.18)',
-              boxShadow: 'var(--glass-shadow), inset 0 1px 0 hsl(var(--glass-specular) / 0.3)',
-              transition: 'var(--transition-liquid)',
-            }}
           >
             <Settings className="w-5 h-5 text-muted-foreground relative z-10" />
           </button>
