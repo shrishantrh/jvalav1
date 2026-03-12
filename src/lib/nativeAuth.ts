@@ -252,7 +252,7 @@ export const setupNativeAuthListener = (): (() => void) => {
                 console.log('[nativeAuth] Session set successfully via relay');
                 window.dispatchEvent(new Event('native-auth-complete'));
               }
-              activeNonce = null;
+              clearActiveNonce();
             } else {
               // No tokens = user likely cancelled or relay failed
               console.log('[nativeAuth] No relayed tokens found');
