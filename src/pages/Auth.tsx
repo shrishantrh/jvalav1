@@ -111,7 +111,32 @@ const Auth = () => {
       window.removeEventListener('native-auth-error', handleNativeAuthError);
       window.removeEventListener('native-browser-closed', handleBrowserFinishedNoSession);
     };
-  }, [navigate]);
+  }, [navigate, toast]);
+
+  // Native OAuth safety net: if auth event is missed, poll session briefly and recover UI
+  useEffect(() => {
+    if (!isNative || !loading) return;
+
+    let attempts = 0;
+    const maxAttempts = 25;
+    const interval = setInterval(async () => {
+      attempts += 1;
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        setLoading(false);
+        navigate('/');
+        clearInterval(interval);
+        return;
+      }
+
+      if (attempts >= maxAttempts) {
+        setLoading(false);
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [loading, navigate]);
 
   // Slow connection detection
   useEffect(() => {

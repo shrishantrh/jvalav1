@@ -266,7 +266,7 @@ export const setupNativeAuthListener = (): (() => void) => {
                 console.log('[nativeAuth] No session — user likely cancelled');
                 window.dispatchEvent(new Event('native-browser-closed'));
               }
-              activeNonce = null;
+              clearActiveNonce();
             }
           }
         );
