@@ -74,7 +74,11 @@ const Auth = () => {
     const cleanupDeepLink = setupNativeAuthListener();
 
     // Listen for native auth completion
-    const handleNativeAuthComplete = () => setLoading(false);
+    const handleNativeAuthComplete = async () => {
+      setLoading(false);
+      const { data } = await supabase.auth.getSession();
+      if (data.session) navigate('/');
+    };
     window.addEventListener('native-auth-complete', handleNativeAuthComplete);
 
     // Listen for native auth error

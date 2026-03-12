@@ -216,7 +216,8 @@ export const setupNativeAuthListener = (): (() => void) => {
               console.error('[nativeAuth] Failed to set session:', error.message);
             } else {
               console.log('[nativeAuth] Session set successfully via deep link');
-              activeNonce = null;
+              clearActiveNonce();
+              window.dispatchEvent(new Event('native-auth-complete'));
             }
 
             try {
