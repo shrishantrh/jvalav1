@@ -121,7 +121,8 @@ const fetchRelayedTokens = async (): Promise<{
   access_token: string;
   refresh_token: string;
 } | null> => {
-  if (!activeNonce) return null;
+  const nonce = getActiveNonce();
+  if (!nonce) return null;
 
   const maxAttempts = 5;
   const delayMs = 1200;
@@ -130,7 +131,7 @@ const fetchRelayedTokens = async (): Promise<{
     try {
       console.log(`[nativeAuth] Fetching relay tokens (attempt ${attempt}/${maxAttempts})`);
       const res = await fetch(
-        `${SUPABASE_URL}/functions/v1/native-token-relay?nonce=${activeNonce}`,
+        `${SUPABASE_URL}/functions/v1/native-token-relay?nonce=${nonce}`,
         {
           method: 'GET',
           headers: {
