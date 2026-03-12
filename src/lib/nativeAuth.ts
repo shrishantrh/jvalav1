@@ -65,11 +65,21 @@ export const startNativeOAuth = async (
 ): Promise<{ url: string } | { error: string }> => {
   try {
     const nonce = generateNonce();
-    activeNonce = nonce;
+    setActiveNonce(nonce);
 
     // Include nonce as a query parameter in the callback URL
     const callbackUrl = `${PUBLISHED_URL}/native-auth-callback.html?nonce=${nonce}`;
 
+    // Google fallback: use direct auth endpoint because /~oauth broker currently returns redirect_uri_mismatch
+    if (provider === 'google') {
+      const authParams = new URLSearchParams({
+        provider: 'google',
+        redirect_to: callbackUrl,
+      });
+      return { url: `${SUPABASE_URL}/auth/v1/authorize?${authParams.toString()}` };
+    }
+
+    // Apple keeps using Lovable OAuth broker for managed Sign in with Apple
     const params = new URLSearchParams({
       provider,
       redirect_uri: callbackUrl,
