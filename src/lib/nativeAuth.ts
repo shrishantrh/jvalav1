@@ -31,6 +31,31 @@ const generateNonce = (): string => {
 
 /** Store the current nonce so we can retrieve tokens later */
 let activeNonce: string | null = null;
+const NONCE_STORAGE_KEY = 'jvala_native_oauth_nonce';
+
+const setActiveNonce = (nonce: string | null) => {
+  activeNonce = nonce;
+  try {
+    if (nonce) {
+      sessionStorage.setItem(NONCE_STORAGE_KEY, nonce);
+    } else {
+      sessionStorage.removeItem(NONCE_STORAGE_KEY);
+    }
+  } catch {
+    // Ignore storage errors
+  }
+};
+
+const getActiveNonce = (): string | null => {
+  if (activeNonce) return activeNonce;
+  try {
+    return sessionStorage.getItem(NONCE_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+};
+
+const clearActiveNonce = () => setActiveNonce(null);
 
 /**
  * Start native OAuth flow for a provider.
@@ -40,11 +65,21 @@ export const startNativeOAuth = async (
 ): Promise<{ url: string } | { error: string }> => {
   try {
     const nonce = generateNonce();
-    activeNonce = nonce;
+    setActiveNonce(nonce);
 
     // Include nonce as a query parameter in the callback URL
     const callbackUrl = `${PUBLISHED_URL}/native-auth-callback.html?nonce=${nonce}`;
 
+    // Google fallback: use direct auth endpoint because /~oauth broker currently returns redirect_uri_mismatch
+    if (provider === 'google') {
+      const authParams = new URLSearchParams({
+        provider: 'google',
+        redirect_to: callbackUrl,
+      });
+      return { url: `${SUPABASE_URL}/auth/v1/authorize?${authParams.toString()}` };
+    }
+
+    // Apple keeps using Lovable OAuth broker for managed Sign in with Apple
     const params = new URLSearchParams({
       provider,
       redirect_uri: callbackUrl,
@@ -86,7 +121,8 @@ const fetchRelayedTokens = async (): Promise<{
   access_token: string;
   refresh_token: string;
 } | null> => {
-  if (!activeNonce) return null;
+  const nonce = getActiveNonce();
+  if (!nonce) return null;
 
   const maxAttempts = 5;
   const delayMs = 1200;
@@ -95,7 +131,7 @@ const fetchRelayedTokens = async (): Promise<{
     try {
       console.log(`[nativeAuth] Fetching relay tokens (attempt ${attempt}/${maxAttempts})`);
       const res = await fetch(
-        `${SUPABASE_URL}/functions/v1/native-token-relay?nonce=${activeNonce}`,
+        `${SUPABASE_URL}/functions/v1/native-token-relay?nonce=${nonce}`,
         {
           method: 'GET',
           headers: {
@@ -180,7 +216,8 @@ export const setupNativeAuthListener = (): (() => void) => {
               console.error('[nativeAuth] Failed to set session:', error.message);
             } else {
               console.log('[nativeAuth] Session set successfully via deep link');
-              activeNonce = null;
+              clearActiveNonce();
+              window.dispatchEvent(new Event('native-auth-complete'));
             }
 
             try {
@@ -215,7 +252,7 @@ export const setupNativeAuthListener = (): (() => void) => {
                 console.log('[nativeAuth] Session set successfully via relay');
                 window.dispatchEvent(new Event('native-auth-complete'));
               }
-              activeNonce = null;
+              clearActiveNonce();
             } else {
               // No tokens = user likely cancelled or relay failed
               console.log('[nativeAuth] No relayed tokens found');
@@ -229,7 +266,7 @@ export const setupNativeAuthListener = (): (() => void) => {
                 console.log('[nativeAuth] No session — user likely cancelled');
                 window.dispatchEvent(new Event('native-browser-closed'));
               }
-              activeNonce = null;
+              clearActiveNonce();
             }
           }
         );
