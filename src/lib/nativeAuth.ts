@@ -31,6 +31,31 @@ const generateNonce = (): string => {
 
 /** Store the current nonce so we can retrieve tokens later */
 let activeNonce: string | null = null;
+const NONCE_STORAGE_KEY = 'jvala_native_oauth_nonce';
+
+const setActiveNonce = (nonce: string | null) => {
+  activeNonce = nonce;
+  try {
+    if (nonce) {
+      sessionStorage.setItem(NONCE_STORAGE_KEY, nonce);
+    } else {
+      sessionStorage.removeItem(NONCE_STORAGE_KEY);
+    }
+  } catch {
+    // Ignore storage errors
+  }
+};
+
+const getActiveNonce = (): string | null => {
+  if (activeNonce) return activeNonce;
+  try {
+    return sessionStorage.getItem(NONCE_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+};
+
+const clearActiveNonce = () => setActiveNonce(null);
 
 /**
  * Start native OAuth flow for a provider.
