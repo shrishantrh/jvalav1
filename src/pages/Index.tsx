@@ -95,6 +95,7 @@ const Index = () => {
   const { logs: medicationLogs, addLog: addMedicationLog } = useMedicationLogs(user?.id);
   const { schedulePostFlareFollowUps, checkStreakMilestone, checkEnvironmentalChanges } = useSmartNotifications();
   const { permission: notifPermission, requestPermission: requestNotifPermission, isSubscribed } = usePushNotifications();
+  useNativePush(); // Register native iOS/Android push tokens
   const { hasConsented: aiConsented, grantConsent: grantAIConsent } = useAIConsent();
   const [showAIConsentDialog, setShowAIConsentDialog] = useState(false);
 
