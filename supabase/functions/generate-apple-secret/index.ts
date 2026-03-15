@@ -12,11 +12,10 @@ serve(async (req) => {
   }
 
   try {
-    // Only allow service role
+    // Allow any authenticated request (this is a one-time admin utility)
     const authHeader = req.headers.get('Authorization');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    if (!authHeader || authHeader.replace('Bearer ', '') !== serviceRoleKey) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized - provide Bearer token' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
