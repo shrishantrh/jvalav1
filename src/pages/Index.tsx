@@ -37,6 +37,7 @@ import { AIConsentDialog } from "@/components/ai/AIConsentDialog";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useSmartNotifications } from "@/hooks/useSmartNotifications";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useNativePush } from "@/hooks/useNativePush";
 import { useAIConsent } from "@/hooks/useAIConsent";
 import type { SmartTrackable } from "@/components/tracking/FluidLogSelector";
 
