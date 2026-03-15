@@ -37,6 +37,7 @@ import { AIConsentDialog } from "@/components/ai/AIConsentDialog";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useSmartNotifications } from "@/hooks/useSmartNotifications";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useNativePush } from "@/hooks/useNativePush";
 import { useAIConsent } from "@/hooks/useAIConsent";
 import type { SmartTrackable } from "@/components/tracking/FluidLogSelector";
 
@@ -94,6 +95,7 @@ const Index = () => {
   const { logs: medicationLogs, addLog: addMedicationLog } = useMedicationLogs(user?.id);
   const { schedulePostFlareFollowUps, checkStreakMilestone, checkEnvironmentalChanges } = useSmartNotifications();
   const { permission: notifPermission, requestPermission: requestNotifPermission, isSubscribed } = usePushNotifications();
+  useNativePush(); // Register native iOS/Android push tokens
   const { hasConsented: aiConsented, grantConsent: grantAIConsent } = useAIConsent();
   const [showAIConsentDialog, setShowAIConsentDialog] = useState(false);
 
