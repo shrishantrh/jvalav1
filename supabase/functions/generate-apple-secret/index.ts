@@ -21,10 +21,18 @@ serve(async (req) => {
       });
     }
 
-    const privateKeyPem = Deno.env.get('APPLE_SIGN_IN_PRIVATE_KEY');
+    let privateKeyPem = Deno.env.get('APPLE_SIGN_IN_PRIVATE_KEY');
     if (!privateKeyPem) {
       throw new Error('APPLE_SIGN_IN_PRIVATE_KEY not configured');
     }
+
+    // Ensure PEM headers are present
+    privateKeyPem = privateKeyPem.trim();
+    if (!privateKeyPem.includes('-----BEGIN PRIVATE KEY-----')) {
+      privateKeyPem = `-----BEGIN PRIVATE KEY-----\n${privateKeyPem}\n-----END PRIVATE KEY-----`;
+    }
+    // Normalize line endings
+    privateKeyPem = privateKeyPem.replace(/\\n/g, '\n');
 
     const teamId = '3VV3HM37UR';
     const keyId = 'MSHZVMN5LC';
