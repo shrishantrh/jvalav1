@@ -80,7 +80,14 @@ async function sendAPNsPush(
 ): Promise<{ success: boolean; status?: number; reason?: string }> {
   try {
     // Create APNs JWT token
-    const key = await importPKCS8(apnsPushKey, 'ES256');
+    // Ensure PEM headers
+    let pemKey = apnsPushKey.trim();
+    if (!pemKey.includes('-----BEGIN PRIVATE KEY-----')) {
+      pemKey = `-----BEGIN PRIVATE KEY-----\n${pemKey}\n-----END PRIVATE KEY-----`;
+    }
+    pemKey = pemKey.replace(/\\n/g, '\n');
+
+    const key = await importPKCS8(pemKey, 'ES256');
     const now = Math.floor(Date.now() / 1000);
 
     const jwt = await new SignJWT({})
