@@ -402,7 +402,9 @@ const Index = () => {
           physiological_data: (entryData.physiologicalData as any) || null,
           latitude: entryData.environmentalData?.location?.latitude || null,
           longitude: entryData.environmentalData?.location?.longitude || null,
-          city: entryData.environmentalData?.location?.city || null,
+          city: ((entryData.environmentalData as any)?.location?.city && (entryData.environmentalData as any).location.city.toLowerCase() !== 'unknown')
+            ? (entryData.environmentalData as any).location.city
+            : (entryData.environmentalData as any)?.location?.region || (entryData.environmentalData as any)?.location?.country || null,
         }, { onConflict: 'user_id,timestamp', ignoreDuplicates: true })
         .select()
         .maybeSingle();
