@@ -90,7 +90,7 @@ serve(async (req) => {
     try {
       const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=&count=1&language=en&format=json&latitude=${latitude}&longitude=${longitude}`;
       // Open-Meteo doesn't have reverse geocoding, so use Nominatim with proper headers
-      const nomUrl = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=10&addressdetails=1`;
+      const nomUrl = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=14&addressdetails=1`;
       const geoResponse = await fetch(nomUrl, {
         headers: { 
           'User-Agent': 'JvalaHealthApp/2.0 (https://jvala.tech; contact@jvala.tech)',
@@ -99,10 +99,11 @@ serve(async (req) => {
       });
       if (geoResponse.ok) {
         const geoData = await geoResponse.json();
-        cityName = geoData.address?.city || geoData.address?.town || geoData.address?.village || geoData.address?.municipality || geoData.address?.suburb || 'Unknown';
-        region = geoData.address?.state || geoData.address?.county || '';
-        country = geoData.address?.country || '';
-        console.log('Nominatim geocoded:', cityName, region, country);
+        const addr = geoData.address || {};
+        cityName = addr.city || addr.town || addr.village || addr.municipality || addr.suburb || addr.hamlet || addr.county || 'Unknown';
+        region = addr.state || '';
+        country = addr.country || '';
+        console.log('Nominatim geocoded:', cityName, region, country, JSON.stringify(addr));
       } else {
         console.log('Nominatim returned status:', geoResponse.status);
       }
