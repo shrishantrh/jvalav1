@@ -3,48 +3,36 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Jvala - Returning to app...</title>
+  <title>Jvala</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #0a0a0a;
-      color: #fff;
+      background: #FBF8F5;
+      color: #1a1a1a;
       display: flex;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
       padding: 24px;
     }
-    .container { text-align: center; max-width: 340px; }
-    .logo {
-      width: 64px; height: 64px; margin: 0 auto 20px;
-      border-radius: 16px;
-      background: linear-gradient(135deg, #D6006C, #892EFF);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 28px;
-    }
-    h1 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
-    .subtitle { font-size: 14px; color: #888; margin-bottom: 24px; }
+    .container { text-align: center; max-width: 300px; }
     .spinner {
-      width: 32px; height: 32px;
-      border: 3px solid #333; border-top-color: #D6006C;
-      border-radius: 50%; animation: spin 0.8s linear infinite;
-      margin: 0 auto 20px;
+      width: 28px; height: 28px;
+      border: 3px solid #f0e0e8; border-top-color: #D6006C;
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+      margin: 0 auto 16px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .success { display: none; font-size: 14px; color: #4ade80; margin-bottom: 16px; }
-    .hint { display: none; font-size: 13px; color: #999; margin-top: 12px; }
+    .msg { font-size: 15px; font-weight: 600; color: #333; }
+    .sub { font-size: 13px; color: #999; margin-top: 8px; display: none; }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="logo">🔥</div>
-    <h1 id="title">Signing you in...</h1>
-    <p class="subtitle" id="status">Securely transferring your session</p>
     <div class="spinner" id="spinner"></div>
-    <p class="success" id="successMsg">✓ Done! Returning to Jvala...</p>
-    <p class="hint" id="hint"></p>
+    <p class="msg" id="msg">Finishing sign-in…</p>
+    <p class="sub" id="hint">If this doesn't close, tap the X above.</p>
   </div>
 
   <script>
@@ -59,33 +47,15 @@
       var SUPABASE_URL = 'https://rvhpwjhemwvvdtnzmobs.supabase.co';
       var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2aHB3amhlbXd2dmR0bnptb2JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3ODAyMDgsImV4cCI6MjA3NTM1NjIwOH0.2g2DDjiaxZh9TDRLPm8OhyxeNj4NkSX91YoJbdgFvNM';
 
-      function showSuccess() {
-        document.getElementById('spinner').style.display = 'none';
-        document.getElementById('title').textContent = 'Signed in!';
-        document.getElementById('status').textContent = '';
-        document.getElementById('successMsg').style.display = 'block';
-      }
-
-      function showError(msg) {
-        document.getElementById('spinner').style.display = 'none';
-        document.getElementById('title').textContent = 'Something went wrong';
-        document.getElementById('status').textContent = msg || 'Please close this window and try again.';
+      function showHint() {
+        document.getElementById('hint').style.display = 'block';
       }
 
       function returnToApp(suffix) {
         var targetUrl = 'jvala://auth-callback' + (suffix || '');
-        console.log('[callback] Redirecting to:', targetUrl);
-
         try { window.location.replace(targetUrl); } catch(e) {}
-
-        setTimeout(function() {
-          try { window.close(); } catch(e) {}
-        }, 500);
-
-        setTimeout(function() {
-          document.getElementById('hint').style.display = 'block';
-          document.getElementById('hint').textContent = 'If the app did not reopen, close this window and return to Jvala.';
-        }, 1800);
+        setTimeout(function() { try { window.close(); } catch(e) {} }, 400);
+        setTimeout(showHint, 2500);
       }
 
       function parseTokens(hashStr) {
@@ -109,18 +79,15 @@
 
       var hasPayload = !!authError || !!code || !!tokens;
       if (!hasPayload) {
-        showError('No authentication payload received.');
+        document.getElementById('msg').textContent = 'Something went wrong';
+        document.getElementById('spinner').style.display = 'none';
+        showHint();
         return;
       }
 
       var deepLinkSuffix = search + hash;
 
       if (!nonce) {
-        if (authError) {
-          showError(authError);
-          return;
-        }
-        showSuccess();
         returnToApp(deepLinkSuffix);
         return;
       }
@@ -133,27 +100,8 @@
         },
         body: JSON.stringify(relayPayload),
       })
-      .then(function(res) {
-        if (!res.ok) throw new Error('Relay failed: ' + res.status);
-        return res.json();
-      })
-      .then(function() {
-        if (authError) {
-          showError(authError);
-        } else {
-          showSuccess();
-        }
-        returnToApp(deepLinkSuffix);
-      })
-      .catch(function(err) {
-        console.error('Relay error:', err);
-        if (authError) {
-          showError(authError);
-        } else {
-          showSuccess();
-        }
-        returnToApp(deepLinkSuffix);
-      });
+      .then(function() { returnToApp(deepLinkSuffix); })
+      .catch(function() { returnToApp(deepLinkSuffix); });
     })();
   </script>
 </body>
