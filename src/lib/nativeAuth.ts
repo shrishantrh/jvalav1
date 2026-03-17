@@ -3,30 +3,57 @@
  *
  * Production mobile flow:
  * - Generate provider URL via supabase.auth.signInWithOAuth({ skipBrowserRedirect: true })
- * - Open URL in native browser
- * - Receive deep link in appUrlOpen
- * - Exchange code (PKCE) or set session from token hash
+ * - Force callback through hosted /native-auth-callback.html with a nonce
+ * - Callback page relays code/tokens
+ * - App listener exchanges code or sets session
  */
 
 import { supabase } from '@/integrations/supabase/client';
 import { isNative } from '@/lib/capacitor';
 
 const NATIVE_REDIRECT_URI = 'jvala://auth-callback';
+const FALLBACK_CALLBACK_ORIGIN = 'https://app.jvala.tech';
+
+const generateNonce = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+};
+
+const getOAuthCallbackOrigin = () => {
+  try {
+    const origin = window.location.origin;
+    if (origin.startsWith('http://') || origin.startsWith('https://')) {
+      return origin;
+    }
+  } catch {
+    // ignore
+  }
+  return FALLBACK_CALLBACK_ORIGIN;
+};
+
+const buildNativeCallbackUrl = (nonce: string) => {
+  const callbackOrigin = getOAuthCallbackOrigin();
+  return `${callbackOrigin}/native-auth-callback.html?nonce=${encodeURIComponent(nonce)}`;
+};
 
 /**
- * Start native OAuth flow for a provider using Supabase-managed PKCE.
+ * Start native OAuth flow for a provider using Supabase-managed URL generation.
  */
 export const startNativeOAuth = async (
   provider: 'google' | 'apple'
-): Promise<{ url: string } | { error: string }> => {
+): Promise<{ url: string; nonce: string } | { error: string }> => {
   try {
+    const nonce = generateNonce();
+
     const options: {
       redirectTo: string;
       skipBrowserRedirect: boolean;
       scopes?: string;
       queryParams?: Record<string, string>;
     } = {
-      redirectTo: NATIVE_REDIRECT_URI,
+      redirectTo: buildNativeCallbackUrl(nonce),
       skipBrowserRedirect: true,
     };
 
@@ -52,7 +79,7 @@ export const startNativeOAuth = async (
       return { error: 'Failed to generate OAuth URL' };
     }
 
-    return { url: data.url };
+    return { url: data.url, nonce };
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Unknown error' };
   }
@@ -143,7 +170,6 @@ export const setupNativeAuthListener = (): (() => void) => {
                 return;
               }
 
-              // PKCE callback: exchange ?code=... for session
               const code = url.searchParams.get('code');
               if (code) {
                 const { error } = await supabase.auth.exchangeCodeForSession(code);
@@ -157,7 +183,6 @@ export const setupNativeAuthListener = (): (() => void) => {
                 return;
               }
 
-              // Token callback fallback: jvala://auth-callback#access_token=...&refresh_token=...
               const hash = url.hash.startsWith('#') ? url.hash.slice(1) : '';
               const hashParams = new URLSearchParams(hash);
               const access_token = hashParams.get('access_token');
@@ -175,7 +200,6 @@ export const setupNativeAuthListener = (): (() => void) => {
                 return;
               }
 
-              // Final fallback: session may already be present
               const { data } = await supabase.auth.getSession();
               if (data.session) {
                 emitComplete();
@@ -195,7 +219,6 @@ export const setupNativeAuthListener = (): (() => void) => {
         listeners.push(() => listener?.remove?.());
       }
 
-      // Handle manual close/cancel from in-app browser
       if (browserPlugin) {
         const browserListener = await browserPlugin.addListener(
           'browserFinished',

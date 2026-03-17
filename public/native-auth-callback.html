@@ -72,20 +72,20 @@
         document.getElementById('status').textContent = msg || 'Please close this window and try again.';
       }
 
-      function returnToApp(hashStr) {
-        // Try custom URL scheme to auto-return to native app
-        var targetUrl = 'jvala://auth-callback' + (hashStr || '');
+      function returnToApp(suffix) {
+        var targetUrl = 'jvala://auth-callback' + (suffix || '');
         console.log('[callback] Redirecting to:', targetUrl);
+
         try { window.location.replace(targetUrl); } catch(e) {}
-        // Fallback: try window.close after a brief delay
+
         setTimeout(function() {
           try { window.close(); } catch(e) {}
         }, 500);
-        // Show manual close hint after 2s if still here
+
         setTimeout(function() {
           document.getElementById('hint').style.display = 'block';
-          document.getElementById('hint').textContent = 'If the app didn\'t open, close this window and return to Jvala.';
-        }, 2000);
+          document.getElementById('hint').textContent = 'If the app did not reopen, close this window and return to Jvala.';
+        }, 1800);
       }
 
       function parseTokens(hashStr) {
@@ -97,57 +97,62 @@
         return null;
       }
 
-      if (authError) {
-        showError(authError);
-        return;
-      }
-
-      // PKCE callback support: forward the auth code to the app deep link.
-      if (code) {
-        showSuccess();
-        returnToApp(search + hash);
-        return;
-      }
-
       var tokens = parseTokens(hash);
+      var relayPayload = { nonce: nonce };
 
-      if (!tokens) {
+      if (authError) relayPayload.error = authError;
+      if (code) relayPayload.code = code;
+      if (tokens) {
+        relayPayload.access_token = tokens.access_token;
+        relayPayload.refresh_token = tokens.refresh_token;
+      }
+
+      var hasPayload = !!authError || !!code || !!tokens;
+      if (!hasPayload) {
         showError('No authentication payload received.');
         return;
       }
 
+      var deepLinkSuffix = search + hash;
+
       if (!nonce) {
-        // No nonce = not a relay flow, just return via custom scheme
+        if (authError) {
+          showError(authError);
+          return;
+        }
         showSuccess();
-        returnToApp(hash);
+        returnToApp(deepLinkSuffix);
         return;
       }
 
-      // POST tokens to edge function, then redirect back to app
       fetch(SUPABASE_URL + '/functions/v1/native-token-relay', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'apikey': SUPABASE_ANON_KEY,
         },
-        body: JSON.stringify({
-          nonce: nonce,
-          access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token,
-        }),
+        body: JSON.stringify(relayPayload),
       })
       .then(function(res) {
         if (!res.ok) throw new Error('Relay failed: ' + res.status);
         return res.json();
       })
       .then(function() {
-        showSuccess();
-        returnToApp(hash);
+        if (authError) {
+          showError(authError);
+        } else {
+          showSuccess();
+        }
+        returnToApp(deepLinkSuffix);
       })
       .catch(function(err) {
-        console.error('Token relay error:', err);
-        showSuccess();
-        returnToApp(hash);
+        console.error('Relay error:', err);
+        if (authError) {
+          showError(authError);
+        } else {
+          showSuccess();
+        }
+        returnToApp(deepLinkSuffix);
       });
     })();
   </script>
