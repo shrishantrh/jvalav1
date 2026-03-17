@@ -110,20 +110,23 @@ serve(async (req) => {
       console.log('Nominatim geocoding failed:', e);
     }
     
-    // Strategy 2: BigDataCloud free reverse geocoding (no key needed)
+    // Strategy 2: Use Open-Meteo geocoding search as reverse lookup
     if (cityName === 'Unknown') {
       try {
-        const bdcUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`;
-        const bdcResponse = await fetch(bdcUrl);
-        if (bdcResponse.ok) {
-          const bdcData = await bdcResponse.json();
-          cityName = bdcData.city || bdcData.locality || bdcData.principalSubdivision || 'Unknown';
-          region = bdcData.principalSubdivision || '';
-          country = bdcData.countryName || '';
-          console.log('BigDataCloud geocoded:', cityName, region, country);
+        // Search for nearby places by doing a coordinate-based lookup via a free geocoding service
+        const geoNamesUrl = `http://api.geonames.org/findNearbyPlaceNameJSON?lat=${latitude}&lng=${longitude}&username=jvalahealth&cities=cities5000&radius=30&maxRows=1`;
+        const gnResponse = await fetch(geoNamesUrl);
+        if (gnResponse.ok) {
+          const gnData = await gnResponse.json();
+          if (gnData.geonames?.length > 0) {
+            cityName = gnData.geonames[0].name || 'Unknown';
+            region = gnData.geonames[0].adminName1 || '';
+            country = gnData.geonames[0].countryName || '';
+            console.log('GeoNames geocoded:', cityName, region, country);
+          }
         }
       } catch (e) {
-        console.log('BigDataCloud geocoding also failed:', e);
+        console.log('GeoNames geocoding also failed:', e);
       }
     }
 
