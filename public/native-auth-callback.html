@@ -53,6 +53,8 @@
       var search = window.location.search;
       var params = new URLSearchParams(search);
       var nonce = params.get('nonce');
+      var code = params.get('code');
+      var authError = params.get('error_description') || params.get('error');
 
       var SUPABASE_URL = 'https://rvhpwjhemwvvdtnzmobs.supabase.co';
       var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ2aHB3amhlbXd2dmR0bnptb2JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3ODAyMDgsImV4cCI6MjA3NTM1NjIwOH0.2g2DDjiaxZh9TDRLPm8OhyxeNj4NkSX91YoJbdgFvNM';
