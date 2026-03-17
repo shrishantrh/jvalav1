@@ -81,23 +81,50 @@ serve(async (req) => {
     const current = data.current;
     const daily = data.daily;
 
-    // Reverse geocode to get city name using Open-Meteo's geocoding
+    // Reverse geocode to get city name — try multiple providers for reliability
     let cityName = 'Unknown';
     let region = '';
     let country = '';
+    
+    // Strategy 1: Open-Meteo geocoding API (same provider, very reliable)
     try {
-      const geoUrl = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=10`;
-      const geoResponse = await fetch(geoUrl, {
-        headers: { 'User-Agent': 'Jvala-Health-App/1.0' }
+      const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=&count=1&language=en&format=json&latitude=${latitude}&longitude=${longitude}`;
+      // Open-Meteo doesn't have reverse geocoding, so use Nominatim with proper headers
+      const nomUrl = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=10&addressdetails=1`;
+      const geoResponse = await fetch(nomUrl, {
+        headers: { 
+          'User-Agent': 'JvalaHealthApp/2.0 (https://jvala.tech; contact@jvala.tech)',
+          'Accept-Language': 'en',
+        }
       });
       if (geoResponse.ok) {
         const geoData = await geoResponse.json();
-        cityName = geoData.address?.city || geoData.address?.town || geoData.address?.village || geoData.address?.municipality || 'Unknown';
+        cityName = geoData.address?.city || geoData.address?.town || geoData.address?.village || geoData.address?.municipality || geoData.address?.suburb || 'Unknown';
         region = geoData.address?.state || geoData.address?.county || '';
         country = geoData.address?.country || '';
+        console.log('Nominatim geocoded:', cityName, region, country);
+      } else {
+        console.log('Nominatim returned status:', geoResponse.status);
       }
     } catch (e) {
-      console.log('Geocoding failed, using coordinates');
+      console.log('Nominatim geocoding failed:', e);
+    }
+    
+    // Strategy 2: BigDataCloud free reverse geocoding (no key needed)
+    if (cityName === 'Unknown') {
+      try {
+        const bdcUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`;
+        const bdcResponse = await fetch(bdcUrl);
+        if (bdcResponse.ok) {
+          const bdcData = await bdcResponse.json();
+          cityName = bdcData.city || bdcData.locality || bdcData.principalSubdivision || 'Unknown';
+          region = bdcData.principalSubdivision || '';
+          country = bdcData.countryName || '';
+          console.log('BigDataCloud geocoded:', cityName, region, country);
+        }
+      } catch (e) {
+        console.log('BigDataCloud geocoding also failed:', e);
+      }
     }
 
     // Map WMO weather codes to descriptions
