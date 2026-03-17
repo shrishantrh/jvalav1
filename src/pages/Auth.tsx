@@ -18,6 +18,8 @@ import { startNativeOAuth, openInNativeBrowser, setupNativeAuthListener } from "
 
 
 const TERMS_ACCEPTED_KEY = 'jvala_terms_accepted';
+const NATIVE_RELAY_POLL_INTERVAL_MS = 1200;
+const NATIVE_RELAY_POLL_TIMEOUT_MS = 90_000;
 
 const Auth = () => {
   const [showSplash, setShowSplash] = useState(true);
@@ -39,12 +41,137 @@ const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const termsAcceptedRef = useRef(termsAccepted);
+  const relayPollTimerRef = useRef<number | null>(null);
+  const relayPollBusyRef = useRef(false);
+
+  const stopNativeRelayPolling = () => {
+    if (relayPollTimerRef.current !== null) {
+      window.clearInterval(relayPollTimerRef.current);
+      relayPollTimerRef.current = null;
+    }
+    relayPollBusyRef.current = false;
+  };
+
+  const closeNativeBrowserSheet = async () => {
+    if (!isNative) return;
+    try {
+      const browser =
+        (window as any)?.Capacitor?.Plugins?.Browser ??
+        (await import('@capacitor/browser').catch(() => null))?.Browser;
+      if (browser) await browser.close();
+    } catch {
+      // ignore close errors
+    }
+  };
+
+  const startNativeRelayPolling = (nonce: string) => {
+    if (!isNative) return;
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+    if (!supabaseUrl || !publishableKey) return;
+
+    stopNativeRelayPolling();
+    const deadlineAt = Date.now() + NATIVE_RELAY_POLL_TIMEOUT_MS;
+
+    const pollOnce = async () => {
+      if (relayPollBusyRef.current) return;
+      relayPollBusyRef.current = true;
+
+      try {
+        const response = await fetch(
+          `${supabaseUrl}/functions/v1/native-token-relay?nonce=${encodeURIComponent(nonce)}`,
+          {
+            method: 'GET',
+            headers: {
+              apikey: publishableKey,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (response.status === 404) {
+          if (Date.now() > deadlineAt) {
+            stopNativeRelayPolling();
+            setLoading(false);
+          }
+          return;
+        }
+
+        if (!response.ok) {
+          if (Date.now() > deadlineAt) {
+            stopNativeRelayPolling();
+            setLoading(false);
+          }
+          return;
+        }
+
+        const payload = await response.json();
+
+        if (payload?.error) {
+          stopNativeRelayPolling();
+          setLoading(false);
+          toast({
+            title: 'Sign-in failed',
+            description: String(payload.error),
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        let authError: string | null = null;
+
+        if (payload?.code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(String(payload.code));
+          if (error) authError = error.message;
+        } else if (payload?.access_token && payload?.refresh_token) {
+          const { error } = await supabase.auth.setSession({
+            access_token: String(payload.access_token),
+            refresh_token: String(payload.refresh_token),
+          });
+          if (error) authError = error.message;
+        } else {
+          return;
+        }
+
+        stopNativeRelayPolling();
+
+        if (authError) {
+          setLoading(false);
+          toast({
+            title: 'Sign-in failed',
+            description: authError,
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        await closeNativeBrowserSheet();
+        window.dispatchEvent(new Event('native-auth-complete'));
+      } catch {
+        if (Date.now() > deadlineAt) {
+          stopNativeRelayPolling();
+          setLoading(false);
+        }
+      } finally {
+        relayPollBusyRef.current = false;
+      }
+    };
+
+    void pollOnce();
+    relayPollTimerRef.current = window.setInterval(() => {
+      void pollOnce();
+    }, NATIVE_RELAY_POLL_INTERVAL_MS);
+  };
 
   // Check if already authenticated + set up native deep link listener
   useEffect(() => {
     // IMPORTANT: subscribe before getSession to avoid missing fast OAuth session events
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session) {
+        stopNativeRelayPolling();
+
         // Always ensure terms_accepted_at is set when user has accepted the gate
         if (termsAcceptedRef.current) {
           const { data: profile } = await supabase
@@ -66,6 +193,7 @@ const Auth = () => {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
+        stopNativeRelayPolling();
         setShowSplash(false);
         navigate('/');
       }
@@ -76,6 +204,8 @@ const Auth = () => {
 
     // Listen for native auth completion
     const handleNativeAuthComplete = async () => {
+      stopNativeRelayPolling();
+
       // iOS webviews can race auth state propagation; poll briefly, then hard-route.
       let session = (await supabase.auth.getSession()).data.session;
       let retries = 0;
@@ -110,6 +240,7 @@ const Auth = () => {
 
     // Listen for native auth error
     const handleNativeAuthError = () => {
+      stopNativeRelayPolling();
       setLoading(false);
       toast({
         title: "Sign-in failed",
@@ -124,6 +255,7 @@ const Auth = () => {
       setTimeout(() => {
         supabase.auth.getSession().then(({ data }) => {
           if (!data.session) {
+            stopNativeRelayPolling();
             setLoading(false);
           }
         });
@@ -132,6 +264,7 @@ const Auth = () => {
     window.addEventListener('native-browser-closed', handleBrowserFinishedNoSession);
 
     return () => {
+      stopNativeRelayPolling();
       subscription.unsubscribe();
       cleanupDeepLink();
       window.removeEventListener('native-auth-complete', handleNativeAuthComplete);
@@ -150,6 +283,7 @@ const Auth = () => {
       attempts += 1;
       const { data } = await supabase.auth.getSession();
       if (data.session) {
+        stopNativeRelayPolling();
         setLoading(false);
         navigate('/');
         clearInterval(interval);
@@ -189,10 +323,11 @@ const Auth = () => {
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
-      // Native mobile: use in-app browser + deep link flow
+      // Native mobile: browser + nonce relay fallback + deep link listener
       if (isNative) {
         const result = await startNativeOAuth('google');
         if ('error' in result) throw new Error(result.error);
+        startNativeRelayPolling(result.nonce);
         await openInNativeBrowser(result.url);
         return;
       }
@@ -203,6 +338,7 @@ const Auth = () => {
       });
       if (error) throw error;
     } catch (error: any) {
+      stopNativeRelayPolling();
       toast({
         title: "Google login failed",
         description: error.message || "Could not sign in with Google",
@@ -215,10 +351,11 @@ const Auth = () => {
   const handleAppleLogin = async () => {
     setLoading(true);
     try {
-      // Native mobile: use in-app browser + deep link flow
+      // Native mobile: browser + nonce relay fallback + deep link listener
       if (isNative) {
         const result = await startNativeOAuth('apple');
         if ('error' in result) throw new Error(result.error);
+        startNativeRelayPolling(result.nonce);
         await openInNativeBrowser(result.url);
         return;
       }
@@ -229,6 +366,7 @@ const Auth = () => {
       });
       if (error) throw error;
     } catch (error: any) {
+      stopNativeRelayPolling();
       toast({
         title: "Apple login failed",
         description: error.message || "Could not sign in with Apple",
