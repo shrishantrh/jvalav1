@@ -142,11 +142,15 @@ serve(async (req) => {
     const feelsLikeC = Math.round((feelsLikeF - 32) * 5/9);
 
     // Build location data
+    const resolvedCity = cityName !== 'Unknown'
+      ? cityName
+      : (region || country || 'Unknown');
+
     const location = {
       latitude,
       longitude,
-      address: cityName,
-      city: cityName,
+      address: resolvedCity,
+      city: resolvedCity,
       region,
       country,
       timezone: data.timezone,

@@ -421,7 +421,9 @@ export const CompactFlareCard = ({
   const env = entry.environmentalData as any;
   const phys = entry.physiologicalData as any;
   
-  const city = env?.location?.city || env?.city;
+  const city = [env?.location?.city, env?.city, env?.location?.region, env?.location?.county, env?.location?.state, env?.location?.country].find(
+    (value) => typeof value === 'string' && value.trim() && value.trim().toLowerCase() !== 'unknown'
+  );
   const temp = env?.weather?.temperature;
   const humidity = env?.weather?.humidity;
   const pressure = env?.weather?.pressure || env?.weather?.pressureMb;

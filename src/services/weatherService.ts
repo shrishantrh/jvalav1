@@ -36,27 +36,77 @@ export const fetchWeatherData = async (
   const cacheKey = `weather_${roundCoord(latitude)}_${roundCoord(longitude)}`;
   const start = performance.now();
 
-  const result = await cachedFetch<EnvironmentalData>(
-    cacheKey,
-    async () => {
-      const { data, error } = await supabase.functions.invoke("get-weather", {
-        body: { latitude, longitude },
+  const isUnknown = (value?: string | null) => !value || value.trim().toLowerCase() === "unknown";
+
+  const normalizeLocation = (data: EnvironmentalData): EnvironmentalData => {
+    const location = (data as any)?.location ?? {};
+    const resolvedCity = !isUnknown(location.city)
+      ? location.city
+      : location.region || location.county || location.state || location.country || undefined;
+
+    return {
+      ...data,
+      location: {
+        ...location,
+        city: resolvedCity,
+        address: location.address || resolvedCity,
+      },
+    };
+  };
+
+  const cached = getCached<EnvironmentalData>(cacheKey);
+  if (cached) {
+    const normalizedCached = normalizeLocation(cached);
+    if (!isUnknown(normalizedCached.location?.city)) {
+      logAPICall({
+        service: "weather",
+        latencyMs: Math.round(performance.now() - start),
+        status: "success",
+        cached: true,
       });
-      if (error) throw new Error(error.message || "Weather API error");
-      return data;
-    },
-    5 * 60 * 1000, // 5 min TTL
-    "weather-api" // circuit breaker name
-  );
+      return normalizedCached;
+    }
+  }
+
+  let result: EnvironmentalData | null = null;
+
+  try {
+    result = await withRetry(
+      async () => {
+        const { data, error } = await supabase.functions.invoke("get-weather", {
+          body: { latitude, longitude },
+        });
+        if (error) throw new Error(error.message || "Weather API error");
+        return data as EnvironmentalData;
+      },
+      { maxRetries: 2, baseDelayMs: 300, circuitName: "weather-api" }
+    );
+  } catch (error) {
+    console.error("Weather fetch failed:", error);
+    result = null;
+  }
+
+  if (!result) {
+    logAPICall({
+      service: "weather",
+      latencyMs: Math.round(performance.now() - start),
+      status: "error",
+      cached: false,
+    });
+    return null;
+  }
+
+  const normalized = normalizeLocation(result);
+  setCache(cacheKey, normalized, 5 * 60 * 1000);
 
   logAPICall({
     service: "weather",
     latencyMs: Math.round(performance.now() - start),
-    status: result ? "success" : "error",
-    cached: result !== null && performance.now() - start < 10,
+    status: "success",
+    cached: false,
   });
 
-  return result;
+  return normalized;
 };
 
 export const getCurrentLocation = async (): Promise<
