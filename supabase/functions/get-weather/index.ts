@@ -171,9 +171,9 @@ serve(async (req) => {
       }
     }
 
-    // Last resort: use neighborhood/hamlet only if no municipality-level city could be found
-    if (cityName === 'Unknown' && lowConfidenceLocality) {
-      cityName = lowConfidenceLocality;
+    // Last resort: prefer broader administrative area over ambiguous hamlet labels
+    if (cityName === 'Unknown') {
+      cityName = region || country || 'Unknown';
     }
 
     // Map WMO weather codes to descriptions

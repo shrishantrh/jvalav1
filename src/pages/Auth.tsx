@@ -93,7 +93,7 @@ const Auth = () => {
     };
     window.addEventListener('native-auth-error', handleNativeAuthError);
 
-    // Listen for browser close without session (reset stuck loading state)
+    // Browser close can happen before token relay completes; keep loading while recovery polling runs
     const handleBrowserFinishedNoSession = () => {
       setTimeout(() => {
         supabase.auth.getSession().then(({ data }) => {
@@ -101,7 +101,7 @@ const Auth = () => {
             setLoading(false);
           }
         });
-      }, 1500);
+      }, 25000);
     };
     window.addEventListener('native-browser-closed', handleBrowserFinishedNoSession);
 

@@ -122,8 +122,8 @@ const fetchRelayedTokens = async (): Promise<{
   const nonce = getActiveNonce();
   if (!nonce) return null;
 
-  const maxAttempts = 5;
-  const delayMs = 1200;
+  const maxAttempts = 20;
+  const delayMs = 1000;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
