@@ -81,28 +81,36 @@ serve(async (req) => {
     const current = data.current;
     const daily = data.daily;
 
-    // Reverse geocode to get city name — try multiple providers for reliability
+    // Reverse geocode to get city name — prioritize municipality-level locality
     let cityName = 'Unknown';
     let region = '';
     let country = '';
+    let lowConfidenceLocality = '';
     
-    // Strategy 1: Open-Meteo geocoding API (same provider, very reliable)
+    // Strategy 1: Nominatim (best free reverse geocoder for full address parts)
     try {
-      const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=&count=1&language=en&format=json&latitude=${latitude}&longitude=${longitude}`;
-      // Open-Meteo doesn't have reverse geocoding, so use Nominatim with proper headers
-      const nomUrl = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=14&addressdetails=1`;
+      const nomUrl = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=18&addressdetails=1`;
       const geoResponse = await fetch(nomUrl, {
-        headers: { 
-          'User-Agent': 'JvalaHealthApp/2.0 (https://jvala.tech; contact@jvala.tech)',
+        headers: {
+          'User-Agent': 'Jvala/1.0 (support@jvala.tech)',
           'Accept-Language': 'en',
         }
       });
+
       if (geoResponse.ok) {
         const geoData = await geoResponse.json();
         const addr = geoData.address || {};
-        cityName = addr.city || addr.town || addr.village || addr.municipality || addr.suburb || addr.hamlet || addr.county || 'Unknown';
-        region = addr.state || '';
+
+        const municipality = addr.city || addr.town || addr.village || addr.municipality || addr.city_district;
+        lowConfidenceLocality = addr.suburb || addr.neighbourhood || addr.hamlet || '';
+
+        if (municipality) {
+          cityName = municipality;
+        }
+
+        region = addr.state || addr.county || '';
         country = addr.country || '';
+
         console.log('Nominatim geocoded:', cityName, region, country, JSON.stringify(addr));
       } else {
         console.log('Nominatim returned status:', geoResponse.status);
@@ -110,25 +118,52 @@ serve(async (req) => {
     } catch (e) {
       console.log('Nominatim geocoding failed:', e);
     }
-    
-    // Strategy 2: Use Open-Meteo geocoding search as reverse lookup
+
+    // Strategy 2: BigDataCloud reverse geocoder (often better for municipality naming)
+    if (cityName === 'Unknown' || lowConfidenceLocality) {
+      try {
+        const bdcUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`;
+        const bdcResponse = await fetch(bdcUrl);
+
+        if (bdcResponse.ok) {
+          const bdcData = await bdcResponse.json();
+          const bdcCity = bdcData.city || bdcData.locality || '';
+
+          if (bdcCity) {
+            cityName = bdcCity;
+            region = bdcData.principalSubdivision || region;
+            country = bdcData.countryName || country;
+          }
+
+          console.log('BigDataCloud geocoded:', cityName, region, country);
+        }
+      } catch (e) {
+        console.log('BigDataCloud geocoding failed:', e);
+      }
+    }
+
+    // Strategy 3: GeoNames nearest place (final municipality fallback)
     if (cityName === 'Unknown') {
       try {
-        // Search for nearby places by doing a coordinate-based lookup via a free geocoding service
-        const geoNamesUrl = `http://api.geonames.org/findNearbyPlaceNameJSON?lat=${latitude}&lng=${longitude}&username=jvalahealth&cities=cities5000&radius=30&maxRows=1`;
+        const geoNamesUrl = `https://secure.geonames.org/findNearbyPlaceNameJSON?lat=${latitude}&lng=${longitude}&username=jvalahealth&cities=cities5000&radius=20&maxRows=1`;
         const gnResponse = await fetch(geoNamesUrl);
         if (gnResponse.ok) {
           const gnData = await gnResponse.json();
           if (gnData.geonames?.length > 0) {
             cityName = gnData.geonames[0].name || 'Unknown';
-            region = gnData.geonames[0].adminName1 || '';
-            country = gnData.geonames[0].countryName || '';
+            region = gnData.geonames[0].adminName1 || region;
+            country = gnData.geonames[0].countryName || country;
             console.log('GeoNames geocoded:', cityName, region, country);
           }
         }
       } catch (e) {
-        console.log('GeoNames geocoding also failed:', e);
+        console.log('GeoNames geocoding failed:', e);
       }
+    }
+
+    // Last resort: use neighborhood/hamlet only if no municipality-level city could be found
+    if (cityName === 'Unknown' && lowConfidenceLocality) {
+      cityName = lowConfidenceLocality;
     }
 
     // Map WMO weather codes to descriptions
