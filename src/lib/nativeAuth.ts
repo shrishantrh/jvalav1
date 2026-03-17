@@ -1,40 +1,58 @@
 /**
  * Native OAuth for Capacitor
  *
- * Production-style mobile flow:
- * - Start OAuth with a custom-scheme redirect URI
- * - Browser returns directly to app via deep link
- * - App listener exchanges code (or sets session from hash tokens)
+ * Production mobile flow:
+ * - Generate provider URL via supabase.auth.signInWithOAuth({ skipBrowserRedirect: true })
+ * - Open URL in native browser
+ * - Receive deep link in appUrlOpen
+ * - Exchange code (PKCE) or set session from token hash
  */
 
 import { supabase } from '@/integrations/supabase/client';
 import { isNative } from '@/lib/capacitor';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const NATIVE_REDIRECT_URI = 'jvala://auth-callback';
 
 /**
- * Start native OAuth flow for a provider.
+ * Start native OAuth flow for a provider using Supabase-managed PKCE.
  */
 export const startNativeOAuth = async (
   provider: 'google' | 'apple'
 ): Promise<{ url: string } | { error: string }> => {
   try {
-    const authParams = new URLSearchParams({
-      provider,
-      redirect_to: NATIVE_REDIRECT_URI,
-    });
+    const options: {
+      redirectTo: string;
+      skipBrowserRedirect: boolean;
+      scopes?: string;
+      queryParams?: Record<string, string>;
+    } = {
+      redirectTo: NATIVE_REDIRECT_URI,
+      skipBrowserRedirect: true,
+    };
 
     if (provider === 'google') {
-      authParams.set('scopes', 'email profile');
-      authParams.set('prompt', 'select_account');
+      options.scopes = 'email profile';
+      options.queryParams = { prompt: 'select_account' };
     }
 
     if (provider === 'apple') {
-      authParams.set('scopes', 'name email');
+      options.scopes = 'name email';
     }
 
-    return { url: `${SUPABASE_URL}/auth/v1/authorize?${authParams.toString()}` };
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options,
+    });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    if (!data?.url) {
+      return { error: 'Failed to generate OAuth URL' };
+    }
+
+    return { url: data.url };
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Unknown error' };
   }
@@ -50,7 +68,7 @@ export const openInNativeBrowser = async (url: string): Promise<void> => {
       (await import('@capacitor/browser').catch(() => null))?.Browser;
 
     if (browser) {
-      await browser.open({ url, presentationStyle: 'popover' });
+      await browser.open({ url });
     } else {
       window.open(url, '_blank');
     }
@@ -80,6 +98,19 @@ export const setupNativeAuthListener = (): (() => void) => {
         (await import('@capacitor/browser').catch(() => null))?.Browser;
 
       const listeners: (() => void)[] = [];
+      let authSettled = false;
+
+      const emitComplete = () => {
+        if (authSettled) return;
+        authSettled = true;
+        window.dispatchEvent(new Event('native-auth-complete'));
+      };
+
+      const emitError = () => {
+        if (authSettled) return;
+        authSettled = true;
+        window.dispatchEvent(new Event('native-auth-error'));
+      };
 
       const closeBrowser = async () => {
         try {
@@ -107,26 +138,26 @@ export const setupNativeAuthListener = (): (() => void) => {
 
               if (authError) {
                 console.error('[nativeAuth] OAuth error:', authError);
-                window.dispatchEvent(new Event('native-auth-error'));
+                emitError();
                 await closeBrowser();
                 return;
               }
 
-              // PKCE-style callback: exchange ?code=... for a full session
+              // PKCE callback: exchange ?code=... for session
               const code = url.searchParams.get('code');
               if (code) {
                 const { error } = await supabase.auth.exchangeCodeForSession(code);
                 if (error) {
-                  console.error('[nativeAuth] Failed exchangeCodeForSession:', error.message);
-                  window.dispatchEvent(new Event('native-auth-error'));
+                  console.error('[nativeAuth] exchangeCodeForSession failed:', error.message);
+                  emitError();
                 } else {
-                  window.dispatchEvent(new Event('native-auth-complete'));
+                  emitComplete();
                 }
                 await closeBrowser();
                 return;
               }
 
-              // Token-style callback fallback: jvala://auth-callback#access_token=...&refresh_token=...
+              // Token callback fallback: jvala://auth-callback#access_token=...&refresh_token=...
               const hash = url.hash.startsWith('#') ? url.hash.slice(1) : '';
               const hashParams = new URLSearchParams(hash);
               const access_token = hashParams.get('access_token');
@@ -135,27 +166,27 @@ export const setupNativeAuthListener = (): (() => void) => {
               if (access_token && refresh_token) {
                 const { error } = await supabase.auth.setSession({ access_token, refresh_token });
                 if (error) {
-                  console.error('[nativeAuth] Failed setSession from deep link:', error.message);
-                  window.dispatchEvent(new Event('native-auth-error'));
+                  console.error('[nativeAuth] setSession from deep link failed:', error.message);
+                  emitError();
                 } else {
-                  window.dispatchEvent(new Event('native-auth-complete'));
+                  emitComplete();
                 }
                 await closeBrowser();
                 return;
               }
 
-              // Last fallback: check whether session was already established
+              // Final fallback: session may already be present
               const { data } = await supabase.auth.getSession();
               if (data.session) {
-                window.dispatchEvent(new Event('native-auth-complete'));
+                emitComplete();
               } else {
-                window.dispatchEvent(new Event('native-auth-error'));
+                emitError();
               }
 
               await closeBrowser();
             } catch (e) {
               console.error('[nativeAuth] Deep link handling failed:', e);
-              window.dispatchEvent(new Event('native-auth-error'));
+              emitError();
               await closeBrowser();
             }
           }
@@ -169,10 +200,13 @@ export const setupNativeAuthListener = (): (() => void) => {
         const browserListener = await browserPlugin.addListener(
           'browserFinished',
           async () => {
-            await new Promise((r) => setTimeout(r, 400));
+            if (authSettled) return;
+
+            await new Promise((r) => setTimeout(r, 1200));
             const { data } = await supabase.auth.getSession();
+
             if (data.session) {
-              window.dispatchEvent(new Event('native-auth-complete'));
+              emitComplete();
             } else {
               window.dispatchEvent(new Event('native-browser-closed'));
             }
