@@ -93,7 +93,7 @@ const Auth = () => {
     };
     window.addEventListener('native-auth-error', handleNativeAuthError);
 
-    // Browser close can happen before token relay completes; keep loading while recovery polling runs
+    // Native browser was closed (likely cancel) — quickly recover UI state
     const handleBrowserFinishedNoSession = () => {
       setTimeout(() => {
         supabase.auth.getSession().then(({ data }) => {
@@ -101,7 +101,7 @@ const Auth = () => {
             setLoading(false);
           }
         });
-      }, 25000);
+      }, 2500);
     };
     window.addEventListener('native-browser-closed', handleBrowserFinishedNoSession);
 
