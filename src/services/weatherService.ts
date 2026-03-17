@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { isNative } from "@/lib/capacitor";
-import { cachedFetch } from "@/lib/apiResilience";
+import { getCached, setCache, withRetry } from "@/lib/apiResilience";
 import { logAPICall } from "@/lib/observability";
 
 export interface EnvironmentalData {
