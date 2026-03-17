@@ -64,6 +64,32 @@ const Auth = () => {
     }
   };
 
+  const markTermsAcceptedInProfile = (userId: string) => {
+    if (!termsAcceptedRef.current) return;
+
+    // Keep auth callback synchronous to avoid Supabase auth deadlock.
+    window.setTimeout(() => {
+      void (async () => {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('terms_accepted_at')
+            .eq('id', userId)
+            .maybeSingle();
+
+          if (profile && !profile.terms_accepted_at) {
+            await supabase
+              .from('profiles')
+              .update({ terms_accepted_at: new Date().toISOString() })
+              .eq('id', userId);
+          }
+        } catch (error) {
+          console.error('[auth] Failed to persist terms acceptance timestamp:', error);
+        }
+      })();
+    }, 0);
+  };
+
   const startNativeRelayPolling = (nonce: string) => {
     if (!isNative) return;
 
@@ -168,35 +194,31 @@ const Auth = () => {
   // Check if already authenticated + set up native deep link listener
   useEffect(() => {
     // IMPORTANT: subscribe before getSession to avoid missing fast OAuth session events
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session) {
-        stopNativeRelayPolling();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) return;
 
-        // Always ensure terms_accepted_at is set when user has accepted the gate
-        if (termsAcceptedRef.current) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('terms_accepted_at')
-            .eq('id', session.user.id)
-            .maybeSingle();
+      stopNativeRelayPolling();
+      markTermsAcceptedInProfile(session.user.id);
+      setLoading(false);
+      setShowSplash(false);
+      navigate('/', { replace: true });
 
-          if (profile && !profile.terms_accepted_at) {
-            await supabase.from('profiles').update({
-              terms_accepted_at: new Date().toISOString(),
-            }).eq('id', session.user.id);
-          }
+      // HashRouter fallback for native webview edge-cases
+      window.setTimeout(() => {
+        if (window.location.hash.includes('/auth')) {
+          window.location.replace(`${window.location.origin}/#/`);
         }
-        setShowSplash(false);
-        navigate('/');
-      }
+      }, 120);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        stopNativeRelayPolling();
-        setShowSplash(false);
-        navigate('/');
-      }
+      if (!session) return;
+
+      stopNativeRelayPolling();
+      markTermsAcceptedInProfile(session.user.id);
+      setLoading(false);
+      setShowSplash(false);
+      navigate('/', { replace: true });
     });
 
     // Set up deep link listener for native OAuth callbacks
@@ -219,12 +241,13 @@ const Auth = () => {
       setLoading(false);
 
       if (session) {
+        setShowSplash(false);
         navigate('/', { replace: true });
 
         // Force a route refresh so all auth-dependent hooks/components hydrate immediately.
         window.setTimeout(() => {
-          if (window.location.pathname === '/auth') {
-            window.location.replace('/');
+          if (window.location.hash.includes('/auth')) {
+            window.location.replace(`${window.location.origin}/#/`);
           }
         }, 120);
         return;
