@@ -76,9 +76,35 @@ const Auth = () => {
 
     // Listen for native auth completion
     const handleNativeAuthComplete = async () => {
+      // iOS webviews can race auth state propagation; poll briefly, then hard-route.
+      let session = (await supabase.auth.getSession()).data.session;
+      let retries = 0;
+
+      while (!session && retries < 12) {
+        await new Promise((r) => setTimeout(r, 250));
+        session = (await supabase.auth.getSession()).data.session;
+        retries += 1;
+      }
+
       setLoading(false);
-      const { data } = await supabase.auth.getSession();
-      if (data.session) navigate('/');
+
+      if (session) {
+        navigate('/', { replace: true });
+
+        // Force a route refresh so all auth-dependent hooks/components hydrate immediately.
+        window.setTimeout(() => {
+          if (window.location.pathname === '/auth') {
+            window.location.replace('/');
+          }
+        }, 120);
+        return;
+      }
+
+      toast({
+        title: 'Sign-in incomplete',
+        description: 'We could not confirm your session yet. Please try once more.',
+        variant: 'destructive',
+      });
     };
     window.addEventListener('native-auth-complete', handleNativeAuthComplete);
 

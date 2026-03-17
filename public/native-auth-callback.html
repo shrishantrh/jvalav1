@@ -97,15 +97,27 @@
         return null;
       }
 
+      if (authError) {
+        showError(authError);
+        return;
+      }
+
+      // PKCE callback support: forward the auth code to the app deep link.
+      if (code) {
+        showSuccess();
+        returnToApp(search + hash);
+        return;
+      }
+
       var tokens = parseTokens(hash);
 
       if (!tokens) {
-        showError('No authentication tokens received.');
+        showError('No authentication payload received.');
         return;
       }
 
       if (!nonce) {
-        // No nonce = not a native flow, just redirect via custom scheme
+        // No nonce = not a relay flow, just return via custom scheme
         showSuccess();
         returnToApp(hash);
         return;
@@ -130,12 +142,10 @@
       })
       .then(function() {
         showSuccess();
-        // Always try to return to the app via deep link after relay succeeds
         returnToApp(hash);
       })
       .catch(function(err) {
         console.error('Token relay error:', err);
-        // Even if relay fails, try returning to app with tokens via deep link
         showSuccess();
         returnToApp(hash);
       });
