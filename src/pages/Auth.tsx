@@ -201,6 +201,12 @@ const Auth = () => {
       markTermsAcceptedInProfile(session.user.id);
       setLoading(false);
       setShowSplash(false);
+
+      // Show welcome toast (deferred to avoid blocking navigation)
+      window.setTimeout(() => {
+        toast({ title: 'Welcome! 💜', description: 'You\'ve signed in successfully.' });
+      }, 300);
+
       navigate('/', { replace: true });
 
       // HashRouter fallback for native webview edge-cases
