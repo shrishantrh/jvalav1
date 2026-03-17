@@ -33,7 +33,7 @@ export const fetchWeatherData = async (
   latitude: number,
   longitude: number
 ): Promise<EnvironmentalData | null> => {
-  const cacheKey = `weather_${roundCoord(latitude)}_${roundCoord(longitude)}`;
+  const cacheKey = `weather_v2_${roundCoord(latitude)}_${roundCoord(longitude)}`;
   const start = performance.now();
 
   const isUnknown = (value?: string | null) => !value || value.trim().toLowerCase() === "unknown";

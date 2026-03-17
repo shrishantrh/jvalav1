@@ -42,18 +42,11 @@ const Auth = () => {
 
   // Check if already authenticated + set up native deep link listener
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setShowSplash(false);
-        navigate("/");
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    // IMPORTANT: subscribe before getSession to avoid missing fast OAuth session events
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session) {
         // Always ensure terms_accepted_at is set when user has accepted the gate
         if (termsAcceptedRef.current) {
-          // Use upsert-style: only set if not already set
           const { data: profile } = await supabase
             .from('profiles')
             .select('terms_accepted_at')
@@ -66,7 +59,15 @@ const Auth = () => {
             }).eq('id', session.user.id);
           }
         }
-        navigate("/");
+        setShowSplash(false);
+        navigate('/');
+      }
+    });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setShowSplash(false);
+        navigate('/');
       }
     });
 
@@ -92,7 +93,7 @@ const Auth = () => {
     };
     window.addEventListener('native-auth-error', handleNativeAuthError);
 
-    // Listen for browser close without session (reset stuck loading state)
+    // Browser close can happen before token relay completes; keep loading while recovery polling runs
     const handleBrowserFinishedNoSession = () => {
       setTimeout(() => {
         supabase.auth.getSession().then(({ data }) => {
@@ -100,7 +101,7 @@ const Auth = () => {
             setLoading(false);
           }
         });
-      }, 1500);
+      }, 25000);
     };
     window.addEventListener('native-browser-closed', handleBrowserFinishedNoSession);
 

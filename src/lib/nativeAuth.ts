@@ -70,24 +70,22 @@ export const startNativeOAuth = async (
     // Include nonce as a query parameter in the callback URL
     const callbackUrl = `${PUBLISHED_URL}/native-auth-callback.html?nonce=${nonce}`;
 
-    // Google fallback: use direct auth endpoint because /~oauth broker currently returns redirect_uri_mismatch
-    if (provider === 'google') {
-      const authParams = new URLSearchParams({
-        provider: 'google',
-        redirect_to: callbackUrl,
-      });
-      return { url: `${SUPABASE_URL}/auth/v1/authorize?${authParams.toString()}` };
-    }
-
-    // Apple keeps using Lovable OAuth broker for managed Sign in with Apple
-    const params = new URLSearchParams({
+    // Use direct auth endpoint for BOTH providers in native flow.
+    // This avoids broker redirect mismatches and keeps callback behavior consistent.
+    const authParams = new URLSearchParams({
       provider,
-      redirect_uri: callbackUrl,
+      redirect_to: callbackUrl,
     });
 
-    const brokerUrl = `${PUBLISHED_URL}/~oauth/initiate?${params.toString()}`;
+    if (provider === 'google') {
+      authParams.set('scopes', 'email profile');
+    }
 
-    return { url: brokerUrl };
+    if (provider === 'apple') {
+      authParams.set('scopes', 'name email');
+    }
+
+    return { url: `${SUPABASE_URL}/auth/v1/authorize?${authParams.toString()}` };
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Unknown error' };
   }
@@ -124,8 +122,8 @@ const fetchRelayedTokens = async (): Promise<{
   const nonce = getActiveNonce();
   if (!nonce) return null;
 
-  const maxAttempts = 5;
-  const delayMs = 1200;
+  const maxAttempts = 20;
+  const delayMs = 1000;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
