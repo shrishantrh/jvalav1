@@ -127,7 +127,17 @@ serve(async (req) => {
 
         if (bdcResponse.ok) {
           const bdcData = await bdcResponse.json();
-          const bdcCity = bdcData.city || bdcData.locality || '';
+
+          const admin = Array.isArray(bdcData?.localityInfo?.administrative)
+            ? bdcData.localityInfo.administrative
+            : [];
+
+          const municipalFromAdmin = admin.find((item: any) => {
+            const desc = String(item?.description || '').toLowerCase();
+            return item?.adminLevel === 8 && (desc.includes('city') || desc.includes('town') || desc.includes('village') || desc.includes('municipality'));
+          })?.name;
+
+          const bdcCity = municipalFromAdmin || bdcData.locality || bdcData.city || '';
 
           if (bdcCity) {
             cityName = bdcCity;
