@@ -3,19 +3,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, User, Share2, Copy, Check, Pill, AlertTriangle, Heart, Settings2 } from 'lucide-react';
+import { Loader2, User, Share2, Pill, AlertTriangle, Heart, Settings2 } from 'lucide-react';
 import { haptics } from "@/lib/haptics";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ProfileMedicationInput, type MedicationDetails } from "@/components/ProfileMedicationInput";
 import { CONDITIONS } from "@/data/conditions";
-import { NotificationSettings } from "@/components/notifications/NotificationSettings";
 import { WearableIntegration } from "@/components/wearables/WearableIntegration";
-
 import { EHRIntegration } from "@/components/ehr/EHRIntegration";
 
 interface ProfileData {
