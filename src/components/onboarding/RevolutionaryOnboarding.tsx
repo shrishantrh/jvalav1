@@ -1043,9 +1043,9 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               </div>
 
               <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold">Connect Apple Health</h2>
-                <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-                  Your body tells a story. Heart rate spikes, poor sleep, and activity drops often <strong>precede flares by hours</strong>. Let Jvala read the signals.
+                <h2 className="text-3xl font-bold">Connect Apple Health</h2>
+                <p className="text-base text-muted-foreground max-w-xs mx-auto">
+                  Heart rate spikes, poor sleep, and activity drops often <strong>precede flares by hours</strong>. Let Jvala read the signals.
                 </p>
               </div>
 
