@@ -1,26 +1,20 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FlareEntry } from "@/types/flare";
 import { format, subDays } from 'date-fns';
-import { FileDown, FileJson, FileCode, FileText, Share2, Mail, Loader2, CheckCircle, Shield, Download, FileType, Trophy, Flame, Sparkles, Image } from 'lucide-react';
+import { FileJson, FileCode, FileText, Share2, Loader2, Shield, Download, FileType, Trophy, Flame, Sparkles } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
-} from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEngagement } from "@/hooks/useEngagement";
 import { useAuth } from "@/hooks/useAuth";
-import { ALL_BADGES, getRarityColor } from "@/data/allBadges";
+import { ALL_BADGES } from "@/data/allBadges";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
+import appIcon from "@/assets/app-icon.png";
 
 interface EnhancedMedicalExportProps {
   entries: FlareEntry[];
@@ -51,11 +45,7 @@ export const EnhancedMedicalExport = ({
   const [activeTab, setActiveTab] = useState<string>('share');
   const [selectedFormat, setSelectedFormat] = useState<string>('fhir');
   const [dateRange, setDateRange] = useState<string>('30');
-  const [recipientEmail, setRecipientEmail] = useState('');
-  const [sending, setSending] = useState(false);
-  const [showShareDialog, setShowShareDialog] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
-  const shareCardRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
   const { getEngagement } = useEngagement();
@@ -76,50 +66,170 @@ export const EnhancedMedicalExport = ({
   const streak = engagement?.current_streak || 0;
   const totalLogs = engagement?.total_logs || 0;
 
-  // Generate shareable image from canvas
+  // Native share helper
+  const nativeShare = async (files: File[], title: string, text: string) => {
+    if (navigator.share && navigator.canShare?.({ files })) {
+      await navigator.share({ files, title, text });
+    } else if (files.length > 0) {
+      // Fallback: download
+      const url = URL.createObjectURL(files[0]);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = files[0].name;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "File saved!", description: "Share sheet not available — downloaded instead" });
+    }
+  };
+
+  // Generate shareable image using canvas (no html2canvas needed)
   const handleShareJourney = async () => {
     haptics.light();
     setGeneratingImage(true);
     try {
-      const { default: html2canvas } = await import('html2canvas');
-      const el = shareCardRef.current;
-      if (!el) return;
-      
-      // Temporarily show the card
-      el.style.display = 'block';
-      el.style.position = 'fixed';
-      el.style.top = '-9999px';
-      
-      const canvas = await html2canvas(el, { 
-        scale: 2, 
-        backgroundColor: '#ffffff',
-        width: 400,
-        height: 500,
+      const canvas = document.createElement('canvas');
+      const w = 1080, h = 1920;
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d')!;
+
+      // Background gradient
+      const grad = ctx.createLinearGradient(0, 0, w, h);
+      grad.addColorStop(0, '#D6006C');
+      grad.addColorStop(0.5, '#892EFF');
+      grad.addColorStop(1, '#6428D9');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+
+      // Decorative circles
+      ctx.globalAlpha = 0.08;
+      ctx.beginPath();
+      ctx.arc(w * 0.8, h * 0.15, 300, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(w * 0.2, h * 0.7, 400, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // Title
+      ctx.fillStyle = '#fff';
+      ctx.font = '800 72px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('My Health Journey', w / 2, 280);
+
+      ctx.font = '400 36px system-ui, -apple-system, sans-serif';
+      ctx.globalAlpha = 0.7;
+      ctx.fillText('Tracked with Jvala', w / 2, 340);
+      ctx.globalAlpha = 1;
+
+      // Stats cards
+      const cardY = 480;
+      const cardW = 280;
+      const cardH = 200;
+      const gap = 40;
+      const startX = (w - (cardW * 3 + gap * 2)) / 2;
+
+      const stats = [
+        { emoji: '🔥', value: String(streak), label: 'Day Streak' },
+        { emoji: '✨', value: String(totalLogs), label: 'Total Logs' },
+        { emoji: '🏆', value: String(earnedBadges.length), label: 'Badges' },
+      ];
+
+      stats.forEach((stat, i) => {
+        const x = startX + i * (cardW + gap);
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        const r = 28;
+        ctx.beginPath();
+        ctx.roundRect(x, cardY, cardW, cardH, r);
+        ctx.fill();
+
+        ctx.fillStyle = '#fff';
+        ctx.font = '400 48px system-ui';
+        ctx.fillText(stat.emoji, x + cardW / 2, cardY + 60);
+        ctx.font = '800 64px system-ui';
+        ctx.fillText(stat.value, x + cardW / 2, cardY + 130);
+        ctx.font = '400 28px system-ui';
+        ctx.globalAlpha = 0.7;
+        ctx.fillText(stat.label, x + cardW / 2, cardY + 170);
+        ctx.globalAlpha = 1;
       });
-      
-      el.style.display = 'none';
-      el.style.position = '';
-      el.style.top = '';
-      
-      canvas.toBlob(blob => {
-        if (!blob) return;
-        
-        if (navigator.share && navigator.canShare?.({ files: [new File([blob], 'jvala-journey.png', { type: 'image/png' })] })) {
-          navigator.share({
-            files: [new File([blob], 'jvala-journey.png', { type: 'image/png' })],
-            title: 'My Health Journey',
-            text: `I've been on a ${streak}-day streak tracking my health with Jvala! 🔥`,
-          });
-        } else {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'jvala-journey.png';
-          a.click();
-          URL.revokeObjectURL(url);
-          toast({ title: "Image saved!", description: "Share it with your friends" });
-        }
-      }, 'image/png');
+
+      // Badges section
+      if (earnedBadges.length > 0) {
+        ctx.font = '600 32px system-ui';
+        ctx.globalAlpha = 0.6;
+        ctx.fillStyle = '#fff';
+        ctx.fillText('Recent Achievements', w / 2, 800);
+        ctx.globalAlpha = 1;
+
+        const badgesToShow = earnedBadges.slice(-6).reverse();
+        const badgeH = 72;
+        const badgeGap = 16;
+        const badgeStartY = 840;
+
+        badgesToShow.forEach((badge, i) => {
+          const row = Math.floor(i / 3);
+          const col = i % 3;
+          const bw = 300;
+          const totalW = bw * 3 + badgeGap * 2;
+          const bx = (w - totalW) / 2 + col * (bw + badgeGap);
+          const by = badgeStartY + row * (badgeH + badgeGap);
+
+          ctx.fillStyle = 'rgba(255,255,255,0.18)';
+          ctx.beginPath();
+          ctx.roundRect(bx, by, bw, badgeH, 20);
+          ctx.fill();
+
+          ctx.fillStyle = '#fff';
+          ctx.font = '400 32px system-ui';
+          ctx.textAlign = 'left';
+          ctx.fillText(`${badge.icon}  ${badge.name}`, bx + 20, by + 45);
+          ctx.textAlign = 'center';
+        });
+      }
+
+      // App icon at bottom
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = reject;
+          img.src = appIcon;
+        });
+        const iconSize = 100;
+        const iconX = (w - iconSize) / 2;
+        const iconY = h - 260;
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(iconX, iconY, iconSize, iconSize, 22);
+        ctx.clip();
+        ctx.drawImage(img, iconX, iconY, iconSize, iconSize);
+        ctx.restore();
+      } catch {}
+
+      // Bottom text
+      ctx.fillStyle = '#fff';
+      ctx.globalAlpha = 0.8;
+      ctx.font = '600 34px system-ui';
+      ctx.fillText('jvala.tech', w / 2, h - 140);
+      ctx.globalAlpha = 0.5;
+      ctx.font = '400 26px system-ui';
+      ctx.fillText('Download on the App Store', w / 2, h - 95);
+      ctx.globalAlpha = 1;
+
+      // Convert to blob and share
+      const blob = await new Promise<Blob>((resolve) => {
+        canvas.toBlob(b => resolve(b!), 'image/png');
+      });
+
+      const file = new File([blob], 'jvala-journey.png', { type: 'image/png' });
+      await nativeShare(
+        [file],
+        'My Health Journey',
+        `I've been on a ${streak}-day streak tracking my health with Jvala! 🔥`
+      );
     } catch (e) {
       console.error('Share failed:', e);
       toast({ title: "Couldn't generate image", variant: "destructive" });
@@ -128,7 +238,7 @@ export const EnhancedMedicalExport = ({
     }
   };
 
-  // FHIR, CCD, etc. generators (kept from original)
+  // FHIR Bundle generator
   const generateFHIRBundle = () => ({
     resourceType: "Bundle", type: "collection", timestamp: new Date().toISOString(),
     meta: { profile: ["http://hl7.org/fhir/StructureDefinition/Bundle"] },
@@ -174,13 +284,13 @@ export const EnhancedMedicalExport = ({
     return rows.map(r => r.join(',')).join('\n');
   };
 
-  const handleExport = () => {
+  const getExportData = () => {
     let content = '', filename = '', mimeType = '';
     switch (selectedFormat) {
       case 'fhir':
         content = JSON.stringify(generateFHIRBundle(), null, 2);
         filename = `FHIR-Export-${format(new Date(), 'yyyyMMdd')}.json`;
-        mimeType = 'application/fhir+json';
+        mimeType = 'application/json';
         break;
       case 'ccd':
         content = generateCCDSummary();
@@ -204,241 +314,187 @@ export const EnhancedMedicalExport = ({
         mimeType = 'text/csv';
         break;
     }
+    return { content, filename, mimeType };
+  };
+
+  const handleDownload = () => {
+    const { content, filename, mimeType } = getExportData();
     const blob = new Blob([content], { type: mimeType });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = filename;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
-    toast({ title: "Export successful", description: `Downloaded ${filename}` });
+    toast({ title: "Export downloaded", description: filename });
   };
 
-  const handleSendToProvider = async () => {
-    if (!recipientEmail) { toast({ title: "Please enter an email address", variant: "destructive" }); return; }
-    setSending(true);
-    try {
-      const summary = generateCCDSummary();
-      const { error } = await supabase.functions.invoke('send-health-report', {
-        body: { recipientEmail, subject: `Health Summary Report - ${patientName}`, summary, patientName, dateRange }
-      });
-      if (error) throw error;
-      toast({ title: "Report sent!", description: `Health summary sent to ${recipientEmail}` });
-      setShowShareDialog(false); setRecipientEmail('');
-    } catch (error: any) {
-      toast({ title: "Failed to send", description: error.message || "Please try again", variant: "destructive" });
-    } finally { setSending(false); }
+  const handleShareClinical = async () => {
+    haptics.light();
+    const { content, filename, mimeType } = getExportData();
+    const blob = new Blob([content], { type: mimeType });
+    const file = new File([blob], filename, { type: mimeType });
+    await nativeShare([file], `Jvala Health Export`, `Health data export — ${filename}`);
   };
 
   return (
     <div className="space-y-4 animate-fade-in" data-tour="exports-area">
-      {/* Tab Navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 h-11 bg-card/80 backdrop-blur-sm">
-          <TabsTrigger value="share" className="text-xs gap-1.5 font-medium">
+        <TabsList className="grid w-full grid-cols-2 h-12 glass-card border-0 rounded-2xl p-1">
+          <TabsTrigger value="share" className="text-xs gap-1.5 font-semibold rounded-xl data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <Share2 className="w-4 h-4" />
             Share Journey
           </TabsTrigger>
-          <TabsTrigger value="clinical" className="text-xs gap-1.5 font-medium">
+          <TabsTrigger value="clinical" className="text-xs gap-1.5 font-semibold rounded-xl data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <Shield className="w-4 h-4" />
             Clinical Export
           </TabsTrigger>
         </TabsList>
 
-        {/* Share Journey Tab */}
-        <TabsContent value="share" className="mt-3 space-y-4">
-          {/* Journey Stats Card */}
-          <Card className="overflow-hidden border-0" style={{ background: 'var(--gradient-primary)', boxShadow: '0 6px 24px hsl(var(--primary) / 0.25)' }}>
-            <div className="p-5 text-white">
-              <h3 className="text-lg font-bold mb-4">Your Health Journey</h3>
-              
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className="bg-white/15 rounded-2xl p-3 text-center backdrop-blur-sm">
-                  <Flame className="w-5 h-5 mx-auto mb-1 text-white/80" />
-                  <p className="text-2xl font-bold">{streak}</p>
-                  <p className="text-[10px] text-white/70">Day Streak</p>
-                </div>
-                <div className="bg-white/15 rounded-2xl p-3 text-center backdrop-blur-sm">
-                  <Sparkles className="w-5 h-5 mx-auto mb-1 text-white/80" />
-                  <p className="text-2xl font-bold">{totalLogs}</p>
-                  <p className="text-[10px] text-white/70">Total Logs</p>
-                </div>
-                <div className="bg-white/15 rounded-2xl p-3 text-center backdrop-blur-sm">
-                  <Trophy className="w-5 h-5 mx-auto mb-1 text-white/80" />
-                  <p className="text-2xl font-bold">{earnedBadges.length}</p>
-                  <p className="text-[10px] text-white/70">Badges</p>
-                </div>
-              </div>
+        {/* ── Share Journey Tab ── */}
+        <TabsContent value="share" className="mt-4 space-y-4">
+          <Card className="overflow-hidden border-0 rounded-3xl" style={{ background: 'var(--gradient-primary)', boxShadow: '0 8px 32px hsl(var(--primary) / 0.3)' }}>
+            <div className="p-6 text-white relative overflow-hidden">
+              {/* Decorative orbs */}
+              <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-white/10 blur-2xl" />
+              <div className="absolute -bottom-20 -left-12 w-56 h-56 rounded-full bg-white/5 blur-3xl" />
 
-              {/* Recent badges showcase */}
-              {earnedBadges.length > 0 && (
-                <div>
-                  <p className="text-xs text-white/70 mb-2">Recent Badges</p>
-                  <div className="flex gap-2 overflow-x-auto pb-1">
-                    {earnedBadges.slice(-6).reverse().map(badge => (
-                      <div key={badge.id} className="flex-shrink-0 bg-white/20 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 backdrop-blur-sm">
-                        <span className="text-sm">{badge.icon}</span>
-                        <span className="text-[10px] font-medium text-white whitespace-nowrap">{badge.name}</span>
-                      </div>
-                    ))}
-                  </div>
+              <div className="relative z-10">
+                <h3 className="text-xl font-bold mb-5">Your Health Journey</h3>
+                
+                <div className="grid grid-cols-3 gap-3 mb-5">
+                  {[
+                    { icon: <Flame className="w-5 h-5" />, value: streak, label: 'Day Streak' },
+                    { icon: <Sparkles className="w-5 h-5" />, value: totalLogs, label: 'Total Logs' },
+                    { icon: <Trophy className="w-5 h-5" />, value: earnedBadges.length, label: 'Badges' },
+                  ].map((stat, i) => (
+                    <div key={i} className="bg-white/15 backdrop-blur-md rounded-2xl p-3.5 text-center border border-white/10">
+                      <div className="text-white/70 flex justify-center mb-1">{stat.icon}</div>
+                      <p className="text-2xl font-extrabold">{stat.value}</p>
+                      <p className="text-[10px] text-white/60 mt-0.5">{stat.label}</p>
+                    </div>
+                  ))}
                 </div>
-              )}
+
+                {/* Recent badges — max 4, no scroll */}
+                {earnedBadges.length > 0 && (
+                  <div>
+                    <p className="text-xs text-white/50 mb-2 font-medium">Recent Badges</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {earnedBadges.slice(-4).reverse().map(badge => (
+                        <div key={badge.id} className="bg-white/12 backdrop-blur-sm rounded-xl px-3 py-2 flex items-center gap-2 border border-white/8">
+                          <span className="text-base">{badge.icon}</span>
+                          <span className="text-[11px] font-medium text-white/90 truncate">{badge.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </Card>
 
-          {/* Share Button */}
-          <Button 
+          {/* Share Button — uses native share sheet */}
+          <button 
             onClick={handleShareJourney} 
             disabled={generatingImage}
-            className="w-full h-12 rounded-2xl font-semibold text-sm gap-2"
-            style={{ background: 'var(--gradient-primary)', boxShadow: '0 4px 16px hsl(var(--primary) / 0.3)' }}
+            className="w-full h-14 rounded-2xl font-semibold text-base gap-2.5 flex items-center justify-center text-primary-foreground press-effect transition-all disabled:opacity-50"
+            style={{ background: 'var(--gradient-primary)', boxShadow: '0 6px 20px hsl(var(--primary) / 0.35)' }}
           >
-            {generatingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Image className="w-4 h-4" />}
+            {generatingImage ? <Loader2 className="w-5 h-5 animate-spin" /> : <Share2 className="w-5 h-5" />}
             {generatingImage ? 'Generating...' : 'Share as Image'}
-          </Button>
+          </button>
 
-          <p className="text-xs text-center text-muted-foreground">
-            Creates a beautiful shareable image of your health journey stats
+          <p className="text-xs text-center text-muted-foreground/60">
+            Creates a shareable image and opens the share sheet
           </p>
         </TabsContent>
 
-        {/* Clinical Export Tab */}
-        <TabsContent value="clinical" className="mt-3 space-y-4">
-          <Card className="p-5 glass-card border-0">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h3 className="text-base font-semibold mb-1 flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-primary" />
-                  Medical Export
-                </h3>
-                <p className="text-xs text-muted-foreground">Export health data for healthcare providers</p>
-              </div>
-              <Badge variant="secondary" className="text-[10px]">Clinical Grade</Badge>
-            </div>
-
-            {/* Date Range */}
-            <div className="space-y-2 mb-4">
-              <Label className="text-xs">Date Range</Label>
-              <Select value={dateRange} onValueChange={setDateRange}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="7">Last 7 days</SelectItem>
-                  <SelectItem value="30">Last 30 days</SelectItem>
-                  <SelectItem value="90">Last 90 days</SelectItem>
-                  <SelectItem value="365">Last year</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">{filteredEntries.length} entries in this period</p>
-            </div>
-
-            {/* Format Selection */}
-            <div className="space-y-2 mb-4">
-              <Label className="text-xs">Export Format</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { id: 'fhir', label: 'FHIR R4', icon: FileJson, desc: 'HL7 interop standard' },
-                  { id: 'ccd', label: 'CCD', icon: FileText, desc: 'Clinical summary' },
-                  { id: 'csv', label: 'CSV', icon: FileCode, desc: 'Spreadsheet format' },
-                  { id: 'meddra', label: 'MedDRA', icon: FileType, desc: 'Coded symptoms' },
-                ].map(fmt => (
-                  <button
-                    key={fmt.id}
-                    onClick={() => setSelectedFormat(fmt.id)}
-                    className={cn(
-                      "p-3 rounded-2xl border text-left transition-all touch-manipulation",
-                      selectedFormat === fmt.id 
-                        ? "border-primary/40 bg-primary/5" 
-                        : "border-border/50 bg-card/50 hover:bg-muted/30"
-                    )}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <fmt.icon className={cn("w-4 h-4", selectedFormat === fmt.id ? "text-primary" : "text-muted-foreground")} />
-                      <span className="text-xs font-semibold">{fmt.label}</span>
+        {/* ── Clinical Export Tab ── */}
+        <TabsContent value="clinical" className="mt-4 space-y-4">
+          <Card className="glass-card border-0 rounded-3xl overflow-hidden">
+            <div className="p-5">
+              <div className="flex items-start justify-between mb-5">
+                <div>
+                  <h3 className="text-base font-bold mb-1 flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <Shield className="w-4 h-4 text-primary" />
                     </div>
-                    <p className="text-[10px] text-muted-foreground">{fmt.desc}</p>
-                  </button>
+                    Medical Export
+                  </h3>
+                  <p className="text-xs text-muted-foreground ml-10">Export for healthcare providers</p>
+                </div>
+                <Badge variant="secondary" className="text-[10px] bg-primary/8 text-primary border-0">Clinical Grade</Badge>
+              </div>
+
+              {/* Date Range */}
+              <div className="space-y-2 mb-5">
+                <Label className="text-xs font-medium">Date Range</Label>
+                <Select value={dateRange} onValueChange={setDateRange}>
+                  <SelectTrigger className="h-11 rounded-xl glass-card border-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7">Last 7 days</SelectItem>
+                    <SelectItem value="30">Last 30 days</SelectItem>
+                    <SelectItem value="90">Last 90 days</SelectItem>
+                    <SelectItem value="365">Last year</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">{filteredEntries.length} entries in this period</p>
+              </div>
+
+              {/* Format Selection */}
+              <div className="space-y-2 mb-5">
+                <Label className="text-xs font-medium">Export Format</Label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {[
+                    { id: 'fhir', label: 'FHIR R4', icon: FileJson, desc: 'HL7 interop standard' },
+                    { id: 'ccd', label: 'CCD', icon: FileText, desc: 'Clinical summary' },
+                    { id: 'csv', label: 'CSV', icon: FileCode, desc: 'Spreadsheet format' },
+                    { id: 'meddra', label: 'MedDRA', icon: FileType, desc: 'Coded symptoms' },
+                  ].map(fmt => (
+                    <button
+                      key={fmt.id}
+                      onClick={() => setSelectedFormat(fmt.id)}
+                      className={cn(
+                        "p-3.5 rounded-2xl text-left transition-all press-effect",
+                        selectedFormat === fmt.id 
+                          ? "glass-card border-primary/30 bg-primary/8 shadow-sm" 
+                          : "glass-card border-transparent hover:bg-muted/20"
+                      )}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <fmt.icon className={cn("w-4 h-4", selectedFormat === fmt.id ? "text-primary" : "text-muted-foreground")} />
+                        <span className="text-xs font-bold">{fmt.label}</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">{fmt.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2.5">
+                <Button onClick={handleDownload} className="flex-1 h-12 rounded-2xl font-semibold" size="sm">
+                  <Download className="w-4 h-4 mr-2" />
+                  Download
+                </Button>
+                <Button onClick={handleShareClinical} variant="outline" size="sm" className="flex-1 h-12 rounded-2xl font-semibold glass-card border-0">
+                  <Share2 className="w-4 h-4 mr-2" />
+                  Share
+                </Button>
+              </div>
+
+              {/* Compliance badges */}
+              <div className="flex flex-wrap gap-1.5 pt-4 mt-4 border-t border-border/20">
+                {['HL7 FHIR R4', 'MedDRA', '21 CFR 11'].map(standard => (
+                  <Badge key={standard} variant="outline" className="text-[9px] px-2 py-0.5 rounded-full border-border/30">{standard}</Badge>
                 ))}
               </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-2">
-              <Button onClick={handleExport} className="flex-1 rounded-xl" size="sm">
-                <Download className="w-4 h-4 mr-2" />Download
-              </Button>
-              <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="flex-1 rounded-xl">
-                    <Mail className="w-4 h-4 mr-2" />Email Provider
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2"><Mail className="w-5 h-5 text-primary" />Send to Healthcare Provider</DialogTitle>
-                    <DialogDescription>Email a health summary to your doctor or care team</DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 pt-4">
-                    <div>
-                      <Label>Provider's Email</Label>
-                      <Input type="email" placeholder="doctor@clinic.com" value={recipientEmail} onChange={e => setRecipientEmail(e.target.value)} className="mt-1.5" />
-                    </div>
-                    <p className="text-xs text-muted-foreground">A summary of your last {dateRange} days of health data will be sent.</p>
-                    <Button onClick={handleSendToProvider} disabled={sending || !recipientEmail} className="w-full">
-                      {sending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-                      {sending ? 'Sending...' : 'Send Report'}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            {/* Compliance badges */}
-            <div className="flex flex-wrap gap-1.5 pt-3 mt-3 border-t border-border/30">
-              {['HL7 FHIR R4', 'MedDRA', '21 CFR 11'].map(standard => (
-                <Badge key={standard} variant="outline" className="text-[9px] px-1.5 py-0">{standard}</Badge>
-              ))}
             </div>
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Hidden shareable card for image generation */}
-      <div ref={shareCardRef} style={{ display: 'none', width: 400, height: 500, fontFamily: 'system-ui, sans-serif' }}>
-        <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #D6006C, #892EFF)', padding: 32, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ color: 'white', fontSize: 28, fontWeight: 800, marginBottom: 8 }}>My Health Journey</div>
-            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>Tracked with Jvala</div>
-          </div>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-            <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 20, padding: '20px 24px', textAlign: 'center' as const }}>
-              <div style={{ fontSize: 42, fontWeight: 800, color: 'white' }}>🔥 {streak}</div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>Day Streak</div>
-            </div>
-            <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 20, padding: '20px 24px', textAlign: 'center' as const }}>
-              <div style={{ fontSize: 42, fontWeight: 800, color: 'white' }}>{totalLogs}</div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>Total Logs</div>
-            </div>
-            <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 20, padding: '20px 24px', textAlign: 'center' as const }}>
-              <div style={{ fontSize: 42, fontWeight: 800, color: 'white' }}>🏆 {earnedBadges.length}</div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>Badges</div>
-            </div>
-          </div>
-          <div>
-            {earnedBadges.length > 0 && (
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, justifyContent: 'center', marginBottom: 16 }}>
-                {earnedBadges.slice(-4).map(b => (
-                  <span key={b.id} style={{ background: 'rgba(255,255,255,0.25)', borderRadius: 12, padding: '6px 12px', fontSize: 13, color: 'white' }}>
-                    {b.icon} {b.name}
-                  </span>
-                ))}
-              </div>
-            )}
-            <div style={{ textAlign: 'center' as const, color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>
-              jvala.tech
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
