@@ -135,6 +135,23 @@ export const getCurrentLocation = async (): Promise<
       };
     }
 
+    // Use Capacitor Geolocation for native (proper iOS prompt), fall back to browser
+    try {
+      const { isNative } = await import('@/lib/capacitor');
+      if (isNative) {
+        const { Geolocation } = await import('@capacitor/geolocation');
+        const permStatus = await Geolocation.checkPermissions();
+        if (permStatus.location !== 'granted' && permStatus.coarseLocation !== 'granted') {
+          console.warn("Location permission not granted yet (native)");
+          return null;
+        }
+        const pos = await Geolocation.getCurrentPosition({ timeout: 10000 });
+        return { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+      }
+    } catch (e) {
+      console.warn("Capacitor geolocation failed, trying browser:", e);
+    }
+
     // Web fallback
     if (!navigator.geolocation) {
       console.warn("Geolocation not available");
@@ -143,8 +160,6 @@ export const getCurrentLocation = async (): Promise<
 
     const position = await new Promise<GeolocationPosition>((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: true,
-        timeout: 10000,
         maximumAge: 60000,
       });
     });

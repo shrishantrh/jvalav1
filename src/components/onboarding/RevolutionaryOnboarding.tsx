@@ -403,11 +403,28 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
     setLocationPermissionStatus('requesting');
     haptics.selection();
     try {
-      await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
-      });
-      setLocationPermissionStatus('granted');
-      haptics.success();
+      if (isNative) {
+        // Use Capacitor Geolocation for native iOS prompt ("Allow Jvala to use your location")
+        const { Geolocation } = await import('@capacitor/geolocation');
+        const permResult = await Geolocation.requestPermissions();
+        if (permResult.location === 'granted' || permResult.coarseLocation === 'granted') {
+          // Also do a position fetch to confirm it works
+          try {
+            await Geolocation.getCurrentPosition({ timeout: 10000 });
+          } catch {}
+          setLocationPermissionStatus('granted');
+          haptics.success();
+        } else {
+          setLocationPermissionStatus('denied');
+        }
+      } else {
+        // Web fallback
+        await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
+        });
+        setLocationPermissionStatus('granted');
+        haptics.success();
+      }
     } catch {
       setLocationPermissionStatus('denied');
     }
