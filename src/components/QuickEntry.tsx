@@ -16,6 +16,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { useEntryContext } from "@/hooks/useEntryContext";
+import { haptics } from "@/lib/haptics";
 
 interface QuickEntryProps {
   onSave: (entry: Partial<FlareEntry>) => void;
@@ -40,6 +41,15 @@ export const QuickEntry = ({ onSave }: QuickEntryProps) => {
   const { getEntryContext } = useEntryContext();
 
   const handleQuickAction = async (action: (typeof QUICK_ACTIONS)[number]) => {
+    // Severity-appropriate haptics
+    if ('severity' in action) {
+      if (action.severity === 'severe') haptics.heavy();
+      else if (action.severity === 'moderate') haptics.medium();
+      else haptics.light();
+    } else {
+      haptics.selection();
+    }
+
     const entry: Partial<FlareEntry> = {
       type: action.type,
       timestamp: new Date(),

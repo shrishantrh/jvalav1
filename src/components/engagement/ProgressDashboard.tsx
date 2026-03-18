@@ -10,6 +10,7 @@ import { BADGES } from "./EngagementPanel";
 import { FlareEntry } from "@/types/flare";
 import { useEngagement } from "@/hooks/useEngagement";
 import { useToast } from "@/hooks/use-toast";
+import { haptics } from "@/lib/haptics";
 
 interface EngagementData {
   current_streak: number;
@@ -49,6 +50,8 @@ export const ProgressDashboard = ({ userId, entries, onBack }: ProgressDashboard
     // Check for consistency badges when viewing progress
     const newBadges = await checkConsistencyBadges(userId, entries);
     if (newBadges.length > 0) {
+      haptics.heavy();
+      setTimeout(() => haptics.success(), 300);
       toast({
         title: "🏆 Badge Earned!",
         description: `You earned: ${newBadges.map(b => 

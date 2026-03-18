@@ -207,6 +207,10 @@ export const HEALTH_MINIMAL_READ: HealthDataType[] = [
   'distance',
   'calories',
   'oxygenSaturation',
+  'heartRateVariability',
+  'respiratoryRate',
+  'weight',
+  'exerciseTime',
 ];
 
 export const HEALTH_FULL_READ: HealthDataType[] = [

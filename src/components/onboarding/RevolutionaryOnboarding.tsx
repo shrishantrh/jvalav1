@@ -171,6 +171,8 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
       handleComplete();
     } else {
       setStep(prev => prev + 1);
+      // Subtle double-tap on step transition
+      setTimeout(() => haptics.light(), 120);
     }
   };
 
@@ -1076,7 +1078,10 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                   type="date"
                   value={data.dateOfBirth}
                   max={getTodayString()}
-                  onChange={(e) => setData(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                  onChange={(e) => {
+                    haptics.selection();
+                    setData(prev => ({ ...prev, dateOfBirth: e.target.value }));
+                  }}
                   className="h-12 bg-transparent"
                 />
                 {isFutureDOB && (
@@ -1681,7 +1686,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
           (step === 7 && healthPermissionStatus !== 'granted') ||
           (step === 8 && locationPermissionStatus !== 'granted')) && (
           <button
-            onClick={handleNext}
+            onClick={() => { haptics.light(); handleNext(); }}
             className="w-full mt-2 py-2 text-sm text-muted-foreground"
           >
             {step === 9 ? "Skip — I'll enable later" : "Skip for now"}

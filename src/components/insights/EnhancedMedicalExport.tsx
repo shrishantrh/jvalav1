@@ -84,155 +84,16 @@ export const EnhancedMedicalExport = ({
 
   // Generate shareable image using canvas (no html2canvas needed)
   const handleShareJourney = async () => {
-    haptics.light();
+    haptics.medium();
     setGeneratingImage(true);
     try {
-      const canvas = document.createElement('canvas');
-      const w = 1080, h = 1920;
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext('2d')!;
-
-      // Background gradient
-      const grad = ctx.createLinearGradient(0, 0, w, h);
-      grad.addColorStop(0, '#D6006C');
-      grad.addColorStop(0.5, '#892EFF');
-      grad.addColorStop(1, '#6428D9');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, w, h);
-
-      // Decorative circles
-      ctx.globalAlpha = 0.08;
-      ctx.beginPath();
-      ctx.arc(w * 0.8, h * 0.15, 300, 0, Math.PI * 2);
-      ctx.fillStyle = '#fff';
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(w * 0.2, h * 0.7, 400, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-
-      // Title
-      ctx.fillStyle = '#fff';
-      ctx.font = '800 72px system-ui, -apple-system, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('My Health Journey', w / 2, 280);
-
-      ctx.font = '400 36px system-ui, -apple-system, sans-serif';
-      ctx.globalAlpha = 0.7;
-      ctx.fillText('Tracked with Jvala', w / 2, 340);
-      ctx.globalAlpha = 1;
-
-      // Stats cards
-      const cardY = 480;
-      const cardW = 280;
-      const cardH = 200;
-      const gap = 40;
-      const startX = (w - (cardW * 3 + gap * 2)) / 2;
-
-      const stats = [
-        { emoji: '🔥', value: String(streak), label: 'Day Streak' },
-        { emoji: '✨', value: String(totalLogs), label: 'Total Logs' },
-        { emoji: '🏆', value: String(earnedBadges.length), label: 'Badges' },
-      ];
-
-      stats.forEach((stat, i) => {
-        const x = startX + i * (cardW + gap);
-        ctx.fillStyle = 'rgba(255,255,255,0.15)';
-        const r = 28;
-        ctx.beginPath();
-        ctx.roundRect(x, cardY, cardW, cardH, r);
-        ctx.fill();
-
-        ctx.fillStyle = '#fff';
-        ctx.font = '400 48px system-ui';
-        ctx.fillText(stat.emoji, x + cardW / 2, cardY + 60);
-        ctx.font = '800 64px system-ui';
-        ctx.fillText(stat.value, x + cardW / 2, cardY + 130);
-        ctx.font = '400 28px system-ui';
-        ctx.globalAlpha = 0.7;
-        ctx.fillText(stat.label, x + cardW / 2, cardY + 170);
-        ctx.globalAlpha = 1;
-      });
-
-      // Badges section
-      if (earnedBadges.length > 0) {
-        ctx.font = '600 32px system-ui';
-        ctx.globalAlpha = 0.6;
-        ctx.fillStyle = '#fff';
-        ctx.fillText('Recent Achievements', w / 2, 800);
-        ctx.globalAlpha = 1;
-
-        const badgesToShow = earnedBadges.slice(-6).reverse();
-        const badgeH = 72;
-        const badgeGap = 16;
-        const badgeStartY = 840;
-
-        badgesToShow.forEach((badge, i) => {
-          const row = Math.floor(i / 3);
-          const col = i % 3;
-          const bw = 300;
-          const totalW = bw * 3 + badgeGap * 2;
-          const bx = (w - totalW) / 2 + col * (bw + badgeGap);
-          const by = badgeStartY + row * (badgeH + badgeGap);
-
-          ctx.fillStyle = 'rgba(255,255,255,0.18)';
-          ctx.beginPath();
-          ctx.roundRect(bx, by, bw, badgeH, 20);
-          ctx.fill();
-
-          ctx.fillStyle = '#fff';
-          ctx.font = '400 32px system-ui';
-          ctx.textAlign = 'left';
-          ctx.fillText(`${badge.icon}  ${badge.name}`, bx + 20, by + 45);
-          ctx.textAlign = 'center';
-        });
-      }
-
-      // App icon at bottom
-      try {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        await new Promise<void>((resolve, reject) => {
-          img.onload = () => resolve();
-          img.onerror = reject;
-          img.src = appIcon;
-        });
-        const iconSize = 100;
-        const iconX = (w - iconSize) / 2;
-        const iconY = h - 260;
-        ctx.save();
-        ctx.beginPath();
-        ctx.roundRect(iconX, iconY, iconSize, iconSize, 22);
-        ctx.clip();
-        ctx.drawImage(img, iconX, iconY, iconSize, iconSize);
-        ctx.restore();
-      } catch {}
-
-      // Bottom text
-      ctx.fillStyle = '#fff';
-      ctx.globalAlpha = 0.8;
-      ctx.font = '600 34px system-ui';
-      ctx.fillText('jvala.tech', w / 2, h - 140);
-      ctx.globalAlpha = 0.5;
-      ctx.font = '400 26px system-ui';
-      ctx.fillText('Download on the App Store', w / 2, h - 95);
-      ctx.globalAlpha = 1;
-
-      // Convert to blob and share
-      const blob = await new Promise<Blob>((resolve) => {
-        canvas.toBlob(b => resolve(b!), 'image/png');
-      });
-
-      const file = new File([blob], 'jvala-journey.png', { type: 'image/png' });
-      await nativeShare(
-        [file],
-        'My Health Journey',
-        `I've been on a ${streak}-day streak tracking my health with Jvala! 🔥`
-      );
+      const summary = `My Health Journey — Jvala\n\n🔥 ${streak} Day Streak\n✨ ${totalLogs} Total Logs\n🏆 ${earnedBadges.length} Badges Earned${earnedBadges.length > 0 ? `\n\nRecent Badges:\n${earnedBadges.slice(-4).reverse().map(b => `${b.icon} ${b.name}`).join('\n')}` : ''}\n\nTracked with Jvala — jvala.tech`;
+      const blob = new Blob([summary], { type: 'text/plain' });
+      const file = new File([blob], `Jvala-Journey-${format(new Date(), 'yyyyMMdd')}.txt`, { type: 'text/plain' });
+      await nativeShare([file], 'My Health Journey', summary);
     } catch (e) {
       console.error('Share failed:', e);
-      toast({ title: "Couldn't generate image", variant: "destructive" });
+      toast({ title: "Couldn't share", variant: "destructive" });
     } finally {
       setGeneratingImage(false);
     }
@@ -425,61 +286,60 @@ export const EnhancedMedicalExport = ({
 
         {/* ── Share Journey Tab ── */}
         <TabsContent value="share" className="mt-4 space-y-4">
-          <Card className="overflow-hidden border-0 rounded-3xl" style={{ background: 'var(--gradient-primary)', boxShadow: '0 8px 32px hsl(var(--primary) / 0.3)' }}>
-            <div className="p-6 text-white relative overflow-hidden">
-              {/* Decorative orbs */}
-              <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-white/10 blur-2xl" />
-              <div className="absolute -bottom-20 -left-12 w-56 h-56 rounded-full bg-white/5 blur-3xl" />
-
-              <div className="relative z-10">
-                <h3 className="text-xl font-bold mb-5">Your Health Journey</h3>
-                
-                <div className="grid grid-cols-3 gap-3 mb-5">
-                  {[
-                    { icon: <Flame className="w-5 h-5" />, value: streak, label: 'Day Streak' },
-                    { icon: <Sparkles className="w-5 h-5" />, value: totalLogs, label: 'Total Logs' },
-                    { icon: <Trophy className="w-5 h-5" />, value: earnedBadges.length, label: 'Badges' },
-                  ].map((stat, i) => (
-                    <div key={i} className="bg-white/15 backdrop-blur-md rounded-2xl p-3.5 text-center border border-white/10">
-                      <div className="text-white/70 flex justify-center mb-1">{stat.icon}</div>
-                      <p className="text-2xl font-extrabold">{stat.value}</p>
-                      <p className="text-[10px] text-white/60 mt-0.5">{stat.label}</p>
+          <Card className="glass-card border-0 rounded-3xl overflow-hidden">
+            <div className="p-5">
+              <div className="flex items-start justify-between mb-5">
+                <div>
+                  <h3 className="text-base font-bold mb-1 flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <Trophy className="w-4 h-4 text-primary" />
                     </div>
-                  ))}
+                    Your Health Journey
+                  </h3>
+                  <p className="text-xs text-muted-foreground ml-10">Share your progress with others</p>
                 </div>
-
-                {/* Recent badges — max 4, no scroll */}
-                {earnedBadges.length > 0 && (
-                  <div>
-                    <p className="text-xs text-white/50 mb-2 font-medium">Recent Badges</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {earnedBadges.slice(-4).reverse().map(badge => (
-                        <div key={badge.id} className="bg-white/12 backdrop-blur-sm rounded-xl px-3 py-2 flex items-center gap-2 border border-white/8">
-                          <span className="text-base">{badge.icon}</span>
-                          <span className="text-[11px] font-medium text-white/90 truncate">{badge.name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <Badge variant="secondary" className="text-[10px] bg-primary/8 text-primary border-0">
+                  {streak} day streak
+                </Badge>
               </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-2.5 mb-5">
+                {[
+                  { icon: <Flame className="w-4 h-4 text-primary" />, value: streak, label: 'Day Streak' },
+                  { icon: <Sparkles className="w-4 h-4 text-primary" />, value: totalLogs, label: 'Total Logs' },
+                  { icon: <Trophy className="w-4 h-4 text-primary" />, value: earnedBadges.length, label: 'Badges' },
+                ].map((stat, i) => (
+                  <div key={i} className="glass-card text-center py-3 rounded-2xl">
+                    <div className="flex justify-center mb-1">{stat.icon}</div>
+                    <p className="text-xl font-extrabold">{stat.value}</p>
+                    <p className="text-[9px] text-muted-foreground mt-0.5">{stat.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Recent badges */}
+              {earnedBadges.length > 0 && (
+                <div className="mb-5">
+                  <p className="text-xs text-muted-foreground mb-2 font-medium">Recent Badges</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {earnedBadges.slice(-4).reverse().map(badge => (
+                      <div key={badge.id} className="glass-card rounded-xl px-3 py-2 flex items-center gap-2">
+                        <span className="text-base">{badge.icon}</span>
+                        <span className="text-[11px] font-medium truncate">{badge.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Share button — same style as clinical */}
+              <Button onClick={() => { haptics.medium(); handleShareJourney(); }} className="w-full h-12 rounded-2xl font-semibold" size="sm" disabled={generatingImage}>
+                {generatingImage ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Share2 className="w-4 h-4 mr-2" />}
+                Share
+              </Button>
             </div>
           </Card>
-
-          {/* Share Button — generates image then uses native share sheet */}
-          <button 
-            onClick={handleShareJourney} 
-            disabled={generatingImage}
-            className="w-full h-14 rounded-2xl font-semibold text-base gap-2.5 flex items-center justify-center text-primary-foreground press-effect transition-all disabled:opacity-50"
-            style={{ background: 'var(--gradient-primary)', boxShadow: '0 6px 20px hsl(var(--primary) / 0.35)' }}
-          >
-            {generatingImage ? <Loader2 className="w-5 h-5 animate-spin" /> : <Share2 className="w-5 h-5" />}
-            {generatingImage ? 'Generating...' : 'Share as Image'}
-          </button>
-
-          <p className="text-xs text-center text-muted-foreground/60">
-            Creates a shareable image and opens the share sheet
-          </p>
         </TabsContent>
 
         {/* ── Clinical Export Tab ── */}
