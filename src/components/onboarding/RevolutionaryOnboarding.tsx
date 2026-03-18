@@ -1686,7 +1686,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
           (step === 7 && healthPermissionStatus !== 'granted') ||
           (step === 8 && locationPermissionStatus !== 'granted')) && (
           <button
-            onClick={handleNext}
+            onClick={() => { haptics.light(); handleNext(); }}
             className="w-full mt-2 py-2 text-sm text-muted-foreground"
           >
             {step === 9 ? "Skip — I'll enable later" : "Skip for now"}
