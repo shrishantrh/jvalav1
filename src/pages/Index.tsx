@@ -116,12 +116,14 @@ const Index = () => {
   });
 
   // Auto-subscribe to push notifications if permission already granted but not subscribed
+  // Only after onboarding is complete to avoid premature prompts
   useEffect(() => {
+    if (showOnboarding || isLoadingProfile) return;
     if (user && notifPermission === 'granted' && !isSubscribed) {
       // Re-trigger subscription
       requestNotifPermission();
     }
-  }, [user, notifPermission, isSubscribed]);
+  }, [user, notifPermission, isSubscribed, showOnboarding, isLoadingProfile]);
 
   // Check for special badges when correlations change
   useEffect(() => {
@@ -150,8 +152,9 @@ const Index = () => {
     }
   }, [user, loading, navigate]);
 
-  // Get location
+  // Get location — only after onboarding is complete to avoid premature permission prompts
   useEffect(() => {
+    if (showOnboarding || isLoadingProfile) return;
     const getLocation = async () => {
       try {
         const { getCurrentLocation, fetchWeatherData } = await import("@/services/weatherService");
@@ -167,7 +170,7 @@ const Index = () => {
       }
     };
     getLocation();
-  }, []);
+  }, [showOnboarding, isLoadingProfile]);
 
   const loadEngagementData = async () => {
     if (!user) return;

@@ -333,17 +333,45 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
     setHealthPermissionStatus('requesting');
     haptics.selection();
     try {
-      const { requestHealthPermissions, isHealthAvailable } = await import('@/services/appleHealthService');
-      const available = await isHealthAvailable();
-      if (!available) {
+      if (!isNative) {
         setHealthPermissionStatus('unavailable');
         return;
       }
-      const result = await requestHealthPermissions({ mode: 'full' });
-      setHealthPermissionStatus(result.ok ? 'granted' : 'denied');
-      if (result.ok) haptics.success();
+
+      // Use injected Capacitor plugin directly — avoids dynamic import hang
+      const plugin = (window as any)?.Capacitor?.Plugins?.Health;
+      if (!plugin) {
+        console.warn('[Onboarding] Health plugin not found in Capacitor.Plugins');
+        setHealthPermissionStatus('unavailable');
+        return;
+      }
+
+      // Check availability first
+      const avail = await Promise.race([
+        plugin.isAvailable(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
+      ]) as any;
+      
+      if (!avail?.available) {
+        console.warn('[Onboarding] Health not available:', avail?.reason);
+        setHealthPermissionStatus('unavailable');
+        return;
+      }
+
+      // Request ALL health permissions — use the full list from appleHealthService
+      const { HEALTH_FULL_READ } = await import('@/services/appleHealthService');
+      
+      const status = await Promise.race([
+        plugin.requestAuthorization({ read: HEALTH_FULL_READ, write: [] }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000)),
+      ]) as any;
+
+      console.log('[Onboarding] Health auth result:', JSON.stringify(status));
+      setHealthPermissionStatus('granted');
+      haptics.success();
     } catch (e) {
       console.error('Health permission error:', e);
+      // If it timed out or errored, mark unavailable so they can continue
       setHealthPermissionStatus('unavailable');
     }
   };
