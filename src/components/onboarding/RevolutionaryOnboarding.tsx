@@ -1783,6 +1783,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
             Skip for now
           </button>
         )}
+        {/* Step 9 (notifications) has NO skip button — it's the last step with slide-to-launch */}
       </div>
     </div>
   );
