@@ -661,35 +661,21 @@ export const CompactFlareCard = ({
               </div>
             )}
 
-            {/* Biometric Metrics Row */}
-            {(heartRate || sleepHours || steps) && (
+            {/* Physiological Data */}
+            {(entry.type === 'flare' || phys) && (
               <div>
-                <p className="text-xs font-semibold text-muted-foreground mb-2">Biometrics</p>
+                <p className="text-xs font-semibold text-muted-foreground mb-2">Physiological Data</p>
                 <div className="grid grid-cols-4 gap-2">
-                  {heartRate && (
-                    <div className="text-center p-2.5 rounded-2xl backdrop-blur-sm"
-                      style={{ background: 'linear-gradient(145deg, rgba(254,226,226,0.9) 0%, rgba(254,202,202,0.85) 100%)', border: '1px solid rgba(239,68,68,0.3)' }}>
-                      <Heart className="w-3.5 h-3.5 mx-auto mb-1 text-red-500" />
-                      <p className="text-sm font-bold">{heartRate}</p>
-                      <p className="text-[8px] text-muted-foreground">bpm</p>
+                  {physiologicalMetrics.map((metric) => (
+                    <div key={metric.label} className="text-center p-2.5 rounded-2xl backdrop-blur-sm bg-background/60 border border-border/30">
+                      <metric.icon className="w-3.5 h-3.5 mx-auto mb-1 text-primary" />
+                      <p className={cn("text-sm font-bold", metric.value === '--' && 'text-muted-foreground')}>
+                        {metric.value}
+                        {metric.value !== '--' ? metric.unit : ''}
+                      </p>
+                      <p className="text-[8px] text-muted-foreground">{metric.label}</p>
                     </div>
-                  )}
-                  {sleepHours && (
-                    <div className="text-center p-2.5 rounded-2xl backdrop-blur-sm"
-                      style={{ background: 'linear-gradient(145deg, rgba(224,231,255,0.9) 0%, rgba(199,210,254,0.85) 100%)', border: '1px solid rgba(99,102,241,0.3)' }}>
-                      <Moon className="w-3.5 h-3.5 mx-auto mb-1 text-indigo-500" />
-                      <p className="text-sm font-bold">{sleepHours}h</p>
-                      <p className="text-[8px] text-muted-foreground">sleep</p>
-                    </div>
-                  )}
-                  {steps && (
-                    <div className="text-center p-2.5 rounded-2xl backdrop-blur-sm"
-                      style={{ background: 'linear-gradient(145deg, rgba(209,250,229,0.9) 0%, rgba(167,243,208,0.85) 100%)', border: '1px solid rgba(16,185,129,0.3)' }}>
-                      <Footprints className="w-3.5 h-3.5 mx-auto mb-1 text-emerald-500" />
-                      <p className="text-sm font-bold">{steps >= 1000 ? `${(steps/1000).toFixed(1)}k` : steps}</p>
-                      <p className="text-[8px] text-muted-foreground">steps</p>
-                    </div>
-                  )}
+                  ))}
                 </div>
               </div>
             )}
