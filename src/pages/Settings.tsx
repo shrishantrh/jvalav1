@@ -24,11 +24,13 @@ export default function Settings() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { toast } = useToast();
+  const { recordFeatureEvent } = useEngagement();
 
-
+  // Track settings visit for badge
   useEffect(() => {
     if (user) {
       loadUserSettings();
+      recordFeatureEvent(user.id, 'settings_visit');
     }
   }, [user]);
 
