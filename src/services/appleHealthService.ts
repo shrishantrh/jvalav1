@@ -36,7 +36,6 @@ export type HealthDataType =
   | 'mindfulness'
   | 'workouts';
 type SleepState = 'inBed' | 'asleep' | 'awake' | 'rem' | 'deep' | 'light';
-type SleepState = 'inBed' | 'asleep' | 'awake' | 'rem' | 'deep' | 'light';
 
 interface HealthSample {
   dataType: HealthDataType;
