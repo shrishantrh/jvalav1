@@ -49,6 +49,7 @@ const App = () => (
         <Sonner />
         <OfflineIndicator />
         <InstallPrompt />
+        <SmartAppBanner />
         <HashRouter>
           <SentryRoutes>
             <Route path="/" element={<Index />} />
