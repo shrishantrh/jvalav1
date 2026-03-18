@@ -294,53 +294,77 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
   const [healthPermissionStatus, setHealthPermissionStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied' | 'unavailable'>('idle');
   const [locationPermissionStatus, setLocationPermissionStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle');
   const [notificationPermissionStatus, setNotificationPermissionStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle');
+  const healthRequestInFlightRef = useRef(false);
+  const locationRequestInFlightRef = useRef(false);
 
-  // When arriving at the health step, detect existing authorization (e.g. user already granted in Settings)
-  useEffect(() => {
-    if (step === 7 && isNative) {
-      (async () => {
-        try {
-          const { checkHealthPermissions, HEALTH_FULL_READ } = await import('@/services/appleHealthService');
-          const alreadyAuthorized = await checkHealthPermissions({ read: HEALTH_FULL_READ });
-          if (alreadyAuthorized) {
-            setHealthPermissionStatus('granted');
-            try { localStorage.setItem('jvala_health_connected', '1'); } catch {}
-          }
-        } catch {
-          // Ignore silent probe failures and keep current UI state
-        }
-      })();
+  const withPermissionTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
+    let timeoutId: number | undefined;
+    const timeoutPromise = new Promise<T>((_, reject) => {
+      timeoutId = window.setTimeout(() => reject(new Error(`${label}_timeout`)), ms);
+    });
+
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutId) window.clearTimeout(timeoutId);
     }
-  }, [step]);
+  };
 
   const isLocationGranted = (permStatus: { location?: string; coarseLocation?: string } | null | undefined) => {
     return permStatus?.location === 'granted' || permStatus?.coarseLocation === 'granted';
   };
 
-  // When arriving at the location step, sync UI to actual system permission state
+  // Step sync for Health: never auto-request here. Only reflect existing connected state.
   useEffect(() => {
-    if (step === 8 && isNative) {
-      (async () => {
-        try {
-          const { Geolocation } = await import('@capacitor/geolocation');
-          const permStatus = await Geolocation.checkPermissions();
+    if (step !== 7) return;
 
-          if (isLocationGranted(permStatus)) {
-            setLocationPermissionStatus('granted');
-            return;
-          }
+    const persistedConnected = (() => {
+      try { return localStorage.getItem('jvala_health_connected') === '1'; } catch { return false; }
+    })();
 
-          if (permStatus.location === 'denied' && permStatus.coarseLocation === 'denied') {
-            setLocationPermissionStatus('denied');
-            return;
-          }
-
-          setLocationPermissionStatus('idle');
-        } catch {
-          // keep current state
-        }
-      })();
+    if (persistedConnected) {
+      setHealthPermissionStatus('granted');
+      return;
     }
+
+    // Keep it idle until user explicitly taps the Connect button.
+    if (healthPermissionStatus !== 'requesting') {
+      setHealthPermissionStatus('idle');
+    }
+  }, [step]);
+
+  // Step sync for Location: only reflect granted state. Do not auto-mark denied on step entry.
+  useEffect(() => {
+    if (step !== 8 || !isNative || locationRequestInFlightRef.current || locationPermissionStatus === 'requesting') return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { Geolocation } = await import('@capacitor/geolocation');
+        const permStatus = await withPermissionTimeout(
+          Geolocation.checkPermissions(),
+          8000,
+          'location_check'
+        );
+
+        if (cancelled) return;
+
+        if (isLocationGranted(permStatus)) {
+          setLocationPermissionStatus('granted');
+        } else {
+          setLocationPermissionStatus('idle');
+        }
+      } catch {
+        if (!cancelled) {
+          setLocationPermissionStatus('idle');
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [step]);
 
   const requestNotificationPermission = async () => {
@@ -378,6 +402,9 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
   };
 
   const requestHealthPermission = async () => {
+    if (healthRequestInFlightRef.current) return;
+
+    healthRequestInFlightRef.current = true;
     setHealthPermissionStatus('requesting');
     haptics.selection();
 
@@ -389,8 +416,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
 
       const {
         isHealthPluginPresent,
-        HEALTH_FULL_READ,
-        checkHealthPermissions,
+        HEALTH_MINIMAL_READ,
         requestHealthPermissions,
       } = await import('@/services/appleHealthService');
 
@@ -400,31 +426,29 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
         return;
       }
 
-      // Fast path: user already granted access previously.
-      const alreadyAuthorized = await checkHealthPermissions({ read: HEALTH_FULL_READ });
-      if (alreadyAuthorized) {
-        try { localStorage.setItem('jvala_health_connected', '1'); } catch {}
+      // If we already marked this connection from a prior successful run, trust it.
+      const persistedConnected = (() => {
+        try { return localStorage.getItem('jvala_health_connected') === '1'; } catch { return false; }
+      })();
+
+      if (persistedConnected) {
         setHealthPermissionStatus('granted');
         haptics.success();
         return;
       }
 
-      // Request full supported scopes.
-      const result = await requestHealthPermissions({ read: HEALTH_FULL_READ });
+      // Use the minimal stable scope set for onboarding to avoid iOS bridge lockups.
+      const result = await withPermissionTimeout(
+        requestHealthPermissions({ read: HEALTH_MINIMAL_READ }),
+        45000,
+        'health_request'
+      );
+
       const authorizedCount = Array.isArray(result.status?.readAuthorized)
-        ? result.status!.readAuthorized.length
+        ? result.status.readAuthorized.length
         : 0;
 
       if (result.ok && authorizedCount > 0) {
-        try { localStorage.setItem('jvala_health_connected', '1'); } catch {}
-        setHealthPermissionStatus('granted');
-        haptics.success();
-        return;
-      }
-
-      // Recovery path for iOS bridge edge-cases: verify authorization state directly.
-      const recovered = await checkHealthPermissions({ read: HEALTH_FULL_READ });
-      if (recovered) {
         try { localStorage.setItem('jvala_health_connected', '1'); } catch {}
         setHealthPermissionStatus('granted');
         haptics.success();
@@ -435,10 +459,15 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
       const msg = e instanceof Error ? e.message : String(e);
       console.warn('[Onboarding] Health auth failed:', msg);
       setHealthPermissionStatus('denied');
+    } finally {
+      healthRequestInFlightRef.current = false;
     }
   };
 
   const requestLocationPermission = async () => {
+    if (locationRequestInFlightRef.current) return;
+
+    locationRequestInFlightRef.current = true;
     setLocationPermissionStatus('requesting');
     haptics.selection();
 
@@ -446,42 +475,63 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
       if (isNative) {
         const { Geolocation } = await import('@capacitor/geolocation');
 
-        // 1) Check current state first (handles the already-granted case immediately).
-        const before = await Geolocation.checkPermissions();
+        // 1) Check current state first (already granted).
+        const before = await withPermissionTimeout(
+          Geolocation.checkPermissions(),
+          8000,
+          'location_check_before'
+        );
+
         if (isLocationGranted(before)) {
           setLocationPermissionStatus('granted');
           haptics.success();
           return;
         }
 
-        // 2) Explicit permission request (expected native prompt path).
-        const requested = await Geolocation.requestPermissions();
+        // 2) Explicit request on user tap (never auto-request on mount).
+        let requested: { location?: string; coarseLocation?: string } | null = null;
+        try {
+          requested = await withPermissionTimeout(
+            Geolocation.requestPermissions({ permissions: ['location', 'coarseLocation'] as any }),
+            30000,
+            'location_request'
+          );
+        } catch {
+          // Some plugin versions prefer requestPermissions() with no argument.
+          requested = await withPermissionTimeout(
+            Geolocation.requestPermissions(),
+            30000,
+            'location_request_fallback'
+          );
+        }
+
         if (isLocationGranted(requested)) {
           setLocationPermissionStatus('granted');
           haptics.success();
           return;
         }
 
-        // 3) Re-check in case platform returns stale status object from requestPermissions.
-        const afterRequest = await Geolocation.checkPermissions();
-        if (isLocationGranted(afterRequest)) {
-          setLocationPermissionStatus('granted');
-          haptics.success();
-          return;
-        }
-
-        // 4) Fallback: getCurrentPosition can trigger the prompt on some iOS builds.
+        // 3) iOS can return stale status from requestPermissions; force one-shot read and re-check.
         try {
-          await Geolocation.getCurrentPosition({
-            timeout: 10000,
-            enableHighAccuracy: false,
-            maximumAge: 0,
-          });
+          await withPermissionTimeout(
+            Geolocation.getCurrentPosition({
+              timeout: 10000,
+              enableHighAccuracy: false,
+              maximumAge: 0,
+            }),
+            12000,
+            'location_get_current'
+          );
         } catch {
-          // ignore and rely on final permission check below
+          // Ignore; final status check below decides UI state.
         }
 
-        const finalStatus = await Geolocation.checkPermissions();
+        const finalStatus = await withPermissionTimeout(
+          Geolocation.checkPermissions(),
+          8000,
+          'location_check_after'
+        );
+
         if (isLocationGranted(finalStatus)) {
           setLocationPermissionStatus('granted');
           haptics.success();
@@ -505,6 +555,8 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
     } catch (e) {
       console.warn('[Onboarding] Location permission failed:', e);
       setLocationPermissionStatus('denied');
+    } finally {
+      locationRequestInFlightRef.current = false;
     }
   };
 
