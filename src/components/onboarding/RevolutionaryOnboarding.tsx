@@ -525,11 +525,11 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               </div>
 
               <div className="space-y-3">
-                <h1 className="text-3xl font-bold text-gradient-primary leading-tight">
+                <h1 className="text-4xl font-bold text-gradient-primary leading-tight">
                   Your Health,<br />Understood.
                 </h1>
-                <p className="text-base text-muted-foreground max-w-[280px] mx-auto leading-relaxed">
-                  An AI health companion that learns your unique patterns and predicts what's coming — so you can live better.
+                <p className="text-lg text-muted-foreground max-w-[300px] mx-auto leading-relaxed">
+                  An AI health companion that learns your unique patterns and predicts what's coming.
                 </p>
               </div>
 
