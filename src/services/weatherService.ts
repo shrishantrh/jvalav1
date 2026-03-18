@@ -113,14 +113,19 @@ export const getCurrentLocation = async (): Promise<
   { latitude: number; longitude: number; isDefault?: boolean } | null
 > => {
   try {
-    // Native iOS/Android (Capacitor): prefer injected plugin proxy so we don't depend on bundling.
     if (isNative) {
+      // On native: ALWAYS check permissions first — never trigger the system prompt here.
+      // Only the onboarding flow should call requestPermissions().
       const injected = (window as any)?.Capacitor?.Plugins?.Geolocation;
       const Geolocation = injected
         ? injected
-        : // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore - optional native-only dependency
-          (await import("@capacitor/geolocation")).Geolocation;
+        : (await import("@capacitor/geolocation")).Geolocation;
+
+      const permStatus = await Geolocation.checkPermissions();
+      if (permStatus.location !== 'granted' && permStatus.coarseLocation !== 'granted') {
+        console.log("[location] Permission not granted yet — skipping (no prompt)");
+        return null;
+      }
 
       const pos = await Geolocation.getCurrentPosition({
         enableHighAccuracy: false,
@@ -133,23 +138,6 @@ export const getCurrentLocation = async (): Promise<
         longitude: pos.coords.longitude,
         isDefault: false,
       };
-    }
-
-    // Use Capacitor Geolocation for native (proper iOS prompt), fall back to browser
-    try {
-      const { isNative } = await import('@/lib/capacitor');
-      if (isNative) {
-        const { Geolocation } = await import('@capacitor/geolocation');
-        const permStatus = await Geolocation.checkPermissions();
-        if (permStatus.location !== 'granted' && permStatus.coarseLocation !== 'granted') {
-          console.warn("Location permission not granted yet (native)");
-          return null;
-        }
-        const pos = await Geolocation.getCurrentPosition({ timeout: 10000 });
-        return { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-      }
-    } catch (e) {
-      console.warn("Capacitor geolocation failed, trying browser:", e);
     }
 
     // Web fallback
