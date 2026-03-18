@@ -603,7 +603,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
           },
         });
         
-        const message = data?.message || getPersonalizedGreeting(userConditions, recentEntries);
+        const message = data?.message || getPersonalizedGreeting(userConditions, recentEntries, userName);
         
         // Handle multiple messages (e.g., intro tour sends 2 messages)
         const allMessages: string[] = data?.messages || [message];
