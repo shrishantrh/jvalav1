@@ -1076,7 +1076,10 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                   type="date"
                   value={data.dateOfBirth}
                   max={getTodayString()}
-                  onChange={(e) => setData(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                  onChange={(e) => {
+                    haptics.selection();
+                    setData(prev => ({ ...prev, dateOfBirth: e.target.value }));
+                  }}
                   className="h-12 bg-transparent"
                 />
                 {isFutureDOB && (
