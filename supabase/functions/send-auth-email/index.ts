@@ -105,7 +105,7 @@ serve(async (req) => {
       // Force redirect_to to jvala.tech
       actionLink = actionLink.replace(
         /redirect_to=[^&]*/,
-        "redirect_to=" + encodeURIComponent("https://app.jvala.tech/#/reset-password")
+        "redirect_to=" + encodeURIComponent("https://app.jvala.tech/reset-password")
       );
 
       subject = "Reset your password — Jvala";
