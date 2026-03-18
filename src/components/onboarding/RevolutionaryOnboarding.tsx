@@ -1224,9 +1224,9 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               </div>
 
               <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold">One Last Thing</h2>
-                <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-                  We ask for notifications <strong>last</strong> because we wanted to show you what Jvala does first. Now that you've set up tracking, notifications make sure you <strong>never miss a signal</strong>.
+                <h2 className="text-3xl font-bold">One Last Thing</h2>
+                <p className="text-base text-muted-foreground max-w-xs mx-auto">
+                  Notifications make sure you <strong>never miss a signal</strong> — from reminders to weather alerts.
                 </p>
               </div>
 
