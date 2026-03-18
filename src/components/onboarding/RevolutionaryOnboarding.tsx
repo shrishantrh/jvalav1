@@ -844,7 +844,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               <div className="space-y-2">
                 <h2 className="text-3xl font-bold">What should we call you?</h2>
                 <p className="text-base text-muted-foreground">
-                  So your health assistant feels personal.
+                  Your health assistant will use this name.
                 </p>
               </div>
 
@@ -860,7 +860,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               </div>
 
               <p className="text-xs text-muted-foreground/60">
-                We'll use this to personalize your experience
+                {data.firstName ? `Hi ${data.firstName} 👋` : "We'll use this to personalize your experience"}
               </p>
             </div>
           </div>
