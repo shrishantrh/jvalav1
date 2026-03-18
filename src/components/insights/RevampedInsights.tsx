@@ -15,6 +15,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useAuth } from "@/hooks/useAuth";
+import { useEngagement } from "@/hooks/useEngagement";
 
 interface MedicationLog {
   id: string;
