@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, User, Share2, Copy, Check, Pill, AlertTriangle, Heart, Settings2 } from 'lucide-react';
+import { haptics } from "@/lib/haptics";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ProfileMedicationInput, type MedicationDetails } from "@/components/ProfileMedicationInput";
@@ -174,17 +175,17 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
 
   return (
     <div className="space-y-4">
-      <Tabs defaultValue="personal" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 h-12 glass-card border-0 rounded-2xl p-1">
-          <TabsTrigger value="personal" className="text-xs font-semibold rounded-xl gap-1 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+      <Tabs defaultValue="personal" onValueChange={() => haptics.selection()} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 h-11 glass-card border-0 rounded-2xl p-1.5">
+          <TabsTrigger value="personal" className="text-xs font-semibold rounded-xl gap-1.5 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <User className="w-3.5 h-3.5" />
             Personal
           </TabsTrigger>
-          <TabsTrigger value="health" className="text-xs font-semibold rounded-xl gap-1 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+          <TabsTrigger value="health" className="text-xs font-semibold rounded-xl gap-1.5 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <Heart className="w-3.5 h-3.5" />
             Health
           </TabsTrigger>
-          <TabsTrigger value="integrations" className="text-xs font-semibold rounded-xl gap-1 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+          <TabsTrigger value="integrations" className="text-xs font-semibold rounded-xl gap-1.5 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <Settings2 className="w-3.5 h-3.5" />
             Connect
           </TabsTrigger>

@@ -166,7 +166,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
   }, [step, data]);
 
   const handleNext = () => {
-    haptics.selection();
+    haptics.medium();
     if (step === TOTAL_STEPS - 1) {
       handleComplete();
     } else {
@@ -181,15 +181,17 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
 
   const handleComplete = async () => {
     setIsAnalyzing(true);
-    haptics.success();
+    haptics.heavy();
     clearProgress();
 
     const steps = [0, 1, 2, 3, 4];
     for (const s of steps) {
       await new Promise(resolve => setTimeout(resolve, 600));
       setAnalyzeStep(s);
+      haptics.light();
     }
     await new Promise(resolve => setTimeout(resolve, 800));
+    haptics.success();
 
     onComplete({ ...data, age, aiLogCategories });
   };

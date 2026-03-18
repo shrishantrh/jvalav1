@@ -411,8 +411,8 @@ export const EnhancedMedicalExport = ({
         </Card>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 glass-card border-0 rounded-2xl p-1.5">
+      <Tabs value={activeTab} onValueChange={(v) => { haptics.selection(); setActiveTab(v); }} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 glass-card border-0 rounded-2xl p-1.5 h-11">
           <TabsTrigger value="share" className="text-xs gap-1.5 font-semibold rounded-xl data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
             <Share2 className="w-4 h-4" />
             Share Journey
@@ -466,7 +466,7 @@ export const EnhancedMedicalExport = ({
             </div>
           </Card>
 
-          {/* Share Button — uses native share sheet */}
+          {/* Share Button — generates image then uses native share sheet */}
           <button 
             onClick={handleShareJourney} 
             disabled={generatingImage}
@@ -528,7 +528,7 @@ export const EnhancedMedicalExport = ({
                   ].map(fmt => (
                     <button
                       key={fmt.id}
-                      onClick={() => setSelectedFormat(fmt.id)}
+                      onClick={() => { haptics.selection(); setSelectedFormat(fmt.id); }}
                       className={cn(
                         "p-3.5 rounded-2xl text-left transition-all press-effect",
                         selectedFormat === fmt.id 
@@ -546,17 +546,11 @@ export const EnhancedMedicalExport = ({
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex gap-2.5">
-                <Button onClick={handleDownload} className="flex-1 h-12 rounded-2xl font-semibold" size="sm">
-                  <Download className="w-4 h-4 mr-2" />
-                  Download
-                </Button>
-                <Button onClick={handleShareClinical} variant="outline" size="sm" className="flex-1 h-12 rounded-2xl font-semibold glass-card border-0">
-                  <Share2 className="w-4 h-4 mr-2" />
-                  Share
-                </Button>
-              </div>
+              {/* Single share action */}
+              <Button onClick={() => { haptics.medium(); handleShareClinical(); }} className="w-full h-12 rounded-2xl font-semibold" size="sm">
+                <Share2 className="w-4 h-4 mr-2" />
+                Share Export
+              </Button>
 
               {/* Compliance badges */}
               <div className="flex flex-wrap gap-1.5 pt-4 mt-4 border-t border-border/20">
