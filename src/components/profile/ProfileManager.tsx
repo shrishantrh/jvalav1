@@ -210,31 +210,24 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
 
           {/* Share Profile */}
           <Card className="glass-card border-0 rounded-3xl">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
+            <CardContent className="p-5 space-y-3">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
                     <Share2 className="w-4 h-4 text-primary" />
                   </div>
                   <div>
                     <p className="text-sm font-semibold">Share Profile</p>
-                    <p className="text-[10px] text-muted-foreground">Share a read-only link with your doctor</p>
+                    <p className="text-[10px] text-muted-foreground">Secure doctor sharing link</p>
                   </div>
                 </div>
-                <Switch
-                  checked={profile.share_enabled}
-                  onCheckedChange={handleToggleShare}
-                  disabled={saving}
-                />
+                <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary border-0">
+                  Coming Soon
+                </Badge>
               </div>
-              {profile.share_enabled && shareUrl && (
-                <div className="flex items-center gap-2 mt-2">
-                  <Input value={shareUrl} readOnly className="text-[10px] h-9 rounded-xl glass-card border-0 flex-1" />
-                  <Button size="sm" variant="outline" onClick={() => copyToClipboard(shareUrl)} className="h-9 w-9 p-0 rounded-xl glass-card border-0">
-                    {copied ? <Check className="w-3.5 h-3.5 text-primary" /> : <Copy className="w-3.5 h-3.5" />}
-                  </Button>
-                </div>
-              )}
+              <p className="text-xs text-muted-foreground">
+                Profile sharing is being finalized and will be available shortly.
+              </p>
             </CardContent>
           </Card>
 
