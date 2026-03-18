@@ -443,17 +443,17 @@ export const EnhancedMedicalExport = ({
         }}
         className="w-full"
       >
-        <TabsList className="grid w-full grid-cols-2 glass-card border-0 rounded-2xl p-1 h-12">
+        <TabsList className="grid w-full grid-cols-2 glass-card border-0 rounded-2xl p-1.5 h-12">
           <TabsTrigger
             value="share"
-            className="h-full text-xs gap-1.5 font-semibold rounded-xl data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:ring-1 data-[state=active]:ring-primary/35"
+            className="h-full text-xs gap-1.5 rounded-xl"
           >
             <Share2 className="w-4 h-4" />
             Share Journey
           </TabsTrigger>
           <TabsTrigger
             value="clinical"
-            className="h-full text-xs gap-1.5 font-semibold rounded-xl data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:ring-1 data-[state=active]:ring-primary/35"
+            className="h-full text-xs gap-1.5 rounded-xl"
           >
             <Shield className="w-4 h-4" />
             Clinical Export

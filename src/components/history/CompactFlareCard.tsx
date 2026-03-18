@@ -662,24 +662,22 @@ export const CompactFlareCard = ({
               </div>
             )}
 
-            {/* Physiological Data */}
-            {(entry.type === 'flare' || phys) && (
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground mb-2">Physiological Data</p>
-                <div className="grid grid-cols-4 gap-2">
-                  {physiologicalMetrics.map((metric) => (
-                    <div key={metric.label} className="text-center p-2.5 rounded-2xl backdrop-blur-sm bg-background/60 border border-border/30">
-                      <metric.icon className="w-3.5 h-3.5 mx-auto mb-1 text-primary" />
-                      <p className={cn("text-sm font-bold", metric.value === '--' && 'text-muted-foreground')}>
-                        {metric.value}
-                        {metric.value !== '--' ? metric.unit : ''}
-                      </p>
-                      <p className="text-[8px] text-muted-foreground">{metric.label}</p>
-                    </div>
-                  ))}
-                </div>
+            {/* Physiological Data — always show for flare entries */}
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground mb-2">Physiological Data</p>
+              <div className="grid grid-cols-4 gap-2">
+                {physiologicalMetrics.map((metric) => (
+                  <div key={metric.label} className="text-center p-2.5 rounded-2xl backdrop-blur-sm bg-background/60 border border-border/30">
+                    <metric.icon className="w-3.5 h-3.5 mx-auto mb-1 text-primary" />
+                    <p className={cn("text-sm font-bold", metric.value === '--' && 'text-muted-foreground/40')}>
+                      {metric.value}
+                      {metric.value !== '--' ? metric.unit : ''}
+                    </p>
+                    <p className="text-[8px] text-muted-foreground">{metric.label}</p>
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
 
             {/* Triggers */}
             {entry.triggers && entry.triggers.length > 0 && (
