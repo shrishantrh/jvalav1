@@ -40,6 +40,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useNativePush } from "@/hooks/useNativePush";
 import { useAIConsent } from "@/hooks/useAIConsent";
 import type { SmartTrackable } from "@/components/tracking/FluidLogSelector";
+import { useDeepLinkHandler } from "@/hooks/useDeepLinkHandler";
 
 interface MedicationDetails {
   name: string;
@@ -98,6 +99,21 @@ const Index = () => {
   useNativePush(); // Register native iOS/Android push tokens
   const { hasConsented: aiConsented, grantConsent: grantAIConsent } = useAIConsent();
   const [showAIConsentDialog, setShowAIConsentDialog] = useState(false);
+
+  // Deep link handler for Siri Shortcuts / Action Button integration
+  useDeepLinkHandler({
+    onQuickLog: async (entry) => {
+      return await handleSaveEntry(entry);
+    },
+    onOpenVoice: () => {
+      setCurrentView('track');
+    },
+    onSwitchView: (view) => {
+      if (['track', 'history', 'insights', 'exports'].includes(view)) {
+        setCurrentView(view as any);
+      }
+    },
+  });
 
   // Auto-subscribe to push notifications if permission already granted but not subscribed
   useEffect(() => {

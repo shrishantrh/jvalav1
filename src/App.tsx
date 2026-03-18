@@ -16,6 +16,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
 import ConfirmEmail from "./pages/ConfirmEmail";
+import ShortcutsSetup from "./pages/ShortcutsSetup";
 import { OfflineIndicator } from "./components/pwa/OfflineIndicator";
 import { InstallPrompt } from "./components/pwa/InstallPrompt";
 import { SmartAppBanner } from "./components/pwa/SmartAppBanner";
@@ -63,6 +64,7 @@ const App = () => (
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/confirm-email" element={<ConfirmEmail />} />
+            <Route path="/shortcuts" element={<ShortcutsSetup />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </SentryRoutes>
