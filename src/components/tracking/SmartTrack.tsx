@@ -7,6 +7,7 @@ import { Send, Mic, MicOff, Check, Sparkles, Thermometer, Droplets, Calendar, Al
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { haptics } from "@/lib/haptics";
 import { FluidLogSelector } from "./FluidLogSelector";
 import { Badge } from "@/components/ui/badge";
 import { useCorrelations } from "@/hooks/useCorrelations";
