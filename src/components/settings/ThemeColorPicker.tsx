@@ -3,13 +3,20 @@ import { useThemeColor, THEME_COLORS, ThemeColor, ThemeMode } from "@/hooks/useT
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
 import { Palette, Check } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useEngagement } from "@/hooks/useEngagement";
 
 export const ThemeColorPicker = () => {
   const { themeColor, setThemeColor } = useThemeColor();
+  const { user } = useAuth();
+  const { recordFeatureEvent } = useEngagement();
 
   const handleColorChange = (color: ThemeColor) => {
     haptics.selection();
     setThemeColor(color);
+    if (user) {
+      recordFeatureEvent(user.id, 'theme_change');
+    }
   };
 
   return (

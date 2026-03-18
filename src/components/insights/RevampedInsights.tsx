@@ -78,7 +78,7 @@ export const RevampedInsights = ({
   return (
     <div className="space-y-3">
       {/* Tabs - now 3 tabs without Export */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList data-tour="trends-area" className="grid w-full grid-cols-4 h-10 bg-card/80 backdrop-blur-sm">
           <TabsTrigger value="ai" className="text-xs gap-1.5">
             <Brain className="w-4 h-4" />
