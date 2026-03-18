@@ -356,41 +356,20 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
         return;
       }
 
-      // 3) Skip isAvailable() entirely — go straight to requestAuthorization (same as profile connect)
+      // 3) Request FULL authorization — no minimal fallback
       console.log('[Onboarding] Plugin present, skipping isAvailable(), requesting full permissions...');
 
-      let ok = false;
-      // Try FULL first
       try {
         await Promise.race([
           plugin.requestAuthorization({ read: HEALTH_FULL_READ, write: [] }),
           new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000)),
         ]);
-        ok = true;
-      } catch (e) {
-        console.warn('[Onboarding] Full auth failed, trying minimal:', e instanceof Error ? e.message : e);
-      }
-
-      // Fallback to minimal
-      if (!ok) {
-        try {
-          await Promise.race([
-            plugin.requestAuthorization({ read: HEALTH_MINIMAL_READ, write: [] }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000)),
-          ]);
-          ok = true;
-        } catch (e) {
-          console.warn('[Onboarding] Minimal auth also failed:', e instanceof Error ? e.message : e);
-        }
-      }
-
-      if (ok) {
-        console.log('[Onboarding] Health auth granted');
-        // Persist connection state so useWearableData picks it up
+        console.log('[Onboarding] Health auth granted (full)');
         try { localStorage.setItem('jvala_health_connected', '1'); } catch {}
         setHealthPermissionStatus('granted');
         haptics.success();
-      } else {
+      } catch (e) {
+        console.warn('[Onboarding] Health auth failed:', e instanceof Error ? e.message : e);
         setHealthPermissionStatus('denied');
       }
     } catch (e) {
