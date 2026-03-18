@@ -127,10 +127,38 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
   const [conditionSearch, setConditionSearch] = useState("");
   const [analyzeStep, setAnalyzeStep] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
+  const nameAutoFilled = useRef(false);
 
   const age = useMemo(() => calculateAge(data.dateOfBirth), [data.dateOfBirth]);
   const isUnder13 = age !== null && age < 13;
   const isFutureDOB = data.dateOfBirth && new Date(data.dateOfBirth) > new Date();
+
+  // Auto-fill first name from OAuth metadata (Google/Apple)
+  useEffect(() => {
+    if (nameAutoFilled.current || data.firstName) return;
+    nameAutoFilled.current = true;
+
+    (async () => {
+      try {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const meta = user.user_metadata;
+        const firstName =
+          meta?.given_name ||
+          meta?.first_name ||
+          (meta?.full_name || meta?.name || '').split(' ')[0] ||
+          '';
+
+        if (firstName && !data.firstName) {
+          setData(prev => ({ ...prev, firstName }));
+        }
+      } catch {
+        // ignore
+      }
+    })();
+  }, []);
 
   // Autosave progress whenever step or data changes
   useEffect(() => {
@@ -816,7 +844,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               <div className="space-y-2">
                 <h2 className="text-3xl font-bold">What should we call you?</h2>
                 <p className="text-base text-muted-foreground">
-                  So your health assistant feels personal.
+                  Your health assistant will use this name.
                 </p>
               </div>
 
@@ -832,30 +860,46 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               </div>
 
               <p className="text-xs text-muted-foreground/60">
-                We'll use this to personalize your experience
+                {data.firstName ? `Hi ${data.firstName} 👋` : "We'll use this to personalize your experience"}
               </p>
             </div>
           </div>
         );
 
       // ─── Step 2: Conditions ─────────────────────────────────
-      case 2:
+      case 2: {
+        // Group conditions by category for better browsing
+        const categories = [...new Set(filteredConditions.map(c => c.category))];
+        const showingSearch = conditionSearch.trim().length > 0;
+
         return (
           <div className="space-y-4 animate-in fade-in-0 slide-in-from-right-4 duration-500 flex-1">
             <div className="text-center space-y-2">
               <h2 className="text-3xl font-bold">
-                {data.firstName ? `${data.firstName}, what` : "What"} are you managing?
+                {data.firstName ? `${data.firstName}, what` : "What"} do you want to track?
               </h2>
               <p className="text-base text-muted-foreground">
-                Type anything — chronic conditions, deficiencies, or health concerns.
+                Chronic conditions, pain, deficiencies, mental health — anything you experience regularly.
               </p>
             </div>
+
+            {/* Example chips to inspire */}
+            {totalSelected === 0 && !showingSearch && (
+              <div className="flex flex-wrap justify-center gap-1.5 animate-in fade-in-0 duration-500">
+                {['Back Pain', 'Migraine', 'Anxiety', 'IBS', 'Insomnia', 'Lupus'].map((example, i) => (
+                  <span key={i} className="text-[10px] px-2.5 py-1 rounded-full border border-dashed border-primary/25 text-muted-foreground/70">
+                    {example}
+                  </span>
+                ))}
+                <span className="text-[10px] px-2.5 py-1 text-muted-foreground/50">+ anything else</span>
+              </div>
+            )}
 
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 ref={searchRef}
-                placeholder="Search or type your condition..."
+                placeholder="Search or type anything..."
                 value={conditionSearch}
                 onChange={(e) => setConditionSearch(e.target.value)}
                 onKeyDown={(e) => {
@@ -901,33 +945,83 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               </div>
             )}
 
-            <div className="flex-1 max-h-[340px] overflow-y-auto space-y-1 pr-1 scrollbar-hide">
-              {filteredConditions.map((condition) => {
-                const isSelected = data.conditions.includes(condition.id);
-                return (
-                  <button
-                    key={condition.id}
-                    onClick={() => toggleCondition(condition.id)}
-                    className={cn(
-                      "w-full py-3 px-4 rounded-2xl text-left transition-all press-effect",
-                      "flex items-center justify-between",
-                      isSelected
-                        ? 'glass-card bg-primary/8 border-primary/20'
-                        : 'hover:bg-card/80'
-                    )}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium block">{condition.name}</span>
-                      <span className="text-[11px] text-muted-foreground">{condition.category}</span>
-                    </div>
-                    {isSelected && (
-                      <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                        <Check className="w-3.5 h-3.5 text-primary-foreground" />
+            {/* Scrollable condition list with category headers */}
+            <div className="flex-1 max-h-[320px] overflow-y-auto space-y-3 pr-1 scrollbar-hide relative">
+              {/* Fade-out scroll hint at bottom */}
+              <div className="sticky top-0 left-0 right-0 h-0 z-10">
+                {!showingSearch && totalSelected === 0 && (
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce opacity-40">
+                    <ChevronRight className="w-4 h-4 rotate-90 text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+
+              {showingSearch ? (
+                // Flat list when searching
+                <>
+                  {filteredConditions.map((condition) => {
+                    const isSelected = data.conditions.includes(condition.id);
+                    return (
+                      <button
+                        key={condition.id}
+                        onClick={() => toggleCondition(condition.id)}
+                        className={cn(
+                          "w-full py-3 px-4 rounded-2xl text-left transition-all press-effect",
+                          "flex items-center justify-between",
+                          isSelected
+                            ? 'glass-card bg-primary/8 border-primary/20'
+                            : 'hover:bg-card/80'
+                        )}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium block">{condition.name}</span>
+                          <span className="text-[11px] text-muted-foreground">{condition.category}</span>
+                        </div>
+                        {isSelected && (
+                          <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                            <Check className="w-3.5 h-3.5 text-primary-foreground" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </>
+              ) : (
+                // Grouped by category
+                categories.map(category => {
+                  const categoryConditions = filteredConditions.filter(c => c.category === category);
+                  return (
+                    <div key={category}>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 px-1 pb-1">{category}</p>
+                      <div className="space-y-0.5">
+                        {categoryConditions.map((condition) => {
+                          const isSelected = data.conditions.includes(condition.id);
+                          return (
+                            <button
+                              key={condition.id}
+                              onClick={() => toggleCondition(condition.id)}
+                              className={cn(
+                                "w-full py-2.5 px-4 rounded-xl text-left transition-all press-effect",
+                                "flex items-center justify-between",
+                                isSelected
+                                  ? 'glass-card bg-primary/8 border-primary/20'
+                                  : 'hover:bg-card/80'
+                              )}
+                            >
+                              <span className="text-sm font-medium">{condition.name}</span>
+                              {isSelected && (
+                                <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                                  <Check className="w-3 h-3 text-primary-foreground" />
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
                       </div>
-                    )}
-                  </button>
-                );
-              })}
+                    </div>
+                  );
+                })
+              )}
 
               {conditionSearch.trim() && !CONDITIONS.some(c => c.name.toLowerCase() === conditionSearch.toLowerCase()) && (
                 <button
@@ -939,13 +1033,19 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                   </div>
                   <div>
                     <span className="text-sm font-medium">Add "{conditionSearch.trim()}"</span>
-                    <span className="text-[11px] text-muted-foreground block">AI will research this for you</span>
+                    <span className="text-[11px] text-muted-foreground block">Your AI will learn to track this</span>
                   </div>
                 </button>
               )}
             </div>
+
+            {/* Subtle hint */}
+            <p className="text-[10px] text-center text-muted-foreground/50">
+              Can't find yours? Type it above — Jvala can track anything.
+            </p>
           </div>
         );
+      }
 
       // ─── Step 3: Quick Profile (DOB + Biological Sex) ─────────────────
       case 3:
