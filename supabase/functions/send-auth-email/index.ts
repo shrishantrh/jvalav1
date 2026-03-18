@@ -50,7 +50,7 @@ serve(async (req) => {
         email,
         password,
         options: {
-          redirectTo: "https://jvala.tech/confirm-email",
+          redirectTo: "https://app.jvala.tech/#/confirm-email",
         },
       });
 
