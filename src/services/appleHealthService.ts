@@ -210,39 +210,34 @@ export type HealthAuthorizationResult = {
 export const HEALTH_MINIMAL_READ: HealthDataType[] = ['steps', 'heartRate'];
 
 export const HEALTH_FULL_READ: HealthDataType[] = [
-  // Vitals
-  'heartRate', 'restingHeartRate', 'heartRateVariability', 'oxygenSaturation',
-  'respiratoryRate', 'bloodPressureSystolic', 'bloodPressureDiastolic',
-  'bodyTemperature', 'wristTemperature', 'basalBodyTemperature',
-  'walkingHeartRateAverage', 'atrialFibrillationBurden',
-  // Fitness & Activity
-  'steps', 'distance', 'calories', 'activeEnergyBurned', 'basalEnergyBurned',
-  'flightsClimbed', 'appleExerciseTime', 'appleStandTime',
-  'distanceCycling', 'distanceSwimming', 'swimmingStrokeCount',
-  'distanceWheelchair', 'distanceDownhillSnowSports', 'pushCount',
-  // Body Measurements
-  'weight', 'bodyFatPercentage', 'leanBodyMass', 'bmi',
-  // Sleep & Mindfulness
-  'sleep', 'mindfulSession',
-  // Lab & Clinical
-  'bloodGlucose', 'insulinDelivery', 'vo2Max', 'electrodermalActivity',
-  'peripheralPerfusionIndex', 'peakExpiratoryFlowRate',
-  'inhalerUsage', 'numberOfTimesFallen',
-  // Mobility
-  'walkingSpeed', 'walkingStepLength', 'walkingDoubleSupportPercentage',
-  'walkingAsymmetryPercentage', 'stairAscentSpeed', 'stairDescentSpeed',
-  'sixMinuteWalkTestDistance', 'appleWalkingSteadiness',
-  // Nutrition
-  'dietaryWater', 'dietaryCaffeine', 'dietaryEnergyConsumed',
-  'dietarySugar', 'dietaryFatTotal', 'dietaryProtein',
-  'dietaryCarbohydrates', 'dietaryCholesterol', 'dietarySodium', 'dietaryFiber',
-  // Reproductive Health
-  'menstruationFlow', 'sexualActivity', 'cervicalMucusQuality',
-  'ovulationTestResult',
-  // Environment
-  'uvExposure', 'waterTemperature',
-  // Other
-  'handwashingEvent', 'toothbrushingEvent',
+  // Activity & energy
+  'steps',
+  'distance',
+  'calories',
+  'flightsClimbed',
+  'exerciseTime',
+  'distanceCycling',
+  'basalCalories',
+  'totalCalories',
+  // Cardio & vitals
+  'heartRate',
+  'restingHeartRate',
+  'heartRateVariability',
+  'respiratoryRate',
+  'oxygenSaturation',
+  'bloodPressure',
+  'bloodGlucose',
+  'bodyTemperature',
+  'basalBodyTemperature',
+  // Recovery & body composition
+  'sleep',
+  'weight',
+  'bodyFat',
+  'height',
+  // Behavior
+  'mindfulness',
+  // Workouts (required to read workout sessions)
+  'workouts',
 ];
 
 export const requestHealthPermissions = async (options?: {
