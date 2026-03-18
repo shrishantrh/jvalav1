@@ -18,11 +18,23 @@
   </div>
   <script>
     // Supabase redirects here with tokens in the hash: /confirm-email#access_token=...
-    // We relay them into the HashRouter route so the SPA can process them.
     var hash = window.location.hash || '';
     var params = hash.startsWith('#') ? hash.slice(1) : hash;
-    // Redirect to /#/confirm-email?<tokens> — the SPA's HashRouter will render ConfirmEmail
-    window.location.replace('/#/confirm-email' + (params ? '?' + params : ''));
+    var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+    if (isMobile && params && params.indexOf('access_token') !== -1) {
+      // On mobile: deep link to the native app with the auth tokens
+      // The app's useAuth hook will call setSession with these tokens
+      window.location.replace('jvala://auth#' + params);
+
+      // Fallback: if the app doesn't open in 2s, relay to HashRouter
+      setTimeout(function() {
+        window.location.replace('/#/confirm-email?' + params);
+      }, 2000);
+    } else {
+      // On desktop: relay tokens into the HashRouter route
+      window.location.replace('/#/confirm-email' + (params ? '?' + params : ''));
+    }
   </script>
 </body>
 </html>
