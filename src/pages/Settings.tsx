@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeColorPicker } from "@/components/settings/ThemeColorPicker";
 import { haptics } from "@/lib/haptics";
+import { useEngagement } from "@/hooks/useEngagement";
 
 export default function Settings() {
   const [termsAcceptedAt, setTermsAcceptedAt] = useState<string | null>(null);
