@@ -49,7 +49,6 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
   const [currentMedications, setCurrentMedications] = useState<MedicationDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => { loadProfile(); }, []);
