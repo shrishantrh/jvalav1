@@ -517,7 +517,7 @@ export const EnhancedMedicalExport = ({
                 ) : (
                   <ImageIcon className="w-4 h-4 mr-2" />
                 )}
-                Share
+                Share Image
               </Button>
             </div>
           </Card>

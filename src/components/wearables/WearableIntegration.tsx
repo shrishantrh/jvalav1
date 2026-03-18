@@ -263,174 +263,70 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3 items-start">
-            {/* Heart Rate */}
-            {data.heartRate && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-100">
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              {
+                label: 'Steps',
+                icon: Footprints,
+                value: formatMetricValue(data.steps, (raw) => Math.round(raw).toLocaleString()),
+                unit: 'steps',
+              },
+              {
+                label: 'Sleep',
+                icon: Moon,
+                value: formatMetricValue(data.sleepHours),
+                unit: 'hrs',
+              },
+              {
+                label: 'Heart Rate',
+                icon: Heart,
+                value: formatMetricValue(data.heartRate),
+                unit: 'bpm',
+              },
+              {
+                label: 'Resting HR',
+                icon: Activity,
+                value: formatMetricValue(data.restingHeartRate),
+                unit: 'bpm',
+              },
+              {
+                label: 'SpO2',
+                icon: Droplets,
+                value: formatMetricValue(data.spo2),
+                unit: '%',
+              },
+              {
+                label: 'Breathing',
+                icon: Wind,
+                value: formatMetricValue(data.breathingRate),
+                unit: 'bpm',
+              },
+              {
+                label: 'Calories',
+                icon: Flame,
+                value: formatMetricValue(data.caloriesBurned, (raw) => Math.round(raw).toLocaleString()),
+                unit: 'kcal',
+              },
+              {
+                label: 'Distance',
+                icon: Timer,
+                value: formatMetricValue(data.distance),
+                unit: 'm',
+              },
+            ].map((metric) => (
+              <div key={metric.label} className="p-3 rounded-xl border border-border/30 bg-background/60">
                 <div className="flex items-center gap-2 mb-1">
-                  <Heart className="w-4 h-4 text-red-500" />
-                  <span className="text-xs text-muted-foreground">Resting HR</span>
+                  <metric.icon className="w-4 h-4 text-primary" />
+                  <span className="text-xs text-muted-foreground">{metric.label}</span>
                 </div>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-red-600">{data.heartRate}</span>
-                  <span className="text-xs text-muted-foreground">bpm</span>
-                </div>
-              </div>
-            )}
-
-            {/* HRV */}
-            {data.heartRateVariability && (
-              <div className="p-3 rounded-xl bg-pink-50 border border-pink-100">
-                <div className="flex items-center gap-2 mb-1">
-                  <Activity className="w-4 h-4 text-pink-500" />
-                  <span className="text-xs text-muted-foreground">HRV</span>
-                </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-pink-600">{Math.round(data.heartRateVariability)}</span>
-                  <span className="text-xs text-muted-foreground">ms</span>
-                </div>
-              </div>
-            )}
-
-            {/* SpO2 */}
-            {data.spo2 && (
-              <div className="p-3 rounded-xl bg-cyan-50 border border-cyan-100">
-                <div className="flex items-center gap-2 mb-1">
-                  <Droplets className="w-4 h-4 text-cyan-500" />
-                  <span className="text-xs text-muted-foreground">SpO2</span>
-                </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-cyan-600">{data.spo2}</span>
-                  <span className="text-xs text-muted-foreground">%</span>
-                </div>
-              </div>
-            )}
-
-            {/* Breathing Rate */}
-            {data.breathingRate && (
-              <div className="p-3 rounded-xl bg-teal-50 border border-teal-100">
-                <div className="flex items-center gap-2 mb-1">
-                  <Wind className="w-4 h-4 text-teal-500" />
-                  <span className="text-xs text-muted-foreground">Breathing</span>
-                </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-teal-600">{data.breathingRate.toFixed(1)}</span>
-                  <span className="text-xs text-muted-foreground">bpm</span>
-                </div>
-              </div>
-            )}
-
-            {/* Skin Temperature */}
-            {data.skinTemperature && (
-              <div className="p-3 rounded-xl bg-amber-50 border border-amber-100">
-                <div className="flex items-center gap-2 mb-1">
-                  <Thermometer className="w-4 h-4 text-amber-500" />
-                  <span className="text-xs text-muted-foreground">Skin Temp</span>
-                </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-amber-600">
-                    {data.skinTemperature > 0 ? '+' : ''}{data.skinTemperature.toFixed(1)}
+                  <span className={cn('text-2xl font-bold', metric.value === '--' ? 'text-muted-foreground' : 'text-foreground')}>
+                    {metric.value}
                   </span>
-                  <span className="text-xs text-muted-foreground">°C</span>
+                  {metric.value !== '--' && <span className="text-xs text-muted-foreground">{metric.unit}</span>}
                 </div>
               </div>
-            )}
-
-            {/* VO2 Max */}
-            {data.vo2Max && (
-              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100">
-                <div className="flex items-center gap-2 mb-1">
-                  <Zap className="w-4 h-4 text-emerald-500" />
-                  <span className="text-xs text-muted-foreground">VO2 Max</span>
-                </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-emerald-600">{data.vo2Max}</span>
-                  <span className="text-xs text-muted-foreground">ml/kg/min</span>
-                </div>
-              </div>
-            )}
-
-            {/* Steps */}
-            {(data.steps !== undefined && data.steps !== null && data.steps > 0) && (
-            <div className="p-3 rounded-xl bg-blue-50 border border-blue-100">
-              <div className="flex items-center gap-2 mb-1">
-                <Footprints className="w-4 h-4 text-blue-500" />
-                <span className="text-xs text-muted-foreground">Steps</span>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold text-blue-600">
-                  {data.steps?.toLocaleString()}
-                </span>
-              </div>
-              {data.activeMinutes && (
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  {data.activeMinutes} active min
-                </p>
-              )}
-            </div>
-            )}
-
-            {/* Active Zone Minutes */}
-            {data.activeZoneMinutesTotal && (
-              <div className="p-3 rounded-xl bg-violet-50 border border-violet-100">
-                <div className="flex items-center gap-2 mb-1">
-                  <Timer className="w-4 h-4 text-violet-500" />
-                  <span className="text-xs text-muted-foreground">Zone Min</span>
-                </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-violet-600">{data.activeZoneMinutesTotal}</span>
-                  <span className="text-xs text-muted-foreground">min</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  {data.cardioMinutes || 0} cardio • {data.peakMinutes || 0} peak
-                </p>
-              </div>
-            )}
-
-            {/* Sleep */}
-            {data.sleepHours !== undefined && data.sleepHours !== null && (
-              <div className="p-3 rounded-xl bg-purple-50 border border-purple-100">
-                <div className="flex items-center gap-2 mb-1">
-                  <Moon className="w-4 h-4 text-purple-500" />
-                  <span className="text-xs text-muted-foreground">Sleep</span>
-                </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-purple-600">{data.sleepHours}</span>
-                  <span className="text-xs text-muted-foreground">hrs</span>
-                </div>
-                {data.sleepQuality && (
-                  <Badge className={cn("text-[10px] mt-1", getSleepQualityColor(data.sleepQuality))}>
-                    {data.sleepQuality}
-                  </Badge>
-                )}
-                {data.sleepEfficiency && (
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    {data.sleepEfficiency}% efficiency
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Calories */}
-            {data.caloriesBurned && (
-              <div className="p-3 rounded-xl bg-orange-50 border border-orange-100">
-                <div className="flex items-center gap-2 mb-1">
-                  <Flame className="w-4 h-4 text-orange-500" />
-                  <span className="text-xs text-muted-foreground">Calories</span>
-                </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-orange-600">
-                    {data.caloriesBurned?.toLocaleString() || '0'}
-                  </span>
-                  <span className="text-xs text-muted-foreground">kcal</span>
-                </div>
-                {data.activityCalories && (
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    {data.activityCalories} from activity
-                  </p>
-                )}
-              </div>
-            )}
+            ))}
           </div>
 
           {/* Sleep Stages */}
