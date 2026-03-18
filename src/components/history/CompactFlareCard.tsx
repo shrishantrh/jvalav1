@@ -33,6 +33,7 @@ import {
   Activity,
   Flame,
   Coffee,
+  Timer,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
@@ -440,12 +441,48 @@ export const CompactFlareCard = ({
   const pollenTree = env?.airQuality?.pollenTree;
   const pollenGrass = env?.airQuality?.pollenGrass;
   
-  const heartRate = phys?.heartRate || phys?.heart_rate;
-  const sleepHours = phys?.sleepHours || phys?.sleep_hours;
+  const heartRate = phys?.heartRate ?? phys?.heart_rate;
+  const restingHeartRate = phys?.restingHeartRate ?? phys?.resting_heart_rate;
+  const heartRateVariability = phys?.heartRateVariability ?? phys?.heart_rate_variability ?? phys?.hrvRmssd ?? phys?.hrv_rmssd;
+  const spo2 = phys?.spo2 ?? phys?.spo2_avg;
+  const breathingRate = phys?.breathingRate ?? phys?.breathing_rate;
+  const sleepHours = phys?.sleepHours ?? phys?.sleep_hours;
+  const deepSleepMinutes = phys?.deepSleepMinutes ?? phys?.deep_sleep_minutes;
+  const remSleepMinutes = phys?.remSleepMinutes ?? phys?.rem_sleep_minutes;
   const steps = phys?.steps;
+  const activeMinutes = phys?.activeMinutes ?? phys?.active_minutes;
+  const caloriesBurned = phys?.caloriesBurned ?? phys?.calories_burned;
+  const distanceMeters = phys?.distance;
+  const skinTemperature = phys?.skinTemperature ?? phys?.skin_temperature;
+  const vo2Max = phys?.vo2Max ?? phys?.vo2_max;
+  const activeZoneMinutes = phys?.activeZoneMinutesTotal ?? phys?.active_zone_minutes_total;
+
+  const formatMetric = (value: unknown, formatter?: (raw: number) => string) => {
+    if (typeof value !== 'number' || Number.isNaN(value)) return '--';
+    return formatter ? formatter(value) : `${Math.round(value * 10) / 10}`;
+  };
+
+  const physiologicalMetrics = [
+    { label: 'HR', value: formatMetric(heartRate), unit: ' bpm', icon: Heart },
+    { label: 'Rest HR', value: formatMetric(restingHeartRate), unit: ' bpm', icon: Activity },
+    { label: 'HRV', value: formatMetric(heartRateVariability), unit: ' ms', icon: Zap },
+    { label: 'SpO2', value: formatMetric(spo2), unit: '%', icon: Droplets },
+    { label: 'Breath', value: formatMetric(breathingRate), unit: ' bpm', icon: Wind },
+    { label: 'Sleep', value: formatMetric(sleepHours), unit: ' h', icon: Moon },
+    { label: 'Deep', value: formatMetric(deepSleepMinutes), unit: ' min', icon: Moon },
+    { label: 'REM', value: formatMetric(remSleepMinutes), unit: ' min', icon: Moon },
+    { label: 'Steps', value: formatMetric(steps, (raw) => Math.round(raw).toLocaleString()), unit: '', icon: Footprints },
+    { label: 'Active', value: formatMetric(activeMinutes), unit: ' min', icon: Timer },
+    { label: 'Calories', value: formatMetric(caloriesBurned, (raw) => Math.round(raw).toLocaleString()), unit: ' kcal', icon: Flame },
+    { label: 'Distance', value: formatMetric(distanceMeters), unit: ' m', icon: Gauge },
+    { label: 'Skin Temp', value: formatMetric(skinTemperature), unit: ' °C', icon: Thermometer },
+    { label: 'VO2', value: formatMetric(vo2Max), unit: '', icon: Zap },
+    { label: 'Zone Min', value: formatMetric(activeZoneMinutes), unit: ' min', icon: Activity },
+  ];
 
   const hasWeatherData = temp || humidity || pressure || windSpeed || uvIndex || aqi || condition;
-  const hasData = city || hasWeatherData || heartRate || sleepHours || entry.symptoms?.length || entry.triggers?.length || (entry.note && !isNoteMetadata);
+  const hasPhysData = physiologicalMetrics.some((metric) => metric.value !== '--');
+  const hasData = entry.type === 'flare' || city || hasWeatherData || hasPhysData || entry.symptoms?.length || entry.triggers?.length || (entry.note && !isNoteMetadata);
 
   const trackableValue = getTrackableValue();
 
@@ -625,35 +662,21 @@ export const CompactFlareCard = ({
               </div>
             )}
 
-            {/* Biometric Metrics Row */}
-            {(heartRate || sleepHours || steps) && (
+            {/* Physiological Data */}
+            {(entry.type === 'flare' || phys) && (
               <div>
-                <p className="text-xs font-semibold text-muted-foreground mb-2">Biometrics</p>
+                <p className="text-xs font-semibold text-muted-foreground mb-2">Physiological Data</p>
                 <div className="grid grid-cols-4 gap-2">
-                  {heartRate && (
-                    <div className="text-center p-2.5 rounded-2xl backdrop-blur-sm"
-                      style={{ background: 'linear-gradient(145deg, rgba(254,226,226,0.9) 0%, rgba(254,202,202,0.85) 100%)', border: '1px solid rgba(239,68,68,0.3)' }}>
-                      <Heart className="w-3.5 h-3.5 mx-auto mb-1 text-red-500" />
-                      <p className="text-sm font-bold">{heartRate}</p>
-                      <p className="text-[8px] text-muted-foreground">bpm</p>
+                  {physiologicalMetrics.map((metric) => (
+                    <div key={metric.label} className="text-center p-2.5 rounded-2xl backdrop-blur-sm bg-background/60 border border-border/30">
+                      <metric.icon className="w-3.5 h-3.5 mx-auto mb-1 text-primary" />
+                      <p className={cn("text-sm font-bold", metric.value === '--' && 'text-muted-foreground')}>
+                        {metric.value}
+                        {metric.value !== '--' ? metric.unit : ''}
+                      </p>
+                      <p className="text-[8px] text-muted-foreground">{metric.label}</p>
                     </div>
-                  )}
-                  {sleepHours && (
-                    <div className="text-center p-2.5 rounded-2xl backdrop-blur-sm"
-                      style={{ background: 'linear-gradient(145deg, rgba(224,231,255,0.9) 0%, rgba(199,210,254,0.85) 100%)', border: '1px solid rgba(99,102,241,0.3)' }}>
-                      <Moon className="w-3.5 h-3.5 mx-auto mb-1 text-indigo-500" />
-                      <p className="text-sm font-bold">{sleepHours}h</p>
-                      <p className="text-[8px] text-muted-foreground">sleep</p>
-                    </div>
-                  )}
-                  {steps && (
-                    <div className="text-center p-2.5 rounded-2xl backdrop-blur-sm"
-                      style={{ background: 'linear-gradient(145deg, rgba(209,250,229,0.9) 0%, rgba(167,243,208,0.85) 100%)', border: '1px solid rgba(16,185,129,0.3)' }}>
-                      <Footprints className="w-3.5 h-3.5 mx-auto mb-1 text-emerald-500" />
-                      <p className="text-sm font-bold">{steps >= 1000 ? `${(steps/1000).toFixed(1)}k` : steps}</p>
-                      <p className="text-[8px] text-muted-foreground">steps</p>
-                    </div>
-                  )}
+                  ))}
                 </div>
               </div>
             )}

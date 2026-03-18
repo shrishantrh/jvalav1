@@ -3,19 +3,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, User, Share2, Copy, Check, Pill, AlertTriangle, Heart, Settings2 } from 'lucide-react';
+import { Loader2, User, Share2, Pill, AlertTriangle, Heart, Settings2 } from 'lucide-react';
 import { haptics } from "@/lib/haptics";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ProfileMedicationInput, type MedicationDetails } from "@/components/ProfileMedicationInput";
 import { CONDITIONS } from "@/data/conditions";
-import { NotificationSettings } from "@/components/notifications/NotificationSettings";
 import { WearableIntegration } from "@/components/wearables/WearableIntegration";
-
 import { EHRIntegration } from "@/components/ehr/EHRIntegration";
 
 interface ProfileData {
@@ -52,7 +49,6 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
   const [currentMedications, setCurrentMedications] = useState<MedicationDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => { loadProfile(); }, []);
@@ -109,28 +105,6 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
     } finally { setSaving(false); }
   };
 
-  const handleToggleShare = async (enabled: boolean) => {
-    if (!profile) return;
-    setSaving(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-      const shareToken = enabled ? crypto.randomUUID() : null;
-      const { error } = await supabase.from('profiles').update({ share_enabled: enabled, share_token: shareToken }).eq('id', user.id);
-      if (error) throw error;
-      setProfile(prev => prev ? { ...prev, share_enabled: enabled, share_token: shareToken } : null);
-      toast({ title: enabled ? "Sharing enabled" : "Sharing disabled" });
-    } catch (error: any) {
-      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
-    } finally { setSaving(false); }
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-    toast({ title: "Copied!" });
-  };
 
   const updateField = (field: keyof ProfileData, value: any) => {
     setProfile(prev => prev ? { ...prev, [field]: value } : null);
@@ -169,23 +143,20 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
     );
   }
 
-  const shareUrl = profile.share_token 
-    ? `${window.location.origin}/#/shared-profile?token=${profile.share_token}`
-    : '';
 
   return (
     <div className="space-y-4">
       <Tabs defaultValue="personal" onValueChange={() => haptics.selection()} className="w-full">
         <TabsList className="grid w-full grid-cols-3 h-12 glass-card border-0 rounded-2xl p-1">
-          <TabsTrigger value="personal" className="h-full text-xs font-semibold rounded-xl gap-1.5 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+          <TabsTrigger value="personal" className="h-full text-xs font-semibold rounded-xl gap-1.5 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:ring-1 data-[state=active]:ring-primary/35">
             <User className="w-3.5 h-3.5" />
             Personal
           </TabsTrigger>
-          <TabsTrigger value="health" className="h-full text-xs font-semibold rounded-xl gap-1.5 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+          <TabsTrigger value="health" className="h-full text-xs font-semibold rounded-xl gap-1.5 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:ring-1 data-[state=active]:ring-primary/35">
             <Heart className="w-3.5 h-3.5" />
             Health
           </TabsTrigger>
-          <TabsTrigger value="integrations" className="h-full text-xs font-semibold rounded-xl gap-1.5 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+          <TabsTrigger value="integrations" className="h-full text-xs font-semibold rounded-xl gap-1.5 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:ring-1 data-[state=active]:ring-primary/35">
             <Settings2 className="w-3.5 h-3.5" />
             Connect
           </TabsTrigger>
@@ -239,31 +210,24 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
 
           {/* Share Profile */}
           <Card className="glass-card border-0 rounded-3xl">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
+            <CardContent className="p-5 space-y-3">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
                     <Share2 className="w-4 h-4 text-primary" />
                   </div>
                   <div>
                     <p className="text-sm font-semibold">Share Profile</p>
-                    <p className="text-[10px] text-muted-foreground">Share a read-only link with your doctor</p>
+                    <p className="text-[10px] text-muted-foreground">Secure doctor sharing link</p>
                   </div>
                 </div>
-                <Switch
-                  checked={profile.share_enabled}
-                  onCheckedChange={handleToggleShare}
-                  disabled={saving}
-                />
+                <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary border-0">
+                  Coming Soon
+                </Badge>
               </div>
-              {profile.share_enabled && shareUrl && (
-                <div className="flex items-center gap-2 mt-2">
-                  <Input value={shareUrl} readOnly className="text-[10px] h-9 rounded-xl glass-card border-0 flex-1" />
-                  <Button size="sm" variant="outline" onClick={() => copyToClipboard(shareUrl)} className="h-9 w-9 p-0 rounded-xl glass-card border-0">
-                    {copied ? <Check className="w-3.5 h-3.5 text-primary" /> : <Copy className="w-3.5 h-3.5" />}
-                  </Button>
-                </div>
-              )}
+              <p className="text-xs text-muted-foreground">
+                Profile sharing is being finalized and will be available shortly.
+              </p>
             </CardContent>
           </Card>
 
@@ -414,7 +378,6 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
         {/* ── Connect Tab ── */}
         <TabsContent value="integrations" className="mt-4 space-y-4">
           {userId && <EHRIntegration userId={userId} />}
-          <NotificationSettings />
           <WearableIntegration />
         </TabsContent>
       </Tabs>

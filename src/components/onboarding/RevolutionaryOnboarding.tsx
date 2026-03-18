@@ -1090,16 +1090,26 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                     <p className="text-[11px] text-muted-foreground">Age affects symptom patterns & medication dosing</p>
                   </div>
                 </div>
-                <Input
-                  type="date"
-                  value={data.dateOfBirth}
-                  max={getTodayString()}
-                  onChange={(e) => {
-                    haptics.selection();
-                    setData(prev => ({ ...prev, dateOfBirth: e.target.value }));
-                  }}
-                  className="h-12 bg-transparent"
-                />
+                <div className="relative">
+                  <Input
+                    type="date"
+                    value={data.dateOfBirth}
+                    max={getTodayString()}
+                    onChange={(e) => {
+                      haptics.selection();
+                      setData(prev => ({ ...prev, dateOfBirth: e.target.value }));
+                    }}
+                    className={cn(
+                      "h-12 rounded-xl border border-border/40 bg-background/70 px-3",
+                      data.dateOfBirth ? "text-foreground" : "text-transparent"
+                    )}
+                  />
+                  {!data.dateOfBirth && (
+                    <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted-foreground">
+                      Tap to choose your birthdate
+                    </span>
+                  )}
+                </div>
                 {isFutureDOB && (
                   <div className="flex items-center gap-2 text-destructive text-xs">
                     <AlertCircle className="w-3.5 h-3.5" />
@@ -1473,7 +1483,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
       // ─── Step 8: Location Permission ─────────────────────────────────
       case 8:
         return (
-          <div className="flex flex-col flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
+          <div className="flex flex-col flex-1 px-2 pb-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
             <div className="w-full max-w-sm mx-auto space-y-4">
               <div className="text-center space-y-1">
                 <h2 className="text-2xl font-bold">Enable Location</h2>
@@ -1556,7 +1566,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
       // ─── Step 9: Notifications Permission (LAST — with reasoning) ──────
       case 9:
         return (
-          <div className="flex flex-col flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
+          <div className="flex flex-col flex-1 px-2 pb-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
             <div className="w-full max-w-sm mx-auto space-y-4">
               <div className="text-center space-y-1">
                 <h2 className="text-2xl font-bold">One Last Thing</h2>
@@ -1625,8 +1635,8 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
 
               <div className="glass-card flex items-start gap-3 bg-primary/5">
                 <Shield className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                <p className="text-[11px] text-muted-foreground leading-snug">
-                  Customize timing in Settings. Every notification is <strong>context-aware</strong>.
+                <p className="text-xs text-muted-foreground leading-relaxed break-words">
+                  Customize timing in Settings. Notifications stay context-aware.
                 </p>
               </div>
             </div>
@@ -1764,14 +1774,13 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
         {(step === 3 ||
           step === 4 ||
           step === 5 ||
-          step === 9 ||
           (step === 7 && healthPermissionStatus !== 'granted') ||
           (step === 8 && locationPermissionStatus !== 'granted')) && (
           <button
             onClick={() => { haptics.light(); handleNext(); }}
             className="w-full mt-2 py-2 text-sm text-muted-foreground"
           >
-            {step === 9 ? "Skip — I'll enable later" : "Skip for now"}
+            Skip for now
           </button>
         )}
       </div>
