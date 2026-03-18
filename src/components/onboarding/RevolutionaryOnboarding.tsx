@@ -568,8 +568,8 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               </div>
 
               <div className="space-y-2">
-                <h2 className="text-2xl font-bold">What should we call you?</h2>
-                <p className="text-sm text-muted-foreground">
+                <h2 className="text-3xl font-bold">What should we call you?</h2>
+                <p className="text-base text-muted-foreground">
                   So your health assistant feels personal.
                 </p>
               </div>
