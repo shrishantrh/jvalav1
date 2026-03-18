@@ -1378,49 +1378,22 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
       // ─── Step 7: Health Data Permission (FIRST — most important) ────────
       case 7:
         return (
-          <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
-            <div className="w-full max-w-sm space-y-5">
-              {/* Compact hero — ECG line */}
-              <div className="relative w-full h-16 rounded-2xl overflow-hidden glass-card flex items-center justify-center gap-4 px-6">
-                <svg viewBox="0 0 200 40" className="w-28 h-auto">
-                  <path d="M 0 20 L 30 20 L 40 8 L 50 32 L 60 18 L 70 22 L 80 20 L 110 20 L 120 5 L 130 35 L 140 15 L 150 25 L 160 20 L 200 20" fill="none" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" className="animate-pulse" />
-                </svg>
-                <div className="text-right">
-                  <p className="text-xl font-bold text-primary">72</p>
-                  <p className="text-[9px] text-muted-foreground">BPM</p>
-                </div>
-              </div>
-
-              <div className="text-center space-y-2">
-                <h2 className="text-3xl font-bold">Connect Apple Health</h2>
-                <p className="text-base text-muted-foreground max-w-xs mx-auto">
-                  Heart rate spikes, poor sleep, and activity drops often <strong>precede flares by hours</strong>. Let Jvala read the signals.
+          <div className="flex flex-col flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
+            <div className="w-full max-w-sm mx-auto space-y-4">
+              <div className="text-center space-y-1">
+                <h2 className="text-2xl font-bold">Connect Apple Health</h2>
+                <p className="text-sm text-muted-foreground">
+                  Heart rate, sleep & activity data help predict flares <strong>hours before they hit</strong>.
                 </p>
               </div>
 
-              {/* Data points with visual */}
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { icon: '❤️', label: "Heart Rate & HRV", desc: "Detect stress before flares" },
-                  { icon: '😴', label: "Sleep Quality", desc: "Sleep-flare correlations" },
-                  { icon: '🏃', label: "Activity & Steps", desc: "Movement impact tracking" },
-                  { icon: '🫁', label: "Blood Oxygen", desc: "Physiological baselines" },
-                ].map((item, i) => (
-                  <div key={i} className="glass-card py-3 px-3 text-center animate-in fade-in-0 duration-300" style={{ animationDelay: `${i * 100}ms` }}>
-                    <span className="text-xl">{item.icon}</span>
-                    <p className="text-xs font-medium mt-1">{item.label}</p>
-                    <p className="text-[10px] text-muted-foreground">{item.desc}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Permission button - prominent at top area */}
+              {/* Permission button — TOP, always visible */}
               {isNative ? (
                 <button
                   onClick={requestHealthPermission}
                   disabled={healthPermissionStatus === 'requesting' || healthPermissionStatus === 'granted'}
                   className={cn(
-                    "w-full py-4 rounded-2xl text-sm font-semibold transition-all press-effect flex items-center justify-center gap-2",
+                    "w-full py-4 rounded-2xl text-base font-semibold transition-all press-effect flex items-center justify-center gap-2",
                     healthPermissionStatus === 'granted'
                       ? "bg-green-500/15 text-green-600 border border-green-500/20"
                       : healthPermissionStatus === 'denied' || healthPermissionStatus === 'unavailable'
@@ -1438,19 +1411,43 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                   {healthPermissionStatus === 'unavailable' && "Not Available on This Device"}
                 </button>
               ) : (
-                <div className="glass-card text-center py-4 space-y-2">
-                  <Activity className="w-6 h-6 text-primary mx-auto" />
-                  <p className="text-sm font-medium">Available on Mobile</p>
-                  <p className="text-xs text-muted-foreground">
-                    Health data integration is available when using the Jvala app on your phone.
-                  </p>
+                <div className="glass-card text-center py-3 space-y-1">
+                  <Activity className="w-5 h-5 text-primary mx-auto" />
+                  <p className="text-xs text-muted-foreground">Available on the Jvala mobile app.</p>
                 </div>
               )}
+
+              {/* ECG visual */}
+              <div className="relative w-full h-14 rounded-2xl overflow-hidden glass-card flex items-center justify-center gap-4 px-6">
+                <svg viewBox="0 0 200 40" className="w-28 h-auto">
+                  <path d="M 0 20 L 30 20 L 40 8 L 50 32 L 60 18 L 70 22 L 80 20 L 110 20 L 120 5 L 130 35 L 140 15 L 150 25 L 160 20 L 200 20" fill="none" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" className="animate-pulse" />
+                </svg>
+                <div className="text-right">
+                  <p className="text-xl font-bold text-primary">72</p>
+                  <p className="text-[9px] text-muted-foreground">BPM</p>
+                </div>
+              </div>
+
+              {/* Data points */}
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { icon: '❤️', label: "Heart Rate", desc: "Detect stress spikes" },
+                  { icon: '😴', label: "Sleep Quality", desc: "Sleep-flare links" },
+                  { icon: '🏃', label: "Steps & Activity", desc: "Movement tracking" },
+                  { icon: '🫁', label: "Blood Oxygen", desc: "Baselines" },
+                ].map((item, i) => (
+                  <div key={i} className="glass-card py-2.5 px-3 text-center animate-in fade-in-0 duration-300" style={{ animationDelay: `${i * 100}ms` }}>
+                    <span className="text-lg">{item.icon}</span>
+                    <p className="text-xs font-medium mt-0.5">{item.label}</p>
+                    <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+                  </div>
+                ))}
+              </div>
 
               <div className="glass-card flex items-start gap-3 bg-primary/5">
                 <Shield className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
                 <p className="text-[11px] text-muted-foreground leading-snug">
-                  <strong>Read-only.</strong> We never write to or modify your health data. Everything stays encrypted on your device.
+                  <strong>Read-only.</strong> We never write to or modify your health data.
                 </p>
               </div>
             </div>
