@@ -378,7 +378,6 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
         {/* ── Connect Tab ── */}
         <TabsContent value="integrations" className="mt-4 space-y-4">
           {userId && <EHRIntegration userId={userId} />}
-          <NotificationSettings />
           <WearableIntegration />
         </TabsContent>
       </Tabs>
