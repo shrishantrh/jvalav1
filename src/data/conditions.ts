@@ -9,6 +9,103 @@ export interface Condition {
 }
 
 export const CONDITIONS: Condition[] = [
+  // General / Common Concerns
+  {
+    id: 'chronic-back-pain',
+    name: 'Chronic Back Pain',
+    icd10: 'M54.5',
+    category: 'General',
+    commonSymptoms: ['Lower back pain', 'Stiffness', 'Muscle spasms', 'Radiating pain', 'Limited mobility', 'Numbness'],
+    commonTriggers: ['Sitting too long', 'Heavy lifting', 'Poor posture', 'Stress', 'Cold weather', 'Lack of exercise']
+  },
+  {
+    id: 'chronic-neck-pain',
+    name: 'Chronic Neck Pain',
+    icd10: 'M54.2',
+    category: 'General',
+    commonSymptoms: ['Neck stiffness', 'Headaches', 'Shoulder pain', 'Reduced range of motion', 'Muscle tightness'],
+    commonTriggers: ['Screen time', 'Poor posture', 'Stress', 'Sleeping position', 'Cold drafts']
+  },
+  {
+    id: 'tension-headaches',
+    name: 'Tension Headaches',
+    icd10: 'G44.2',
+    category: 'General',
+    commonSymptoms: ['Dull head pain', 'Pressure around forehead', 'Scalp tenderness', 'Neck tension', 'Fatigue'],
+    commonTriggers: ['Stress', 'Eye strain', 'Poor posture', 'Dehydration', 'Lack of sleep', 'Skipped meals']
+  },
+  {
+    id: 'insomnia',
+    name: 'Insomnia / Sleep Issues',
+    icd10: 'G47.0',
+    category: 'General',
+    commonSymptoms: ['Difficulty falling asleep', 'Waking during night', 'Early waking', 'Daytime fatigue', 'Irritability', 'Brain fog'],
+    commonTriggers: ['Screen time', 'Caffeine', 'Stress', 'Irregular schedule', 'Alcohol', 'Late meals']
+  },
+  {
+    id: 'vitamin-d-deficiency',
+    name: 'Vitamin D Deficiency',
+    icd10: 'E55.9',
+    category: 'Nutritional',
+    commonSymptoms: ['Fatigue', 'Bone pain', 'Muscle weakness', 'Low mood', 'Frequent illness', 'Hair loss'],
+    commonTriggers: ['Winter months', 'Indoor lifestyle', 'Lack of sun exposure', 'Poor diet']
+  },
+  {
+    id: 'iron-deficiency',
+    name: 'Iron Deficiency / Anemia',
+    icd10: 'D50.9',
+    category: 'Nutritional',
+    commonSymptoms: ['Fatigue', 'Weakness', 'Pale skin', 'Dizziness', 'Cold hands/feet', 'Brittle nails', 'Shortness of breath'],
+    commonTriggers: ['Heavy periods', 'Poor diet', 'Intense exercise', 'Stress']
+  },
+  {
+    id: 'tmj',
+    name: 'TMJ / Jaw Pain',
+    icd10: 'M26.6',
+    category: 'General',
+    commonSymptoms: ['Jaw pain', 'Clicking jaw', 'Difficulty chewing', 'Ear pain', 'Headaches', 'Facial pain'],
+    commonTriggers: ['Teeth grinding', 'Stress', 'Gum chewing', 'Poor posture', 'Hard foods']
+  },
+  {
+    id: 'allergies',
+    name: 'Allergies (Seasonal / Environmental)',
+    icd10: 'J30.9',
+    category: 'General',
+    commonSymptoms: ['Sneezing', 'Runny nose', 'Itchy eyes', 'Congestion', 'Sore throat', 'Fatigue'],
+    commonTriggers: ['Pollen', 'Dust', 'Pet dander', 'Mold', 'Weather changes', 'Wind']
+  },
+  {
+    id: 'chronic-stress',
+    name: 'Chronic Stress / Burnout',
+    icd10: 'Z73.0',
+    category: 'Mental Health',
+    commonSymptoms: ['Exhaustion', 'Irritability', 'Brain fog', 'Muscle tension', 'Sleep problems', 'Loss of motivation'],
+    commonTriggers: ['Work pressure', 'Lack of sleep', 'Over-commitment', 'Relationship issues', 'Financial stress']
+  },
+  {
+    id: 'tinnitus',
+    name: 'Tinnitus',
+    icd10: 'H93.1',
+    category: 'General',
+    commonSymptoms: ['Ringing in ears', 'Buzzing', 'Difficulty concentrating', 'Sleep disruption', 'Anxiety'],
+    commonTriggers: ['Loud noise', 'Stress', 'Caffeine', 'Lack of sleep', 'High sodium', 'Jaw tension']
+  },
+  {
+    id: 'vertigo',
+    name: 'Vertigo / Dizziness',
+    icd10: 'R42',
+    category: 'Neurological',
+    commonSymptoms: ['Spinning sensation', 'Nausea', 'Balance issues', 'Lightheadedness', 'Ear pressure'],
+    commonTriggers: ['Head movements', 'Standing up', 'Dehydration', 'Stress', 'Inner ear issues']
+  },
+  {
+    id: 'plantar-fasciitis',
+    name: 'Plantar Fasciitis',
+    icd10: 'M72.2',
+    category: 'General',
+    commonSymptoms: ['Heel pain', 'Morning foot pain', 'Pain after standing', 'Stiffness', 'Arch pain'],
+    commonTriggers: ['Long standing', 'Running', 'Poor footwear', 'Weight gain', 'Hard surfaces']
+  },
   // Autoimmune
   {
     id: 'lupus',

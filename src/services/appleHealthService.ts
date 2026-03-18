@@ -200,7 +200,14 @@ export type HealthAuthorizationResult = {
   error?: string;
 };
 
-export const HEALTH_MINIMAL_READ: HealthDataType[] = ['steps', 'heartRate'];
+export const HEALTH_MINIMAL_READ: HealthDataType[] = [
+  'steps',
+  'heartRate',
+  'sleep',
+  'distance',
+  'calories',
+  'oxygenSaturation',
+];
 
 export const HEALTH_FULL_READ: HealthDataType[] = [
   // Activity & energy
