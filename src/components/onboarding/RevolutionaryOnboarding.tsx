@@ -166,7 +166,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
   }, [step, data]);
 
   const handleNext = () => {
-    haptics.selection();
+    haptics.medium();
     if (step === TOTAL_STEPS - 1) {
       handleComplete();
     } else {
