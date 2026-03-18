@@ -954,105 +954,50 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
           </div>
         );
 
-      // ─── Step 7: Notifications Permission ─────────────────────────────
+      // ─── Step 7: Health Data Permission (FIRST — most important) ────────
       case 7:
         return (
           <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
-            <div className="w-full max-w-sm space-y-6">
-              <div className="text-center space-y-3">
-                <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-primary flex items-center justify-center">
-                  <Bell className="w-8 h-8 text-primary-foreground" />
+            <div className="w-full max-w-sm space-y-5">
+              {/* Hero visual */}
+              <div className="relative w-full aspect-[16/9] rounded-3xl overflow-hidden glass-card">
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, hsl(var(--primary) / 0.08) 0%, hsl(330 80% 55% / 0.12) 50%, hsl(var(--primary) / 0.05) 100%)' }} />
+                <div className="relative flex items-center justify-center h-full gap-4 px-6">
+                  {/* Heart rate visualization */}
+                  <svg viewBox="0 0 200 80" className="w-36 h-auto">
+                    <path d="M 0 40 L 30 40 L 40 20 L 50 60 L 60 35 L 70 45 L 80 40 L 110 40 L 120 15 L 130 65 L 140 30 L 150 50 L 160 40 L 200 40" fill="none" stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" className="animate-pulse" />
+                  </svg>
+                  <div className="text-right">
+                    <p className="text-3xl font-bold text-primary">72</p>
+                    <p className="text-[10px] text-muted-foreground">BPM</p>
+                  </div>
                 </div>
-                <h2 className="text-2xl font-bold">Stay on Track</h2>
+              </div>
+
+              <div className="text-center space-y-2">
+                <h2 className="text-2xl font-bold">Connect Apple Health</h2>
                 <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-                  Jvala sends smart, context-aware notifications to help you build a tracking habit and catch flares early.
+                  Your body tells a story. Heart rate spikes, poor sleep, and activity drops often <strong>precede flares by hours</strong>. Let Jvala read the signals.
                 </p>
               </div>
 
-              {/* What notifications do */}
-              <div className="space-y-2">
+              {/* Data points with visual */}
+              <div className="grid grid-cols-2 gap-2">
                 {[
-                  { label: "Morning & evening check-ins", desc: "Gentle reminders based on your schedule" },
-                  { label: "Post-flare follow-ups", desc: "Track how you recover over hours" },
-                  { label: "Environmental alerts", desc: "Weather shifts that may trigger symptoms" },
-                  { label: "Streak celebrations", desc: "Stay motivated with milestones" },
+                  { icon: '❤️', label: "Heart Rate & HRV", desc: "Detect stress before flares" },
+                  { icon: '😴', label: "Sleep Quality", desc: "Sleep-flare correlations" },
+                  { icon: '🏃', label: "Activity & Steps", desc: "Movement impact tracking" },
+                  { icon: '🫁', label: "Blood Oxygen", desc: "Physiological baselines" },
                 ].map((item, i) => (
-                  <div key={i} className="glass-card flex items-center gap-3 py-3">
-                    <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{item.label}</p>
-                      <p className="text-[11px] text-muted-foreground">{item.desc}</p>
-                    </div>
+                  <div key={i} className="glass-card py-3 px-3 text-center animate-in fade-in-0 duration-300" style={{ animationDelay: `${i * 100}ms` }}>
+                    <span className="text-xl">{item.icon}</span>
+                    <p className="text-xs font-medium mt-1">{item.label}</p>
+                    <p className="text-[10px] text-muted-foreground">{item.desc}</p>
                   </div>
                 ))}
               </div>
 
-              {/* Permission button */}
-              <button
-                onClick={requestNotificationPermission}
-                disabled={notificationPermissionStatus === 'requesting' || notificationPermissionStatus === 'granted'}
-                className={cn(
-                  "w-full py-4 rounded-2xl text-sm font-semibold transition-all press-effect flex items-center justify-center gap-2",
-                  notificationPermissionStatus === 'granted'
-                    ? "bg-green-500/15 text-green-600 border border-green-500/20"
-                    : notificationPermissionStatus === 'denied'
-                      ? "bg-muted text-muted-foreground border border-border"
-                      : "bg-primary/10 text-primary border border-primary/20 hover:bg-primary/15"
-                )}
-              >
-                {notificationPermissionStatus === 'requesting' && <Loader2 className="w-4 h-4 animate-spin" />}
-                {notificationPermissionStatus === 'granted' && <CheckCircle2 className="w-4 h-4" />}
-                {notificationPermissionStatus === 'idle' && <Bell className="w-4 h-4" />}
-                {notificationPermissionStatus === 'idle' && "Allow Notifications"}
-                {notificationPermissionStatus === 'requesting' && "Requesting..."}
-                {notificationPermissionStatus === 'granted' && "Notifications Enabled"}
-                {notificationPermissionStatus === 'denied' && "Permission Denied — Enable in Settings"}
-              </button>
-
-              <div className="glass-card flex items-start gap-3 bg-primary/5">
-                <Shield className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                <p className="text-[11px] text-muted-foreground leading-snug">
-                  You can customize notification types and timing in Settings anytime.
-                </p>
-              </div>
-            </div>
-          </div>
-        );
-
-      // ─── Step 8: Health Data Permission ─────────────────────────────────
-      case 8:
-        return (
-          <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
-            <div className="w-full max-w-sm space-y-6">
-              <div className="text-center space-y-3">
-                <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-pink-500/20 to-red-400/20 flex items-center justify-center">
-                  <Heart className="w-8 h-8 text-pink-500" />
-                </div>
-                <h2 className="text-2xl font-bold">Connect Health Data</h2>
-                <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-                  Jvala needs your health data to detect patterns, predict flares, and provide personalized insights.
-                </p>
-              </div>
-
-              {/* What we'll track */}
-              <div className="space-y-2">
-                {[
-                  { label: "Heart rate & HRV", desc: "Stress and flare detection" },
-                  { label: "Sleep quality", desc: "Sleep-flare correlations" },
-                  { label: "Activity & steps", desc: "Movement impact on symptoms" },
-                  { label: "Blood oxygen & respiratory", desc: "Physiological baselines" },
-                ].map((item, i) => (
-                  <div key={i} className="glass-card flex items-center gap-3 py-3">
-                    <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{item.label}</p>
-                      <p className="text-[11px] text-muted-foreground">{item.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Permission button */}
+              {/* Permission button - prominent at top area */}
               {isNative ? (
                 <button
                   onClick={requestHealthPermission}
@@ -1063,17 +1008,17 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                       ? "bg-green-500/15 text-green-600 border border-green-500/20"
                       : healthPermissionStatus === 'denied' || healthPermissionStatus === 'unavailable'
                         ? "bg-muted text-muted-foreground border border-border"
-                        : "bg-primary/10 text-primary border border-primary/20 hover:bg-primary/15"
+                        : "bg-gradient-primary text-primary-foreground shadow-primary"
                   )}
                 >
                   {healthPermissionStatus === 'requesting' && <Loader2 className="w-4 h-4 animate-spin" />}
                   {healthPermissionStatus === 'granted' && <CheckCircle2 className="w-4 h-4" />}
                   {healthPermissionStatus === 'idle' && <Heart className="w-4 h-4" />}
-                  {healthPermissionStatus === 'idle' && "Allow Health Access"}
+                  {healthPermissionStatus === 'idle' && "Connect Apple Health"}
                   {healthPermissionStatus === 'requesting' && "Requesting..."}
-                  {healthPermissionStatus === 'granted' && "Health Connected"}
-                  {healthPermissionStatus === 'denied' && "Permission Denied — Enable in Settings"}
-                  {healthPermissionStatus === 'unavailable' && "Health Data Not Available"}
+                  {healthPermissionStatus === 'granted' && "✓ Health Connected"}
+                  {healthPermissionStatus === 'denied' && "Denied — Enable in Settings"}
+                  {healthPermissionStatus === 'unavailable' && "Not Available on This Device"}
                 </button>
               ) : (
                 <div className="glass-card text-center py-4 space-y-2">
@@ -1088,41 +1033,59 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               <div className="glass-card flex items-start gap-3 bg-primary/5">
                 <Shield className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
                 <p className="text-[11px] text-muted-foreground leading-snug">
-                  Read-only access. We never write to or modify your health data. All data stays encrypted on your device.
+                  <strong>Read-only.</strong> We never write to or modify your health data. Everything stays encrypted on your device.
                 </p>
               </div>
             </div>
           </div>
         );
 
-      // ─── Step 9: Location Permission ─────────────────────────────────
-      case 9:
+      // ─── Step 8: Location Permission ─────────────────────────────────
+      case 8:
         return (
           <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
-            <div className="w-full max-w-sm space-y-6">
-              <div className="text-center space-y-3">
-                <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-primary flex items-center justify-center">
-                  <MapPin className="w-8 h-8 text-primary-foreground" />
+            <div className="w-full max-w-sm space-y-5">
+              {/* Hero visual - weather/environment */}
+              <div className="relative w-full aspect-[16/9] rounded-3xl overflow-hidden glass-card">
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, hsl(200 80% 55% / 0.08) 0%, hsl(var(--primary) / 0.08) 50%, hsl(160 70% 50% / 0.06) 100%)' }} />
+                <div className="relative flex items-center justify-center h-full gap-6 px-6">
+                  <div className="text-center">
+                    <p className="text-4xl">🌤️</p>
+                    <p className="text-xs text-muted-foreground mt-1">72°F</p>
+                  </div>
+                  <div className="h-12 w-px bg-border/30" />
+                  <div className="text-center">
+                    <p className="text-lg font-bold text-primary">AQI 42</p>
+                    <p className="text-[10px] text-muted-foreground">Good</p>
+                  </div>
+                  <div className="h-12 w-px bg-border/30" />
+                  <div className="text-center">
+                    <p className="text-lg font-bold text-foreground">1013</p>
+                    <p className="text-[10px] text-muted-foreground">hPa</p>
+                  </div>
                 </div>
+              </div>
+
+              <div className="text-center space-y-2">
                 <h2 className="text-2xl font-bold">Enable Location</h2>
                 <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-                  Jvala uses your location to capture environmental data that may trigger your flares.
+                  Weather shifts, air quality drops, and pressure changes are <strong>clinically proven triggers</strong> for many conditions. Jvala tracks them automatically.
                 </p>
               </div>
 
               {/* What we track */}
               <div className="space-y-2">
                 {[
-                  { label: "Weather conditions", desc: "Temperature, humidity, pressure changes" },
-                  { label: "Air quality (AQI)", desc: "Pollution and particulate matter" },
-                  { label: "Pollen levels", desc: "Seasonal allergy triggers" },
-                  { label: "Barometric pressure", desc: "Known migraine & joint pain trigger" },
+                  { icon: '🌡️', label: "Weather & Temperature", desc: "Temperature swings trigger 40% of migraines" },
+                  { icon: '💨', label: "Air Quality (AQI)", desc: "Pollution correlates with inflammation" },
+                  { icon: '🌿', label: "Pollen Levels", desc: "Seasonal allergy & flare triggers" },
+                  { icon: '📊', label: "Barometric Pressure", desc: "Pressure drops are a top joint pain trigger" },
                 ].map((item, i) => (
-                  <div key={i} className="glass-card flex items-center gap-3 py-3">
-                    <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+                  <div key={i} className="glass-card flex items-center gap-3 py-3 animate-in fade-in-0 duration-300" style={{ animationDelay: `${i * 80}ms` }}>
+                    <span className="text-lg flex-shrink-0">{item.icon}</span>
                     <div className="flex-1">
                       <p className="text-sm font-medium">{item.label}</p>
-                      <p className="text-[11px] text-muted-foreground">{item.desc}</p>
+                      <p className="text-[10px] text-muted-foreground">{item.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -1138,22 +1101,104 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                     ? "bg-green-500/15 text-green-600 border border-green-500/20"
                     : locationPermissionStatus === 'denied'
                       ? "bg-muted text-muted-foreground border border-border"
-                      : "bg-primary/10 text-primary border border-primary/20 hover:bg-primary/15"
+                      : "bg-gradient-primary text-primary-foreground shadow-primary"
                 )}
               >
                 {locationPermissionStatus === 'requesting' && <Loader2 className="w-4 h-4 animate-spin" />}
                 {locationPermissionStatus === 'granted' && <CheckCircle2 className="w-4 h-4" />}
                 {locationPermissionStatus === 'idle' && <MapPin className="w-4 h-4" />}
                 {locationPermissionStatus === 'idle' && "Allow Location Access"}
-                {locationPermissionStatus === 'requesting' && "Requesting..."}
-                {locationPermissionStatus === 'granted' && "Location Enabled"}
-                {locationPermissionStatus === 'denied' && "Permission Denied — Enable in Settings"}
+                {locationPermissionStatus === 'requesting' && "Detecting location..."}
+                {locationPermissionStatus === 'granted' && "✓ Location Enabled"}
+                {locationPermissionStatus === 'denied' && "Denied — Enable in Settings"}
               </button>
 
               <div className="glass-card flex items-start gap-3 bg-primary/5">
                 <Shield className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
                 <p className="text-[11px] text-muted-foreground leading-snug">
-                  City-level only. We never track your exact location or share it with anyone.
+                  <strong>City-level only.</strong> We never track your precise location or share it with anyone.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+
+      // ─── Step 9: Notifications Permission (LAST — with reasoning) ──────
+      case 9:
+        return (
+          <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
+            <div className="w-full max-w-sm space-y-5">
+              {/* Hero visual - notification mockup */}
+              <div className="relative w-full rounded-3xl overflow-hidden glass-card p-4 space-y-2">
+                {/* Fake notification bubbles */}
+                {[
+                  { time: '9:00 AM', title: '☀️ Morning Check-in', body: 'How did you sleep? Quick log to start the day.' },
+                  { time: '2:15 PM', title: '⚠️ Pressure Drop Alert', body: 'Barometric pressure dropped 12 hPa — your #1 migraine trigger.' },
+                  { time: '8:00 PM', title: '🔥 Streak at Risk!', body: "You haven't logged today. Tap to keep your 7-day streak." },
+                ].map((notif, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 rounded-2xl bg-background/60 border border-border/30 animate-in fade-in-0 slide-in-from-right-4 duration-500" style={{ animationDelay: `${i * 200}ms` }}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-semibold">{notif.title}</p>
+                        <span className="text-[9px] text-muted-foreground">{notif.time}</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">{notif.body}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="text-center space-y-2">
+                <h2 className="text-2xl font-bold">One Last Thing</h2>
+                <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                  We ask for notifications <strong>last</strong> because we wanted to show you what Jvala does first. Now that you've set up tracking, notifications make sure you <strong>never miss a signal</strong>.
+                </p>
+              </div>
+
+              {/* What notifications do */}
+              <div className="space-y-2">
+                {[
+                  { icon: '🌅', label: "Morning & evening check-ins", desc: "Gentle reminders based on your schedule" },
+                  { icon: '🔄', label: "Post-flare follow-ups", desc: "Track recovery 2h and 6h after flares" },
+                  { icon: '🌡️', label: "Environmental alerts", desc: "Weather shifts that may trigger symptoms" },
+                  { icon: '🔥', label: "Streak celebrations", desc: "Stay motivated with milestone alerts" },
+                ].map((item, i) => (
+                  <div key={i} className="glass-card flex items-center gap-3 py-3">
+                    <span className="text-base flex-shrink-0">{item.icon}</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{item.label}</p>
+                      <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Permission button */}
+              <button
+                onClick={requestNotificationPermission}
+                disabled={notificationPermissionStatus === 'requesting' || notificationPermissionStatus === 'granted'}
+                className={cn(
+                  "w-full py-4 rounded-2xl text-sm font-semibold transition-all press-effect flex items-center justify-center gap-2",
+                  notificationPermissionStatus === 'granted'
+                    ? "bg-green-500/15 text-green-600 border border-green-500/20"
+                    : notificationPermissionStatus === 'denied'
+                      ? "bg-muted text-muted-foreground border border-border"
+                      : "bg-gradient-primary text-primary-foreground shadow-primary"
+                )}
+              >
+                {notificationPermissionStatus === 'requesting' && <Loader2 className="w-4 h-4 animate-spin" />}
+                {notificationPermissionStatus === 'granted' && <CheckCircle2 className="w-4 h-4" />}
+                {notificationPermissionStatus === 'idle' && <Bell className="w-4 h-4" />}
+                {notificationPermissionStatus === 'idle' && "Allow Notifications"}
+                {notificationPermissionStatus === 'requesting' && "Requesting..."}
+                {notificationPermissionStatus === 'granted' && "✓ Notifications Enabled"}
+                {notificationPermissionStatus === 'denied' && "Denied — Enable in Settings"}
+              </button>
+
+              <div className="glass-card flex items-start gap-3 bg-primary/5">
+                <Shield className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  You can customize types and timing in Settings. We'll never spam you — every notification is <strong>context-aware</strong>.
                 </p>
               </div>
             </div>
