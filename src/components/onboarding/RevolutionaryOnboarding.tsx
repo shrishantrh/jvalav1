@@ -1540,57 +1540,21 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
       // ─── Step 9: Notifications Permission (LAST — with reasoning) ──────
       case 9:
         return (
-          <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
-            <div className="w-full max-w-sm space-y-5">
-              {/* Compact notification preview */}
-              <div className="relative w-full rounded-2xl overflow-hidden glass-card p-3 space-y-1.5">
-                {[
-                  { time: '9:00 AM', title: '☀️ Morning Check-in', body: 'Quick log to start the day.' },
-                  { time: '2:15 PM', title: '⚠️ Pressure Drop', body: 'Barometric pressure dropped — your #1 trigger.' },
-                ].map((notif, i) => (
-                  <div key={i} className="flex items-start gap-2 p-2 rounded-xl bg-background/60 border border-border/30 animate-in fade-in-0 duration-500" style={{ animationDelay: `${i * 200}ms` }}>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[11px] font-semibold">{notif.title}</p>
-                        <span className="text-[9px] text-muted-foreground">{notif.time}</span>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground">{notif.body}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="text-center space-y-2">
-                <h2 className="text-3xl font-bold">One Last Thing</h2>
-                <p className="text-base text-muted-foreground max-w-xs mx-auto">
-                  Notifications make sure you <strong>never miss a signal</strong> — from reminders to weather alerts.
+          <div className="flex flex-col flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
+            <div className="w-full max-w-sm mx-auto space-y-4">
+              <div className="text-center space-y-1">
+                <h2 className="text-2xl font-bold">One Last Thing</h2>
+                <p className="text-sm text-muted-foreground">
+                  Stay ahead of flares with <strong>context-aware</strong> notifications.
                 </p>
               </div>
 
-              {/* What notifications do */}
-              <div className="space-y-2">
-                {[
-                  { icon: '🌅', label: "Morning & evening check-ins", desc: "Gentle reminders based on your schedule" },
-                  { icon: '🔄', label: "Post-flare follow-ups", desc: "Track recovery 2h and 6h after flares" },
-                  { icon: '🌡️', label: "Environmental alerts", desc: "Weather shifts that may trigger symptoms" },
-                  { icon: '🔥', label: "Streak celebrations", desc: "Stay motivated with milestone alerts" },
-                ].map((item, i) => (
-                  <div key={i} className="glass-card flex items-center gap-3 py-3">
-                    <span className="text-base flex-shrink-0">{item.icon}</span>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{item.label}</p>
-                      <p className="text-[10px] text-muted-foreground">{item.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Permission button */}
+              {/* Permission button — TOP */}
               <button
                 onClick={requestNotificationPermission}
                 disabled={notificationPermissionStatus === 'requesting' || notificationPermissionStatus === 'granted'}
                 className={cn(
-                  "w-full py-4 rounded-2xl text-sm font-semibold transition-all press-effect flex items-center justify-center gap-2",
+                  "w-full py-4 rounded-2xl text-base font-semibold transition-all press-effect flex items-center justify-center gap-2",
                   notificationPermissionStatus === 'granted'
                     ? "bg-green-500/15 text-green-600 border border-green-500/20"
                     : notificationPermissionStatus === 'denied'
@@ -1607,10 +1571,46 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                 {notificationPermissionStatus === 'denied' && "Denied — Enable in Settings"}
               </button>
 
+              {/* Notification preview */}
+              <div className="relative w-full rounded-2xl overflow-hidden glass-card p-2.5 space-y-1.5">
+                {[
+                  { time: '9:00 AM', title: '☀️ Morning Check-in', body: 'Quick log to start the day.' },
+                  { time: '2:15 PM', title: '⚠️ Pressure Drop', body: 'Barometric pressure dropped — your #1 trigger.' },
+                ].map((notif, i) => (
+                  <div key={i} className="flex items-start gap-2 p-2 rounded-xl bg-background/60 border border-border/30 animate-in fade-in-0 duration-500" style={{ animationDelay: `${i * 200}ms` }}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-semibold">{notif.title}</p>
+                        <span className="text-[9px] text-muted-foreground">{notif.time}</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">{notif.body}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* What notifications do */}
+              <div className="space-y-1.5">
+                {[
+                  { icon: '🌅', label: "Morning & evening check-ins", desc: "Gentle reminders on your schedule" },
+                  { icon: '🔄', label: "Post-flare follow-ups", desc: "Track recovery 2h and 6h after" },
+                  { icon: '🌡️', label: "Environmental alerts", desc: "Weather shifts that may trigger symptoms" },
+                  { icon: '🔥', label: "Streak celebrations", desc: "Stay motivated with milestones" },
+                ].map((item, i) => (
+                  <div key={i} className="glass-card flex items-center gap-3 py-2.5">
+                    <span className="text-base flex-shrink-0">{item.icon}</span>
+                    <div className="flex-1">
+                      <p className="text-xs font-medium">{item.label}</p>
+                      <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
               <div className="glass-card flex items-start gap-3 bg-primary/5">
                 <Shield className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
                 <p className="text-[11px] text-muted-foreground leading-snug">
-                  You can customize types and timing in Settings. We'll never spam you — every notification is <strong>context-aware</strong>.
+                  Customize timing in Settings. Every notification is <strong>context-aware</strong>.
                 </p>
               </div>
             </div>
