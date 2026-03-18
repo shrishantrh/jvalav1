@@ -171,6 +171,8 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
       handleComplete();
     } else {
       setStep(prev => prev + 1);
+      // Subtle double-tap on step transition
+      setTimeout(() => haptics.light(), 120);
     }
   };
 
