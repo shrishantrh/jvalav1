@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeColorPicker } from "@/components/settings/ThemeColorPicker";
 import { haptics } from "@/lib/haptics";
+import { useEngagement } from "@/hooks/useEngagement";
 
 export default function Settings() {
   const [termsAcceptedAt, setTermsAcceptedAt] = useState<string | null>(null);
@@ -23,11 +24,13 @@ export default function Settings() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { toast } = useToast();
+  const { recordFeatureEvent } = useEngagement();
 
-
+  // Track settings visit for badge
   useEffect(() => {
     if (user) {
       loadUserSettings();
+      recordFeatureEvent(user.id, 'settings_visit');
     }
   }, [user]);
 

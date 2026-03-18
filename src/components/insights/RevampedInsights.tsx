@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FlareEntry } from "@/types/flare";
@@ -15,6 +15,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useAuth } from "@/hooks/useAuth";
+import { useEngagement } from "@/hooks/useEngagement";
 
 interface MedicationLog {
   id: string;
@@ -44,7 +45,25 @@ export const RevampedInsights = ({
   onAskAI
 }: RevampedInsightsProps) => {
   const { user } = useAuth();
+  const { recordFeatureEvent } = useEngagement();
   const [activeTab, setActiveTab] = useState('ai');
+
+  // Track insights views and tab switches for badges
+  useEffect(() => {
+    if (user) {
+      recordFeatureEvent(user.id, 'insights_view');
+    }
+  }, [user]);
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    if (user) {
+      const tabEvent = `insights_tab_${tab}` as any;
+      if (['insights_tab_ai', 'insights_tab_safety', 'insights_tab_charts', 'insights_tab_local'].includes(tabEvent)) {
+        recordFeatureEvent(user.id, tabEvent);
+      }
+    }
+  };
 
   if (entries.length === 0) {
     return (
@@ -59,7 +78,7 @@ export const RevampedInsights = ({
   return (
     <div className="space-y-3">
       {/* Tabs - now 3 tabs without Export */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList data-tour="trends-area" className="grid w-full grid-cols-4 h-10 bg-card/80 backdrop-blur-sm">
           <TabsTrigger value="ai" className="text-xs gap-1.5">
             <Brain className="w-4 h-4" />

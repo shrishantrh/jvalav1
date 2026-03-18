@@ -338,40 +338,63 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
         return;
       }
 
-      // Use injected Capacitor plugin directly — avoids dynamic import hang
+      // Mirror the WORKING logic from useWearableData.connectDevice:
+      // 1) Check plugin presence (fast, sync) — skip isAvailable() which hangs on iOS
+      const { isHealthPluginPresent, HEALTH_FULL_READ, HEALTH_MINIMAL_READ } = await import('@/services/appleHealthService');
+      
+      if (!isHealthPluginPresent()) {
+        console.warn('[Onboarding] Health plugin not present in this build');
+        setHealthPermissionStatus('unavailable');
+        return;
+      }
+
+      // 2) Get injected plugin directly
       const plugin = (window as any)?.Capacitor?.Plugins?.Health;
       if (!plugin) {
-        console.warn('[Onboarding] Health plugin not found in Capacitor.Plugins');
+        console.warn('[Onboarding] Health plugin not in Capacitor.Plugins');
         setHealthPermissionStatus('unavailable');
         return;
       }
 
-      // Check availability first
-      const avail = await Promise.race([
-        plugin.isAvailable(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
-      ]) as any;
-      
-      if (!avail?.available) {
-        console.warn('[Onboarding] Health not available:', avail?.reason);
-        setHealthPermissionStatus('unavailable');
-        return;
+      // 3) Skip isAvailable() entirely — go straight to requestAuthorization (same as profile connect)
+      console.log('[Onboarding] Plugin present, skipping isAvailable(), requesting full permissions...');
+
+      let ok = false;
+      // Try FULL first
+      try {
+        await Promise.race([
+          plugin.requestAuthorization({ read: HEALTH_FULL_READ, write: [] }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000)),
+        ]);
+        ok = true;
+      } catch (e) {
+        console.warn('[Onboarding] Full auth failed, trying minimal:', e instanceof Error ? e.message : e);
       }
 
-      // Request ALL health permissions — use the full list from appleHealthService
-      const { HEALTH_FULL_READ } = await import('@/services/appleHealthService');
-      
-      const status = await Promise.race([
-        plugin.requestAuthorization({ read: HEALTH_FULL_READ, write: [] }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000)),
-      ]) as any;
+      // Fallback to minimal
+      if (!ok) {
+        try {
+          await Promise.race([
+            plugin.requestAuthorization({ read: HEALTH_MINIMAL_READ, write: [] }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000)),
+          ]);
+          ok = true;
+        } catch (e) {
+          console.warn('[Onboarding] Minimal auth also failed:', e instanceof Error ? e.message : e);
+        }
+      }
 
-      console.log('[Onboarding] Health auth result:', JSON.stringify(status));
-      setHealthPermissionStatus('granted');
-      haptics.success();
+      if (ok) {
+        console.log('[Onboarding] Health auth granted');
+        // Persist connection state so useWearableData picks it up
+        try { localStorage.setItem('jvala_health_connected', '1'); } catch {}
+        setHealthPermissionStatus('granted');
+        haptics.success();
+      } else {
+        setHealthPermissionStatus('denied');
+      }
     } catch (e) {
       console.error('Health permission error:', e);
-      // If it timed out or errored, mark unavailable so they can continue
       setHealthPermissionStatus('unavailable');
     }
   };
