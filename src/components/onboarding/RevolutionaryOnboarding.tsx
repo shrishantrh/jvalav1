@@ -1665,20 +1665,89 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
 
       {/* Bottom CTA */}
       <div className="px-5 py-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
-        <button
-          onClick={handleNext}
-          disabled={!canProceed()}
-          className={cn(
-            "w-full h-14 rounded-2xl text-base font-semibold transition-all press-effect",
-            "flex items-center justify-center gap-2",
-            canProceed()
-              ? "bg-gradient-primary text-primary-foreground shadow-primary"
-              : "bg-muted text-muted-foreground"
-          )}
-        >
-          {step === 0 ? "Let's Get Started" : step === TOTAL_STEPS - 1 ? "Launch Jvala ✨" : "Continue"}
-          <ChevronRight className="w-5 h-5" />
-        </button>
+        {step === TOTAL_STEPS - 1 ? (
+          /* Slide-to-launch button */
+          <div 
+            ref={slideRef}
+            className="relative w-full h-16 rounded-2xl overflow-hidden bg-gradient-primary shadow-primary"
+            onTouchStart={(e) => {
+              slidingRef.current = true;
+              setSlideProgress(0);
+              haptics.medium();
+              // Start continuous haptic interval
+              hapticIntervalRef.current = window.setInterval(() => {
+                if (slidingRef.current) haptics.light();
+              }, 80);
+            }}
+            onTouchMove={(e) => {
+              if (!slidingRef.current || !slideRef.current) return;
+              const touch = e.touches[0];
+              const rect = slideRef.current.getBoundingClientRect();
+              const x = touch.clientX - rect.left;
+              const maxSlide = rect.width - 64;
+              const progress = Math.max(0, Math.min(1, (x - 32) / maxSlide));
+              setSlideProgress(progress);
+              
+              // Intensifying haptics as you slide further
+              if (progress > 0.5 && progress < 0.52) haptics.medium();
+              if (progress > 0.75 && progress < 0.77) haptics.heavy();
+            }}
+            onTouchEnd={() => {
+              slidingRef.current = false;
+              if (hapticIntervalRef.current) {
+                clearInterval(hapticIntervalRef.current);
+                hapticIntervalRef.current = null;
+              }
+              if (slideProgress > 0.85) {
+                haptics.success();
+                setTimeout(() => haptics.heavy(), 100);
+                setTimeout(() => haptics.success(), 250);
+                handleNext();
+              } else {
+                setSlideProgress(0);
+                haptics.light();
+              }
+            }}
+          >
+            {/* Track background text */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <span className="text-primary-foreground/60 text-sm font-semibold" style={{ opacity: 1 - slideProgress }}>
+                Slide to Launch Jvala →
+              </span>
+            </div>
+            
+            {/* Sliding thumb */}
+            <div 
+              className="absolute top-2 left-2 w-12 h-12 rounded-xl bg-white/25 backdrop-blur-sm flex items-center justify-center transition-none shadow-lg"
+              style={{ 
+                transform: `translateX(${slideProgress * ((slideRef.current?.offsetWidth ?? 300) - 64)}px)`,
+                background: slideProgress > 0.85 ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.25)',
+              }}
+            >
+              <Sparkles className={cn("w-5 h-5 text-primary-foreground", slideProgress > 0.5 && "animate-pulse")} />
+            </div>
+
+            {/* Success glow */}
+            {slideProgress > 0.85 && (
+              <div className="absolute inset-0 bg-white/10 animate-pulse" />
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={handleNext}
+            disabled={!canProceed()}
+            className={cn(
+              "w-full h-14 rounded-2xl text-base font-semibold transition-all press-effect",
+              "flex items-center justify-center gap-2",
+              canProceed()
+                ? "bg-gradient-primary text-primary-foreground shadow-primary"
+                : "bg-muted text-muted-foreground"
+            )}
+          >
+            {step === 0 ? "Let's Get Started" : "Continue"}
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        )}
 
         {(step === 3 ||
           step === 4 ||
