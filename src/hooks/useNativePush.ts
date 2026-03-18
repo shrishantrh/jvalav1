@@ -93,17 +93,36 @@ export const useNativePush = () => {
     }
   }, [saveDeviceToken]);
 
-  // Auto-register on mount if native
+  // Register on mount ONLY if permission is already granted (never prompt here)
   useEffect(() => {
     if (!isNative) return;
 
-    // Small delay to ensure auth is ready
-    const timer = setTimeout(() => {
-      requestAndRegister();
-    }, 1500);
+    const registerIfGranted = async () => {
+      try {
+        const { PushNotifications } = await import('@capacitor/push-notifications');
+        const permStatus = await PushNotifications.checkPermissions();
+        if (permStatus.receive === 'granted') {
+          // Already granted — just register to get token, don't prompt
+          await PushNotifications.addListener('registration', (token) => {
+            console.log('[NativePush] Got device token:', token.value.substring(0, 20) + '...');
+            saveDeviceToken(token.value);
+          });
+          await PushNotifications.addListener('registrationError', (error) => {
+            console.error('[NativePush] Registration error:', error);
+          });
+          await PushNotifications.register();
+          registeredRef.current = true;
+        } else {
+          console.log('[NativePush] Permission not yet granted, skipping auto-register');
+        }
+      } catch (e) {
+        console.error('[NativePush] Auto-register check error:', e);
+      }
+    };
 
+    const timer = setTimeout(registerIfGranted, 1500);
     return () => clearTimeout(timer);
-  }, [requestAndRegister]);
+  }, [saveDeviceToken]);
 
   return { requestAndRegister };
 };
