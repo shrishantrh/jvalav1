@@ -105,28 +105,6 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
     } finally { setSaving(false); }
   };
 
-  const handleToggleShare = async (enabled: boolean) => {
-    if (!profile) return;
-    setSaving(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-      const shareToken = enabled ? crypto.randomUUID() : null;
-      const { error } = await supabase.from('profiles').update({ share_enabled: enabled, share_token: shareToken }).eq('id', user.id);
-      if (error) throw error;
-      setProfile(prev => prev ? { ...prev, share_enabled: enabled, share_token: shareToken } : null);
-      toast({ title: enabled ? "Sharing enabled" : "Sharing disabled" });
-    } catch (error: any) {
-      toast({ title: "Failed to update", description: error.message, variant: "destructive" });
-    } finally { setSaving(false); }
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-    toast({ title: "Copied!" });
-  };
 
   const updateField = (field: keyof ProfileData, value: any) => {
     setProfile(prev => prev ? { ...prev, [field]: value } : null);
