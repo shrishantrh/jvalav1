@@ -194,9 +194,21 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
     for (const s of steps) {
       await new Promise(resolve => setTimeout(resolve, 600));
       setAnalyzeStep(s);
+      // Alternating haptic patterns for each step
+      if (s % 2 === 0) {
+        haptics.impact();
+      } else {
+        haptics.medium();
+      }
+      // Extra rapid pulses during analysis
+      await new Promise(resolve => setTimeout(resolve, 150));
       haptics.light();
     }
     await new Promise(resolve => setTimeout(resolve, 800));
+    haptics.heavy();
+    await new Promise(resolve => setTimeout(resolve, 200));
+    haptics.success();
+    await new Promise(resolve => setTimeout(resolve, 150));
     haptics.success();
 
     onComplete({ ...data, age, aiLogCategories });
