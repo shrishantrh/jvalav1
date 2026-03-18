@@ -1135,9 +1135,9 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               </div>
 
               <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold">Enable Location</h2>
-                <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-                  Weather shifts, air quality drops, and pressure changes are <strong>clinically proven triggers</strong> for many conditions. Jvala tracks them automatically.
+                <h2 className="text-3xl font-bold">Enable Location</h2>
+                <p className="text-base text-muted-foreground max-w-xs mx-auto">
+                  Weather shifts, air quality drops, and pressure changes are <strong>clinically proven triggers</strong>. Jvala tracks them automatically.
                 </p>
               </div>
 
