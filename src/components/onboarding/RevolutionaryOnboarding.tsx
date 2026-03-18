@@ -548,8 +548,8 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                       <item.icon className="w-5 h-5 text-primary-foreground" />
                     </div>
                     <div className="text-left">
-                      <p className="text-sm font-semibold">{item.title}</p>
-                      <p className="text-xs text-muted-foreground">{item.desc}</p>
+                      <p className="text-base font-semibold">{item.title}</p>
+                      <p className="text-sm text-muted-foreground">{item.desc}</p>
                     </div>
                   </div>
                 ))}
