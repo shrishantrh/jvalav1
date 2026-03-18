@@ -147,25 +147,16 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
   return (
     <div className="space-y-4">
       <Tabs defaultValue="personal" onValueChange={() => haptics.selection()} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 h-14 glass-card border-0 rounded-2xl p-0">
-          <TabsTrigger
-            value="personal"
-            className="h-full text-xs rounded-xl gap-1.5 data-[state=active]:bg-primary/20 data-[state=active]:ring-2 data-[state=active]:ring-primary/35"
-          >
+        <TabsList className="grid w-full grid-cols-3 h-10 bg-card/80 backdrop-blur-sm">
+          <TabsTrigger value="personal" className="text-xs gap-1.5">
             <User className="w-3.5 h-3.5" />
             Personal
           </TabsTrigger>
-          <TabsTrigger
-            value="health"
-            className="h-full text-xs rounded-xl gap-1.5 data-[state=active]:bg-primary/20 data-[state=active]:ring-2 data-[state=active]:ring-primary/35"
-          >
+          <TabsTrigger value="health" className="text-xs gap-1.5">
             <Heart className="w-3.5 h-3.5" />
             Health
           </TabsTrigger>
-          <TabsTrigger
-            value="integrations"
-            className="h-full text-xs rounded-xl gap-1.5 data-[state=active]:bg-primary/20 data-[state=active]:ring-2 data-[state=active]:ring-primary/35"
-          >
+          <TabsTrigger value="integrations" className="text-xs gap-1.5">
             <Settings2 className="w-3.5 h-3.5" />
             Connect
           </TabsTrigger>
