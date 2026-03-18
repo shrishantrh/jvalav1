@@ -12,6 +12,7 @@ import { ALL_BADGES, BADGE_CATEGORIES, getRarityColor } from "@/data/allBadges";
 import type { Badge as BadgeType } from "@/data/allBadges";
 import { FlareEntry } from "@/types/flare";
 import { haptics } from "@/lib/haptics";
+import { useEngagement, BadgeProgressInfo } from "@/hooks/useEngagement";
 
 interface EngagementData {
   current_streak: number;
@@ -27,13 +28,51 @@ interface TimelineProgressProps {
   onBack: () => void;
 }
 
+// SVG circular progress ring
+const ProgressRing = ({ progress, size = 56, strokeWidth = 3, earned }: { progress: number; size?: number; strokeWidth?: number; earned: boolean }) => {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (Math.min(progress, 100) / 100) * circumference;
+
+  return (
+    <svg width={size} height={size} className="absolute inset-0">
+      {/* Background circle */}
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke="hsl(var(--muted) / 0.4)"
+        strokeWidth={strokeWidth}
+      />
+      {/* Progress arc */}
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke={earned ? "hsl(var(--primary))" : "hsl(var(--primary) / 0.5)"}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        className="transition-all duration-700"
+      />
+    </svg>
+  );
+};
+
 export const TimelineProgress = ({ userId, entries, onBack }: TimelineProgressProps) => {
   const [engagement, setEngagement] = useState<EngagementData | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [selectedBadge, setSelectedBadge] = useState<BadgeType | null>(null);
+  const [badgeProgress, setBadgeProgress] = useState<Record<string, BadgeProgressInfo>>({});
+  const { getBadgeProgress, runFullBadgeAudit } = useEngagement();
 
   useEffect(() => {
     loadEngagement();
+    loadProgress();
   }, [userId]);
 
   const loadEngagement = async () => {
@@ -43,6 +82,21 @@ export const TimelineProgress = ({ userId, entries, onBack }: TimelineProgressPr
       .eq('user_id', userId)
       .maybeSingle();
     
+    if (data) setEngagement(data);
+  };
+
+  const loadProgress = async () => {
+    // Run a full audit first to award any missing badges
+    await runFullBadgeAudit(userId);
+    // Then get fresh progress
+    const progress = await getBadgeProgress(userId);
+    setBadgeProgress(progress);
+    // Reload engagement in case new badges were awarded
+    const { data } = await supabase
+      .from('engagement')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
     if (data) setEngagement(data);
   };
 
@@ -79,17 +133,16 @@ export const TimelineProgress = ({ userId, entries, onBack }: TimelineProgressPr
   }));
 
   const getNextBadgeProgress = () => {
-    if (engagement.current_streak < 3 && !earnedBadgeIds.has('streak_3')) {
-      const badge = ALL_BADGES.find(b => b.id === 'streak_3')!;
-      return { badge, progress: (engagement.current_streak / 3) * 100, current: engagement.current_streak, target: 3 };
-    }
-    if (engagement.current_streak < 7 && !earnedBadgeIds.has('streak_7')) {
-      const badge = ALL_BADGES.find(b => b.id === 'streak_7')!;
-      return { badge, progress: (engagement.current_streak / 7) * 100, current: engagement.current_streak, target: 7 };
-    }
-    if (engagement.total_logs < 50 && !earnedBadgeIds.has('logs_50')) {
-      const badge = ALL_BADGES.find(b => b.id === 'logs_50')!;
-      return { badge, progress: (engagement.total_logs / 50) * 100, current: engagement.total_logs, target: 50 };
+    // Find the first un-earned badge with the most progress
+    const candidates = ALL_BADGES
+      .filter(b => !earnedBadgeIds.has(b.id) && badgeProgress[b.id])
+      .map(b => ({ badge: b, ...badgeProgress[b.id] }))
+      .filter(c => c.progress > 0 && c.progress < 100)
+      .sort((a, b) => b.progress - a.progress);
+    
+    if (candidates.length > 0) {
+      const c = candidates[0];
+      return { badge: c.badge, progress: c.progress, current: c.current, target: c.target };
     }
     return null;
   };
@@ -239,27 +292,43 @@ export const TimelineProgress = ({ userId, entries, onBack }: TimelineProgressPr
                     {category.badges.map(badge => {
                       const isEarned = earnedBadgeIds.has(badge.id);
                       const rarity = getRarityColor(badge.rarity);
+                      const prog = badgeProgress[badge.id];
+                      const progressPct = prog?.progress ?? 0;
                       
                       return (
                         <button 
                           key={badge.id}
                           onClick={() => { haptics.light(); setSelectedBadge(badge); }}
                           className={cn(
-                            "aspect-square rounded-2xl flex flex-col items-center justify-center p-2 border transition-all touch-manipulation active:scale-95",
-                            isEarned ? `${rarity.bg} ${rarity.border}` : "bg-muted/30 border-transparent opacity-40"
+                            "relative aspect-square rounded-2xl flex flex-col items-center justify-center p-1.5 transition-all touch-manipulation active:scale-95",
+                            isEarned ? `${rarity.bg} ${rarity.border} border` : "bg-muted/20"
                           )}
                         >
-                          {isEarned ? (
-                            <>
-                              <span className="text-2xl mb-0.5">{badge.icon}</span>
-                              <span className="text-[9px] text-center leading-tight line-clamp-2 font-medium">{badge.name}</span>
-                            </>
-                          ) : (
-                            <>
-                              <Lock className="w-4 h-4 mb-0.5 text-muted-foreground" />
-                              <span className="text-[9px] text-center leading-tight text-muted-foreground line-clamp-2">{badge.name}</span>
-                            </>
-                          )}
+                          {/* Progress ring */}
+                          <ProgressRing progress={isEarned ? 100 : progressPct} earned={isEarned} />
+                          
+                          <div className="relative z-10 flex flex-col items-center">
+                            {isEarned ? (
+                              <>
+                                <span className="text-xl mb-0.5">{badge.icon}</span>
+                                <span className="text-[8px] text-center leading-tight line-clamp-2 font-medium">{badge.name}</span>
+                              </>
+                            ) : (
+                              <>
+                                {progressPct > 0 ? (
+                                  <span className="text-lg mb-0.5 opacity-40">{badge.icon}</span>
+                                ) : (
+                                  <Lock className="w-3.5 h-3.5 mb-0.5 text-muted-foreground" />
+                                )}
+                                <span className="text-[8px] text-center leading-tight text-muted-foreground line-clamp-2">{badge.name}</span>
+                                {prog && prog.target > 1 && (
+                                  <span className="text-[7px] font-bold text-primary mt-0.5">
+                                    {prog.current}/{prog.target}
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </div>
                         </button>
                       );
                     })}
@@ -307,49 +376,65 @@ export const TimelineProgress = ({ userId, entries, onBack }: TimelineProgressPr
       </ScrollArea>
 
       {/* Badge Detail Modal */}
-      {selectedBadge && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6" onClick={() => setSelectedBadge(null)}>
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-          <div 
-            className="relative bg-background rounded-3xl p-6 w-full max-w-sm animate-in zoom-in-95 fade-in"
-            onClick={e => e.stopPropagation()}
-          >
-            <button onClick={() => setSelectedBadge(null)} className="absolute top-4 right-4 p-1 rounded-full bg-muted/50">
-              <X className="w-4 h-4" />
-            </button>
-            
-            <div className="text-center">
-              <div className={cn(
-                "w-20 h-20 rounded-3xl flex items-center justify-center text-4xl mx-auto mb-4",
-                earnedBadgeIds.has(selectedBadge.id) 
-                  ? getRarityColor(selectedBadge.rarity).bg 
-                  : "bg-muted/30"
-              )}>
-                {earnedBadgeIds.has(selectedBadge.id) ? selectedBadge.icon : <Lock className="w-8 h-8 text-muted-foreground" />}
-              </div>
+      {selectedBadge && (() => {
+        const isEarned = earnedBadgeIds.has(selectedBadge.id);
+        const prog = badgeProgress[selectedBadge.id];
+        return (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6" onClick={() => setSelectedBadge(null)}>
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+            <div 
+              className="relative bg-background rounded-3xl p-6 w-full max-w-sm animate-in zoom-in-95 fade-in"
+              onClick={e => e.stopPropagation()}
+            >
+              <button onClick={() => setSelectedBadge(null)} className="absolute top-4 right-4 p-1 rounded-full bg-muted/50">
+                <X className="w-4 h-4" />
+              </button>
               
-              <h3 className="text-lg font-bold mb-1">{selectedBadge.name}</h3>
-              <p className="text-sm text-muted-foreground mb-3">{selectedBadge.description}</p>
-              
-              <Badge variant="outline" className={cn("capitalize mb-4", getRarityColor(selectedBadge.rarity).text)}>
-                {selectedBadge.rarity}
-              </Badge>
+              <div className="text-center">
+                <div className="relative w-24 h-24 mx-auto mb-4">
+                  <ProgressRing progress={isEarned ? 100 : (prog?.progress ?? 0)} size={96} strokeWidth={4} earned={isEarned} />
+                  <div className={cn(
+                    "absolute inset-2 rounded-3xl flex items-center justify-center text-4xl",
+                    isEarned ? getRarityColor(selectedBadge.rarity).bg : "bg-muted/30"
+                  )}>
+                    {isEarned ? selectedBadge.icon : (prog && prog.progress > 0 ? <span className="opacity-40">{selectedBadge.icon}</span> : <Lock className="w-8 h-8 text-muted-foreground" />)}
+                  </div>
+                </div>
+                
+                <h3 className="text-lg font-bold mb-1">{selectedBadge.name}</h3>
+                <p className="text-sm text-muted-foreground mb-3">{selectedBadge.description}</p>
+                
+                <Badge variant="outline" className={cn("capitalize mb-4", getRarityColor(selectedBadge.rarity).text)}>
+                  {selectedBadge.rarity}
+                </Badge>
 
-              <div className={cn(
-                "mt-4 p-4 rounded-2xl text-left",
-                earnedBadgeIds.has(selectedBadge.id) ? "bg-primary/5 border border-primary/10" : "bg-muted/50"
-              )}>
-                <p className="text-xs font-semibold text-muted-foreground mb-1">
-                  {earnedBadgeIds.has(selectedBadge.id) ? '✅ Earned!' : '🔒 How to unlock'}
-                </p>
-                <p className="text-sm">
-                  {selectedBadge.howToGet}
-                </p>
+                {/* Progress indicator */}
+                {prog && prog.target > 1 && (
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                      <span>Progress</span>
+                      <span className="font-bold text-foreground">{prog.current}/{prog.target}</span>
+                    </div>
+                    <Progress value={prog.progress} className="h-2.5" />
+                  </div>
+                )}
+
+                <div className={cn(
+                  "p-4 rounded-2xl text-left",
+                  isEarned ? "bg-primary/5 border border-primary/10" : "bg-muted/50"
+                )}>
+                  <p className="text-xs font-semibold text-muted-foreground mb-1">
+                    {isEarned ? '✅ Earned!' : '🔒 How to unlock'}
+                  </p>
+                  <p className="text-sm">
+                    {selectedBadge.howToGet}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };
