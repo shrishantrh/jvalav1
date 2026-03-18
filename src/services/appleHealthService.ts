@@ -10,7 +10,7 @@ import { isNative, platform } from '@/lib/capacitor';
 
 // Types from the plugin
 // Keep this list aligned with @capgo/capacitor-health supported identifiers.
-// Requesting unsupported identifiers can cause iOS authorization failures.
+// Requesting unsupported identifiers can cause iOS authorization failures and hangs.
 export type HealthDataType =
   | 'steps'
   | 'distance'
@@ -33,8 +33,7 @@ export type HealthDataType =
   | 'basalBodyTemperature'
   | 'basalCalories'
   | 'totalCalories'
-  | 'mindfulness'
-  | 'workouts';
+  | 'mindfulness';
 type SleepState = 'inBed' | 'asleep' | 'awake' | 'rem' | 'deep' | 'light';
 
 interface HealthSample {
@@ -188,12 +187,7 @@ export const isHealthAvailable = async (): Promise<boolean> => {
 };
 
 /**
- * Request permissions for Health data
- *
- * IMPORTANT:
- * - On iOS, requesting too many scopes at once can be brittle during early integration.
- * - We therefore support a "minimal first" strategy (e.g., steps + heartRate), then
- *   optionally request additional scopes once the initial consent path is verified.
+ * Request permissions for all supported read-only Health data used by Jvala.
  */
 export type HealthAuthorizationResult = {
   ok: boolean;
@@ -235,8 +229,6 @@ export const HEALTH_FULL_READ: HealthDataType[] = [
   'height',
   // Behavior
   'mindfulness',
-  // Workouts (required to read workout sessions)
-  'workouts',
 ];
 
 export const requestHealthPermissions = async (options?: {
