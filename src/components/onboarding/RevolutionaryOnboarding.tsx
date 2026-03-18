@@ -1457,44 +1457,17 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
       // ─── Step 8: Location Permission ─────────────────────────────────
       case 8:
         return (
-          <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
-            <div className="w-full max-w-sm space-y-5">
-              {/* Compact hero — weather stats inline */}
-              <div className="relative w-full h-16 rounded-2xl overflow-hidden glass-card flex items-center justify-center gap-5 px-6">
-                <div className="text-center"><span className="text-xl">🌤️</span><p className="text-[9px] text-muted-foreground">72°F</p></div>
-                <div className="h-8 w-px bg-border/30" />
-                <div className="text-center"><p className="text-sm font-bold text-primary">AQI 42</p><p className="text-[9px] text-muted-foreground">Good</p></div>
-                <div className="h-8 w-px bg-border/30" />
-                <div className="text-center"><p className="text-sm font-bold">1013</p><p className="text-[9px] text-muted-foreground">hPa</p></div>
-              </div>
-
-              <div className="text-center space-y-2">
-                <h2 className="text-3xl font-bold">Enable Location</h2>
-                <p className="text-base text-muted-foreground max-w-xs mx-auto">
-                  Weather shifts, air quality drops, and pressure changes are <strong>clinically proven triggers</strong>. Jvala tracks them automatically.
+          <div className="flex flex-col flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
+            <div className="w-full max-w-sm mx-auto space-y-4">
+              <div className="text-center space-y-1">
+                <h2 className="text-2xl font-bold">Enable Location</h2>
+                <p className="text-sm text-muted-foreground">
+                  Weather, air quality & pressure are <strong>clinically proven triggers</strong>.
                 </p>
               </div>
 
-              {/* What we track */}
-              <div className="space-y-2">
-                {[
-                  { icon: '🌡️', label: "Weather & Temperature", desc: "Temperature swings trigger 40% of migraines" },
-                  { icon: '💨', label: "Air Quality (AQI)", desc: "Pollution correlates with inflammation" },
-                  { icon: '🌿', label: "Pollen Levels", desc: "Seasonal allergy & flare triggers" },
-                  { icon: '📊', label: "Barometric Pressure", desc: "Pressure drops are a top joint pain trigger" },
-                ].map((item, i) => (
-                  <div key={i} className="glass-card flex items-center gap-3 py-3 animate-in fade-in-0 duration-300" style={{ animationDelay: `${i * 80}ms` }}>
-                    <span className="text-lg flex-shrink-0">{item.icon}</span>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{item.label}</p>
-                      <p className="text-[10px] text-muted-foreground">{item.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Permission button */}
-              <div className="space-y-2">
+              {/* Permission button — TOP */}
+              <div className="space-y-1.5">
                 <button
                   onClick={requestLocationPermission}
                   disabled={locationPermissionStatus === 'requesting' || locationPermissionStatus === 'granted'}
@@ -1516,21 +1489,48 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                   {locationPermissionStatus === 'denied' && "Denied — Enable in Settings"}
                 </button>
                 {locationPermissionStatus === 'idle' && (
-                  <p className="text-xs text-center text-muted-foreground">
-                    When prompted, tap <strong>"Allow While Using App"</strong>
+                  <p className="text-[11px] text-center text-muted-foreground">
+                    Tap <strong>"Allow While Using App"</strong> when prompted
                   </p>
                 )}
                 {locationPermissionStatus === 'denied' && (
-                  <p className="text-xs text-center text-muted-foreground">
-                    If you previously denied, enable Location in iOS Settings for Jvala, then tap again.
+                  <p className="text-[11px] text-center text-muted-foreground">
+                    Enable Location in iOS Settings → Jvala, then tap again.
                   </p>
                 )}
               </div>
 
+              {/* Weather stats hero */}
+              <div className="relative w-full h-14 rounded-2xl overflow-hidden glass-card flex items-center justify-center gap-5 px-6">
+                <div className="text-center"><span className="text-lg">🌤️</span><p className="text-[9px] text-muted-foreground">72°F</p></div>
+                <div className="h-8 w-px bg-border/30" />
+                <div className="text-center"><p className="text-sm font-bold text-primary">AQI 42</p><p className="text-[9px] text-muted-foreground">Good</p></div>
+                <div className="h-8 w-px bg-border/30" />
+                <div className="text-center"><p className="text-sm font-bold">1013</p><p className="text-[9px] text-muted-foreground">hPa</p></div>
+              </div>
+
+              {/* What we track */}
+              <div className="space-y-1.5">
+                {[
+                  { icon: '🌡️', label: "Weather & Temperature", desc: "Temperature swings trigger 40% of migraines" },
+                  { icon: '💨', label: "Air Quality (AQI)", desc: "Pollution correlates with inflammation" },
+                  { icon: '🌿', label: "Pollen Levels", desc: "Seasonal allergy & flare triggers" },
+                  { icon: '📊', label: "Barometric Pressure", desc: "Pressure drops = joint pain trigger" },
+                ].map((item, i) => (
+                  <div key={i} className="glass-card flex items-center gap-3 py-2.5 animate-in fade-in-0 duration-300" style={{ animationDelay: `${i * 80}ms` }}>
+                    <span className="text-base flex-shrink-0">{item.icon}</span>
+                    <div className="flex-1">
+                      <p className="text-xs font-medium">{item.label}</p>
+                      <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
               <div className="glass-card flex items-start gap-3 bg-primary/5">
                 <Shield className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-muted-foreground leading-snug">
-                  <strong>City-level only.</strong> We never track your precise location or share it with anyone.
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  <strong>City-level only.</strong> We never track your precise location.
                 </p>
               </div>
             </div>
