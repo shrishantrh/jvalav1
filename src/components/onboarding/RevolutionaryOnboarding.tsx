@@ -1633,10 +1633,10 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                 ))}
               </div>
 
-              <div className="glass-card flex items-start gap-3 bg-primary/5">
+              <div className="glass-card flex items-start gap-3 bg-primary/5 mb-2">
                 <Shield className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-muted-foreground leading-relaxed break-words">
-                  Customize timing in Settings. Notifications stay context-aware.
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  Customize timing in Settings. Every notification is context-aware.
                 </p>
               </div>
             </div>
