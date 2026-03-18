@@ -72,7 +72,7 @@ serve(async (req) => {
       // Force redirect_to to jvala.tech (Supabase overrides with its Site URL)
       actionLink = actionLink.replace(
         /redirect_to=[^&]*/,
-        "redirect_to=" + encodeURIComponent("https://app.jvala.tech/#/confirm-email")
+        "redirect_to=" + encodeURIComponent("https://app.jvala.tech/confirm-email")
       );
 
       // Also set terms_accepted_at on the new profile
