@@ -1181,21 +1181,19 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
         return (
           <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
             <div className="w-full max-w-sm space-y-5">
-              {/* Hero visual - notification mockup */}
-              <div className="relative w-full rounded-3xl overflow-hidden glass-card p-4 space-y-2">
-                {/* Fake notification bubbles */}
+              {/* Compact notification preview */}
+              <div className="relative w-full rounded-2xl overflow-hidden glass-card p-3 space-y-1.5">
                 {[
-                  { time: '9:00 AM', title: '☀️ Morning Check-in', body: 'How did you sleep? Quick log to start the day.' },
-                  { time: '2:15 PM', title: '⚠️ Pressure Drop Alert', body: 'Barometric pressure dropped 12 hPa — your #1 migraine trigger.' },
-                  { time: '8:00 PM', title: '🔥 Streak at Risk!', body: "You haven't logged today. Tap to keep your 7-day streak." },
+                  { time: '9:00 AM', title: '☀️ Morning Check-in', body: 'Quick log to start the day.' },
+                  { time: '2:15 PM', title: '⚠️ Pressure Drop', body: 'Barometric pressure dropped — your #1 trigger.' },
                 ].map((notif, i) => (
-                  <div key={i} className="flex items-start gap-3 p-3 rounded-2xl bg-background/60 border border-border/30 animate-in fade-in-0 slide-in-from-right-4 duration-500" style={{ animationDelay: `${i * 200}ms` }}>
+                  <div key={i} className="flex items-start gap-2 p-2 rounded-xl bg-background/60 border border-border/30 animate-in fade-in-0 duration-500" style={{ animationDelay: `${i * 200}ms` }}>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold">{notif.title}</p>
+                        <p className="text-[11px] font-semibold">{notif.title}</p>
                         <span className="text-[9px] text-muted-foreground">{notif.time}</span>
                       </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">{notif.body}</p>
+                      <p className="text-[10px] text-muted-foreground">{notif.body}</p>
                     </div>
                   </div>
                 ))}
