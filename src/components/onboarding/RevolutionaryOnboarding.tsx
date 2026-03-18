@@ -300,8 +300,8 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
     if (step === 7 && isNative) {
       (async () => {
         try {
-          const { checkHealthPermissions } = await import('@/services/appleHealthService');
-          const alreadyAuthorized = await checkHealthPermissions();
+          const { checkHealthPermissions, HEALTH_FULL_READ } = await import('@/services/appleHealthService');
+          const alreadyAuthorized = await checkHealthPermissions({ read: HEALTH_FULL_READ });
           if (alreadyAuthorized) {
             setHealthPermissionStatus('granted');
             try { localStorage.setItem('jvala_health_connected', '1'); } catch {}
@@ -313,17 +313,32 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
     }
   }, [step]);
 
-  // When arriving at the location step, check if permission was already granted (e.g. from an earlier prompt)
+  const isLocationGranted = (permStatus: { location?: string; coarseLocation?: string } | null | undefined) => {
+    return permStatus?.location === 'granted' || permStatus?.coarseLocation === 'granted';
+  };
+
+  // When arriving at the location step, sync UI to actual system permission state
   useEffect(() => {
-    if (step === 8 && locationPermissionStatus === 'idle' && isNative) {
+    if (step === 8 && isNative) {
       (async () => {
         try {
           const { Geolocation } = await import('@capacitor/geolocation');
           const permStatus = await Geolocation.checkPermissions();
-          if (permStatus.location === 'granted' || permStatus.coarseLocation === 'granted') {
+
+          if (isLocationGranted(permStatus)) {
             setLocationPermissionStatus('granted');
+            return;
           }
-        } catch {}
+
+          if (permStatus.location === 'denied' && permStatus.coarseLocation === 'denied') {
+            setLocationPermissionStatus('denied');
+            return;
+          }
+
+          setLocationPermissionStatus('idle');
+        } catch {
+          // keep current state
+        }
       })();
     }
   }, [step]);
@@ -372,7 +387,12 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
         return;
       }
 
-      const { isHealthPluginPresent, HEALTH_FULL_READ, checkHealthPermissions } = await import('@/services/appleHealthService');
+      const {
+        isHealthPluginPresent,
+        HEALTH_FULL_READ,
+        checkHealthPermissions,
+        requestHealthPermissions,
+      } = await import('@/services/appleHealthService');
 
       if (!isHealthPluginPresent()) {
         console.warn('[Onboarding] Health plugin not present in this build');
@@ -380,35 +400,31 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
         return;
       }
 
-      const plugin = (window as any)?.Capacitor?.Plugins?.Health;
-      if (!plugin) {
-        console.warn('[Onboarding] Health plugin not in Capacitor.Plugins');
-        setHealthPermissionStatus('unavailable');
-        return;
-      }
-
-      console.log('[Onboarding] Requesting full supported Health scopes...');
-
-      const authorizationStatus = await Promise.race([
-        plugin.requestAuthorization({ read: HEALTH_FULL_READ, write: [] }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000)),
-      ]) as { readAuthorized?: string[]; readDenied?: string[] };
-
-      const authorizedCount = Array.isArray(authorizationStatus?.readAuthorized)
-        ? authorizationStatus.readAuthorized.length
-        : 0;
-
-      if (authorizedCount > 0) {
-        console.log('[Onboarding] Health auth granted for scopes:', authorizationStatus.readAuthorized);
+      // Fast path: user already granted access previously.
+      const alreadyAuthorized = await checkHealthPermissions({ read: HEALTH_FULL_READ });
+      if (alreadyAuthorized) {
         try { localStorage.setItem('jvala_health_connected', '1'); } catch {}
         setHealthPermissionStatus('granted');
         haptics.success();
         return;
       }
 
-      // Fallback verification if plugin returned an empty status object
-      const alreadyAuthorized = await checkHealthPermissions({ read: HEALTH_FULL_READ });
-      if (alreadyAuthorized) {
+      // Request full supported scopes.
+      const result = await requestHealthPermissions({ read: HEALTH_FULL_READ });
+      const authorizedCount = Array.isArray(result.status?.readAuthorized)
+        ? result.status!.readAuthorized.length
+        : 0;
+
+      if (result.ok && authorizedCount > 0) {
+        try { localStorage.setItem('jvala_health_connected', '1'); } catch {}
+        setHealthPermissionStatus('granted');
+        haptics.success();
+        return;
+      }
+
+      // Recovery path for iOS bridge edge-cases: verify authorization state directly.
+      const recovered = await checkHealthPermissions({ read: HEALTH_FULL_READ });
+      if (recovered) {
         try { localStorage.setItem('jvala_health_connected', '1'); } catch {}
         setHealthPermissionStatus('granted');
         haptics.success();
@@ -418,21 +434,6 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.warn('[Onboarding] Health auth failed:', msg);
-
-      // If iOS bridge timed out but auth actually succeeded, recover by checking current auth state.
-      try {
-        const { checkHealthPermissions, HEALTH_FULL_READ } = await import('@/services/appleHealthService');
-        const alreadyAuthorized = await checkHealthPermissions({ read: HEALTH_FULL_READ });
-        if (alreadyAuthorized) {
-          try { localStorage.setItem('jvala_health_connected', '1'); } catch {}
-          setHealthPermissionStatus('granted');
-          haptics.success();
-          return;
-        }
-      } catch {
-        // no-op
-      }
-
       setHealthPermissionStatus('denied');
     }
   };
@@ -440,30 +441,69 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
   const requestLocationPermission = async () => {
     setLocationPermissionStatus('requesting');
     haptics.selection();
+
     try {
       if (isNative) {
-        // Use Capacitor Geolocation for native iOS prompt ("Allow Jvala to use your location")
         const { Geolocation } = await import('@capacitor/geolocation');
-        const permResult = await Geolocation.requestPermissions();
-        if (permResult.location === 'granted' || permResult.coarseLocation === 'granted') {
-          // Also do a position fetch to confirm it works
-          try {
-            await Geolocation.getCurrentPosition({ timeout: 10000 });
-          } catch {}
+
+        // 1) Check current state first (handles the already-granted case immediately).
+        const before = await Geolocation.checkPermissions();
+        if (isLocationGranted(before)) {
           setLocationPermissionStatus('granted');
           haptics.success();
-        } else {
-          setLocationPermissionStatus('denied');
+          return;
         }
-      } else {
-        // Web fallback
-        await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
-        });
-        setLocationPermissionStatus('granted');
-        haptics.success();
+
+        // 2) Explicit permission request (expected native prompt path).
+        const requested = await Geolocation.requestPermissions();
+        if (isLocationGranted(requested)) {
+          setLocationPermissionStatus('granted');
+          haptics.success();
+          return;
+        }
+
+        // 3) Re-check in case platform returns stale status object from requestPermissions.
+        const afterRequest = await Geolocation.checkPermissions();
+        if (isLocationGranted(afterRequest)) {
+          setLocationPermissionStatus('granted');
+          haptics.success();
+          return;
+        }
+
+        // 4) Fallback: getCurrentPosition can trigger the prompt on some iOS builds.
+        try {
+          await Geolocation.getCurrentPosition({
+            timeout: 10000,
+            enableHighAccuracy: false,
+            maximumAge: 0,
+          });
+        } catch {
+          // ignore and rely on final permission check below
+        }
+
+        const finalStatus = await Geolocation.checkPermissions();
+        if (isLocationGranted(finalStatus)) {
+          setLocationPermissionStatus('granted');
+          haptics.success();
+          return;
+        }
+
+        setLocationPermissionStatus('denied');
+        return;
       }
-    } catch {
+
+      // Web fallback
+      await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          timeout: 10000,
+          enableHighAccuracy: true,
+          maximumAge: 0,
+        });
+      });
+      setLocationPermissionStatus('granted');
+      haptics.success();
+    } catch (e) {
+      console.warn('[Onboarding] Location permission failed:', e);
       setLocationPermissionStatus('denied');
     }
   };
