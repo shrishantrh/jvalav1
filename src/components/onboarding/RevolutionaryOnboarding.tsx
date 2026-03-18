@@ -1160,30 +1160,37 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               </div>
 
               {/* Permission button */}
-              <button
-                onClick={requestLocationPermission}
-                disabled={locationPermissionStatus === 'requesting' || locationPermissionStatus === 'granted'}
-                className={cn(
-                  "w-full py-4 rounded-2xl text-sm font-semibold transition-all press-effect flex items-center justify-center gap-2",
-                  locationPermissionStatus === 'granted'
-                    ? "bg-green-500/15 text-green-600 border border-green-500/20"
-                    : locationPermissionStatus === 'denied'
-                      ? "bg-muted text-muted-foreground border border-border"
-                      : "bg-gradient-primary text-primary-foreground shadow-primary"
+              <div className="space-y-2">
+                <button
+                  onClick={requestLocationPermission}
+                  disabled={locationPermissionStatus === 'requesting' || locationPermissionStatus === 'granted'}
+                  className={cn(
+                    "w-full py-4 rounded-2xl text-base font-semibold transition-all press-effect flex items-center justify-center gap-2",
+                    locationPermissionStatus === 'granted'
+                      ? "bg-green-500/15 text-green-600 border border-green-500/20"
+                      : locationPermissionStatus === 'denied'
+                        ? "bg-muted text-muted-foreground border border-border"
+                        : "bg-gradient-primary text-primary-foreground shadow-primary"
+                  )}
+                >
+                  {locationPermissionStatus === 'requesting' && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {locationPermissionStatus === 'granted' && <CheckCircle2 className="w-4 h-4" />}
+                  {locationPermissionStatus === 'idle' && <MapPin className="w-4 h-4" />}
+                  {locationPermissionStatus === 'idle' && "Allow Location Access"}
+                  {locationPermissionStatus === 'requesting' && "Detecting location..."}
+                  {locationPermissionStatus === 'granted' && "✓ Location Enabled"}
+                  {locationPermissionStatus === 'denied' && "Denied — Enable in Settings"}
+                </button>
+                {locationPermissionStatus === 'idle' && (
+                  <p className="text-xs text-center text-muted-foreground">
+                    When prompted, tap <strong>"Allow While Using App"</strong>
+                  </p>
                 )}
-              >
-                {locationPermissionStatus === 'requesting' && <Loader2 className="w-4 h-4 animate-spin" />}
-                {locationPermissionStatus === 'granted' && <CheckCircle2 className="w-4 h-4" />}
-                {locationPermissionStatus === 'idle' && <MapPin className="w-4 h-4" />}
-                {locationPermissionStatus === 'idle' && "Allow Location Access"}
-                {locationPermissionStatus === 'requesting' && "Detecting location..."}
-                {locationPermissionStatus === 'granted' && "✓ Location Enabled"}
-                {locationPermissionStatus === 'denied' && "Denied — Enable in Settings"}
-              </button>
+              </div>
 
               <div className="glass-card flex items-start gap-3 bg-primary/5">
                 <Shield className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                <p className="text-[11px] text-muted-foreground leading-snug">
+                <p className="text-xs text-muted-foreground leading-snug">
                   <strong>City-level only.</strong> We never track your precise location or share it with anyone.
                 </p>
               </div>
