@@ -1483,7 +1483,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
       // ─── Step 8: Location Permission ─────────────────────────────────
       case 8:
         return (
-          <div className="flex flex-col flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
+          <div className="flex flex-col flex-1 px-2 pb-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
             <div className="w-full max-w-sm mx-auto space-y-4">
               <div className="text-center space-y-1">
                 <h2 className="text-2xl font-bold">Enable Location</h2>
