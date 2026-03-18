@@ -119,6 +119,11 @@ export const WearableIntegration = ({ onDataSync }: WearableIntegrationProps) =>
     return true;
   });
 
+  const formatMetricValue = (value: number | null | undefined, formatter?: (raw: number) => string) => {
+    if (typeof value !== 'number' || Number.isNaN(value)) return '--';
+    return formatter ? formatter(value) : `${Math.round(value * 10) / 10}`;
+  };
+
   return (
     <div className="space-y-4">
       <Card className="p-5 bg-gradient-card border-0 shadow-soft">
