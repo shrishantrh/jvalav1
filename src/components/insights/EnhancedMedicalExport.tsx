@@ -425,61 +425,60 @@ export const EnhancedMedicalExport = ({
 
         {/* ── Share Journey Tab ── */}
         <TabsContent value="share" className="mt-4 space-y-4">
-          <Card className="overflow-hidden border-0 rounded-3xl" style={{ background: 'var(--gradient-primary)', boxShadow: '0 8px 32px hsl(var(--primary) / 0.3)' }}>
-            <div className="p-6 text-white relative overflow-hidden">
-              {/* Decorative orbs */}
-              <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-white/10 blur-2xl" />
-              <div className="absolute -bottom-20 -left-12 w-56 h-56 rounded-full bg-white/5 blur-3xl" />
-
-              <div className="relative z-10">
-                <h3 className="text-xl font-bold mb-5">Your Health Journey</h3>
-                
-                <div className="grid grid-cols-3 gap-3 mb-5">
-                  {[
-                    { icon: <Flame className="w-5 h-5" />, value: streak, label: 'Day Streak' },
-                    { icon: <Sparkles className="w-5 h-5" />, value: totalLogs, label: 'Total Logs' },
-                    { icon: <Trophy className="w-5 h-5" />, value: earnedBadges.length, label: 'Badges' },
-                  ].map((stat, i) => (
-                    <div key={i} className="bg-white/15 backdrop-blur-md rounded-2xl p-3.5 text-center border border-white/10">
-                      <div className="text-white/70 flex justify-center mb-1">{stat.icon}</div>
-                      <p className="text-2xl font-extrabold">{stat.value}</p>
-                      <p className="text-[10px] text-white/60 mt-0.5">{stat.label}</p>
+          <Card className="glass-card border-0 rounded-3xl overflow-hidden">
+            <div className="p-5">
+              <div className="flex items-start justify-between mb-5">
+                <div>
+                  <h3 className="text-base font-bold mb-1 flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <Trophy className="w-4 h-4 text-primary" />
                     </div>
-                  ))}
+                    Your Health Journey
+                  </h3>
+                  <p className="text-xs text-muted-foreground ml-10">Share your progress with others</p>
                 </div>
-
-                {/* Recent badges — max 4, no scroll */}
-                {earnedBadges.length > 0 && (
-                  <div>
-                    <p className="text-xs text-white/50 mb-2 font-medium">Recent Badges</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {earnedBadges.slice(-4).reverse().map(badge => (
-                        <div key={badge.id} className="bg-white/12 backdrop-blur-sm rounded-xl px-3 py-2 flex items-center gap-2 border border-white/8">
-                          <span className="text-base">{badge.icon}</span>
-                          <span className="text-[11px] font-medium text-white/90 truncate">{badge.name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <Badge variant="secondary" className="text-[10px] bg-primary/8 text-primary border-0">
+                  {streak} day streak
+                </Badge>
               </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-2.5 mb-5">
+                {[
+                  { icon: <Flame className="w-4 h-4 text-primary" />, value: streak, label: 'Day Streak' },
+                  { icon: <Sparkles className="w-4 h-4 text-primary" />, value: totalLogs, label: 'Total Logs' },
+                  { icon: <Trophy className="w-4 h-4 text-primary" />, value: earnedBadges.length, label: 'Badges' },
+                ].map((stat, i) => (
+                  <div key={i} className="glass-card text-center py-3 rounded-2xl">
+                    <div className="flex justify-center mb-1">{stat.icon}</div>
+                    <p className="text-xl font-extrabold">{stat.value}</p>
+                    <p className="text-[9px] text-muted-foreground mt-0.5">{stat.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Recent badges */}
+              {earnedBadges.length > 0 && (
+                <div className="mb-5">
+                  <p className="text-xs text-muted-foreground mb-2 font-medium">Recent Badges</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {earnedBadges.slice(-4).reverse().map(badge => (
+                      <div key={badge.id} className="glass-card rounded-xl px-3 py-2 flex items-center gap-2">
+                        <span className="text-base">{badge.icon}</span>
+                        <span className="text-[11px] font-medium truncate">{badge.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Share button — same style as clinical */}
+              <Button onClick={() => { haptics.medium(); handleShareJourney(); }} className="w-full h-12 rounded-2xl font-semibold" size="sm" disabled={generatingImage}>
+                {generatingImage ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Share2 className="w-4 h-4 mr-2" />}
+                Share
+              </Button>
             </div>
           </Card>
-
-          {/* Share Button — generates image then uses native share sheet */}
-          <button 
-            onClick={handleShareJourney} 
-            disabled={generatingImage}
-            className="w-full h-14 rounded-2xl font-semibold text-base gap-2.5 flex items-center justify-center text-primary-foreground press-effect transition-all disabled:opacity-50"
-            style={{ background: 'var(--gradient-primary)', boxShadow: '0 6px 20px hsl(var(--primary) / 0.35)' }}
-          >
-            {generatingImage ? <Loader2 className="w-5 h-5 animate-spin" /> : <Share2 className="w-5 h-5" />}
-            {generatingImage ? 'Generating...' : 'Share as Image'}
-          </button>
-
-          <p className="text-xs text-center text-muted-foreground/60">
-            Creates a shareable image and opens the share sheet
-          </p>
         </TabsContent>
 
         {/* ── Clinical Export Tab ── */}
