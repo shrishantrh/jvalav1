@@ -1090,16 +1090,26 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                     <p className="text-[11px] text-muted-foreground">Age affects symptom patterns & medication dosing</p>
                   </div>
                 </div>
-                <Input
-                  type="date"
-                  value={data.dateOfBirth}
-                  max={getTodayString()}
-                  onChange={(e) => {
-                    haptics.selection();
-                    setData(prev => ({ ...prev, dateOfBirth: e.target.value }));
-                  }}
-                  className="h-12 bg-transparent"
-                />
+                <div className="relative">
+                  <Input
+                    type="date"
+                    value={data.dateOfBirth}
+                    max={getTodayString()}
+                    onChange={(e) => {
+                      haptics.selection();
+                      setData(prev => ({ ...prev, dateOfBirth: e.target.value }));
+                    }}
+                    className={cn(
+                      "h-12 rounded-xl border border-border/40 bg-background/70 px-3",
+                      data.dateOfBirth ? "text-foreground" : "text-transparent"
+                    )}
+                  />
+                  {!data.dateOfBirth && (
+                    <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted-foreground">
+                      Tap to choose your birthdate
+                    </span>
+                  )}
+                </div>
                 {isFutureDOB && (
                   <div className="flex items-center gap-2 text-destructive text-xs">
                     <AlertCircle className="w-3.5 h-3.5" />

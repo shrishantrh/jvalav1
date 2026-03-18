@@ -440,12 +440,48 @@ export const CompactFlareCard = ({
   const pollenTree = env?.airQuality?.pollenTree;
   const pollenGrass = env?.airQuality?.pollenGrass;
   
-  const heartRate = phys?.heartRate || phys?.heart_rate;
-  const sleepHours = phys?.sleepHours || phys?.sleep_hours;
+  const heartRate = phys?.heartRate ?? phys?.heart_rate;
+  const restingHeartRate = phys?.restingHeartRate ?? phys?.resting_heart_rate;
+  const heartRateVariability = phys?.heartRateVariability ?? phys?.heart_rate_variability ?? phys?.hrvRmssd ?? phys?.hrv_rmssd;
+  const spo2 = phys?.spo2 ?? phys?.spo2_avg;
+  const breathingRate = phys?.breathingRate ?? phys?.breathing_rate;
+  const sleepHours = phys?.sleepHours ?? phys?.sleep_hours;
+  const deepSleepMinutes = phys?.deepSleepMinutes ?? phys?.deep_sleep_minutes;
+  const remSleepMinutes = phys?.remSleepMinutes ?? phys?.rem_sleep_minutes;
   const steps = phys?.steps;
+  const activeMinutes = phys?.activeMinutes ?? phys?.active_minutes;
+  const caloriesBurned = phys?.caloriesBurned ?? phys?.calories_burned;
+  const distanceMeters = phys?.distance;
+  const skinTemperature = phys?.skinTemperature ?? phys?.skin_temperature;
+  const vo2Max = phys?.vo2Max ?? phys?.vo2_max;
+  const activeZoneMinutes = phys?.activeZoneMinutesTotal ?? phys?.active_zone_minutes_total;
+
+  const formatMetric = (value: unknown, formatter?: (raw: number) => string) => {
+    if (typeof value !== 'number' || Number.isNaN(value)) return '--';
+    return formatter ? formatter(value) : `${Math.round(value * 10) / 10}`;
+  };
+
+  const physiologicalMetrics = [
+    { label: 'HR', value: formatMetric(heartRate), unit: ' bpm', icon: Heart },
+    { label: 'Rest HR', value: formatMetric(restingHeartRate), unit: ' bpm', icon: Activity },
+    { label: 'HRV', value: formatMetric(heartRateVariability), unit: ' ms', icon: Zap },
+    { label: 'SpO2', value: formatMetric(spo2), unit: '%', icon: Droplets },
+    { label: 'Breath', value: formatMetric(breathingRate), unit: ' bpm', icon: Wind },
+    { label: 'Sleep', value: formatMetric(sleepHours), unit: ' h', icon: Moon },
+    { label: 'Deep', value: formatMetric(deepSleepMinutes), unit: ' min', icon: Moon },
+    { label: 'REM', value: formatMetric(remSleepMinutes), unit: ' min', icon: Moon },
+    { label: 'Steps', value: formatMetric(steps, (raw) => Math.round(raw).toLocaleString()), unit: '', icon: Footprints },
+    { label: 'Active', value: formatMetric(activeMinutes), unit: ' min', icon: Timer },
+    { label: 'Calories', value: formatMetric(caloriesBurned, (raw) => Math.round(raw).toLocaleString()), unit: ' kcal', icon: Flame },
+    { label: 'Distance', value: formatMetric(distanceMeters), unit: ' m', icon: Gauge },
+    { label: 'Skin Temp', value: formatMetric(skinTemperature), unit: ' °C', icon: Thermometer },
+    { label: 'VO2', value: formatMetric(vo2Max), unit: '', icon: Zap },
+    { label: 'Zone Min', value: formatMetric(activeZoneMinutes), unit: ' min', icon: Activity },
+  ];
 
   const hasWeatherData = temp || humidity || pressure || windSpeed || uvIndex || aqi || condition;
-  const hasData = city || hasWeatherData || heartRate || sleepHours || entry.symptoms?.length || entry.triggers?.length || (entry.note && !isNoteMetadata);
+  const hasPhysData = physiologicalMetrics.some((metric) => metric.value !== '--');
+  const hasData = entry.type === 'flare' || city || hasWeatherData || hasPhysData || entry.symptoms?.length || entry.triggers?.length || (entry.note && !isNoteMetadata);
 
   const trackableValue = getTrackableValue();
 
