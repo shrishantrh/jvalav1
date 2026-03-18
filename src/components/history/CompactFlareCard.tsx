@@ -653,22 +653,30 @@ export const CompactFlareCard = ({
               </div>
             )}
 
-            {/* Physiological Data — always show for flare entries */}
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground mb-2">Physiological Data</p>
-              <div className="grid grid-cols-4 gap-2">
-                {physiologicalMetrics.map((metric) => (
-                  <div key={metric.label} className="text-center p-2.5 rounded-2xl backdrop-blur-sm bg-background/60 border border-border/30">
-                    <metric.icon className="w-3.5 h-3.5 mx-auto mb-1 text-primary" />
-                    <p className={cn("text-sm font-bold", metric.value === '--' && 'text-muted-foreground/40')}>
-                      {metric.value}
-                      {metric.value !== '--' ? metric.unit : ''}
-                    </p>
-                    <p className="text-[8px] text-muted-foreground">{metric.label}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* Physiological Data — collapsible, auto-collapsed when empty */}
+            <Collapsible defaultOpen={hasPhysData}>
+              <CollapsibleTrigger className="flex items-center justify-between w-full group">
+                <p className="text-xs font-semibold text-muted-foreground">Physiological Data</p>
+                <div className="flex items-center gap-1">
+                  {!hasPhysData && <span className="text-[10px] text-muted-foreground/50">No data</span>}
+                  <ChevronDown className="w-3 h-3 text-muted-foreground/50 transition-transform group-data-[state=open]:rotate-180" />
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2">
+                <div className="grid grid-cols-3 gap-2">
+                  {physiologicalMetrics.map((metric) => (
+                    <div key={metric.label} className="text-center p-2.5 rounded-2xl backdrop-blur-sm bg-background/60 border border-border/30">
+                      <metric.icon className="w-3.5 h-3.5 mx-auto mb-1 text-primary" />
+                      <p className={cn("text-sm font-bold", metric.value === '--' && 'text-muted-foreground/40')}>
+                        {metric.value}
+                        {metric.value !== '--' ? metric.unit : ''}
+                      </p>
+                      <p className="text-[8px] text-muted-foreground">{metric.label}</p>
+                    </div>
+                  ))}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
 
             {/* Triggers */}
             {entry.triggers && entry.triggers.length > 0 && (
