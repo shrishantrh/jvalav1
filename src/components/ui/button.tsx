@@ -41,7 +41,7 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, haptic = 'light', onClick, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, haptic = 'medium', onClick, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
     
     const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {

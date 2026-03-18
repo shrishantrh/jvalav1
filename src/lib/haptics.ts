@@ -16,7 +16,7 @@ function getAudioContext(): AudioContext | null {
   if (!audioContext && typeof AudioContext !== 'undefined') {
     try {
       audioContext = new AudioContext();
-    } catch (e) {
+    } catch {
       // AudioContext not supported
     }
   }
@@ -30,7 +30,7 @@ function playHapticSound(type: HapticType) {
 
   try {
     if (ctx.state === 'suspended') {
-      ctx.resume();
+      void ctx.resume();
     }
 
     const oscillator = ctx.createOscillator();
@@ -40,14 +40,14 @@ function playHapticSound(type: HapticType) {
     gainNode.connect(ctx.destination);
 
     const settings: Record<HapticType, { freq: number; duration: number; volume: number }> = {
-      light: { freq: 1200, duration: 0.008, volume: 0.03 },
-      selection: { freq: 1400, duration: 0.006, volume: 0.02 },
-      medium: { freq: 800, duration: 0.015, volume: 0.05 },
-      heavy: { freq: 400, duration: 0.025, volume: 0.08 },
-      success: { freq: 1000, duration: 0.020, volume: 0.04 },
-      warning: { freq: 600, duration: 0.030, volume: 0.06 },
-      error: { freq: 300, duration: 0.050, volume: 0.10 },
-      impact: { freq: 500, duration: 0.012, volume: 0.07 },
+      light: { freq: 1200, duration: 0.01, volume: 0.05 },
+      selection: { freq: 1400, duration: 0.008, volume: 0.04 },
+      medium: { freq: 800, duration: 0.02, volume: 0.07 },
+      heavy: { freq: 400, duration: 0.032, volume: 0.1 },
+      success: { freq: 1000, duration: 0.025, volume: 0.08 },
+      warning: { freq: 600, duration: 0.04, volume: 0.1 },
+      error: { freq: 300, duration: 0.055, volume: 0.12 },
+      impact: { freq: 500, duration: 0.018, volume: 0.09 },
     };
 
     const { freq, duration, volume } = settings[type];
@@ -60,13 +60,13 @@ function playHapticSound(type: HapticType) {
 
     oscillator.start(ctx.currentTime);
     oscillator.stop(ctx.currentTime + duration);
-  } catch (e) {
+  } catch {
     // Silently fail
   }
 }
 
 function isIOS(): boolean {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
@@ -102,7 +102,7 @@ async function nativeHaptic(type: HapticType): Promise<void> {
         await Haptics.selectionEnd();
         break;
     }
-  } catch (e) {
+  } catch {
     // Fallback to web haptics
     webHaptic(type);
   }
@@ -113,20 +113,20 @@ function webHaptic(type: HapticType) {
   // Try Vibration API first (works on Android)
   if ('vibrate' in navigator && !isIOS()) {
     const patterns: Record<HapticType, number | number[]> = {
-      light: 8,
-      medium: 15,
-      heavy: 25,
-      success: [8, 40, 8],
-      warning: [15, 35, 15],
-      error: [25, 45, 25, 45, 25],
-      selection: 5,
-      impact: 12,
+      light: 10,
+      medium: 22,
+      heavy: 36,
+      success: [14, 50, 20, 40],
+      warning: [20, 35, 20],
+      error: [30, 45, 30, 45, 30],
+      selection: 8,
+      impact: 16,
     };
 
     try {
       navigator.vibrate(patterns[type]);
       return;
-    } catch (e) {
+    } catch {
       // Fall through to audio feedback
     }
   }
@@ -137,30 +137,67 @@ function webHaptic(type: HapticType) {
   }
 }
 
-export function haptic(type: HapticType = 'light') {
+function triggerHaptic(type: HapticType = 'light') {
   if (isNative) {
-    nativeHaptic(type);
+    void nativeHaptic(type);
   } else {
     webHaptic(type);
   }
 }
 
+function runSequence(steps: Array<{ type: HapticType; delay: number }>) {
+  steps.forEach((step) => {
+    window.setTimeout(() => triggerHaptic(step.type), step.delay);
+  });
+}
+
+export function haptic(type: HapticType = 'light') {
+  triggerHaptic(type);
+}
+
 // Convenience methods - work in both native and web
 export const haptics = {
-  light: () => haptic('light'),
-  medium: () => haptic('medium'),
-  heavy: () => haptic('heavy'),
-  success: () => haptic('success'),
-  warning: () => haptic('warning'),
-  error: () => haptic('error'),
-  selection: () => haptic('selection'),
-  impact: () => haptic('impact'),
-  
+  light: () => triggerHaptic('light'),
+  medium: () => triggerHaptic('medium'),
+  heavy: () => triggerHaptic('heavy'),
+  warning: () => triggerHaptic('warning'),
+  error: () => triggerHaptic('error'),
+  selection: () => triggerHaptic('selection'),
+  impact: () => triggerHaptic('impact'),
+
+  // Longer success confirmation for milestones and completions
+  success: () => {
+    triggerHaptic('success');
+    runSequence([
+      { type: 'medium', delay: 110 },
+      { type: 'light', delay: 220 },
+    ]);
+  },
+
+  // Strong celebration chain for badges / major wins
+  celebrate: () => {
+    triggerHaptic('heavy');
+    runSequence([
+      { type: 'success', delay: 120 },
+      { type: 'medium', delay: 260 },
+      { type: 'success', delay: 420 },
+    ]);
+  },
+
+  // Pulsing feedback for long actions (e.g., drag/slide)
+  pulse: () => {
+    triggerHaptic('light');
+    runSequence([
+      { type: 'light', delay: 80 },
+      { type: 'impact', delay: 180 },
+    ]);
+  },
+
   // Custom pattern (Android/web vibration only)
   custom: (pattern: number | number[]) => {
     if (isNative) {
-      // Native doesn't support custom patterns, use medium
-      nativeHaptic('medium');
+      triggerHaptic('medium');
+      runSequence([{ type: 'light', delay: 90 }]);
       return;
     }
     if (!('vibrate' in navigator) || isIOS()) {
@@ -169,7 +206,7 @@ export const haptics = {
     }
     try {
       navigator.vibrate(pattern);
-    } catch (e) {
+    } catch {
       playHapticSound('medium');
     }
   },
