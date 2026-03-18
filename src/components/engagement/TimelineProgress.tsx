@@ -292,7 +292,7 @@ export const TimelineProgress = ({ userId, entries, onBack }: TimelineProgressPr
                 </button>
 
                 {activeCategory === category.id && (
-                  <div className="px-4 pb-4 grid grid-cols-4 gap-2.5 animate-in fade-in slide-in-from-top-2">
+                  <div className="px-4 pb-4 grid grid-cols-4 gap-3 animate-in fade-in slide-in-from-top-2">
                     {category.badges.map(badge => {
                       const isEarned = earnedBadgeIds.has(badge.id);
                       const rarity = getRarityColor(badge.rarity);
@@ -303,36 +303,40 @@ export const TimelineProgress = ({ userId, entries, onBack }: TimelineProgressPr
                         <button 
                           key={badge.id}
                           onClick={() => { haptics.light(); setSelectedBadge(badge); }}
-                          className={cn(
-                            "relative aspect-square rounded-2xl flex flex-col items-center justify-center p-1.5 transition-all touch-manipulation active:scale-95",
-                            isEarned ? `${rarity.bg} ${rarity.border} border` : "bg-muted/20"
-                          )}
+                          className="flex flex-col items-center gap-1 transition-all touch-manipulation active:scale-95"
                         >
-                          {/* Progress ring */}
-                          <ProgressRing progress={isEarned ? 100 : progressPct} earned={isEarned} />
-                          
-                          <div className="relative z-10 flex flex-col items-center">
-                            {isEarned ? (
-                              <>
-                                <span className="text-xl mb-0.5">{badge.icon}</span>
-                                <span className="text-[8px] text-center leading-tight line-clamp-2 font-medium">{badge.name}</span>
-                              </>
-                            ) : (
-                              <>
-                                {progressPct > 0 ? (
-                                  <span className="text-lg mb-0.5 opacity-40">{badge.icon}</span>
-                                ) : (
-                                  <Lock className="w-3.5 h-3.5 mb-0.5 text-muted-foreground" />
-                                )}
-                                <span className="text-[8px] text-center leading-tight text-muted-foreground line-clamp-2">{badge.name}</span>
-                                {prog && prog.target > 1 && (
-                                  <span className="text-[7px] font-bold text-primary mt-0.5">
-                                    {prog.current}/{prog.target}
-                                  </span>
-                                )}
-                              </>
-                            )}
+                          {/* Circle badge with ring */}
+                          <div className="relative w-14 h-14 flex items-center justify-center">
+                            {/* Progress ring SVG behind */}
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <ProgressRing progress={isEarned ? 100 : progressPct} size={56} strokeWidth={3} earned={isEarned} />
+                            </div>
+                            {/* Inner circle */}
+                            <div className={cn(
+                              "w-11 h-11 rounded-full flex items-center justify-center z-10",
+                              isEarned 
+                                ? `${rarity.bg} ${rarity.border} border` 
+                                : progressPct > 0 ? "bg-muted/30" : "bg-muted/20"
+                            )}>
+                              {isEarned ? (
+                                <span className="text-xl">{badge.icon}</span>
+                              ) : progressPct > 0 ? (
+                                <span className="text-lg opacity-40">{badge.icon}</span>
+                              ) : (
+                                <Lock className="w-3.5 h-3.5 text-muted-foreground/50" />
+                              )}
+                            </div>
                           </div>
+                          {/* Label */}
+                          <span className={cn(
+                            "text-[9px] text-center leading-tight line-clamp-2 max-w-[60px]",
+                            isEarned ? "font-medium text-foreground" : "text-muted-foreground"
+                          )}>{badge.name}</span>
+                          {!isEarned && prog && prog.target > 1 && (
+                            <span className="text-[8px] font-bold text-primary -mt-0.5">
+                              {prog.current}/{prog.target}
+                            </span>
+                          )}
                         </button>
                       );
                     })}
