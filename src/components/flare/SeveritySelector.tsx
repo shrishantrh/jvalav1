@@ -16,7 +16,13 @@ export const SeveritySelector = ({
   compact = false
 }: SeveritySelectorProps) => {
   const handleSelect = (severity: FlareSeverity) => {
-    haptics.medium();
+    // Severity-matched haptic feedback
+    switch (severity) {
+      case 'severe': haptics.heavy(); break;
+      case 'moderate': haptics.medium(); break;
+      case 'mild': haptics.light(); break;
+      default: haptics.selection(); break;
+    }
     onSeveritySelect(severity);
   };
 

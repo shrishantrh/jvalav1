@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { haptics } from "@/lib/haptics";
 import { 
   Brain, 
   Heart, 
@@ -37,7 +38,7 @@ export const SymptomSelector = ({ selectedSymptoms, onSymptomToggle }: SymptomSe
           <Button
             key={symptom.name}
             variant="outline"
-            onClick={() => onSymptomToggle(symptom.name)}
+            onClick={() => { haptics.selection(); onSymptomToggle(symptom.name); }}
             className={`
               h-16 p-2 flex flex-col items-center justify-center gap-1
               transition-all duration-300 border rounded-xl backdrop-blur-sm

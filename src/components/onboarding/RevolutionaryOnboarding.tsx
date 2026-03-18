@@ -124,6 +124,10 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
     reminderTime: "09:00",
   });
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [slideProgress, setSlideProgress] = useState(0);
+  const slideRef = useRef<HTMLDivElement>(null);
+  const slidingRef = useRef(false);
+  const hapticIntervalRef = useRef<number | null>(null);
   const [conditionSearch, setConditionSearch] = useState("");
   const [analyzeStep, setAnalyzeStep] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -190,9 +194,21 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
     for (const s of steps) {
       await new Promise(resolve => setTimeout(resolve, 600));
       setAnalyzeStep(s);
+      // Alternating haptic patterns for each step
+      if (s % 2 === 0) {
+        haptics.impact();
+      } else {
+        haptics.medium();
+      }
+      // Extra rapid pulses during analysis
+      await new Promise(resolve => setTimeout(resolve, 150));
       haptics.light();
     }
     await new Promise(resolve => setTimeout(resolve, 800));
+    haptics.heavy();
+    await new Promise(resolve => setTimeout(resolve, 200));
+    haptics.success();
+    await new Promise(resolve => setTimeout(resolve, 150));
     haptics.success();
 
     onComplete({ ...data, age, aiLogCategories });
@@ -1378,49 +1394,22 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
       // ─── Step 7: Health Data Permission (FIRST — most important) ────────
       case 7:
         return (
-          <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
-            <div className="w-full max-w-sm space-y-5">
-              {/* Compact hero — ECG line */}
-              <div className="relative w-full h-16 rounded-2xl overflow-hidden glass-card flex items-center justify-center gap-4 px-6">
-                <svg viewBox="0 0 200 40" className="w-28 h-auto">
-                  <path d="M 0 20 L 30 20 L 40 8 L 50 32 L 60 18 L 70 22 L 80 20 L 110 20 L 120 5 L 130 35 L 140 15 L 150 25 L 160 20 L 200 20" fill="none" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" className="animate-pulse" />
-                </svg>
-                <div className="text-right">
-                  <p className="text-xl font-bold text-primary">72</p>
-                  <p className="text-[9px] text-muted-foreground">BPM</p>
-                </div>
-              </div>
-
-              <div className="text-center space-y-2">
-                <h2 className="text-3xl font-bold">Connect Apple Health</h2>
-                <p className="text-base text-muted-foreground max-w-xs mx-auto">
-                  Heart rate spikes, poor sleep, and activity drops often <strong>precede flares by hours</strong>. Let Jvala read the signals.
+          <div className="flex flex-col flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
+            <div className="w-full max-w-sm mx-auto space-y-4">
+              <div className="text-center space-y-1">
+                <h2 className="text-2xl font-bold">Connect Apple Health</h2>
+                <p className="text-sm text-muted-foreground">
+                  Heart rate, sleep & activity data help predict flares <strong>hours before they hit</strong>.
                 </p>
               </div>
 
-              {/* Data points with visual */}
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { icon: '❤️', label: "Heart Rate & HRV", desc: "Detect stress before flares" },
-                  { icon: '😴', label: "Sleep Quality", desc: "Sleep-flare correlations" },
-                  { icon: '🏃', label: "Activity & Steps", desc: "Movement impact tracking" },
-                  { icon: '🫁', label: "Blood Oxygen", desc: "Physiological baselines" },
-                ].map((item, i) => (
-                  <div key={i} className="glass-card py-3 px-3 text-center animate-in fade-in-0 duration-300" style={{ animationDelay: `${i * 100}ms` }}>
-                    <span className="text-xl">{item.icon}</span>
-                    <p className="text-xs font-medium mt-1">{item.label}</p>
-                    <p className="text-[10px] text-muted-foreground">{item.desc}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Permission button - prominent at top area */}
+              {/* Permission button — TOP, always visible */}
               {isNative ? (
                 <button
                   onClick={requestHealthPermission}
                   disabled={healthPermissionStatus === 'requesting' || healthPermissionStatus === 'granted'}
                   className={cn(
-                    "w-full py-4 rounded-2xl text-sm font-semibold transition-all press-effect flex items-center justify-center gap-2",
+                    "w-full py-4 rounded-2xl text-base font-semibold transition-all press-effect flex items-center justify-center gap-2",
                     healthPermissionStatus === 'granted'
                       ? "bg-green-500/15 text-green-600 border border-green-500/20"
                       : healthPermissionStatus === 'denied' || healthPermissionStatus === 'unavailable'
@@ -1438,19 +1427,43 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                   {healthPermissionStatus === 'unavailable' && "Not Available on This Device"}
                 </button>
               ) : (
-                <div className="glass-card text-center py-4 space-y-2">
-                  <Activity className="w-6 h-6 text-primary mx-auto" />
-                  <p className="text-sm font-medium">Available on Mobile</p>
-                  <p className="text-xs text-muted-foreground">
-                    Health data integration is available when using the Jvala app on your phone.
-                  </p>
+                <div className="glass-card text-center py-3 space-y-1">
+                  <Activity className="w-5 h-5 text-primary mx-auto" />
+                  <p className="text-xs text-muted-foreground">Available on the Jvala mobile app.</p>
                 </div>
               )}
+
+              {/* ECG visual */}
+              <div className="relative w-full h-14 rounded-2xl overflow-hidden glass-card flex items-center justify-center gap-4 px-6">
+                <svg viewBox="0 0 200 40" className="w-28 h-auto">
+                  <path d="M 0 20 L 30 20 L 40 8 L 50 32 L 60 18 L 70 22 L 80 20 L 110 20 L 120 5 L 130 35 L 140 15 L 150 25 L 160 20 L 200 20" fill="none" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" className="animate-pulse" />
+                </svg>
+                <div className="text-right">
+                  <p className="text-xl font-bold text-primary">72</p>
+                  <p className="text-[9px] text-muted-foreground">BPM</p>
+                </div>
+              </div>
+
+              {/* Data points */}
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { icon: '❤️', label: "Heart Rate", desc: "Detect stress spikes" },
+                  { icon: '😴', label: "Sleep Quality", desc: "Sleep-flare links" },
+                  { icon: '🏃', label: "Steps & Activity", desc: "Movement tracking" },
+                  { icon: '🫁', label: "Blood Oxygen", desc: "Baselines" },
+                ].map((item, i) => (
+                  <div key={i} className="glass-card py-2.5 px-3 text-center animate-in fade-in-0 duration-300" style={{ animationDelay: `${i * 100}ms` }}>
+                    <span className="text-lg">{item.icon}</span>
+                    <p className="text-xs font-medium mt-0.5">{item.label}</p>
+                    <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+                  </div>
+                ))}
+              </div>
 
               <div className="glass-card flex items-start gap-3 bg-primary/5">
                 <Shield className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
                 <p className="text-[11px] text-muted-foreground leading-snug">
-                  <strong>Read-only.</strong> We never write to or modify your health data. Everything stays encrypted on your device.
+                  <strong>Read-only.</strong> We never write to or modify your health data.
                 </p>
               </div>
             </div>
@@ -1460,44 +1473,17 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
       // ─── Step 8: Location Permission ─────────────────────────────────
       case 8:
         return (
-          <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
-            <div className="w-full max-w-sm space-y-5">
-              {/* Compact hero — weather stats inline */}
-              <div className="relative w-full h-16 rounded-2xl overflow-hidden glass-card flex items-center justify-center gap-5 px-6">
-                <div className="text-center"><span className="text-xl">🌤️</span><p className="text-[9px] text-muted-foreground">72°F</p></div>
-                <div className="h-8 w-px bg-border/30" />
-                <div className="text-center"><p className="text-sm font-bold text-primary">AQI 42</p><p className="text-[9px] text-muted-foreground">Good</p></div>
-                <div className="h-8 w-px bg-border/30" />
-                <div className="text-center"><p className="text-sm font-bold">1013</p><p className="text-[9px] text-muted-foreground">hPa</p></div>
-              </div>
-
-              <div className="text-center space-y-2">
-                <h2 className="text-3xl font-bold">Enable Location</h2>
-                <p className="text-base text-muted-foreground max-w-xs mx-auto">
-                  Weather shifts, air quality drops, and pressure changes are <strong>clinically proven triggers</strong>. Jvala tracks them automatically.
+          <div className="flex flex-col flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
+            <div className="w-full max-w-sm mx-auto space-y-4">
+              <div className="text-center space-y-1">
+                <h2 className="text-2xl font-bold">Enable Location</h2>
+                <p className="text-sm text-muted-foreground">
+                  Weather, air quality & pressure are <strong>clinically proven triggers</strong>.
                 </p>
               </div>
 
-              {/* What we track */}
-              <div className="space-y-2">
-                {[
-                  { icon: '🌡️', label: "Weather & Temperature", desc: "Temperature swings trigger 40% of migraines" },
-                  { icon: '💨', label: "Air Quality (AQI)", desc: "Pollution correlates with inflammation" },
-                  { icon: '🌿', label: "Pollen Levels", desc: "Seasonal allergy & flare triggers" },
-                  { icon: '📊', label: "Barometric Pressure", desc: "Pressure drops are a top joint pain trigger" },
-                ].map((item, i) => (
-                  <div key={i} className="glass-card flex items-center gap-3 py-3 animate-in fade-in-0 duration-300" style={{ animationDelay: `${i * 80}ms` }}>
-                    <span className="text-lg flex-shrink-0">{item.icon}</span>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{item.label}</p>
-                      <p className="text-[10px] text-muted-foreground">{item.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Permission button */}
-              <div className="space-y-2">
+              {/* Permission button — TOP */}
+              <div className="space-y-1.5">
                 <button
                   onClick={requestLocationPermission}
                   disabled={locationPermissionStatus === 'requesting' || locationPermissionStatus === 'granted'}
@@ -1519,21 +1505,48 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                   {locationPermissionStatus === 'denied' && "Denied — Enable in Settings"}
                 </button>
                 {locationPermissionStatus === 'idle' && (
-                  <p className="text-xs text-center text-muted-foreground">
-                    When prompted, tap <strong>"Allow While Using App"</strong>
+                  <p className="text-[11px] text-center text-muted-foreground">
+                    Tap <strong>"Allow While Using App"</strong> when prompted
                   </p>
                 )}
                 {locationPermissionStatus === 'denied' && (
-                  <p className="text-xs text-center text-muted-foreground">
-                    If you previously denied, enable Location in iOS Settings for Jvala, then tap again.
+                  <p className="text-[11px] text-center text-muted-foreground">
+                    Enable Location in iOS Settings → Jvala, then tap again.
                   </p>
                 )}
               </div>
 
+              {/* Weather stats hero */}
+              <div className="relative w-full h-14 rounded-2xl overflow-hidden glass-card flex items-center justify-center gap-5 px-6">
+                <div className="text-center"><span className="text-lg">🌤️</span><p className="text-[9px] text-muted-foreground">72°F</p></div>
+                <div className="h-8 w-px bg-border/30" />
+                <div className="text-center"><p className="text-sm font-bold text-primary">AQI 42</p><p className="text-[9px] text-muted-foreground">Good</p></div>
+                <div className="h-8 w-px bg-border/30" />
+                <div className="text-center"><p className="text-sm font-bold">1013</p><p className="text-[9px] text-muted-foreground">hPa</p></div>
+              </div>
+
+              {/* What we track */}
+              <div className="space-y-1.5">
+                {[
+                  { icon: '🌡️', label: "Weather & Temperature", desc: "Temperature swings trigger 40% of migraines" },
+                  { icon: '💨', label: "Air Quality (AQI)", desc: "Pollution correlates with inflammation" },
+                  { icon: '🌿', label: "Pollen Levels", desc: "Seasonal allergy & flare triggers" },
+                  { icon: '📊', label: "Barometric Pressure", desc: "Pressure drops = joint pain trigger" },
+                ].map((item, i) => (
+                  <div key={i} className="glass-card flex items-center gap-3 py-2.5 animate-in fade-in-0 duration-300" style={{ animationDelay: `${i * 80}ms` }}>
+                    <span className="text-base flex-shrink-0">{item.icon}</span>
+                    <div className="flex-1">
+                      <p className="text-xs font-medium">{item.label}</p>
+                      <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
               <div className="glass-card flex items-start gap-3 bg-primary/5">
                 <Shield className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-muted-foreground leading-snug">
-                  <strong>City-level only.</strong> We never track your precise location or share it with anyone.
+                <p className="text-[11px] text-muted-foreground leading-snug">
+                  <strong>City-level only.</strong> We never track your precise location.
                 </p>
               </div>
             </div>
@@ -1543,57 +1556,21 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
       // ─── Step 9: Notifications Permission (LAST — with reasoning) ──────
       case 9:
         return (
-          <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
-            <div className="w-full max-w-sm space-y-5">
-              {/* Compact notification preview */}
-              <div className="relative w-full rounded-2xl overflow-hidden glass-card p-3 space-y-1.5">
-                {[
-                  { time: '9:00 AM', title: '☀️ Morning Check-in', body: 'Quick log to start the day.' },
-                  { time: '2:15 PM', title: '⚠️ Pressure Drop', body: 'Barometric pressure dropped — your #1 trigger.' },
-                ].map((notif, i) => (
-                  <div key={i} className="flex items-start gap-2 p-2 rounded-xl bg-background/60 border border-border/30 animate-in fade-in-0 duration-500" style={{ animationDelay: `${i * 200}ms` }}>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="text-[11px] font-semibold">{notif.title}</p>
-                        <span className="text-[9px] text-muted-foreground">{notif.time}</span>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground">{notif.body}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="text-center space-y-2">
-                <h2 className="text-3xl font-bold">One Last Thing</h2>
-                <p className="text-base text-muted-foreground max-w-xs mx-auto">
-                  Notifications make sure you <strong>never miss a signal</strong> — from reminders to weather alerts.
+          <div className="flex flex-col flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
+            <div className="w-full max-w-sm mx-auto space-y-4">
+              <div className="text-center space-y-1">
+                <h2 className="text-2xl font-bold">One Last Thing</h2>
+                <p className="text-sm text-muted-foreground">
+                  Stay ahead of flares with <strong>context-aware</strong> notifications.
                 </p>
               </div>
 
-              {/* What notifications do */}
-              <div className="space-y-2">
-                {[
-                  { icon: '🌅', label: "Morning & evening check-ins", desc: "Gentle reminders based on your schedule" },
-                  { icon: '🔄', label: "Post-flare follow-ups", desc: "Track recovery 2h and 6h after flares" },
-                  { icon: '🌡️', label: "Environmental alerts", desc: "Weather shifts that may trigger symptoms" },
-                  { icon: '🔥', label: "Streak celebrations", desc: "Stay motivated with milestone alerts" },
-                ].map((item, i) => (
-                  <div key={i} className="glass-card flex items-center gap-3 py-3">
-                    <span className="text-base flex-shrink-0">{item.icon}</span>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{item.label}</p>
-                      <p className="text-[10px] text-muted-foreground">{item.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Permission button */}
+              {/* Permission button — TOP */}
               <button
                 onClick={requestNotificationPermission}
                 disabled={notificationPermissionStatus === 'requesting' || notificationPermissionStatus === 'granted'}
                 className={cn(
-                  "w-full py-4 rounded-2xl text-sm font-semibold transition-all press-effect flex items-center justify-center gap-2",
+                  "w-full py-4 rounded-2xl text-base font-semibold transition-all press-effect flex items-center justify-center gap-2",
                   notificationPermissionStatus === 'granted'
                     ? "bg-green-500/15 text-green-600 border border-green-500/20"
                     : notificationPermissionStatus === 'denied'
@@ -1610,10 +1587,46 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                 {notificationPermissionStatus === 'denied' && "Denied — Enable in Settings"}
               </button>
 
+              {/* Notification preview */}
+              <div className="relative w-full rounded-2xl overflow-hidden glass-card p-2.5 space-y-1.5">
+                {[
+                  { time: '9:00 AM', title: '☀️ Morning Check-in', body: 'Quick log to start the day.' },
+                  { time: '2:15 PM', title: '⚠️ Pressure Drop', body: 'Barometric pressure dropped — your #1 trigger.' },
+                ].map((notif, i) => (
+                  <div key={i} className="flex items-start gap-2 p-2 rounded-xl bg-background/60 border border-border/30 animate-in fade-in-0 duration-500" style={{ animationDelay: `${i * 200}ms` }}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-semibold">{notif.title}</p>
+                        <span className="text-[9px] text-muted-foreground">{notif.time}</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">{notif.body}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* What notifications do */}
+              <div className="space-y-1.5">
+                {[
+                  { icon: '🌅', label: "Morning & evening check-ins", desc: "Gentle reminders on your schedule" },
+                  { icon: '🔄', label: "Post-flare follow-ups", desc: "Track recovery 2h and 6h after" },
+                  { icon: '🌡️', label: "Environmental alerts", desc: "Weather shifts that may trigger symptoms" },
+                  { icon: '🔥', label: "Streak celebrations", desc: "Stay motivated with milestones" },
+                ].map((item, i) => (
+                  <div key={i} className="glass-card flex items-center gap-3 py-2.5">
+                    <span className="text-base flex-shrink-0">{item.icon}</span>
+                    <div className="flex-1">
+                      <p className="text-xs font-medium">{item.label}</p>
+                      <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
               <div className="glass-card flex items-start gap-3 bg-primary/5">
                 <Shield className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
                 <p className="text-[11px] text-muted-foreground leading-snug">
-                  You can customize types and timing in Settings. We'll never spam you — every notification is <strong>context-aware</strong>.
+                  Customize timing in Settings. Every notification is <strong>context-aware</strong>.
                 </p>
               </div>
             </div>
@@ -1664,20 +1677,89 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
 
       {/* Bottom CTA */}
       <div className="px-5 py-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}>
-        <button
-          onClick={handleNext}
-          disabled={!canProceed()}
-          className={cn(
-            "w-full h-14 rounded-2xl text-base font-semibold transition-all press-effect",
-            "flex items-center justify-center gap-2",
-            canProceed()
-              ? "bg-gradient-primary text-primary-foreground shadow-primary"
-              : "bg-muted text-muted-foreground"
-          )}
-        >
-          {step === 0 ? "Let's Get Started" : step === TOTAL_STEPS - 1 ? "Launch Jvala ✨" : "Continue"}
-          <ChevronRight className="w-5 h-5" />
-        </button>
+        {step === TOTAL_STEPS - 1 ? (
+          /* Slide-to-launch button */
+          <div 
+            ref={slideRef}
+            className="relative w-full h-16 rounded-2xl overflow-hidden bg-gradient-primary shadow-primary"
+            onTouchStart={(e) => {
+              slidingRef.current = true;
+              setSlideProgress(0);
+              haptics.medium();
+              // Start continuous haptic interval
+              hapticIntervalRef.current = window.setInterval(() => {
+                if (slidingRef.current) haptics.light();
+              }, 80);
+            }}
+            onTouchMove={(e) => {
+              if (!slidingRef.current || !slideRef.current) return;
+              const touch = e.touches[0];
+              const rect = slideRef.current.getBoundingClientRect();
+              const x = touch.clientX - rect.left;
+              const maxSlide = rect.width - 64;
+              const progress = Math.max(0, Math.min(1, (x - 32) / maxSlide));
+              setSlideProgress(progress);
+              
+              // Intensifying haptics as you slide further
+              if (progress > 0.5 && progress < 0.52) haptics.medium();
+              if (progress > 0.75 && progress < 0.77) haptics.heavy();
+            }}
+            onTouchEnd={() => {
+              slidingRef.current = false;
+              if (hapticIntervalRef.current) {
+                clearInterval(hapticIntervalRef.current);
+                hapticIntervalRef.current = null;
+              }
+              if (slideProgress > 0.85) {
+                haptics.success();
+                setTimeout(() => haptics.heavy(), 100);
+                setTimeout(() => haptics.success(), 250);
+                handleNext();
+              } else {
+                setSlideProgress(0);
+                haptics.light();
+              }
+            }}
+          >
+            {/* Track background text */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <span className="text-primary-foreground/60 text-sm font-semibold" style={{ opacity: 1 - slideProgress }}>
+                Slide to Launch Jvala →
+              </span>
+            </div>
+            
+            {/* Sliding thumb */}
+            <div 
+              className="absolute top-2 left-2 w-12 h-12 rounded-xl bg-white/25 backdrop-blur-sm flex items-center justify-center transition-none shadow-lg"
+              style={{ 
+                transform: `translateX(${slideProgress * ((slideRef.current?.offsetWidth ?? 300) - 64)}px)`,
+                background: slideProgress > 0.85 ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.25)',
+              }}
+            >
+              <Sparkles className={cn("w-5 h-5 text-primary-foreground", slideProgress > 0.5 && "animate-pulse")} />
+            </div>
+
+            {/* Success glow */}
+            {slideProgress > 0.85 && (
+              <div className="absolute inset-0 bg-white/10 animate-pulse" />
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={handleNext}
+            disabled={!canProceed()}
+            className={cn(
+              "w-full h-14 rounded-2xl text-base font-semibold transition-all press-effect",
+              "flex items-center justify-center gap-2",
+              canProceed()
+                ? "bg-gradient-primary text-primary-foreground shadow-primary"
+                : "bg-muted text-muted-foreground"
+            )}
+          >
+            {step === 0 ? "Let's Get Started" : "Continue"}
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        )}
 
         {(step === 3 ||
           step === 4 ||
