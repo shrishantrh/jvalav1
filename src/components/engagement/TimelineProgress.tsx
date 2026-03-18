@@ -28,37 +28,41 @@ interface TimelineProgressProps {
   onBack: () => void;
 }
 
-// SVG circular progress ring
+// SVG circular progress ring — centered via flex, no absolute positioning
 const ProgressRing = ({ progress, size = 56, strokeWidth = 3, earned }: { progress: number; size?: number; strokeWidth?: number; earned: boolean }) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (Math.min(progress, 100) / 100) * circumference;
 
   return (
-    <svg width={size} height={size} className="absolute inset-0">
-      {/* Background circle */}
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        fill="none"
-        stroke="hsl(var(--muted) / 0.4)"
-        strokeWidth={strokeWidth}
-      />
-      {/* Progress arc */}
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        fill="none"
-        stroke={earned ? "hsl(var(--primary))" : "hsl(var(--primary) / 0.5)"}
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeDasharray={circumference}
-        strokeDashoffset={offset}
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        className="transition-all duration-700"
-      />
+    <svg width={size} height={size} className="flex-shrink-0">
+      {/* Background circle — hidden for earned */}
+      {!earned && (
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="hsl(var(--muted) / 0.3)"
+          strokeWidth={strokeWidth}
+        />
+      )}
+      {/* Progress arc — only for unearned */}
+      {!earned && progress > 0 && (
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="hsl(var(--primary) / 0.6)"
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          className="transition-all duration-700"
+        />
+      )}
     </svg>
   );
 };
