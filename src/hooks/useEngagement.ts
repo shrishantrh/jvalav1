@@ -1,28 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { format, parseISO, differenceInDays } from "date-fns";
 
-const BADGE_DEFINITIONS = {
-  // Core badges
-  first_log: { name: 'First Log', description: 'Logged your first entry' },
-  streak_3: { name: '3-Day Streak', description: 'Logged 3 days in a row' },
-  streak_7: { name: 'Week Warrior', description: 'Logged 7 days in a row' },
-  streak_30: { name: 'Monthly Master', description: 'Logged 30 days in a row' },
-  logs_30: { name: '30 Logs', description: 'Logged 30 total entries' },
-  logs_100: { name: 'Century Club', description: 'Logged 100 total entries' },
-  detailed_first: { name: 'Detail Oriented', description: 'First detailed entry' },
-  photo_first: { name: 'Picture Perfect', description: 'First photo log' },
-  voice_first: { name: 'Voice Logger', description: 'First voice note' },
-  // Enhanced badges
-  perfect_week: { name: 'Perfect Week', description: 'Logged every day for a week' },
-  pattern_detective: { name: 'Pattern Detective', description: 'Discovered first correlation' },
-  insight_seeker: { name: 'Insight Seeker', description: 'Viewed insights 5 times' },
-  export_pro: { name: 'Export Pro', description: 'First health export' },
-  self_aware: { name: 'Self Aware', description: 'Tracked 10 different triggers' },
-  symptom_tracker: { name: 'Symptom Tracker', description: 'Tracked 10 different symptoms' },
-  consistency_king: { name: 'Consistency King', description: '80%+ logging for a month' },
-  health_analyst: { name: 'Health Analyst', description: '5 correlations discovered' },
-};
-
 export const useEngagement = () => {
   
   const updateEngagementOnLog = async (userId: string, isDetailed?: boolean): Promise<{
@@ -31,29 +9,23 @@ export const useEngagement = () => {
     currentStreak: number;
   }> => {
     try {
-      // Get existing engagement data
       const { data: engagement } = await supabase
         .from('engagement')
         .select('*')
         .eq('user_id', userId)
         .maybeSingle();
 
-      // Get ACTUAL total logs count from database
       const { count: totalEntries } = await supabase
         .from('flare_entries')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId);
 
-      // This is called AFTER insert, so count already includes new entry
       const actualTotalLogs = totalEntries || 0;
       const today = format(new Date(), 'yyyy-MM-dd');
       const newBadges: string[] = [];
 
-      // No existing engagement record - first time user
       if (!engagement) {
-        // Only give first_log badge if this is truly the first entry
         const badges = actualTotalLogs === 1 ? ['first_log'] : [];
-        
         await supabase
           .from('engagement')
           .insert({
@@ -64,38 +36,27 @@ export const useEngagement = () => {
             last_log_date: today,
             badges
           });
-        
-        return { 
-          newBadges: badges, 
-          streakIncreased: true, 
-          currentStreak: 1 
-        };
+        return { newBadges: badges, streakIncreased: true, currentStreak: 1 };
       }
 
-      // Existing user - calculate streak
+      // Calculate streak
       const lastLogDate = engagement.last_log_date;
       let newStreak = engagement.current_streak || 0;
       let streakIncreased = false;
+      const previousStreak = engagement.current_streak || 0;
       
       if (lastLogDate !== today) {
-        // Check if yesterday was last log date
         const yesterday = format(new Date(Date.now() - 86400000), 'yyyy-MM-dd');
-        
         if (lastLogDate === yesterday) {
-          // Continuing streak
           newStreak = (engagement.current_streak || 0) + 1;
           streakIncreased = true;
         } else if (lastLogDate) {
-          // Check gap - if more than 1 day, reset streak
           const lastDate = parseISO(lastLogDate);
           const gap = differenceInDays(new Date(), lastDate);
-          
           if (gap > 1) {
-            // Streak broken
             newStreak = 1;
             streakIncreased = true;
           } else {
-            // Same day or continuing
             newStreak = Math.max(1, engagement.current_streak || 0);
           }
         } else {
@@ -106,28 +67,66 @@ export const useEngagement = () => {
 
       const newLongestStreak = Math.max(engagement.longest_streak || 0, newStreak);
       const existingBadges = engagement.badges || [];
-      
-      // Badge checks - ONLY award if conditions met AND not already earned
-      if (actualTotalLogs === 1 && !existingBadges.includes('first_log')) {
-        newBadges.push('first_log');
+
+      // === MILESTONE BADGES ===
+      const milestoneThresholds: [number, string][] = [
+        [1, 'first_log'], [10, 'logs_10'], [25, 'logs_25'], [50, 'logs_50'],
+        [100, 'logs_100'], [250, 'logs_250'], [500, 'logs_500'], [1000, 'logs_1000'], [2500, 'logs_2500'],
+      ];
+      for (const [threshold, badge] of milestoneThresholds) {
+        if (actualTotalLogs >= threshold && !existingBadges.includes(badge)) {
+          newBadges.push(badge);
+        }
       }
-      if (newStreak >= 3 && !existingBadges.includes('streak_3')) {
-        newBadges.push('streak_3');
+
+      // === STREAK BADGES ===
+      const streakThresholds: [number, string][] = [
+        [3, 'streak_3'], [7, 'streak_7'], [14, 'streak_14'], [21, 'streak_21'],
+        [30, 'streak_30'], [60, 'streak_60'], [90, 'streak_90'], [180, 'streak_180'], [365, 'streak_365'],
+      ];
+      for (const [threshold, badge] of streakThresholds) {
+        if (newStreak >= threshold && !existingBadges.includes(badge)) {
+          newBadges.push(badge);
+        }
       }
-      if (newStreak >= 7 && !existingBadges.includes('streak_7')) {
-        newBadges.push('streak_7');
+
+      // Comeback kid: rebuilt to 7+ after breaking
+      if (previousStreak === 0 && newStreak >= 7 && !existingBadges.includes('streak_comeback')) {
+        // Check if they had a previous streak that was broken
+        if ((engagement.longest_streak || 0) > newStreak) {
+          newBadges.push('streak_comeback');
+        }
       }
-      if (newStreak >= 30 && !existingBadges.includes('streak_30')) {
-        newBadges.push('streak_30');
-      }
-      if (actualTotalLogs >= 30 && !existingBadges.includes('logs_30')) {
-        newBadges.push('logs_30');
-      }
-      if (actualTotalLogs >= 100 && !existingBadges.includes('logs_100')) {
-        newBadges.push('logs_100');
-      }
+
+      // === FEATURE BADGES ===
       if (isDetailed && !existingBadges.includes('detailed_first')) {
         newBadges.push('detailed_first');
+      }
+
+      // === TIME-BASED BADGES ===
+      const now = new Date();
+      const hour = now.getHours();
+      const month = now.getMonth(); // 0-indexed
+      const day = now.getDate();
+      const monthDay = `${month + 1}-${day}`;
+
+      // Seasonal badges
+      if (month >= 2 && month <= 4 && !existingBadges.includes('spring_tracker')) newBadges.push('spring_tracker');
+      if (month >= 5 && month <= 7 && !existingBadges.includes('summer_logger')) newBadges.push('summer_logger');
+      if (month >= 8 && month <= 10 && !existingBadges.includes('fall_tracker')) newBadges.push('fall_tracker');
+      if ((month === 11 || month <= 1) && !existingBadges.includes('winter_warrior')) newBadges.push('winter_warrior');
+
+      // Special date badges
+      if (monthDay === '1-1' && !existingBadges.includes('new_year_logger')) newBadges.push('new_year_logger');
+      if (monthDay === '2-14' && !existingBadges.includes('valentines_care')) newBadges.push('valentines_care');
+      if (monthDay === '10-31' && !existingBadges.includes('halloween_logger')) newBadges.push('halloween_logger');
+      if (monthDay === '12-25' && !existingBadges.includes('holiday_health')) newBadges.push('holiday_health');
+      if (monthDay === '3-14' && !existingBadges.includes('pi_day')) newBadges.push('pi_day');
+      if (monthDay === '2-29' && !existingBadges.includes('leap_year')) newBadges.push('leap_year');
+
+      // Midnight logger
+      if (hour === 0 && now.getMinutes() < 5 && !existingBadges.includes('midnight_logger')) {
+        newBadges.push('midnight_logger');
       }
 
       await supabase
@@ -157,7 +156,6 @@ export const useEngagement = () => {
     return data;
   };
 
-  // Award special badges for specific actions
   const awardBadge = async (userId: string, badgeId: string): Promise<boolean> => {
     try {
       const { data: engagement } = await supabase
@@ -167,10 +165,7 @@ export const useEngagement = () => {
         .maybeSingle();
 
       const existingBadges = engagement?.badges || [];
-      
-      if (existingBadges.includes(badgeId)) {
-        return false; // Already has badge
-      }
+      if (existingBadges.includes(badgeId)) return false;
 
       await supabase
         .from('engagement')
@@ -184,7 +179,6 @@ export const useEngagement = () => {
     }
   };
 
-  // Check for correlation-based badges
   const checkCorrelationBadges = async (userId: string): Promise<string[]> => {
     try {
       const { count } = await supabase
@@ -201,12 +195,9 @@ export const useEngagement = () => {
 
       const existingBadges = engagement?.badges || [];
 
-      if (count && count >= 1 && !existingBadges.includes('pattern_detective')) {
-        newBadges.push('pattern_detective');
-      }
-      if (count && count >= 5 && !existingBadges.includes('health_analyst')) {
-        newBadges.push('health_analyst');
-      }
+      if (count && count >= 1 && !existingBadges.includes('pattern_detective')) newBadges.push('pattern_detective');
+      if (count && count >= 5 && !existingBadges.includes('health_analyst')) newBadges.push('health_analyst');
+      if (count && count >= 10 && !existingBadges.includes('data_scientist')) newBadges.push('data_scientist');
 
       if (newBadges.length > 0) {
         await supabase
@@ -222,22 +213,35 @@ export const useEngagement = () => {
     }
   };
 
-  // Check for tracking variety badges (symptoms/triggers)
   const checkTrackingBadges = async (userId: string): Promise<string[]> => {
     try {
       const { data: entries } = await supabase
         .from('flare_entries')
-        .select('symptoms, triggers')
+        .select('symptoms, triggers, medications, photos, voice_transcript, energy_level, environmental_data, city, severity')
         .eq('user_id', userId);
 
       if (!entries) return [];
 
       const allSymptoms = new Set<string>();
       const allTriggers = new Set<string>();
+      const allCities = new Set<string>();
+      let photoCount = 0;
+      let voiceCount = 0;
+      let medCount = 0;
+      let energyCount = 0;
+      let weatherCount = 0;
+      const severities = new Set<string>();
 
       entries.forEach(entry => {
         (entry.symptoms || []).forEach((s: string) => allSymptoms.add(s));
         (entry.triggers || []).forEach((t: string) => allTriggers.add(t));
+        if (entry.photos?.length) photoCount++;
+        if (entry.voice_transcript) voiceCount++;
+        if (entry.medications?.length) medCount++;
+        if (entry.energy_level) energyCount++;
+        if (entry.environmental_data) weatherCount++;
+        if (entry.city) allCities.add(entry.city);
+        if (entry.severity) severities.add(entry.severity);
       });
 
       const newBadges: string[] = [];
@@ -247,19 +251,46 @@ export const useEngagement = () => {
         .eq('user_id', userId)
         .maybeSingle();
 
-      const existingBadges = engagement?.badges || [];
+      const existing = engagement?.badges || [];
 
-      if (allSymptoms.size >= 10 && !existingBadges.includes('symptom_tracker')) {
-        newBadges.push('symptom_tracker');
+      // Symptom badges
+      if (allSymptoms.size >= 10 && !existing.includes('symptom_tracker')) newBadges.push('symptom_tracker');
+      if (allSymptoms.size >= 25 && !existing.includes('symptom_master')) newBadges.push('symptom_master');
+
+      // Trigger badges
+      if (allTriggers.size >= 10 && !existing.includes('trigger_detective')) newBadges.push('trigger_detective');
+      if (allTriggers.size >= 25 && !existing.includes('trigger_master')) newBadges.push('trigger_master');
+
+      // Feature count badges
+      if (photoCount >= 10 && !existing.includes('photo_10')) newBadges.push('photo_10');
+      if (voiceCount >= 10 && !existing.includes('voice_10')) newBadges.push('voice_10');
+      if (medCount >= 20 && !existing.includes('med_tracker')) newBadges.push('med_tracker');
+      if (energyCount >= 20 && !existing.includes('energy_tracker')) newBadges.push('energy_tracker');
+      if (weatherCount >= 50 && !existing.includes('weather_watcher')) newBadges.push('weather_watcher');
+
+      // Location badges
+      if (allCities.size >= 5 && !existing.includes('road_tripper')) newBadges.push('road_tripper');
+      if (allCities.size >= 10 && !existing.includes('city_hopper')) newBadges.push('city_hopper');
+      if (allCities.size >= 1 && !existing.includes('nomad')) newBadges.push('nomad');
+      if (allCities.size >= 10 && !existing.includes('location_tracker')) newBadges.push('location_tracker');
+
+      // Mood master - logged all severity types
+      if (severities.has('mild') && severities.has('moderate') && severities.has('severe') && !existing.includes('mood_master')) {
+        newBadges.push('mood_master');
       }
-      if (allTriggers.size >= 10 && !existingBadges.includes('self_aware')) {
-        newBadges.push('self_aware');
-      }
+
+      // Time-based consistency badges  
+      let earlyCount = 0;
+      let nightCount = 0;
+      let noonCount = 0;
+      entries.forEach(entry => {
+        // We don't have timestamp in this query, but we can check from the entry if needed
+      });
 
       if (newBadges.length > 0) {
         await supabase
           .from('engagement')
-          .update({ badges: [...existingBadges, ...newBadges] })
+          .update({ badges: [...existing, ...newBadges] })
           .eq('user_id', userId);
       }
 
@@ -270,7 +301,6 @@ export const useEngagement = () => {
     }
   };
 
-  // Check for consistency badges (perfect_week, consistency_king)
   const checkConsistencyBadges = async (userId: string, entries: { timestamp: Date }[]): Promise<string[]> => {
     try {
       const { data: engagement } = await supabase
@@ -282,7 +312,7 @@ export const useEngagement = () => {
       const existingBadges = engagement?.badges || [];
       const newBadges: string[] = [];
 
-      // Check for perfect_week: 7 consecutive days logged
+      // Perfect week
       const last7Days = new Set<string>();
       const today = new Date();
       for (let i = 0; i < 7; i++) {
@@ -304,7 +334,7 @@ export const useEngagement = () => {
         newBadges.push('perfect_week');
       }
 
-      // Check for consistency_king: 80%+ logging for current month
+      // Consistency king
       const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
       const dayOfMonth = today.getDate();
       const entriesThisMonth = entries.filter(e => new Date(e.timestamp) >= startOfMonth);
@@ -316,6 +346,20 @@ export const useEngagement = () => {
       if (consistencyRate >= 80 && dayOfMonth >= 7 && !existingBadges.includes('consistency_king')) {
         newBadges.push('consistency_king');
       }
+
+      // Early bird / night owl check
+      let earlyCount = 0;
+      let nightCount = 0;
+      let noonCount = 0;
+      entries.forEach(e => {
+        const h = new Date(e.timestamp).getHours();
+        if (h < 7) earlyCount++;
+        if (h >= 22) nightCount++;
+        if (h >= 11 && h <= 13) noonCount++;
+      });
+      if (earlyCount >= 10 && !existingBadges.includes('early_bird')) newBadges.push('early_bird');
+      if (nightCount >= 10 && !existingBadges.includes('night_owl')) newBadges.push('night_owl');
+      if (noonCount >= 10 && !existingBadges.includes('lunch_logger')) newBadges.push('lunch_logger');
 
       if (newBadges.length > 0) {
         await supabase
@@ -333,26 +377,12 @@ export const useEngagement = () => {
 
   const syncEngagementTotals = async (userId: string) => {
     try {
-      // Get actual count from entries
       const { count } = await supabase
         .from('flare_entries')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId);
       
       if (count !== null) {
-        // Get current engagement to preserve badges
-        const { data: engagement } = await supabase
-          .from('engagement')
-          .select('badges')
-          .eq('user_id', userId)
-          .maybeSingle();
-
-        // Only award first_log badge if count is actually 1 and not already awarded
-        const existingBadges = engagement?.badges || [];
-        const shouldHaveFirstLog = count >= 1 && !existingBadges.includes('first_log');
-        
-        // Don't retroactively add first_log for users with many entries
-        // Only users with exactly 1 entry get it fresh
         await supabase
           .from('engagement')
           .update({ total_logs: count })
@@ -363,22 +393,13 @@ export const useEngagement = () => {
     }
   };
 
-  const getBadgeInfo = (badgeId: string) => {
-    return BADGE_DEFINITIONS[badgeId as keyof typeof BADGE_DEFINITIONS] || { 
-      name: badgeId, 
-      description: 'Achievement unlocked' 
-    };
-  };
-
   return { 
     updateEngagementOnLog, 
     getEngagement, 
     syncEngagementTotals,
-    getBadgeInfo,
     awardBadge,
     checkCorrelationBadges,
     checkTrackingBadges,
     checkConsistencyBadges,
-    BADGE_DEFINITIONS
   };
 };
