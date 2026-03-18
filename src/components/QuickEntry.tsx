@@ -16,6 +16,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { useEntryContext } from "@/hooks/useEntryContext";
+import { haptics } from "@/lib/haptics";
 
 interface QuickEntryProps {
   onSave: (entry: Partial<FlareEntry>) => void;
