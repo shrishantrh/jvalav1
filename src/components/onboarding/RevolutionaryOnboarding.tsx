@@ -1248,6 +1248,11 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                     When prompted, tap <strong>"Allow While Using App"</strong>
                   </p>
                 )}
+                {locationPermissionStatus === 'denied' && (
+                  <p className="text-xs text-center text-muted-foreground">
+                    If you previously denied, enable Location in iOS Settings for Jvala, then tap again.
+                  </p>
+                )}
               </div>
 
               <div className="glass-card flex items-start gap-3 bg-primary/5">
