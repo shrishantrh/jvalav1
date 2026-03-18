@@ -819,75 +819,87 @@ export const useWearableData = () => {
   }, [toast]);
 
   const getDataForEntry = useCallback((): Record<string, unknown> | null => {
-    if (!data) return null;
-    
-    // Return comprehensive physiological data for flare entries
-    return {
+    const sourceData = data ?? getCachedHealthData();
+    if (!sourceData) return null;
+
+    const payload = {
       // Core vitals
-      heart_rate: data.heartRate,
-      resting_heart_rate: data.restingHeartRate,
-      heart_rate_variability: data.heartRateVariability,
-      hrv_rmssd: data.hrvRmssd,
-      hrv_coverage: data.hrvCoverage,
-      hrv_low_freq: data.hrvLowFreq,
-      hrv_high_freq: data.hrvHighFreq,
-      
+      heart_rate: sourceData.heartRate,
+      resting_heart_rate: sourceData.restingHeartRate,
+      heart_rate_variability: sourceData.heartRateVariability,
+      hrv_rmssd: sourceData.hrvRmssd,
+      hrv_coverage: sourceData.hrvCoverage,
+      hrv_low_freq: sourceData.hrvLowFreq,
+      hrv_high_freq: sourceData.hrvHighFreq,
+
       // Blood Oxygen
-      spo2: data.spo2,
-      spo2_avg: data.spo2Avg,
-      spo2_min: data.spo2Min,
-      spo2_max: data.spo2Max,
-      
+      spo2: sourceData.spo2,
+      spo2_avg: sourceData.spo2Avg,
+      spo2_min: sourceData.spo2Min,
+      spo2_max: sourceData.spo2Max,
+
       // Breathing
-      breathing_rate: data.breathingRate,
-      breathing_rate_deep_sleep: data.breathingRateDeepSleep,
-      breathing_rate_light_sleep: data.breathingRateLightSleep,
-      breathing_rate_rem_sleep: data.breathingRateRemSleep,
-      
+      breathing_rate: sourceData.breathingRate,
+      breathing_rate_deep_sleep: sourceData.breathingRateDeepSleep,
+      breathing_rate_light_sleep: sourceData.breathingRateLightSleep,
+      breathing_rate_rem_sleep: sourceData.breathingRateRemSleep,
+
       // Temperature
-      skin_temperature: data.skinTemperature,
-      
+      skin_temperature: sourceData.skinTemperature,
+
       // Cardio Fitness
-      vo2_max: data.vo2Max,
-      vo2_max_range: data.vo2MaxRange,
-      
+      vo2_max: sourceData.vo2Max,
+      vo2_max_range: sourceData.vo2MaxRange,
+
       // Active Zone Minutes
-      active_zone_minutes_total: data.activeZoneMinutesTotal,
-      fat_burn_minutes: data.fatBurnMinutes,
-      cardio_minutes: data.cardioMinutes,
-      peak_minutes: data.peakMinutes,
-      
+      active_zone_minutes_total: sourceData.activeZoneMinutesTotal,
+      fat_burn_minutes: sourceData.fatBurnMinutes,
+      cardio_minutes: sourceData.cardioMinutes,
+      peak_minutes: sourceData.peakMinutes,
+
       // Sleep
-      sleep_hours: data.sleepHours,
-      sleep_minutes: data.sleepMinutes,
-      sleep_quality: data.sleepQuality,
-      sleep_stages: data.sleepStages,
-      deep_sleep_minutes: data.deepSleepMinutes,
-      light_sleep_minutes: data.lightSleepMinutes,
-      rem_sleep_minutes: data.remSleepMinutes,
-      wake_sleep_minutes: data.wakeSleepMinutes,
-      sleep_efficiency: data.sleepEfficiency,
-      time_in_bed: data.timeInBed,
-      
+      sleep_hours: sourceData.sleepHours,
+      sleep_minutes: sourceData.sleepMinutes,
+      sleep_quality: sourceData.sleepQuality,
+      sleep_stages: sourceData.sleepStages,
+      deep_sleep_minutes: sourceData.deepSleepMinutes,
+      light_sleep_minutes: sourceData.lightSleepMinutes,
+      rem_sleep_minutes: sourceData.remSleepMinutes,
+      wake_sleep_minutes: sourceData.wakeSleepMinutes,
+      sleep_efficiency: sourceData.sleepEfficiency,
+      time_in_bed: sourceData.timeInBed,
+
       // Activity
-      steps: data.steps,
-      active_minutes: data.activeMinutes,
-      fairly_active_minutes: data.fairlyActiveMinutes,
-      very_active_minutes: data.veryActiveMinutes,
-      lightly_active_minutes: data.lightlyActiveMinutes,
-      sedentary_minutes: data.sedentaryMinutes,
-      calories_burned: data.caloriesBurned,
-      calories_bmr: data.caloriesBMR,
-      activity_calories: data.activityCalories,
-      floors: data.floors,
-      elevation: data.elevation,
-      distance: data.distance,
-      
+      steps: sourceData.steps,
+      active_minutes: sourceData.activeMinutes,
+      fairly_active_minutes: sourceData.fairlyActiveMinutes,
+      very_active_minutes: sourceData.veryActiveMinutes,
+      lightly_active_minutes: sourceData.lightlyActiveMinutes,
+      sedentary_minutes: sourceData.sedentaryMinutes,
+      calories_burned: sourceData.caloriesBurned,
+      calories_bmr: sourceData.caloriesBMR,
+      activity_calories: sourceData.activityCalories,
+      floors: sourceData.floors,
+      elevation: sourceData.elevation,
+      distance: sourceData.distance,
+
       // Metadata
-      synced_at: data.lastSyncedAt?.toISOString(),
-      source: data.source,
-      data_date: data.dataDate,
+      synced_at: sourceData.lastSyncedAt?.toISOString(),
+      source: sourceData.source,
+      data_date: sourceData.dataDate,
     };
+
+    const hasKeyMetric = [
+      payload.steps,
+      payload.sleep_hours,
+      payload.heart_rate,
+      payload.calories_burned,
+      payload.distance,
+      payload.spo2,
+      payload.resting_heart_rate,
+    ].some((value) => typeof value === 'number' && !Number.isNaN(value));
+
+    return hasKeyMetric || payload.source ? payload : null;
   }, [data]);
 
   return {
