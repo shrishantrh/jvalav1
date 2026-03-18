@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from "@/integrations/supabase/client";
+import { isNative } from '@/lib/capacitor';
 
 interface LocationData {
   latitude: number;
@@ -43,21 +44,35 @@ export const useLocationWeatherData = () => {
     setError(null);
 
     try {
-      // Get real location from browser
-      if (!navigator.geolocation) {
-        throw new Error('Geolocation not supported');
+      let latitude: number;
+      let longitude: number;
+
+      if (isNative) {
+        // Use Capacitor Geolocation — check permissions first, never prompt here
+        const { Geolocation } = await import('@capacitor/geolocation');
+        const permStatus = await Geolocation.checkPermissions();
+        if (permStatus.location !== 'granted' && permStatus.coarseLocation !== 'granted') {
+          throw new Error('Location permission not granted');
+        }
+        const pos = await Geolocation.getCurrentPosition({ timeout: 10000 });
+        latitude = pos.coords.latitude;
+        longitude = pos.coords.longitude;
+      } else {
+        // Web fallback
+        if (!navigator.geolocation) {
+          throw new Error('Geolocation not supported');
+        }
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 60000
+          });
+        });
+        latitude = position.coords.latitude;
+        longitude = position.coords.longitude;
       }
 
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 60000
-        });
-      });
-
-      const { latitude, longitude } = position.coords;
-      
       // Call the real weather API
       const { data, error: apiError } = await supabase.functions.invoke('get-weather', {
         body: { latitude, longitude }
@@ -76,16 +91,12 @@ export const useLocationWeatherData = () => {
       const errorMessage = err?.message || 'Failed to collect environmental data';
       setError(errorMessage);
       console.error('Environmental data collection error:', err);
-      
-      // Don't set fake data - just leave as null so UI can handle it
     } finally {
       setLoading(false);
     }
   };
 
   const getPhysiologicalData = () => {
-    // Simulate physiological data (normally from health apps/devices)
-    // TODO: Integrate with HealthKit / Google Fit when available
     return {
       heartRate: Math.round(60 + Math.random() * 40),
       heartRateVariability: Math.round(20 + Math.random() * 80),

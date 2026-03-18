@@ -295,6 +295,21 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
   const [locationPermissionStatus, setLocationPermissionStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle');
   const [notificationPermissionStatus, setNotificationPermissionStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle');
 
+  // When arriving at the location step, check if permission was already granted (e.g. from an earlier prompt)
+  useEffect(() => {
+    if (step === 8 && locationPermissionStatus === 'idle' && isNative) {
+      (async () => {
+        try {
+          const { Geolocation } = await import('@capacitor/geolocation');
+          const permStatus = await Geolocation.checkPermissions();
+          if (permStatus.location === 'granted' || permStatus.coarseLocation === 'granted') {
+            setLocationPermissionStatus('granted');
+          }
+        } catch {}
+      })();
+    }
+  }, [step]);
+
   const requestNotificationPermission = async () => {
     setNotificationPermissionStatus('requesting');
     haptics.selection();
@@ -340,7 +355,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
 
       // Mirror the WORKING logic from useWearableData.connectDevice:
       // 1) Check plugin presence (fast, sync) — skip isAvailable() which hangs on iOS
-      const { isHealthPluginPresent, HEALTH_FULL_READ, HEALTH_MINIMAL_READ } = await import('@/services/appleHealthService');
+      const { isHealthPluginPresent, HEALTH_FULL_READ } = await import('@/services/appleHealthService');
       
       if (!isHealthPluginPresent()) {
         console.warn('[Onboarding] Health plugin not present in this build');
@@ -356,41 +371,20 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
         return;
       }
 
-      // 3) Skip isAvailable() entirely — go straight to requestAuthorization (same as profile connect)
+      // 3) Request FULL authorization — no minimal fallback
       console.log('[Onboarding] Plugin present, skipping isAvailable(), requesting full permissions...');
 
-      let ok = false;
-      // Try FULL first
       try {
         await Promise.race([
           plugin.requestAuthorization({ read: HEALTH_FULL_READ, write: [] }),
           new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000)),
         ]);
-        ok = true;
-      } catch (e) {
-        console.warn('[Onboarding] Full auth failed, trying minimal:', e instanceof Error ? e.message : e);
-      }
-
-      // Fallback to minimal
-      if (!ok) {
-        try {
-          await Promise.race([
-            plugin.requestAuthorization({ read: HEALTH_MINIMAL_READ, write: [] }),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000)),
-          ]);
-          ok = true;
-        } catch (e) {
-          console.warn('[Onboarding] Minimal auth also failed:', e instanceof Error ? e.message : e);
-        }
-      }
-
-      if (ok) {
-        console.log('[Onboarding] Health auth granted');
-        // Persist connection state so useWearableData picks it up
+        console.log('[Onboarding] Health auth granted (full)');
         try { localStorage.setItem('jvala_health_connected', '1'); } catch {}
         setHealthPermissionStatus('granted');
         haptics.success();
-      } else {
+      } catch (e) {
+        console.warn('[Onboarding] Health auth failed:', e instanceof Error ? e.message : e);
         setHealthPermissionStatus('denied');
       }
     } catch (e) {
@@ -1027,18 +1021,14 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
         return (
           <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
             <div className="w-full max-w-sm space-y-5">
-              {/* Hero visual */}
-              <div className="relative w-full aspect-[16/9] rounded-3xl overflow-hidden glass-card">
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, hsl(var(--primary) / 0.08) 0%, hsl(330 80% 55% / 0.12) 50%, hsl(var(--primary) / 0.05) 100%)' }} />
-                <div className="relative flex items-center justify-center h-full gap-4 px-6">
-                  {/* Heart rate visualization */}
-                  <svg viewBox="0 0 200 80" className="w-36 h-auto">
-                    <path d="M 0 40 L 30 40 L 40 20 L 50 60 L 60 35 L 70 45 L 80 40 L 110 40 L 120 15 L 130 65 L 140 30 L 150 50 L 160 40 L 200 40" fill="none" stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" className="animate-pulse" />
-                  </svg>
-                  <div className="text-right">
-                    <p className="text-3xl font-bold text-primary">72</p>
-                    <p className="text-[10px] text-muted-foreground">BPM</p>
-                  </div>
+              {/* Compact hero — ECG line */}
+              <div className="relative w-full h-16 rounded-2xl overflow-hidden glass-card flex items-center justify-center gap-4 px-6">
+                <svg viewBox="0 0 200 40" className="w-28 h-auto">
+                  <path d="M 0 20 L 30 20 L 40 8 L 50 32 L 60 18 L 70 22 L 80 20 L 110 20 L 120 5 L 130 35 L 140 15 L 150 25 L 160 20 L 200 20" fill="none" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" className="animate-pulse" />
+                </svg>
+                <div className="text-right">
+                  <p className="text-xl font-bold text-primary">72</p>
+                  <p className="text-[9px] text-muted-foreground">BPM</p>
                 </div>
               </div>
 
@@ -1113,25 +1103,13 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
         return (
           <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
             <div className="w-full max-w-sm space-y-5">
-              {/* Hero visual - weather/environment */}
-              <div className="relative w-full aspect-[16/9] rounded-3xl overflow-hidden glass-card">
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, hsl(200 80% 55% / 0.08) 0%, hsl(var(--primary) / 0.08) 50%, hsl(160 70% 50% / 0.06) 100%)' }} />
-                <div className="relative flex items-center justify-center h-full gap-6 px-6">
-                  <div className="text-center">
-                    <p className="text-4xl">🌤️</p>
-                    <p className="text-xs text-muted-foreground mt-1">72°F</p>
-                  </div>
-                  <div className="h-12 w-px bg-border/30" />
-                  <div className="text-center">
-                    <p className="text-lg font-bold text-primary">AQI 42</p>
-                    <p className="text-[10px] text-muted-foreground">Good</p>
-                  </div>
-                  <div className="h-12 w-px bg-border/30" />
-                  <div className="text-center">
-                    <p className="text-lg font-bold text-foreground">1013</p>
-                    <p className="text-[10px] text-muted-foreground">hPa</p>
-                  </div>
-                </div>
+              {/* Compact hero — weather stats inline */}
+              <div className="relative w-full h-16 rounded-2xl overflow-hidden glass-card flex items-center justify-center gap-5 px-6">
+                <div className="text-center"><span className="text-xl">🌤️</span><p className="text-[9px] text-muted-foreground">72°F</p></div>
+                <div className="h-8 w-px bg-border/30" />
+                <div className="text-center"><p className="text-sm font-bold text-primary">AQI 42</p><p className="text-[9px] text-muted-foreground">Good</p></div>
+                <div className="h-8 w-px bg-border/30" />
+                <div className="text-center"><p className="text-sm font-bold">1013</p><p className="text-[9px] text-muted-foreground">hPa</p></div>
               </div>
 
               <div className="text-center space-y-2">
@@ -1203,21 +1181,19 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
         return (
           <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
             <div className="w-full max-w-sm space-y-5">
-              {/* Hero visual - notification mockup */}
-              <div className="relative w-full rounded-3xl overflow-hidden glass-card p-4 space-y-2">
-                {/* Fake notification bubbles */}
+              {/* Compact notification preview */}
+              <div className="relative w-full rounded-2xl overflow-hidden glass-card p-3 space-y-1.5">
                 {[
-                  { time: '9:00 AM', title: '☀️ Morning Check-in', body: 'How did you sleep? Quick log to start the day.' },
-                  { time: '2:15 PM', title: '⚠️ Pressure Drop Alert', body: 'Barometric pressure dropped 12 hPa — your #1 migraine trigger.' },
-                  { time: '8:00 PM', title: '🔥 Streak at Risk!', body: "You haven't logged today. Tap to keep your 7-day streak." },
+                  { time: '9:00 AM', title: '☀️ Morning Check-in', body: 'Quick log to start the day.' },
+                  { time: '2:15 PM', title: '⚠️ Pressure Drop', body: 'Barometric pressure dropped — your #1 trigger.' },
                 ].map((notif, i) => (
-                  <div key={i} className="flex items-start gap-3 p-3 rounded-2xl bg-background/60 border border-border/30 animate-in fade-in-0 slide-in-from-right-4 duration-500" style={{ animationDelay: `${i * 200}ms` }}>
+                  <div key={i} className="flex items-start gap-2 p-2 rounded-xl bg-background/60 border border-border/30 animate-in fade-in-0 duration-500" style={{ animationDelay: `${i * 200}ms` }}>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold">{notif.title}</p>
+                        <p className="text-[11px] font-semibold">{notif.title}</p>
                         <span className="text-[9px] text-muted-foreground">{notif.time}</span>
                       </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">{notif.body}</p>
+                      <p className="text-[10px] text-muted-foreground">{notif.body}</p>
                     </div>
                   </div>
                 ))}
