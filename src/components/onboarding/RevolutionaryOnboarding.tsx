@@ -355,7 +355,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
 
       // Mirror the WORKING logic from useWearableData.connectDevice:
       // 1) Check plugin presence (fast, sync) — skip isAvailable() which hangs on iOS
-      const { isHealthPluginPresent, HEALTH_FULL_READ, HEALTH_MINIMAL_READ } = await import('@/services/appleHealthService');
+      const { isHealthPluginPresent, HEALTH_FULL_READ } = await import('@/services/appleHealthService');
       
       if (!isHealthPluginPresent()) {
         console.warn('[Onboarding] Health plugin not present in this build');
