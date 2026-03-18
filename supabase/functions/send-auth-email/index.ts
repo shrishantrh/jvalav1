@@ -50,7 +50,7 @@ serve(async (req) => {
         email,
         password,
         options: {
-          redirectTo: "https://app.jvala.tech/#/confirm-email",
+          redirectTo: "https://app.jvala.tech/confirm-email",
         },
       });
 
@@ -72,7 +72,7 @@ serve(async (req) => {
       // Force redirect_to to jvala.tech (Supabase overrides with its Site URL)
       actionLink = actionLink.replace(
         /redirect_to=[^&]*/,
-        "redirect_to=" + encodeURIComponent("https://app.jvala.tech/#/confirm-email")
+        "redirect_to=" + encodeURIComponent("https://app.jvala.tech/confirm-email")
       );
 
       // Also set terms_accepted_at on the new profile
@@ -90,7 +90,7 @@ serve(async (req) => {
         type: "recovery",
         email,
         options: {
-          redirectTo: "https://app.jvala.tech/#/reset-password",
+          redirectTo: "https://app.jvala.tech/reset-password",
         },
       });
 
@@ -105,7 +105,7 @@ serve(async (req) => {
       // Force redirect_to to jvala.tech
       actionLink = actionLink.replace(
         /redirect_to=[^&]*/,
-        "redirect_to=" + encodeURIComponent("https://app.jvala.tech/#/reset-password")
+        "redirect_to=" + encodeURIComponent("https://app.jvala.tech/reset-password")
       );
 
       subject = "Reset your password — Jvala";

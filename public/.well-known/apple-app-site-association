@@ -7,8 +7,10 @@
         "paths": [
           "/confirm-email",
           "/confirm-email/*",
+          "/confirm-email/",
           "/reset-password",
           "/reset-password/*",
+          "/reset-password/",
           "/open-app",
           "/open-app/*"
         ]

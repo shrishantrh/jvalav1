@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reset password — Jvala</title>
+  <style>
+    body { margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(135deg, #F3F0FF 0%, #FDF2F8 100%); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .spinner { width: 32px; height: 32px; border: 3px solid #E5E7EB; border-top-color: #D6006C; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    p { color: #6B7280; font-size: 15px; }
+  </style>
+</head>
+<body>
+  <div style="text-align:center">
+    <div class="spinner"></div>
+    <p>Loading…</p>
+  </div>
+  <script>
+    var hash = window.location.hash || '';
+    var params = hash.startsWith('#') ? hash.slice(1) : hash;
+    window.location.replace('/#/reset-password' + (params ? '?' + params : ''));
+  </script>
+</body>
+</html>
