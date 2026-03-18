@@ -15,8 +15,10 @@ import ClinicianDashboard from "./pages/ClinicianDashboard";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
+import ConfirmEmail from "./pages/ConfirmEmail";
 import { OfflineIndicator } from "./components/pwa/OfflineIndicator";
 import { InstallPrompt } from "./components/pwa/InstallPrompt";
+import { SmartAppBanner } from "./components/pwa/SmartAppBanner";
 
 const queryClient = new QueryClient();
 
