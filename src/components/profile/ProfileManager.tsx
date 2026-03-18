@@ -147,7 +147,7 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
   return (
     <div className="space-y-4">
       <Tabs defaultValue="personal" onValueChange={() => haptics.selection()} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 h-14 glass-card border-0 rounded-2xl p-2">
+        <TabsList className="grid w-full grid-cols-3 h-16 glass-card border-0 rounded-2xl p-2.5">
           <TabsTrigger value="personal" className="h-full text-xs rounded-xl gap-1.5">
             <User className="w-3.5 h-3.5" />
             Personal
