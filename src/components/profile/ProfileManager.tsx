@@ -415,13 +415,6 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
           {userId && <EHRIntegration userId={userId} />}
           <NotificationSettings />
           <WearableIntegration />
-          {userId && (
-            <WeeklyDigestSettings 
-              userId={userId} 
-              userEmail={profile.email || undefined}
-              userName={profile.full_name || undefined}
-            />
-          )}
         </TabsContent>
       </Tabs>
     </div>
