@@ -403,11 +403,28 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
     setLocationPermissionStatus('requesting');
     haptics.selection();
     try {
-      await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
-      });
-      setLocationPermissionStatus('granted');
-      haptics.success();
+      if (isNative) {
+        // Use Capacitor Geolocation for native iOS prompt ("Allow Jvala to use your location")
+        const { Geolocation } = await import('@capacitor/geolocation');
+        const permResult = await Geolocation.requestPermissions();
+        if (permResult.location === 'granted' || permResult.coarseLocation === 'granted') {
+          // Also do a position fetch to confirm it works
+          try {
+            await Geolocation.getCurrentPosition({ timeout: 10000 });
+          } catch {}
+          setLocationPermissionStatus('granted');
+          haptics.success();
+        } else {
+          setLocationPermissionStatus('denied');
+        }
+      } else {
+        // Web fallback
+        await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
+        });
+        setLocationPermissionStatus('granted');
+        haptics.success();
+      }
     } catch {
       setLocationPermissionStatus('denied');
     }
@@ -508,11 +525,11 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               </div>
 
               <div className="space-y-3">
-                <h1 className="text-3xl font-bold text-gradient-primary leading-tight">
+                <h1 className="text-4xl font-bold text-gradient-primary leading-tight">
                   Your Health,<br />Understood.
                 </h1>
-                <p className="text-base text-muted-foreground max-w-[280px] mx-auto leading-relaxed">
-                  An AI health companion that learns your unique patterns and predicts what's coming — so you can live better.
+                <p className="text-lg text-muted-foreground max-w-[300px] mx-auto leading-relaxed">
+                  An AI health companion that learns your unique patterns and predicts what's coming.
                 </p>
               </div>
 
@@ -531,8 +548,8 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                       <item.icon className="w-5 h-5 text-primary-foreground" />
                     </div>
                     <div className="text-left">
-                      <p className="text-sm font-semibold">{item.title}</p>
-                      <p className="text-xs text-muted-foreground">{item.desc}</p>
+                      <p className="text-base font-semibold">{item.title}</p>
+                      <p className="text-sm text-muted-foreground">{item.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -551,8 +568,8 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               </div>
 
               <div className="space-y-2">
-                <h2 className="text-2xl font-bold">What should we call you?</h2>
-                <p className="text-sm text-muted-foreground">
+                <h2 className="text-3xl font-bold">What should we call you?</h2>
+                <p className="text-base text-muted-foreground">
                   So your health assistant feels personal.
                 </p>
               </div>
@@ -580,11 +597,11 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
         return (
           <div className="space-y-4 animate-in fade-in-0 slide-in-from-right-4 duration-500 flex-1">
             <div className="text-center space-y-2">
-              <h2 className="text-2xl font-bold">
+              <h2 className="text-3xl font-bold">
                 {data.firstName ? `${data.firstName}, what` : "What"} are you managing?
               </h2>
-              <p className="text-sm text-muted-foreground">
-                Type anything — chronic conditions, deficiencies, or health concerns. Our AI will learn what matters for <span className="font-medium text-foreground">your</span> body.
+              <p className="text-base text-muted-foreground">
+                Type anything — chronic conditions, deficiencies, or health concerns.
               </p>
             </div>
 
@@ -1026,9 +1043,9 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               </div>
 
               <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold">Connect Apple Health</h2>
-                <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-                  Your body tells a story. Heart rate spikes, poor sleep, and activity drops often <strong>precede flares by hours</strong>. Let Jvala read the signals.
+                <h2 className="text-3xl font-bold">Connect Apple Health</h2>
+                <p className="text-base text-muted-foreground max-w-xs mx-auto">
+                  Heart rate spikes, poor sleep, and activity drops often <strong>precede flares by hours</strong>. Let Jvala read the signals.
                 </p>
               </div>
 
@@ -1118,9 +1135,9 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               </div>
 
               <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold">Enable Location</h2>
-                <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-                  Weather shifts, air quality drops, and pressure changes are <strong>clinically proven triggers</strong> for many conditions. Jvala tracks them automatically.
+                <h2 className="text-3xl font-bold">Enable Location</h2>
+                <p className="text-base text-muted-foreground max-w-xs mx-auto">
+                  Weather shifts, air quality drops, and pressure changes are <strong>clinically proven triggers</strong>. Jvala tracks them automatically.
                 </p>
               </div>
 
@@ -1143,30 +1160,37 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               </div>
 
               {/* Permission button */}
-              <button
-                onClick={requestLocationPermission}
-                disabled={locationPermissionStatus === 'requesting' || locationPermissionStatus === 'granted'}
-                className={cn(
-                  "w-full py-4 rounded-2xl text-sm font-semibold transition-all press-effect flex items-center justify-center gap-2",
-                  locationPermissionStatus === 'granted'
-                    ? "bg-green-500/15 text-green-600 border border-green-500/20"
-                    : locationPermissionStatus === 'denied'
-                      ? "bg-muted text-muted-foreground border border-border"
-                      : "bg-gradient-primary text-primary-foreground shadow-primary"
+              <div className="space-y-2">
+                <button
+                  onClick={requestLocationPermission}
+                  disabled={locationPermissionStatus === 'requesting' || locationPermissionStatus === 'granted'}
+                  className={cn(
+                    "w-full py-4 rounded-2xl text-base font-semibold transition-all press-effect flex items-center justify-center gap-2",
+                    locationPermissionStatus === 'granted'
+                      ? "bg-green-500/15 text-green-600 border border-green-500/20"
+                      : locationPermissionStatus === 'denied'
+                        ? "bg-muted text-muted-foreground border border-border"
+                        : "bg-gradient-primary text-primary-foreground shadow-primary"
+                  )}
+                >
+                  {locationPermissionStatus === 'requesting' && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {locationPermissionStatus === 'granted' && <CheckCircle2 className="w-4 h-4" />}
+                  {locationPermissionStatus === 'idle' && <MapPin className="w-4 h-4" />}
+                  {locationPermissionStatus === 'idle' && "Allow Location Access"}
+                  {locationPermissionStatus === 'requesting' && "Detecting location..."}
+                  {locationPermissionStatus === 'granted' && "✓ Location Enabled"}
+                  {locationPermissionStatus === 'denied' && "Denied — Enable in Settings"}
+                </button>
+                {locationPermissionStatus === 'idle' && (
+                  <p className="text-xs text-center text-muted-foreground">
+                    When prompted, tap <strong>"Allow While Using App"</strong>
+                  </p>
                 )}
-              >
-                {locationPermissionStatus === 'requesting' && <Loader2 className="w-4 h-4 animate-spin" />}
-                {locationPermissionStatus === 'granted' && <CheckCircle2 className="w-4 h-4" />}
-                {locationPermissionStatus === 'idle' && <MapPin className="w-4 h-4" />}
-                {locationPermissionStatus === 'idle' && "Allow Location Access"}
-                {locationPermissionStatus === 'requesting' && "Detecting location..."}
-                {locationPermissionStatus === 'granted' && "✓ Location Enabled"}
-                {locationPermissionStatus === 'denied' && "Denied — Enable in Settings"}
-              </button>
+              </div>
 
               <div className="glass-card flex items-start gap-3 bg-primary/5">
                 <Shield className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                <p className="text-[11px] text-muted-foreground leading-snug">
+                <p className="text-xs text-muted-foreground leading-snug">
                   <strong>City-level only.</strong> We never track your precise location or share it with anyone.
                 </p>
               </div>
@@ -1200,9 +1224,9 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
               </div>
 
               <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold">One Last Thing</h2>
-                <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-                  We ask for notifications <strong>last</strong> because we wanted to show you what Jvala does first. Now that you've set up tracking, notifications make sure you <strong>never miss a signal</strong>.
+                <h2 className="text-3xl font-bold">One Last Thing</h2>
+                <p className="text-base text-muted-foreground max-w-xs mx-auto">
+                  Notifications make sure you <strong>never miss a signal</strong> — from reminders to weather alerts.
                 </p>
               </div>
 
