@@ -1103,25 +1103,13 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
         return (
           <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
             <div className="w-full max-w-sm space-y-5">
-              {/* Hero visual - weather/environment */}
-              <div className="relative w-full aspect-[16/9] rounded-3xl overflow-hidden glass-card">
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, hsl(200 80% 55% / 0.08) 0%, hsl(var(--primary) / 0.08) 50%, hsl(160 70% 50% / 0.06) 100%)' }} />
-                <div className="relative flex items-center justify-center h-full gap-6 px-6">
-                  <div className="text-center">
-                    <p className="text-4xl">🌤️</p>
-                    <p className="text-xs text-muted-foreground mt-1">72°F</p>
-                  </div>
-                  <div className="h-12 w-px bg-border/30" />
-                  <div className="text-center">
-                    <p className="text-lg font-bold text-primary">AQI 42</p>
-                    <p className="text-[10px] text-muted-foreground">Good</p>
-                  </div>
-                  <div className="h-12 w-px bg-border/30" />
-                  <div className="text-center">
-                    <p className="text-lg font-bold text-foreground">1013</p>
-                    <p className="text-[10px] text-muted-foreground">hPa</p>
-                  </div>
-                </div>
+              {/* Compact hero — weather stats inline */}
+              <div className="relative w-full h-16 rounded-2xl overflow-hidden glass-card flex items-center justify-center gap-5 px-6">
+                <div className="text-center"><span className="text-xl">🌤️</span><p className="text-[9px] text-muted-foreground">72°F</p></div>
+                <div className="h-8 w-px bg-border/30" />
+                <div className="text-center"><p className="text-sm font-bold text-primary">AQI 42</p><p className="text-[9px] text-muted-foreground">Good</p></div>
+                <div className="h-8 w-px bg-border/30" />
+                <div className="text-center"><p className="text-sm font-bold">1013</p><p className="text-[9px] text-muted-foreground">hPa</p></div>
               </div>
 
               <div className="text-center space-y-2">
