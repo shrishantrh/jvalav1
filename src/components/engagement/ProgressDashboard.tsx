@@ -10,6 +10,7 @@ import { BADGES } from "./EngagementPanel";
 import { FlareEntry } from "@/types/flare";
 import { useEngagement } from "@/hooks/useEngagement";
 import { useToast } from "@/hooks/use-toast";
+import { haptics } from "@/lib/haptics";
 
 interface EngagementData {
   current_streak: number;
