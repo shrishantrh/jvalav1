@@ -33,6 +33,7 @@ import {
   Activity,
   Flame,
   Coffee,
+  Timer,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
