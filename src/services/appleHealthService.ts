@@ -9,6 +9,8 @@
 import { isNative, platform } from '@/lib/capacitor';
 
 // Types from the plugin
+// Keep this list aligned with @capgo/capacitor-health supported identifiers.
+// Requesting unsupported identifiers can cause iOS authorization failures.
 export type HealthDataType =
   | 'steps'
   | 'distance'
@@ -20,65 +22,19 @@ export type HealthDataType =
   | 'oxygenSaturation'
   | 'restingHeartRate'
   | 'heartRateVariability'
+  | 'bloodPressure'
   | 'bloodGlucose'
-  | 'bloodPressureSystolic'
-  | 'bloodPressureDiastolic'
   | 'bodyTemperature'
-  | 'bodyFatPercentage'
-  | 'leanBodyMass'
-  | 'bmi'
-  | 'vo2Max'
-  | 'electrodermalActivity'
-  | 'inhalerUsage'
-  | 'insulinDelivery'
-  | 'numberOfTimesFallen'
-  | 'peakExpiratoryFlowRate'
-  | 'peripheralPerfusionIndex'
-  | 'appleStandTime'
-  | 'appleExerciseTime'
-  | 'appleMoveDistance'
-  | 'activeEnergyBurned'
-  | 'basalEnergyBurned'
+  | 'height'
   | 'flightsClimbed'
-  | 'nikeFuel'
-  | 'pushCount'
-  | 'swimmingStrokeCount'
+  | 'exerciseTime'
   | 'distanceCycling'
-  | 'distanceSwimming'
-  | 'distanceWheelchair'
-  | 'distanceDownhillSnowSports'
-  | 'uvExposure'
-  | 'waterTemperature'
-  | 'mindfulSession'
-  | 'dietaryWater'
-  | 'dietaryCaffeine'
-  | 'dietaryEnergyConsumed'
-  | 'dietarySugar'
-  | 'dietaryFatTotal'
-  | 'dietaryProtein'
-  | 'dietaryCarbohydrates'
-  | 'dietaryCholesterol'
-  | 'dietarySodium'
-  | 'dietaryFiber'
-  | 'menstruationFlow'
-  | 'sexualActivity'
-  | 'cervicalMucusQuality'
-  | 'ovulationTestResult'
+  | 'bodyFat'
   | 'basalBodyTemperature'
-  | 'handwashingEvent'
-  | 'toothbrushingEvent'
-  | 'walkingHeartRateAverage'
-  | 'walkingDoubleSupportPercentage'
-  | 'walkingSpeed'
-  | 'walkingStepLength'
-  | 'walkingAsymmetryPercentage'
-  | 'stairAscentSpeed'
-  | 'stairDescentSpeed'
-  | 'sixMinuteWalkTestDistance'
-  | 'appleWalkingSteadiness'
-  | 'heartbeatSeries'
-  | 'atrialFibrillationBurden'
-  | 'wristTemperature';
+  | 'basalCalories'
+  | 'totalCalories'
+  | 'mindfulness'
+  | 'workouts';
 type SleepState = 'inBed' | 'asleep' | 'awake' | 'rem' | 'deep' | 'light';
 
 interface HealthSample {
@@ -253,39 +209,34 @@ export type HealthAuthorizationResult = {
 export const HEALTH_MINIMAL_READ: HealthDataType[] = ['steps', 'heartRate'];
 
 export const HEALTH_FULL_READ: HealthDataType[] = [
-  // Vitals
-  'heartRate', 'restingHeartRate', 'heartRateVariability', 'oxygenSaturation',
-  'respiratoryRate', 'bloodPressureSystolic', 'bloodPressureDiastolic',
-  'bodyTemperature', 'wristTemperature', 'basalBodyTemperature',
-  'walkingHeartRateAverage', 'atrialFibrillationBurden',
-  // Fitness & Activity
-  'steps', 'distance', 'calories', 'activeEnergyBurned', 'basalEnergyBurned',
-  'flightsClimbed', 'appleExerciseTime', 'appleStandTime',
-  'distanceCycling', 'distanceSwimming', 'swimmingStrokeCount',
-  'distanceWheelchair', 'distanceDownhillSnowSports', 'pushCount',
-  // Body Measurements
-  'weight', 'bodyFatPercentage', 'leanBodyMass', 'bmi',
-  // Sleep & Mindfulness
-  'sleep', 'mindfulSession',
-  // Lab & Clinical
-  'bloodGlucose', 'insulinDelivery', 'vo2Max', 'electrodermalActivity',
-  'peripheralPerfusionIndex', 'peakExpiratoryFlowRate',
-  'inhalerUsage', 'numberOfTimesFallen',
-  // Mobility
-  'walkingSpeed', 'walkingStepLength', 'walkingDoubleSupportPercentage',
-  'walkingAsymmetryPercentage', 'stairAscentSpeed', 'stairDescentSpeed',
-  'sixMinuteWalkTestDistance', 'appleWalkingSteadiness',
-  // Nutrition
-  'dietaryWater', 'dietaryCaffeine', 'dietaryEnergyConsumed',
-  'dietarySugar', 'dietaryFatTotal', 'dietaryProtein',
-  'dietaryCarbohydrates', 'dietaryCholesterol', 'dietarySodium', 'dietaryFiber',
-  // Reproductive Health
-  'menstruationFlow', 'sexualActivity', 'cervicalMucusQuality',
-  'ovulationTestResult',
-  // Environment
-  'uvExposure', 'waterTemperature',
-  // Other
-  'handwashingEvent', 'toothbrushingEvent',
+  // Activity & energy
+  'steps',
+  'distance',
+  'calories',
+  'flightsClimbed',
+  'exerciseTime',
+  'distanceCycling',
+  'basalCalories',
+  'totalCalories',
+  // Cardio & vitals
+  'heartRate',
+  'restingHeartRate',
+  'heartRateVariability',
+  'respiratoryRate',
+  'oxygenSaturation',
+  'bloodPressure',
+  'bloodGlucose',
+  'bodyTemperature',
+  'basalBodyTemperature',
+  // Recovery & body composition
+  'sleep',
+  'weight',
+  'bodyFat',
+  'height',
+  // Behavior
+  'mindfulness',
+  // Workouts (required to read workout sessions)
+  'workouts',
 ];
 
 export const requestHealthPermissions = async (options?: {
