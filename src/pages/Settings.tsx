@@ -146,9 +146,27 @@ export default function Settings() {
           {/* Theme Color Picker */}
           <ThemeColorPicker />
 
-
-
-
+          {/* Siri & Shortcuts */}
+          <Card className="glass-card">
+            <CardContent className="p-3">
+              <button
+                onClick={() => {
+                  haptics.selection();
+                  navigate('/shortcuts');
+                }}
+                className="flex items-center justify-between w-full"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Smartphone className="w-4 h-4 text-primary" />
+                  <div className="text-left">
+                    <p className="text-sm font-medium">Siri & Shortcuts</p>
+                    <p className="text-[10px] text-muted-foreground">Action Button, Lock Screen, voice commands</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </CardContent>
+          </Card>
 
           {/* Legal */}
           <Card className="glass-card">
