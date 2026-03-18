@@ -7,6 +7,7 @@ import { Send, Mic, MicOff, Check, Sparkles, Thermometer, Droplets, Calendar, Al
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { haptics } from "@/lib/haptics";
 import { FluidLogSelector } from "./FluidLogSelector";
 import { Badge } from "@/components/ui/badge";
 import { useCorrelations } from "@/hooks/useCorrelations";
@@ -780,6 +781,10 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   };
 
   const handleFluidLog = async (symptom: string, severity: string) => {
+    if (severity === 'severe') haptics.heavy();
+    else if (severity === 'moderate') haptics.medium();
+    else haptics.light();
+
     const { reaction, text: responseText } = getResponseStrategy(symptom, countRecentSameType(symptom));
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -813,13 +818,24 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     const entryId = Date.now().toString();
     setLastLoggedEntryId(entryId);
 
+    if (saved) {
+      if (severity === 'severe') {
+        haptics.heavy();
+        setTimeout(() => haptics.success(), 140);
+      } else {
+        haptics.success();
+      }
+    } else {
+      haptics.warning();
+    }
+
     // Trigger background discovery analysis
     scheduleAnalysis();
 
     const confirmMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
       role: 'assistant',
-      content: saved 
+      content: saved
         ? (responseText || `Saved ${severity} ${symptom}.`)
         : `Couldn't save that — please try again.`,
       timestamp: new Date(),
@@ -829,6 +845,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   };
 
   const handleMedicationLog = async (medicationName: string) => {
+    haptics.medium();
     const { reaction, text: responseText } = getResponseStrategy(medicationName, countRecentSameType(medicationName));
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -846,7 +863,9 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       note: `Took ${medicationName}`,
       timestamp: new Date(),
     };
-    onSave(entry);
+    const saved = await onSave(entry);
+    if (saved) haptics.success();
+    else haptics.warning();
 
     const confirmMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
@@ -859,6 +878,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   };
 
   const handleWellnessLog = async () => {
+    haptics.light();
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
@@ -873,7 +893,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       note: 'Feeling good',
       timestamp: new Date(),
     };
-    onSave(entry);
+    const saved = await onSave(entry);
+    if (saved) haptics.success();
 
     const confirmMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
@@ -886,6 +907,10 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   };
 
   const handleEnergyLog = async (level: 'low' | 'moderate' | 'high') => {
+    if (level === 'low') haptics.medium();
+    else if (level === 'high') haptics.light();
+    else haptics.selection();
+
     const labels = { low: 'Low energy', moderate: 'Moderate energy', high: 'High energy' };
     const { reaction, text: responseText } = getResponseStrategy('energy', countRecentSameType('energy'));
     const userMessage: ChatMessage = {
@@ -904,7 +929,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       note: labels[level],
       timestamp: new Date(),
     };
-    onSave(entry);
+    const saved = await onSave(entry);
+    if (saved) haptics.success();
 
     const responses: Record<string, string> = {
       low: "Logged low energy. Take it easy.",
