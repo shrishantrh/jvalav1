@@ -295,6 +295,21 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
   const [locationPermissionStatus, setLocationPermissionStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle');
   const [notificationPermissionStatus, setNotificationPermissionStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle');
 
+  // When arriving at the location step, check if permission was already granted (e.g. from an earlier prompt)
+  useEffect(() => {
+    if (step === 8 && locationPermissionStatus === 'idle' && isNative) {
+      (async () => {
+        try {
+          const { Geolocation } = await import('@capacitor/geolocation');
+          const permStatus = await Geolocation.checkPermissions();
+          if (permStatus.location === 'granted' || permStatus.coarseLocation === 'granted') {
+            setLocationPermissionStatus('granted');
+          }
+        } catch {}
+      })();
+    }
+  }, [step]);
+
   const requestNotificationPermission = async () => {
     setNotificationPermissionStatus('requesting');
     haptics.selection();
