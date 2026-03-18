@@ -45,7 +45,25 @@ export const RevampedInsights = ({
   onAskAI
 }: RevampedInsightsProps) => {
   const { user } = useAuth();
+  const { recordFeatureEvent } = useEngagement();
   const [activeTab, setActiveTab] = useState('ai');
+
+  // Track insights views and tab switches for badges
+  useEffect(() => {
+    if (user) {
+      recordFeatureEvent(user.id, 'insights_view');
+    }
+  }, [user]);
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    if (user) {
+      const tabEvent = `insights_tab_${tab}` as any;
+      if (['insights_tab_ai', 'insights_tab_safety', 'insights_tab_charts', 'insights_tab_local'].includes(tabEvent)) {
+        recordFeatureEvent(user.id, tabEvent);
+      }
+    }
+  };
 
   if (entries.length === 0) {
     return (
