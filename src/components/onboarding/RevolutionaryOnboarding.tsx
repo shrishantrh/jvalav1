@@ -870,7 +870,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
           </div>
         );
 
-      // ─── Step 6: Value Prop — "Tracking Compounds" (Bevel-inspired) ──────
+      // ─── Step 6: Value Prop — "Tracking Compounds" ──────
       case 6:
         return (
           <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
@@ -882,83 +882,69 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
                 </p>
               </div>
 
-              {/* Chart visualization */}
-              <div className="relative w-full aspect-[4/3] mx-auto">
-                {/* Grid lines */}
-                <div className="absolute inset-0 flex flex-col justify-between opacity-10">
+              {/* Elegant chart visualization */}
+              <div className="relative w-full aspect-[4/3] mx-auto glass-card rounded-3xl p-4 overflow-hidden">
+                {/* Subtle grid */}
+                <div className="absolute inset-4 flex flex-col justify-between opacity-[0.06]">
                   {[...Array(5)].map((_, i) => (
                     <div key={i} className="border-t border-foreground" />
                   ))}
                 </div>
 
-                {/* "Without tracking" line - orange, flat/declining */}
-                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 300" preserveAspectRatio="none">
+                <svg className="absolute inset-4 w-[calc(100%-32px)] h-[calc(100%-32px)]" viewBox="0 0 400 300" preserveAspectRatio="none">
                   <defs>
                     <linearGradient id="withTrackingGrad" x1="0" y1="0" x2="1" y2="0">
                       <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.6" />
                       <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="1" />
                     </linearGradient>
                     <linearGradient id="withTrackingFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.15" />
+                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.2" />
                       <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
                     </linearGradient>
+                    <filter id="glow">
+                      <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+                      <feMerge>
+                        <feMergeNode in="coloredBlur" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
                   </defs>
-                  {/* Without tracking - orange declining curve */}
-                  <path
-                    d="M 0 180 Q 100 170 200 190 Q 300 210 400 250"
-                    fill="none"
-                    stroke="hsl(25, 95%, 55%)"
-                    strokeWidth="3"
-                    strokeDasharray="8 4"
-                    className="animate-in fade-in-0 duration-1000"
-                    style={{ animationDelay: '500ms' }}
-                  />
-                  {/* Arrow at end of orange line */}
-                  <polygon points="395,245 400,255 390,252" fill="hsl(25, 95%, 55%)" className="animate-in fade-in-0 duration-500" style={{ animationDelay: '1200ms' }} />
+                  
+                  {/* Without tracking - dashed declining */}
+                  <path d="M 0 160 Q 100 165 200 185 Q 300 210 400 250" fill="none" stroke="hsl(var(--muted-foreground))" strokeWidth="2.5" strokeDasharray="8 6" opacity="0.4" className="animate-in fade-in-0 duration-1000" style={{ animationDelay: '500ms' }} />
 
-                  {/* With tracking - primary color ascending curve */}
-                  <path
-                    d="M 0 220 Q 80 200 160 170 Q 240 130 320 70 Q 360 45 400 20"
-                    fill="none"
-                    stroke="url(#withTrackingGrad)"
-                    strokeWidth="3.5"
-                    strokeLinecap="round"
-                    className="animate-in fade-in-0 duration-1000"
-                    style={{ animationDelay: '300ms' }}
-                  />
+                  {/* With tracking - glowing ascending curve */}
+                  <path d="M 0 240 Q 60 220 120 190 Q 200 140 280 80 Q 340 40 400 15" fill="none" stroke="url(#withTrackingGrad)" strokeWidth="3.5" strokeLinecap="round" filter="url(#glow)" className="animate-in fade-in-0 duration-1000" style={{ animationDelay: '300ms' }} />
+                  
                   {/* Fill under curve */}
-                  <path
-                    d="M 0 220 Q 80 200 160 170 Q 240 130 320 70 Q 360 45 400 20 L 400 300 L 0 300 Z"
-                    fill="url(#withTrackingFill)"
-                    className="animate-in fade-in-0 duration-1000"
-                    style={{ animationDelay: '300ms' }}
-                  />
-                  {/* Arrow at end of primary line */}
-                  <polygon points="395,15 400,25 390,22" fill="hsl(var(--primary))" className="animate-in fade-in-0 duration-500" style={{ animationDelay: '1000ms' }} />
+                  <path d="M 0 240 Q 60 220 120 190 Q 200 140 280 80 Q 340 40 400 15 L 400 300 L 0 300 Z" fill="url(#withTrackingFill)" className="animate-in fade-in-0 duration-1000" style={{ animationDelay: '300ms' }} />
+                  
+                  {/* Animated dot at the tip */}
+                  <circle cx="400" cy="15" r="5" fill="hsl(var(--primary))" className="animate-pulse" style={{ animationDelay: '1s' }} />
                 </svg>
 
                 {/* Labels */}
-                <div
-                  className="absolute flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium shadow-primary animate-in fade-in-0 zoom-in-90 duration-500"
-                  style={{ top: '25%', left: '30%', animationDelay: '600ms' }}
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  With tracking
+                <div className="absolute flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium shadow-lg animate-in fade-in-0 zoom-in-90 duration-500" style={{ top: '20%', left: '25%', animationDelay: '600ms' }}>
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  With Jvala
                 </div>
-                <div
-                  className="absolute px-3 py-1.5 rounded-full bg-muted text-muted-foreground text-xs font-medium border animate-in fade-in-0 zoom-in-90 duration-500"
-                  style={{ bottom: '15%', left: '35%', animationDelay: '900ms' }}
-                >
+                <div className="absolute px-3 py-1.5 rounded-full bg-muted/80 text-muted-foreground text-xs font-medium animate-in fade-in-0 zoom-in-90 duration-500" style={{ bottom: '12%', left: '30%', animationDelay: '900ms' }}>
                   Without tracking
                 </div>
+              </div>
 
-                {/* Axis labels */}
-                <span className="absolute right-0 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground/50 writing-mode-vertical" style={{ writingMode: 'vertical-rl' }}>
-                  Health
-                </span>
-                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground/50">
-                  Timeline
-                </span>
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { value: '73%', label: 'Users identify\na new trigger' },
+                  { value: '2.4x', label: 'More data for\nyour doctor' },
+                  { value: '89%', label: 'Feel more in\ncontrol' },
+                ].map((stat, i) => (
+                  <div key={i} className="glass-card text-center py-3 animate-in fade-in-0 duration-500" style={{ animationDelay: `${800 + i * 150}ms` }}>
+                    <p className="text-lg font-bold text-primary">{stat.value}</p>
+                    <p className="text-[10px] text-muted-foreground whitespace-pre-line leading-tight mt-0.5">{stat.label}</p>
+                  </div>
+                ))}
               </div>
 
               <p className="text-xs text-muted-foreground/60">
