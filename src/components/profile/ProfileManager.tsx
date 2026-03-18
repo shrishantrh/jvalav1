@@ -143,9 +143,6 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
     );
   }
 
-  const shareUrl = profile.share_token 
-    ? `${window.location.origin}/#/shared-profile?token=${profile.share_token}`
-    : '';
 
   return (
     <div className="space-y-4">
