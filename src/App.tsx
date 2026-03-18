@@ -15,8 +15,10 @@ import ClinicianDashboard from "./pages/ClinicianDashboard";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
+import ConfirmEmail from "./pages/ConfirmEmail";
 import { OfflineIndicator } from "./components/pwa/OfflineIndicator";
 import { InstallPrompt } from "./components/pwa/InstallPrompt";
+import { SmartAppBanner } from "./components/pwa/SmartAppBanner";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +49,7 @@ const App = () => (
         <Sonner />
         <OfflineIndicator />
         <InstallPrompt />
+        <SmartAppBanner />
         <HashRouter>
           <SentryRoutes>
             <Route path="/" element={<Index />} />
@@ -59,6 +62,7 @@ const App = () => (
             <Route path="/install" element={<Install />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/confirm-email" element={<ConfirmEmail />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </SentryRoutes>

@@ -1,0 +1,23 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "3VV3HM37UR.app.jvala.health",
+        "paths": [
+          "/confirm-email",
+          "/confirm-email/*",
+          "/reset-password",
+          "/reset-password/*",
+          "/open-app",
+          "/open-app/*"
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "3VV3HM37UR.app.jvala.health"
+    ]
+  }
+}
