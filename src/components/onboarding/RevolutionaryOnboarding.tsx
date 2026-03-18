@@ -597,11 +597,11 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
         return (
           <div className="space-y-4 animate-in fade-in-0 slide-in-from-right-4 duration-500 flex-1">
             <div className="text-center space-y-2">
-              <h2 className="text-2xl font-bold">
+              <h2 className="text-3xl font-bold">
                 {data.firstName ? `${data.firstName}, what` : "What"} are you managing?
               </h2>
-              <p className="text-sm text-muted-foreground">
-                Type anything — chronic conditions, deficiencies, or health concerns. Our AI will learn what matters for <span className="font-medium text-foreground">your</span> body.
+              <p className="text-base text-muted-foreground">
+                Type anything — chronic conditions, deficiencies, or health concerns.
               </p>
             </div>
 
