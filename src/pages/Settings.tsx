@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, LogOut, Shield, FileText, AlertTriangle, User as UserIcon, ChevronRight, Trash2, Mail, Loader2, HelpCircle } from "lucide-react";
+import { ArrowLeft, LogOut, Shield, FileText, AlertTriangle, User as UserIcon, ChevronRight, Trash2, Mail, Loader2, HelpCircle, Smartphone } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
