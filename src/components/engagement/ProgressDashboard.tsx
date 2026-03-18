@@ -50,6 +50,8 @@ export const ProgressDashboard = ({ userId, entries, onBack }: ProgressDashboard
     // Check for consistency badges when viewing progress
     const newBadges = await checkConsistencyBadges(userId, entries);
     if (newBadges.length > 0) {
+      haptics.heavy();
+      setTimeout(() => haptics.success(), 300);
       toast({
         title: "🏆 Badge Earned!",
         description: `You earned: ${newBadges.map(b => 
