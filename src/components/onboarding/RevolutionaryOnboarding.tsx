@@ -127,10 +127,38 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
   const [conditionSearch, setConditionSearch] = useState("");
   const [analyzeStep, setAnalyzeStep] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
+  const nameAutoFilled = useRef(false);
 
   const age = useMemo(() => calculateAge(data.dateOfBirth), [data.dateOfBirth]);
   const isUnder13 = age !== null && age < 13;
   const isFutureDOB = data.dateOfBirth && new Date(data.dateOfBirth) > new Date();
+
+  // Auto-fill first name from OAuth metadata (Google/Apple)
+  useEffect(() => {
+    if (nameAutoFilled.current || data.firstName) return;
+    nameAutoFilled.current = true;
+
+    (async () => {
+      try {
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const meta = user.user_metadata;
+        const firstName =
+          meta?.given_name ||
+          meta?.first_name ||
+          (meta?.full_name || meta?.name || '').split(' ')[0] ||
+          '';
+
+        if (firstName && !data.firstName) {
+          setData(prev => ({ ...prev, firstName }));
+        }
+      } catch {
+        // ignore
+      }
+    })();
+  }, []);
 
   // Autosave progress whenever step or data changes
   useEffect(() => {
