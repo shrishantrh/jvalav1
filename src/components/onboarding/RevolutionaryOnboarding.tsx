@@ -124,6 +124,10 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
     reminderTime: "09:00",
   });
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [slideProgress, setSlideProgress] = useState(0);
+  const slideRef = useRef<HTMLDivElement>(null);
+  const slidingRef = useRef(false);
+  const hapticIntervalRef = useRef<number | null>(null);
   const [conditionSearch, setConditionSearch] = useState("");
   const [analyzeStep, setAnalyzeStep] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
