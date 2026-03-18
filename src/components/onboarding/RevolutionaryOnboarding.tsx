@@ -1021,18 +1021,14 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
         return (
           <div className="flex flex-col items-center justify-center flex-1 px-2 animate-in fade-in-0 slide-in-from-right-4 duration-500">
             <div className="w-full max-w-sm space-y-5">
-              {/* Hero visual */}
-              <div className="relative w-full aspect-[16/9] rounded-3xl overflow-hidden glass-card">
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, hsl(var(--primary) / 0.08) 0%, hsl(330 80% 55% / 0.12) 50%, hsl(var(--primary) / 0.05) 100%)' }} />
-                <div className="relative flex items-center justify-center h-full gap-4 px-6">
-                  {/* Heart rate visualization */}
-                  <svg viewBox="0 0 200 80" className="w-36 h-auto">
-                    <path d="M 0 40 L 30 40 L 40 20 L 50 60 L 60 35 L 70 45 L 80 40 L 110 40 L 120 15 L 130 65 L 140 30 L 150 50 L 160 40 L 200 40" fill="none" stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" className="animate-pulse" />
-                  </svg>
-                  <div className="text-right">
-                    <p className="text-3xl font-bold text-primary">72</p>
-                    <p className="text-[10px] text-muted-foreground">BPM</p>
-                  </div>
+              {/* Compact hero — ECG line */}
+              <div className="relative w-full h-16 rounded-2xl overflow-hidden glass-card flex items-center justify-center gap-4 px-6">
+                <svg viewBox="0 0 200 40" className="w-28 h-auto">
+                  <path d="M 0 20 L 30 20 L 40 8 L 50 32 L 60 18 L 70 22 L 80 20 L 110 20 L 120 5 L 130 35 L 140 15 L 150 25 L 160 20 L 200 20" fill="none" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" className="animate-pulse" />
+                </svg>
+                <div className="text-right">
+                  <p className="text-xl font-bold text-primary">72</p>
+                  <p className="text-[9px] text-muted-foreground">BPM</p>
                 </div>
               </div>
 
