@@ -295,6 +295,24 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
   const [locationPermissionStatus, setLocationPermissionStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle');
   const [notificationPermissionStatus, setNotificationPermissionStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle');
 
+  // When arriving at the health step, detect existing authorization (e.g. user already granted in Settings)
+  useEffect(() => {
+    if (step === 7 && isNative) {
+      (async () => {
+        try {
+          const { checkHealthPermissions } = await import('@/services/appleHealthService');
+          const alreadyAuthorized = await checkHealthPermissions();
+          if (alreadyAuthorized) {
+            setHealthPermissionStatus('granted');
+            try { localStorage.setItem('jvala_health_connected', '1'); } catch {}
+          }
+        } catch {
+          // Ignore silent probe failures and keep current UI state
+        }
+      })();
+    }
+  }, [step]);
+
   // When arriving at the location step, check if permission was already granted (e.g. from an earlier prompt)
   useEffect(() => {
     if (step === 8 && locationPermissionStatus === 'idle' && isNative) {
@@ -347,23 +365,21 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
   const requestHealthPermission = async () => {
     setHealthPermissionStatus('requesting');
     haptics.selection();
+
     try {
       if (!isNative) {
         setHealthPermissionStatus('unavailable');
         return;
       }
 
-      // Mirror the WORKING logic from useWearableData.connectDevice:
-      // 1) Check plugin presence (fast, sync) — skip isAvailable() which hangs on iOS
-      const { isHealthPluginPresent, HEALTH_FULL_READ } = await import('@/services/appleHealthService');
-      
+      const { isHealthPluginPresent, HEALTH_FULL_READ, checkHealthPermissions } = await import('@/services/appleHealthService');
+
       if (!isHealthPluginPresent()) {
         console.warn('[Onboarding] Health plugin not present in this build');
         setHealthPermissionStatus('unavailable');
         return;
       }
 
-      // 2) Get injected plugin directly
       const plugin = (window as any)?.Capacitor?.Plugins?.Health;
       if (!plugin) {
         console.warn('[Onboarding] Health plugin not in Capacitor.Plugins');
@@ -371,25 +387,53 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
         return;
       }
 
-      // 3) Request FULL authorization — no minimal fallback
-      console.log('[Onboarding] Plugin present, skipping isAvailable(), requesting full permissions...');
+      console.log('[Onboarding] Requesting full supported Health scopes...');
 
-      try {
-        await Promise.race([
-          plugin.requestAuthorization({ read: HEALTH_FULL_READ, write: [] }),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000)),
-        ]);
-        console.log('[Onboarding] Health auth granted (full)');
+      const authorizationStatus = await Promise.race([
+        plugin.requestAuthorization({ read: HEALTH_FULL_READ, write: [] }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000)),
+      ]) as { readAuthorized?: string[]; readDenied?: string[] };
+
+      const authorizedCount = Array.isArray(authorizationStatus?.readAuthorized)
+        ? authorizationStatus.readAuthorized.length
+        : 0;
+
+      if (authorizedCount > 0) {
+        console.log('[Onboarding] Health auth granted for scopes:', authorizationStatus.readAuthorized);
         try { localStorage.setItem('jvala_health_connected', '1'); } catch {}
         setHealthPermissionStatus('granted');
         haptics.success();
-      } catch (e) {
-        console.warn('[Onboarding] Health auth failed:', e instanceof Error ? e.message : e);
+        return;
+      }
+
+      // Fallback verification if plugin returned an empty status object
+      const alreadyAuthorized = await checkHealthPermissions({ read: HEALTH_FULL_READ });
+      if (alreadyAuthorized) {
+        try { localStorage.setItem('jvala_health_connected', '1'); } catch {}
+        setHealthPermissionStatus('granted');
+        haptics.success();
+      } else {
         setHealthPermissionStatus('denied');
       }
     } catch (e) {
-      console.error('Health permission error:', e);
-      setHealthPermissionStatus('unavailable');
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn('[Onboarding] Health auth failed:', msg);
+
+      // If iOS bridge timed out but auth actually succeeded, recover by checking current auth state.
+      try {
+        const { checkHealthPermissions, HEALTH_FULL_READ } = await import('@/services/appleHealthService');
+        const alreadyAuthorized = await checkHealthPermissions({ read: HEALTH_FULL_READ });
+        if (alreadyAuthorized) {
+          try { localStorage.setItem('jvala_health_connected', '1'); } catch {}
+          setHealthPermissionStatus('granted');
+          haptics.success();
+          return;
+        }
+      } catch {
+        // no-op
+      }
+
+      setHealthPermissionStatus('denied');
     }
   };
 
