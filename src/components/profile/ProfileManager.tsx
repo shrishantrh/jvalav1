@@ -14,7 +14,7 @@ import { ProfileMedicationInput, type MedicationDetails } from "@/components/Pro
 import { CONDITIONS } from "@/data/conditions";
 import { NotificationSettings } from "@/components/notifications/NotificationSettings";
 import { WearableIntegration } from "@/components/wearables/WearableIntegration";
-import { WeeklyDigestSettings } from "@/components/email/WeeklyDigestSettings";
+
 import { EHRIntegration } from "@/components/ehr/EHRIntegration";
 
 interface ProfileData {
