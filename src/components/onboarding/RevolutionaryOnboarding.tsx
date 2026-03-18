@@ -1404,7 +1404,12 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
           <ChevronRight className="w-5 h-5" />
         </button>
 
-        {(step === 3 || step === 4 || step === 5 || step === 9 || (step === 7 && healthPermissionStatus !== 'granted')) && (
+        {(step === 3 ||
+          step === 4 ||
+          step === 5 ||
+          step === 9 ||
+          (step === 7 && healthPermissionStatus !== 'granted') ||
+          (step === 8 && locationPermissionStatus !== 'granted')) && (
           <button
             onClick={handleNext}
             className="w-full mt-2 py-2 text-sm text-muted-foreground"
