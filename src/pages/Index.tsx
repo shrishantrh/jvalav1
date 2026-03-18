@@ -40,6 +40,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useNativePush } from "@/hooks/useNativePush";
 import { useAIConsent } from "@/hooks/useAIConsent";
 import type { SmartTrackable } from "@/components/tracking/FluidLogSelector";
+import { useDeepLinkHandler } from "@/hooks/useDeepLinkHandler";
 
 interface MedicationDetails {
   name: string;
