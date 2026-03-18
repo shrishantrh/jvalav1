@@ -314,6 +314,13 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
     return permStatus?.location === 'granted' || permStatus?.coarseLocation === 'granted';
   };
 
+  const classifyLocationError = (error: unknown): 'denied' | 'services_off' | 'unknown' => {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('OS-PLUG-GLOC-0003')) return 'denied';
+    if (message.includes('OS-PLUG-GLOC-0007') || message.includes('OS-PLUG-GLOC-0008')) return 'services_off';
+    return 'unknown';
+  };
+
   // Step sync for Health: never auto-request here. Only reflect existing connected state.
   useEffect(() => {
     if (step !== 7) return;
@@ -408,6 +415,13 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
     setHealthPermissionStatus('requesting');
     haptics.selection();
 
+    const watchdogId = window.setTimeout(() => {
+      if (!healthRequestInFlightRef.current) return;
+      console.warn('[Onboarding] Health request watchdog fired');
+      healthRequestInFlightRef.current = false;
+      setHealthPermissionStatus('denied');
+    }, 35000);
+
     try {
       if (!isNative) {
         setHealthPermissionStatus('unavailable');
@@ -417,10 +431,13 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
       const {
         isHealthPluginPresent,
         HEALTH_MINIMAL_READ,
+        checkHealthPermissions,
         requestHealthPermissions,
       } = await import('@/services/appleHealthService');
 
-      if (!isHealthPluginPresent()) {
+      const injectedHealth = (window as any)?.Capacitor?.Plugins?.Health ?? null;
+
+      if (!isHealthPluginPresent() && !injectedHealth) {
         console.warn('[Onboarding] Health plugin not present in this build');
         setHealthPermissionStatus('unavailable');
         return;
@@ -437,29 +454,59 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
         return;
       }
 
-      // Use the minimal stable scope set for onboarding to avoid iOS bridge lockups.
-      const result = await withPermissionTimeout(
-        requestHealthPermissions({ read: HEALTH_MINIMAL_READ }),
-        45000,
-        'health_request'
-      );
+      let requestAuthorizedCount = 0;
 
-      const authorizedCount = Array.isArray(result.status?.readAuthorized)
-        ? result.status.readAuthorized.length
-        : 0;
+      // First try the injected native proxy directly to avoid module-proxy bridge edge cases.
+      try {
+        if (injectedHealth && typeof injectedHealth.requestAuthorization === 'function') {
+          const status = await withPermissionTimeout(
+            injectedHealth.requestAuthorization({ read: HEALTH_MINIMAL_READ, write: [] }),
+            25000,
+            'health_request_injected'
+          ) as { readAuthorized?: string[] };
 
-      if (result.ok && authorizedCount > 0) {
+          requestAuthorizedCount = Array.isArray(status?.readAuthorized) ? status.readAuthorized.length : 0;
+        } else {
+          const result = await withPermissionTimeout(
+            requestHealthPermissions({ read: HEALTH_MINIMAL_READ }),
+            25000,
+            'health_request_service'
+          );
+          requestAuthorizedCount = Array.isArray(result?.status?.readAuthorized)
+            ? result.status.readAuthorized.length
+            : 0;
+        }
+      } catch (requestError) {
+        console.warn('[Onboarding] Health request failed, moving to verification fallback:', requestError);
+      }
+
+      // Verification fallback: if iOS grants access but request result is flaky, re-check authorization.
+      let verified = false;
+      try {
+        verified = await withPermissionTimeout(
+          checkHealthPermissions({ read: HEALTH_MINIMAL_READ }),
+          9000,
+          'health_check_after'
+        );
+      } catch (verifyError) {
+        console.warn('[Onboarding] Health verification failed:', verifyError);
+      }
+
+      if (requestAuthorizedCount > 0 || verified) {
         try { localStorage.setItem('jvala_health_connected', '1'); } catch {}
         setHealthPermissionStatus('granted');
         haptics.success();
       } else {
+        try { localStorage.removeItem('jvala_health_connected'); } catch {}
         setHealthPermissionStatus('denied');
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.warn('[Onboarding] Health auth failed:', msg);
+      try { localStorage.removeItem('jvala_health_connected'); } catch {}
       setHealthPermissionStatus('denied');
     } finally {
+      window.clearTimeout(watchdogId);
       healthRequestInFlightRef.current = false;
     }
   };
@@ -475,7 +522,7 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
       if (isNative) {
         const { Geolocation } = await import('@capacitor/geolocation');
 
-        // 1) Check current state first (already granted).
+        // 1) If already granted, finish fast.
         const before = await withPermissionTimeout(
           Geolocation.checkPermissions(),
           8000,
@@ -488,19 +535,19 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
           return;
         }
 
-        // 2) Explicit request on user tap (never auto-request on mount).
+        // 2) Explicit request (no args first for iOS reliability).
         let requested: { location?: string; coarseLocation?: string } | null = null;
         try {
           requested = await withPermissionTimeout(
-            Geolocation.requestPermissions({ permissions: ['location', 'coarseLocation'] as any }),
-            30000,
+            Geolocation.requestPermissions(),
+            25000,
             'location_request'
           );
         } catch {
-          // Some plugin versions prefer requestPermissions() with no argument.
+          // Fallback for plugin variants that expect explicit permission aliases.
           requested = await withPermissionTimeout(
-            Geolocation.requestPermissions(),
-            30000,
+            Geolocation.requestPermissions({ permissions: ['location', 'coarseLocation'] as any }),
+            25000,
             'location_request_fallback'
           );
         }
@@ -511,19 +558,21 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
           return;
         }
 
-        // 3) iOS can return stale status from requestPermissions; force one-shot read and re-check.
-        try {
-          await withPermissionTimeout(
-            Geolocation.getCurrentPosition({
-              timeout: 10000,
-              enableHighAccuracy: false,
-              maximumAge: 0,
-            }),
-            12000,
-            'location_get_current'
-          );
-        } catch {
-          // Ignore; final status check below decides UI state.
+        // 3) If still prompt, trigger one-shot position read to force the native system sheet.
+        if (!requested || requested.location === 'prompt' || requested.coarseLocation === 'prompt') {
+          try {
+            await withPermissionTimeout(
+              Geolocation.getCurrentPosition({
+                timeout: 12000,
+                enableHighAccuracy: false,
+                maximumAge: 0,
+              }),
+              14000,
+              'location_get_current'
+            );
+          } catch {
+            // Final check below determines status.
+          }
         }
 
         const finalStatus = await withPermissionTimeout(
@@ -553,7 +602,8 @@ export const RevolutionaryOnboarding = ({ onComplete }: RevolutionaryOnboardingP
       setLocationPermissionStatus('granted');
       haptics.success();
     } catch (e) {
-      console.warn('[Onboarding] Location permission failed:', e);
+      const kind = classifyLocationError(e);
+      console.warn('[Onboarding] Location permission failed:', kind, e);
       setLocationPermissionStatus('denied');
     } finally {
       locationRequestInFlightRef.current = false;
