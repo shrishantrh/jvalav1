@@ -90,7 +90,7 @@ serve(async (req) => {
         type: "recovery",
         email,
         options: {
-          redirectTo: "https://app.jvala.tech/#/reset-password",
+          redirectTo: "https://app.jvala.tech/reset-password",
         },
       });
 
