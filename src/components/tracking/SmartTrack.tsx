@@ -580,7 +580,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       setMessages([{
         id: Date.now().toString(),
         role: 'assistant',
-        content: getPersonalizedGreeting(userConditions, recentEntries),
+        content: getPersonalizedGreeting(userConditions, recentEntries, userName),
         timestamp: new Date(),
       }]);
       return;
