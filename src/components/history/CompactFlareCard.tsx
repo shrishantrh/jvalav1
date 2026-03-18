@@ -463,21 +463,12 @@ export const CompactFlareCard = ({
   };
 
   const physiologicalMetrics = [
+    { label: 'Steps', value: formatMetric(steps, (raw) => Math.round(raw).toLocaleString()), unit: '', icon: Footprints },
+    { label: 'Sleep', value: formatMetric(sleepHours), unit: ' h', icon: Moon },
     { label: 'HR', value: formatMetric(heartRate), unit: ' bpm', icon: Heart },
     { label: 'Rest HR', value: formatMetric(restingHeartRate), unit: ' bpm', icon: Activity },
-    { label: 'HRV', value: formatMetric(heartRateVariability), unit: ' ms', icon: Zap },
     { label: 'SpO2', value: formatMetric(spo2), unit: '%', icon: Droplets },
-    { label: 'Breath', value: formatMetric(breathingRate), unit: ' bpm', icon: Wind },
-    { label: 'Sleep', value: formatMetric(sleepHours), unit: ' h', icon: Moon },
-    { label: 'Deep', value: formatMetric(deepSleepMinutes), unit: ' min', icon: Moon },
-    { label: 'REM', value: formatMetric(remSleepMinutes), unit: ' min', icon: Moon },
-    { label: 'Steps', value: formatMetric(steps, (raw) => Math.round(raw).toLocaleString()), unit: '', icon: Footprints },
-    { label: 'Active', value: formatMetric(activeMinutes), unit: ' min', icon: Timer },
     { label: 'Calories', value: formatMetric(caloriesBurned, (raw) => Math.round(raw).toLocaleString()), unit: ' kcal', icon: Flame },
-    { label: 'Distance', value: formatMetric(distanceMeters), unit: ' m', icon: Gauge },
-    { label: 'Skin Temp', value: formatMetric(skinTemperature), unit: ' °C', icon: Thermometer },
-    { label: 'VO2', value: formatMetric(vo2Max), unit: '', icon: Zap },
-    { label: 'Zone Min', value: formatMetric(activeZoneMinutes), unit: ' min', icon: Activity },
   ];
 
   const hasWeatherData = temp || humidity || pressure || windSpeed || uvIndex || aqi || condition;
