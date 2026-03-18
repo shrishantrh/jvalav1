@@ -146,25 +146,19 @@ export default function Settings() {
           {/* Theme Color Picker */}
           <ThemeColorPicker />
 
-          {/* Siri & Shortcuts */}
-          <Card className="glass-card">
+          {/* Siri & Shortcuts - Coming Soon */}
+          <Card className="glass-card opacity-60">
             <CardContent className="p-3">
-              <button
-                onClick={() => {
-                  haptics.selection();
-                  navigate('/shortcuts');
-                }}
-                className="flex items-center justify-between w-full"
-              >
+              <div className="flex items-center justify-between w-full">
                 <div className="flex items-center gap-2.5">
-                  <Smartphone className="w-4 h-4 text-primary" />
+                  <Smartphone className="w-4 h-4 text-muted-foreground" />
                   <div className="text-left">
                     <p className="text-sm font-medium">Siri & Shortcuts</p>
                     <p className="text-[10px] text-muted-foreground">Action Button, Lock Screen, voice commands</p>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground" />
-              </button>
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">Coming Soon</span>
+              </div>
             </CardContent>
           </Card>
 

@@ -155,13 +155,49 @@ const STORAGE_KEY = 'jvala_smart_chat';
 // Module-level chat cache to persist across tab switches (in-memory only, not localStorage)
 const chatCache = new Map<string, ChatMessage[]>();
 
-const getPersonalizedGreeting = (conditions: string[], recentEntries: any[]): string => {
+const getPersonalizedGreeting = (conditions: string[], recentEntries: any[], userName?: string | null): string => {
   const hour = new Date().getHours();
-  let timeGreeting = '';
-  if (hour < 12) timeGreeting = 'Good morning';
-  else if (hour < 17) timeGreeting = 'Good afternoon';
-  else timeGreeting = 'Good evening';
-  return `${timeGreeting}! How are you feeling?`;
+  const name = userName?.split(' ')[0] || '';
+  const nameStr = name ? `, ${name}` : '';
+  
+  // Check recent activity
+  const today = new Date();
+  const todayStr = today.toDateString();
+  const todayEntries = recentEntries.filter(e => new Date(e.timestamp || e.created_at).toDateString() === todayStr);
+  const lastEntry = recentEntries[0];
+  const lastSeverity = lastEntry?.severity;
+  const daysSinceLastLog = lastEntry ? Math.floor((Date.now() - new Date(lastEntry.timestamp || lastEntry.created_at).getTime()) / 86400000) : null;
+  
+  // Condition-aware context
+  const conditionName = conditions[0] || '';
+  
+  if (hour < 6) {
+    if (lastSeverity === 'severe') return `Up early${nameStr}? Hope you're feeling better after that rough one. How's the night been?`;
+    return `Late night${nameStr}? If something woke you up, let's log it while it's fresh.`;
+  }
+  
+  if (hour < 12) {
+    if (todayEntries.length > 0) return `Already logging today${nameStr} — great discipline. Anything new to track?`;
+    if (daysSinceLastLog !== null && daysSinceLastLog >= 3) return `Hey${nameStr}, it's been ${daysSinceLastLog} days. How have things been? Even a quick check-in helps your AI learn.`;
+    if (lastSeverity === 'severe') return `Morning${nameStr}. Yesterday was tough — how are you feeling today? Any overnight changes?`;
+    if (lastSeverity === 'mild') return `Morning${nameStr}! Things were looking good yesterday. Let's keep tracking that progress.`;
+    return `Morning${nameStr}! How did you sleep? Start your day with a quick check-in.`;
+  }
+  
+  if (hour < 17) {
+    if (todayEntries.length > 0) return `Afternoon check${nameStr}. Anything shift since this morning?`;
+    if (daysSinceLastLog !== null && daysSinceLastLog >= 2) return `Haven't heard from you in a bit${nameStr}. Drop a quick log — even "feeling fine" is data your AI can use.`;
+    return `Afternoon${nameStr}. How's the day going? Any changes worth noting?`;
+  }
+  
+  if (hour < 21) {
+    if (todayEntries.length === 0) return `Evening${nameStr}! Don't forget to log today — your streak thanks you. How was your day?`;
+    return `Wrapping up the day${nameStr}. Any evening symptoms or just checking in?`;
+  }
+  
+  // Night
+  if (todayEntries.length === 0) return `Still time to log today${nameStr}. A quick entry before bed keeps your data complete.`;
+  return `Winding down${nameStr}. Anything to note before bed? Sleep quality matters for your patterns.`;
 };
 
 // Proactive AI Form Card
