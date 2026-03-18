@@ -399,10 +399,12 @@ export const TimelineProgress = ({ userId, entries, onBack }: TimelineProgressPr
               </button>
               
               <div className="text-center">
-                <div className="relative w-24 h-24 mx-auto mb-4">
-                  <ProgressRing progress={isEarned ? 100 : (prog?.progress ?? 0)} size={96} strokeWidth={4} earned={isEarned} />
+                <div className="relative w-24 h-24 mx-auto mb-4 flex items-center justify-center">
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <ProgressRing progress={isEarned ? 100 : (prog?.progress ?? 0)} size={96} strokeWidth={4} earned={isEarned} />
+                  </div>
                   <div className={cn(
-                    "absolute inset-2 rounded-3xl flex items-center justify-center text-4xl",
+                    "w-[72px] h-[72px] rounded-full flex items-center justify-center text-4xl z-10",
                     isEarned ? getRarityColor(selectedBadge.rarity).bg : "bg-muted/30"
                   )}>
                     {isEarned ? selectedBadge.icon : (prog && prog.progress > 0 ? <span className="opacity-40">{selectedBadge.icon}</span> : <Lock className="w-8 h-8 text-muted-foreground" />)}
