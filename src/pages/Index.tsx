@@ -116,12 +116,14 @@ const Index = () => {
   });
 
   // Auto-subscribe to push notifications if permission already granted but not subscribed
+  // Only after onboarding is complete to avoid premature prompts
   useEffect(() => {
+    if (showOnboarding || isLoadingProfile) return;
     if (user && notifPermission === 'granted' && !isSubscribed) {
       // Re-trigger subscription
       requestNotifPermission();
     }
-  }, [user, notifPermission, isSubscribed]);
+  }, [user, notifPermission, isSubscribed, showOnboarding, isLoadingProfile]);
 
   // Check for special badges when correlations change
   useEffect(() => {
