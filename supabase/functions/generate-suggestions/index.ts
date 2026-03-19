@@ -250,19 +250,12 @@ async function handlePredictions(entries: any[], userConditions: string[], corre
   const topTriggers = Object.entries(triggerFrequency).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([t, c]) => `${t} (${c}x)`);
   const peakTime = Object.entries(timePatterns).sort((a, b) => b[1] - a[1])[0];
 
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
-      messages: [
-        { role: 'system', content: `You are a health pattern analyst. Return JSON: { "predictions": [{ "type": "risk"|"insight", "title": "...", "description": "...", "confidence": 0.0-1.0 }] }. Generate 3-5 predictions.` },
-        { role: 'user', content: `Conditions: ${userConditions?.join(', ') || 'Not specified'}. Total entries: ${entries.length}. Flares: ${flares.length}. Recent severities: ${recentFlares.map((f: any) => f.severity).join(', ')}. Top symptoms: ${topSymptoms.join(', ')}. Top triggers: ${topTriggers.join(', ')}. Peak time: ${peakTime[0]} (${peakTime[1]}). ${correlations?.length ? `Correlations: ${correlations.map((c: any) => `${c.factor}: ${c.description}`).join('; ')}` : ''}` }
-      ],
-    }),
+  const response = await callAI({
+    model: 'google/gemini-2.5-flash',
+    messages: [
+      { role: 'system', content: `You are a health pattern analyst. Return JSON: { "predictions": [{ "type": "risk"|"insight", "title": "...", "description": "...", "confidence": 0.0-1.0 }] }. Generate 3-5 predictions.` },
+      { role: 'user', content: `Conditions: ${userConditions?.join(', ') || 'Not specified'}. Total entries: ${entries.length}. Flares: ${flares.length}. Recent severities: ${recentFlares.map((f: any) => f.severity).join(', ')}. Top symptoms: ${topSymptoms.join(', ')}. Top triggers: ${topTriggers.join(', ')}. Peak time: ${peakTime[0]} (${peakTime[1]}). ${correlations?.length ? `Correlations: ${correlations.map((c: any) => `${c.factor}: ${c.description}`).join('; ')}` : ''}` }
+    ],
   });
 
   if (!response.ok) {
