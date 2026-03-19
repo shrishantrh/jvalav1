@@ -5,6 +5,8 @@
  * to Sentry via the HTTP Envelope API (no SDK needed for Deno).
  */
 
+import { callAI } from "./ai-client.ts";
+
 interface AIObservabilityLog {
   function: string;
   model: string;
