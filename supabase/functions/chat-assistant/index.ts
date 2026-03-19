@@ -1377,19 +1377,12 @@ async function callModel({
 
   console.log("🤖 Calling AI model with", messages.length, "messages");
 
-  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { 
-      Authorization: `Bearer ${apiKey}`, 
-      "Content-Type": "application/json" 
-    },
-    body: JSON.stringify({ 
-      model: "google/gemini-2.5-flash", 
-      messages, 
-      tools, 
-      tool_choice: { type: "function", function: { name: "respond" } },
-      temperature: 0.7,
-    }),
+  const resp = await callAI({ 
+    model: "google/gemini-2.5-flash", 
+    messages, 
+    tools, 
+    tool_choice: { type: "function", function: { name: "respond" } },
+    temperature: 0.7,
   });
 
   if (!resp.ok) {
