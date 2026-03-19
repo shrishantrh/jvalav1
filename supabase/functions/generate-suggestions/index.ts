@@ -182,16 +182,9 @@ Respond with ONLY this JSON object, no other text:
   console.log(`Researching conditions: ${conditionList}`);
 
   try {
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [{ role: 'user', content: prompt }],
-      }),
+    const response = await callAI({
+      model: 'google/gemini-2.5-flash',
+      messages: [{ role: 'user', content: prompt }],
     });
 
     if (!response.ok) {
