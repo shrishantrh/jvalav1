@@ -78,7 +78,6 @@ Classification Rules:
           }
         }],
         tool_choice: { type: 'function', function: { name: 'classify_note' } }
-      })
     });
 
     const aiLatency = Math.round(performance.now() - aiStart);
