@@ -130,60 +130,53 @@ Generate insights that are:
 Return ONLY a JSON array, no other text:`;
 
     const aiStart = performance.now();
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        tools: [{
-          type: 'function',
-          function: {
-            name: 'generate_insights',
-            description: 'Generate health insights from tracking data',
-            parameters: {
-              type: 'object',
-              properties: {
-                insights: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      type: {
-                        type: 'string',
-                        enum: ['pattern', 'correlation', 'recommendation', 'warning']
-                      },
-                      title: {
-                        type: 'string',
-                        description: 'Clear, specific title (max 60 chars)'
-                      },
-                      description: {
-                        type: 'string',
-                        description: 'Detailed explanation with actionable advice'
-                      },
-                      confidence: {
-                        type: 'number',
-                        minimum: 0.5,
-                        maximum: 0.95,
-                        description: 'Confidence level based on data quantity and clarity'
-                      }
+    const response = await callAI({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      tools: [{
+        type: 'function',
+        function: {
+          name: 'generate_insights',
+          description: 'Generate health insights from tracking data',
+          parameters: {
+            type: 'object',
+            properties: {
+              insights: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    type: {
+                      type: 'string',
+                      enum: ['pattern', 'correlation', 'recommendation', 'warning']
                     },
-                    required: ['type', 'title', 'description', 'confidence']
-                  }
+                    title: {
+                      type: 'string',
+                      description: 'Clear, specific title (max 60 chars)'
+                    },
+                    description: {
+                      type: 'string',
+                      description: 'Detailed explanation with actionable advice'
+                    },
+                    confidence: {
+                      type: 'number',
+                      minimum: 0.5,
+                      maximum: 0.95,
+                      description: 'Confidence level based on data quantity and clarity'
+                    }
+                  },
+                  required: ['type', 'title', 'description', 'confidence']
                 }
-              },
-              required: ['insights']
-            }
+              }
+            },
+            required: ['insights']
           }
-        }],
-        tool_choice: { type: 'function', function: { name: 'generate_insights' } }
-      })
+        }
+      }],
+      tool_choice: { type: 'function', function: { name: 'generate_insights' } }
     });
 
     const aiLatency = Math.round(performance.now() - aiStart);
