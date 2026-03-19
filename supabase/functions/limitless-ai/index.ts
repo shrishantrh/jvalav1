@@ -66,8 +66,8 @@ serve(async (req) => {
     const userId = claimsData.claims.sub as string;
 
     const { query, clientTimezone, chatHistory } = await req.json();
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+
+
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
