@@ -38,15 +38,8 @@ serve(async (req) => {
     const userId = claimsData.claims.sub as string;
     // ─────────────────────────────────────────────────────────────────────
 
-    const apiKey = Deno.env.get('LOVABLE_API_KEY');
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'LOVABLE_API_KEY not configured' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
