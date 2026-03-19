@@ -1,8 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAI } from "../_shared/ai-client.ts";
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// JVALA AI INSIGHTS ENGINE - Powered by Lovable AI (Gemini)
+// JVALA AI INSIGHTS ENGINE - Powered by Vertex AI (HIPAA-compliant)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const corsHeaders = {
