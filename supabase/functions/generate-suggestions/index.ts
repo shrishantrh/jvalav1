@@ -148,11 +148,6 @@ function getDefaultTrackable(query: string): any {
 
 // ─── Condition Research ───
 async function handleConditionResearch(conditions: string[], biologicalSex?: string, age?: number) {
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-  if (!LOVABLE_API_KEY) {
-    console.warn('LOVABLE_API_KEY not set');
-    return jsonResponse({ success: true, symptoms: [], triggers: [], logCategories: [] });
-  }
 
   const conditionList = conditions.join(', ');
   const demographicContext = [
