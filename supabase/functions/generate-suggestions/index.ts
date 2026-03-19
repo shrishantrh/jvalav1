@@ -66,10 +66,7 @@ function extractJSON(raw: string): any {
 
 // ─── Trackable Research ───
 async function handleTrackableResearch(query: string) {
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-  if (!LOVABLE_API_KEY) {
-    return jsonResponse({ success: true, trackable: getDefaultTrackable(query) });
-  }
+  try {
 
   const prompt = `You are designing a health tracking app. A user wants to track: "${query}"
 
