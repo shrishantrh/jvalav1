@@ -273,7 +273,6 @@ CRITICAL GUIDELINES:
           }
         }],
         tool_choice: { type: 'function', function: { name: 'generate_insights' } }
-      }),
     });
 
     const aiLatencyMs = Math.round(performance.now() - aiStartTime);
