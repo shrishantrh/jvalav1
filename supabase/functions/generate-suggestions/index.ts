@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { callAI } from "../_shared/ai-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -65,10 +66,7 @@ function extractJSON(raw: string): any {
 
 // ─── Trackable Research ───
 async function handleTrackableResearch(query: string) {
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-  if (!LOVABLE_API_KEY) {
-    return jsonResponse({ success: true, trackable: getDefaultTrackable(query) });
-  }
+  try {
 
   const prompt = `You are designing a health tracking app. A user wants to track: "${query}"
 
@@ -104,17 +102,9 @@ For alcohol/caffeine: use levels with amount.
 
 Make subOptions specific and health-relevant. 3-6 options max.`;
 
-  try {
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [{ role: 'user', content: prompt }],
-      }),
+    const response = await callAI({
+      model: 'google/gemini-2.5-flash',
+      messages: [{ role: 'user', content: prompt }],
     });
 
     if (!response.ok) {
@@ -158,11 +148,6 @@ function getDefaultTrackable(query: string): any {
 
 // ─── Condition Research ───
 async function handleConditionResearch(conditions: string[], biologicalSex?: string, age?: number) {
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-  if (!LOVABLE_API_KEY) {
-    console.warn('LOVABLE_API_KEY not set');
-    return jsonResponse({ success: true, symptoms: [], triggers: [], logCategories: [] });
-  }
 
   const conditionList = conditions.join(', ');
   const demographicContext = [
@@ -197,16 +182,9 @@ Respond with ONLY this JSON object, no other text:
   console.log(`Researching conditions: ${conditionList}`);
 
   try {
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [{ role: 'user', content: prompt }],
-      }),
+    const response = await callAI({
+      model: 'google/gemini-2.5-flash',
+      messages: [{ role: 'user', content: prompt }],
     });
 
     if (!response.ok) {
@@ -250,8 +228,6 @@ async function handlePredictions(entries: any[], userConditions: string[], corre
     return jsonResponse({ error: 'At least 5 entries required for predictions' }, 400);
   }
 
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-  if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
 
   const flares = entries.filter((e: any) => e.type === 'flare');
   const recentFlares = flares.slice(0, 10);
@@ -274,19 +250,12 @@ async function handlePredictions(entries: any[], userConditions: string[], corre
   const topTriggers = Object.entries(triggerFrequency).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([t, c]) => `${t} (${c}x)`);
   const peakTime = Object.entries(timePatterns).sort((a, b) => b[1] - a[1])[0];
 
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
-      messages: [
-        { role: 'system', content: `You are a health pattern analyst. Return JSON: { "predictions": [{ "type": "risk"|"insight", "title": "...", "description": "...", "confidence": 0.0-1.0 }] }. Generate 3-5 predictions.` },
-        { role: 'user', content: `Conditions: ${userConditions?.join(', ') || 'Not specified'}. Total entries: ${entries.length}. Flares: ${flares.length}. Recent severities: ${recentFlares.map((f: any) => f.severity).join(', ')}. Top symptoms: ${topSymptoms.join(', ')}. Top triggers: ${topTriggers.join(', ')}. Peak time: ${peakTime[0]} (${peakTime[1]}). ${correlations?.length ? `Correlations: ${correlations.map((c: any) => `${c.factor}: ${c.description}`).join('; ')}` : ''}` }
-      ],
-    }),
+  const response = await callAI({
+    model: 'google/gemini-2.5-flash',
+    messages: [
+      { role: 'system', content: `You are a health pattern analyst. Return JSON: { "predictions": [{ "type": "risk"|"insight", "title": "...", "description": "...", "confidence": 0.0-1.0 }] }. Generate 3-5 predictions.` },
+      { role: 'user', content: `Conditions: ${userConditions?.join(', ') || 'Not specified'}. Total entries: ${entries.length}. Flares: ${flares.length}. Recent severities: ${recentFlares.map((f: any) => f.severity).join(', ')}. Top symptoms: ${topSymptoms.join(', ')}. Top triggers: ${topTriggers.join(', ')}. Peak time: ${peakTime[0]} (${peakTime[1]}). ${correlations?.length ? `Correlations: ${correlations.map((c: any) => `${c.factor}: ${c.description}`).join('; ')}` : ''}` }
+    ],
   });
 
   if (!response.ok) {
@@ -309,37 +278,29 @@ async function handleLegacySuggestions(entries: any[]) {
     return jsonResponse({ success: true, suggestions: [] });
   }
 
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-  if (!LOVABLE_API_KEY) {
-    return jsonResponse({ success: true, suggestions: [] });
-  }
-
   const recentEntries = entries.slice(0, 10);
 
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
+  try {
+    const response = await callAI({
       model: 'google/gemini-2.5-flash',
       messages: [
         { role: 'user', content: `Based on recent health entries, suggest 3 quick actions. Return JSON: { "suggestions": ["...", "...", "..."] }. Recent: ${JSON.stringify(recentEntries.map((e: any) => ({ type: e.type, severity: e.severity, timestamp: e.timestamp })))}` }
       ],
-    }),
-  });
+    });
 
-  if (!response.ok) return jsonResponse({ success: true, suggestions: [] });
+    if (!response.ok) return jsonResponse({ success: true, suggestions: [] });
 
-  const aiResponse = await response.json();
-  const content = aiResponse.choices?.[0]?.message?.content;
-  if (content) {
-    const parsed = extractJSON(content);
-    if (parsed?.suggestions) {
-      return jsonResponse({ success: true, suggestions: parsed.suggestions });
+    const aiResponse = await response.json();
+    const content = aiResponse.choices?.[0]?.message?.content;
+    if (content) {
+      const parsed = extractJSON(content);
+      if (parsed?.suggestions) {
+        return jsonResponse({ success: true, suggestions: parsed.suggestions });
+      }
     }
-  }
 
-  return jsonResponse({ success: true, suggestions: [] });
+    return jsonResponse({ success: true, suggestions: [] });
+  } catch {
+    return jsonResponse({ success: true, suggestions: [] });
+  }
 }

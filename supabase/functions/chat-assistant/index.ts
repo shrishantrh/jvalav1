@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAI } from "../_shared/ai-client.ts";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // JVALA SMART HEALTH COMPANION - PROFESSIONAL GRADE AI ASSISTANT
@@ -1376,19 +1377,12 @@ async function callModel({
 
   console.log("🤖 Calling AI model with", messages.length, "messages");
 
-  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { 
-      Authorization: `Bearer ${apiKey}`, 
-      "Content-Type": "application/json" 
-    },
-    body: JSON.stringify({ 
-      model: "google/gemini-2.5-flash", 
-      messages, 
-      tools, 
-      tool_choice: { type: "function", function: { name: "respond" } },
-      temperature: 0.7,
-    }),
+  const resp = await callAI({ 
+    model: "google/gemini-2.5-flash", 
+    messages, 
+    tools, 
+    tool_choice: { type: "function", function: { name: "respond" } },
+    temperature: 0.7,
   });
 
   if (!resp.ok) {
@@ -1464,12 +1458,8 @@ serve(async (req) => {
     // Enforce: callers can only access their own data
     const userId = authenticatedUserId;
     
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
 
-    if (!apiKey) {
-      console.error("❌ LOVABLE_API_KEY not configured");
-      throw new Error("LOVABLE_API_KEY not configured");
-    }
+
     
     if (!message || typeof message !== "string") {
       return replyJson({ error: "Invalid message" }, 400);

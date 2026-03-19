@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { callAI } from "../_shared/ai-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,20 +13,9 @@ serve(async (req) => {
 
   try {
     const { note } = await req.json();
-    const apiKey = Deno.env.get('LOVABLE_API_KEY');
-
-    if (!apiKey) {
-      throw new Error('LOVABLE_API_KEY not configured');
-    }
 
     const aiStart = performance.now();
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    const response = await callAI({
         model: 'google/gemini-2.5-flash',
         messages: [
           {
@@ -88,7 +78,6 @@ Classification Rules:
           }
         }],
         tool_choice: { type: 'function', function: { name: 'classify_note' } }
-      })
     });
 
     const aiLatency = Math.round(performance.now() - aiStart);

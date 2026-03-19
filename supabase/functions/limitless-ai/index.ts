@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAI } from "../_shared/ai-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -65,8 +66,8 @@ serve(async (req) => {
     const userId = claimsData.claims.sub as string;
 
     const { query, clientTimezone, chatHistory } = await req.json();
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+
+
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
@@ -330,11 +331,7 @@ ${JSON.stringify(dataContext)}`;
     }
     aiMessages.push({ role: "user", content: query });
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "google/gemini-2.5-flash", messages: aiMessages, tools, temperature: 0.7 }),
-    });
+    const response = await callAI({ model: "google/gemini-2.5-flash", messages: aiMessages, tools, temperature: 0.7 });
 
     if (!response.ok) {
       const text = await response.text();
@@ -357,11 +354,7 @@ ${JSON.stringify(dataContext)}`;
             return new Response(JSON.stringify({ response: "Couldn't find specific results. Let me answer from what I know.", visualization: null, citations: [], wasResearched: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
           }
           const resCtx = searchResults.results.map((r, i) => `[${i + 1}] ${r.title}\n${r.url}\n${r.snippet}`).join('\n---\n');
-          const r2 = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ model: "google/gemini-2.5-flash", messages: [...aiMessages, { role: "assistant", content: `Researching "${parsed.searchQuery}"...` }, { role: "user", content: `Research results for "${parsed.userQuestion}". Cite [1],[2] etc. Be conversational.\n\n${resCtx}` }], temperature: 0.5 }),
-          });
+          const r2 = await callAI({ model: "google/gemini-2.5-flash", messages: [...aiMessages, { role: "assistant", content: `Researching "${parsed.searchQuery}"...` }, { role: "user", content: `Research results for "${parsed.userQuestion}". Cite [1],[2] etc. Be conversational.\n\n${resCtx}` }], temperature: 0.5 });
           if (!r2.ok) throw new Error(`Research call failed: ${r2.status}`);
           const rd = await r2.json();
           return new Response(JSON.stringify({ response: rd.choices?.[0]?.message?.content || "Couldn't process results.", visualization: null, citations: searchResults.results.map((r, i) => ({ index: i + 1, title: r.title, url: r.url })), wasResearched: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });

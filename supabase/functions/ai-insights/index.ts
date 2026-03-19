@@ -1,8 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAI } from "../_shared/ai-client.ts";
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// JVALA AI INSIGHTS ENGINE - Powered by Lovable AI (Gemini)
+// JVALA AI INSIGHTS ENGINE - Powered by Vertex AI (HIPAA-compliant)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const corsHeaders = {
@@ -37,15 +38,8 @@ serve(async (req) => {
     const userId = claimsData.claims.sub as string;
     // ─────────────────────────────────────────────────────────────────────
 
-    const apiKey = Deno.env.get('LOVABLE_API_KEY');
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'LOVABLE_API_KEY not configured' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -202,18 +196,12 @@ ${entries.filter((e: any) => e.note).slice(0, 5).map((e: any) =>
 ).join('\n') || '- No notes'}
 `;
 
-    // Call Lovable AI for analysis with observability
+    // Call Vertex AI for analysis (HIPAA-compliant)
     const aiStartTime = performance.now();
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          {
+    const response = await callAI({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        {
             role: 'system',
             content: `You are Jvala's AI Health Analyst - an expert in chronic condition pattern recognition. Analyze the user's flare tracking data and provide deeply personalized, actionable insights.
 
@@ -285,7 +273,6 @@ CRITICAL GUIDELINES:
           }
         }],
         tool_choice: { type: 'function', function: { name: 'generate_insights' } }
-      }),
     });
 
     const aiLatencyMs = Math.round(performance.now() - aiStartTime);

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { callAI } from "../_shared/ai-client.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -734,8 +735,8 @@ serve(async (req) => {
     // Enforce: use authenticated user ID only
     const userId = authenticatedUserId;
     
-    const apiKey = Deno.env.get('LOVABLE_API_KEY');
-    if (!apiKey) throw new Error('LOVABLE_API_KEY not configured');
+
+
 
     console.log('💬 Message:', message);
     console.log('📍 Conditions:', userContext.conditions);
@@ -1198,14 +1199,7 @@ RESPONSE FORMAT (valid JSON):
       { role: 'user', content: message }
     ];
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ model: 'google/gemini-2.5-flash', messages }),
-    });
+    const response = await callAI({ model: 'google/gemini-2.5-flash', messages });
 
     if (!response.ok) {
       const errorText = await response.text();
