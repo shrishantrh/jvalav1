@@ -288,16 +288,19 @@ async function handleLegacySuggestions(entries: any[]) {
       ],
     });
 
-  if (!response.ok) return jsonResponse({ success: true, suggestions: [] });
+    if (!response.ok) return jsonResponse({ success: true, suggestions: [] });
 
-  const aiResponse = await response.json();
-  const content = aiResponse.choices?.[0]?.message?.content;
-  if (content) {
-    const parsed = extractJSON(content);
-    if (parsed?.suggestions) {
-      return jsonResponse({ success: true, suggestions: parsed.suggestions });
+    const aiResponse = await response.json();
+    const content = aiResponse.choices?.[0]?.message?.content;
+    if (content) {
+      const parsed = extractJSON(content);
+      if (parsed?.suggestions) {
+        return jsonResponse({ success: true, suggestions: parsed.suggestions });
+      }
     }
-  }
 
-  return jsonResponse({ success: true, suggestions: [] });
+    return jsonResponse({ success: true, suggestions: [] });
+  } catch {
+    return jsonResponse({ success: true, suggestions: [] });
+  }
 }
