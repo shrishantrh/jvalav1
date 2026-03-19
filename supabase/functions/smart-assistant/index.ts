@@ -735,8 +735,8 @@ serve(async (req) => {
     // Enforce: use authenticated user ID only
     const userId = authenticatedUserId;
     
-    const apiKey = Deno.env.get('LOVABLE_API_KEY');
-    if (!apiKey) throw new Error('LOVABLE_API_KEY not configured');
+
+
 
     console.log('💬 Message:', message);
     console.log('📍 Conditions:', userContext.conditions);
