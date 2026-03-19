@@ -106,7 +106,6 @@ Voice transcript: "${transcript}"`;
           }
         ],
         tool_choice: { type: "function", function: { name: "extract_health_data" } }
-      }),
     });
 
     if (!response.ok) {
