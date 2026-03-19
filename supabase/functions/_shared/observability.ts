@@ -90,7 +90,7 @@ async function sendToSentry(
 
 export async function observedAICall(
   functionName: string,
-  apiKey: string,
+  _apiKey: string,
   requestBody: Record<string, unknown>
 ): Promise<{ response: Response; log: AIObservabilityLog }> {
   const model = (requestBody.model as string) || "unknown";
@@ -101,17 +101,7 @@ export async function observedAICall(
   let tokensIn = 0;
   let tokensOut = 0;
 
-  const response = await fetch(
-    "https://ai.gateway.lovable.dev/v1/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestBody),
-    }
-  );
+  const response = await callAI(requestBody);
 
   const latencyMs = Math.round(performance.now() - start);
 
