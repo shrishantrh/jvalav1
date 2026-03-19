@@ -228,8 +228,6 @@ async function handlePredictions(entries: any[], userConditions: string[], corre
     return jsonResponse({ error: 'At least 5 entries required for predictions' }, 400);
   }
 
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-  if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
 
   const flares = entries.filter((e: any) => e.type === 'flare');
   const recentFlares = flares.slice(0, 10);
