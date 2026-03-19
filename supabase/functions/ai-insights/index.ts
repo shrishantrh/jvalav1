@@ -196,18 +196,12 @@ ${entries.filter((e: any) => e.note).slice(0, 5).map((e: any) =>
 ).join('\n') || '- No notes'}
 `;
 
-    // Call Lovable AI for analysis with observability
+    // Call Vertex AI for analysis (HIPAA-compliant)
     const aiStartTime = performance.now();
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          {
+    const response = await callAI({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        {
             role: 'system',
             content: `You are Jvala's AI Health Analyst - an expert in chronic condition pattern recognition. Analyze the user's flare tracking data and provide deeply personalized, actionable insights.
 
