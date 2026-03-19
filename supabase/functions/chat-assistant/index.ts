@@ -1465,12 +1465,8 @@ serve(async (req) => {
     // Enforce: callers can only access their own data
     const userId = authenticatedUserId;
     
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
 
-    if (!apiKey) {
-      console.error("❌ LOVABLE_API_KEY not configured");
-      throw new Error("LOVABLE_API_KEY not configured");
-    }
+
     
     if (!message || typeof message !== "string") {
       return replyJson({ error: "Invalid message" }, 400);
