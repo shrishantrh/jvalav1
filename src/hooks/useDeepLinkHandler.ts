@@ -90,12 +90,36 @@ export const useDeepLinkHandler = ({ onQuickLog, onOpenVoice, onSwitchView }: Us
     switch (action.type) {
       case 'quick-log': {
         if (onQuickLog) {
+          let symptoms = action.symptoms?.length ? action.symptoms : undefined;
+          let triggers = action.triggers?.length ? action.triggers : undefined;
+          let severity = action.severity as any;
+          let note = action.note;
+
+          // If there's a freeform note (from "Say Anything" Siri shortcut),
+          // run it through AI to extract structured data
+          if (note && note.length > 3 && !symptoms?.length) {
+            try {
+              console.log('[DeepLink] AI-processing note:', note);
+              const { data } = await supabase.functions.invoke('transcribe-voice', {
+                body: { transcript: note },
+              });
+              if (data?.extracted) {
+                symptoms = data.extracted.symptoms?.length ? data.extracted.symptoms : symptoms;
+                triggers = data.extracted.triggers?.length ? data.extracted.triggers : triggers;
+                if (data.extracted.severity) severity = data.extracted.severity;
+                note = data.extracted.notes || note;
+              }
+            } catch (e) {
+              console.log('[DeepLink] AI extraction failed, using raw note:', e);
+            }
+          }
+
           const entry: Partial<FlareEntry> = {
             type: 'flare',
-            severity: action.severity as any,
-            symptoms: action.symptoms?.length ? action.symptoms : undefined,
-            triggers: action.triggers?.length ? action.triggers : undefined,
-            note: action.note,
+            severity,
+            symptoms,
+            triggers,
+            note,
             timestamp: new Date(),
           };
           const saved = await onQuickLog(entry);
@@ -103,7 +127,7 @@ export const useDeepLinkHandler = ({ onQuickLog, onOpenVoice, onSwitchView }: Us
             haptics.success();
             toast({
               title: '✓ Logged via Shortcut',
-              description: `${action.severity} flare${action.symptoms?.length ? ` — ${action.symptoms.join(', ')}` : ''}`,
+              description: `${severity} flare${symptoms?.length ? ` — ${symptoms.join(', ')}` : ''}`,
             });
           }
         }
