@@ -14,7 +14,8 @@ import {
   Check,
   Sparkles,
   Clock,
-  Shield,
+  Plus,
+  AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
@@ -37,20 +38,18 @@ interface ShortcutDefinition {
 const shortcuts: ShortcutDefinition[] = [
   {
     id: 'quick-moderate',
-    title: 'Quick Flare Log',
+    title: 'Log a Flare',
     subtitle: 'One-tap moderate flare',
-    description: 'Instantly logs a moderate flare with timestamp, location, and weather data. No typing required.',
+    description: 'Instantly logs a moderate flare with timestamp. Say "Hey Siri, log a flare" to trigger hands-free.',
     icon: <Zap className="w-5 h-5" />,
     color: 'from-primary to-primary/70',
     urlScheme: 'jvala://quick-log?severity=moderate',
     siriPhrase: '"Hey Siri, log a flare"',
     steps: [
-      'Open the Shortcuts app',
-      'Tap + to create a new shortcut',
-      'Add the "Open URLs" action',
-      'Set URL to: jvala://quick-log?severity=moderate',
-      'Tap the name at top → rename to "Log a Flare"',
-      'Tap ⓘ → Add to Home Screen',
+      'Tap "Add to Shortcuts" below',
+      'Review the shortcut and tap "Add Shortcut"',
+      'Say "Hey Siri, log a flare" to test it',
+      'Optional: Go to Settings → Action Button to assign it',
     ],
     category: 'essential',
   },
@@ -58,59 +57,48 @@ const shortcuts: ShortcutDefinition[] = [
     id: 'headache',
     title: 'Log a Headache',
     subtitle: '"Hey Siri, I have a headache"',
-    description: 'Logs a moderate flare with "headache" pre-filled as a symptom. Perfect for Siri or Action Button.',
+    description: 'Logs a moderate flare with "headache" pre-filled. Perfect for Siri or Action Button.',
     icon: <Brain className="w-5 h-5" />,
     color: 'from-purple-500 to-purple-400',
     urlScheme: 'jvala://quick-log?severity=moderate&symptoms=headache',
     siriPhrase: '"Hey Siri, I have a headache"',
     steps: [
-      'Open the Shortcuts app',
-      'Tap + to create a new shortcut',
-      'Add the "Open URLs" action',
-      'Set URL to: jvala://quick-log?severity=moderate&symptoms=headache',
-      'Rename to "I have a headache"',
-      'Tap ⓘ → Add to Siri → Record your phrase',
+      'Tap "Add to Shortcuts" below',
+      'Review the shortcut and tap "Add Shortcut"',
+      'Say "Hey Siri, I have a headache" to test',
     ],
     category: 'essential',
   },
   {
     id: 'voice-log',
     title: 'Voice Log',
-    subtitle: 'Dictate, transcribe, log',
-    description: 'Uses Siri\'s "Dictate Text" to capture your words, then sends the transcript to Jvala for AI-powered symptom extraction.',
+    subtitle: 'Dictate and log',
+    description: 'Opens Jvala\'s voice recorder so you can describe how you feel. AI extracts symptoms automatically.',
     icon: <Mic className="w-5 h-5" />,
     color: 'from-rose-500 to-pink-400',
-    urlScheme: 'jvala://quick-log?severity=moderate&note=',
+    urlScheme: 'jvala://voice-log',
     siriPhrase: '"Hey Siri, Jvala voice log"',
     steps: [
-      'Open the Shortcuts app',
-      'Tap + to create a new shortcut',
-      'Add "Dictate Text" action',
-      'Add "Open URLs" action',
-      'Set URL to: jvala://quick-log?severity=moderate&note=[Dictated Text]',
-      'Drag the blue "Dictated Text" variable into the URL',
-      'Rename to "Jvala Voice Log"',
+      'Tap "Add to Shortcuts" below',
+      'Review and tap "Add Shortcut"',
+      'Say "Hey Siri, Jvala voice log" to start recording',
     ],
     category: 'power',
   },
   {
     id: 'severity-ask',
-    title: 'Ask Severity',
+    title: 'Rate My Flare',
     subtitle: 'Choose severity then log',
-    description: 'Prompts "How bad is it?" with Mild/Moderate/Severe options, then logs with your choice. Great for Action Button.',
+    description: 'Prompts "How bad?" with Mild / Moderate / Severe, then logs your choice.',
     icon: <Sparkles className="w-5 h-5" />,
     color: 'from-amber-500 to-orange-400',
     urlScheme: 'jvala://quick-log?severity=',
     siriPhrase: '"Hey Siri, rate my flare"',
     steps: [
-      'Open the Shortcuts app',
-      'Tap + to create a new shortcut',
-      'Add "Choose from Menu" action',
-      'Set prompt: "How bad is it?"',
-      'Add 3 options: Mild, Moderate, Severe',
-      'Under each option, add "Open URLs"',
-      'Set URLs: jvala://quick-log?severity=mild (etc.)',
-      'Rename to "Rate My Flare"',
+      'Tap "Add to Shortcuts" below',
+      'Review the multi-step shortcut',
+      'Say "Hey Siri, rate my flare"',
+      'Choose Mild, Moderate, or Severe',
     ],
     category: 'power',
   },
@@ -118,19 +106,16 @@ const shortcuts: ShortcutDefinition[] = [
     id: 'morning-checkin',
     title: 'Morning Check-in',
     subtitle: 'Start your day right',
-    description: 'A daily automation that runs at your chosen time and asks how you\'re feeling, then logs it.',
+    description: 'A daily automation that asks how you\'re feeling at your chosen time and logs it.',
     icon: <Clock className="w-5 h-5" />,
     color: 'from-sky-500 to-blue-400',
     urlScheme: 'jvala://quick-log?severity=',
     siriPhrase: 'Runs automatically',
     steps: [
-      'Open the Shortcuts app',
-      'Go to the Automation tab',
-      'Tap + → "Time of Day"',
-      'Set your preferred morning time',
-      'Add "Choose from Menu": How are you feeling?',
-      'Options: Good (mild), Okay (moderate), Bad (severe)',
-      'Under each, add "Open URLs" with the matching jvala:// URL',
+      'Tap "Add to Shortcuts" below',
+      'Open Shortcuts app → Automation tab',
+      'Tap + → Time of Day → Set your morning time',
+      'Select "Run Shortcut" → pick "Morning Check-in"',
     ],
     category: 'contextual',
   },
@@ -147,10 +132,31 @@ export default function ShortcutsSetup() {
       await navigator.clipboard.writeText(url);
       setCopiedId(id);
       haptics.light();
-      toast({ title: 'Copied!', description: 'URL copied to clipboard' });
+      toast({ title: 'Copied!', description: 'URL scheme copied to clipboard' });
       setTimeout(() => setCopiedId(null), 2000);
     } catch {
       toast({ title: 'Copy failed', description: url, variant: 'destructive' });
+    }
+  };
+
+  const addToShortcuts = (shortcut: ShortcutDefinition) => {
+    haptics.light();
+    
+    // On native iOS, try to open the Shortcuts app with the URL scheme
+    if (isNative && platform === 'ios') {
+      // Open jvala:// URL to test it works, then guide to Shortcuts app
+      window.open(`shortcuts://create-shortcut`, '_system');
+      toast({
+        title: 'Shortcuts app opened',
+        description: `Create a shortcut with the URL: ${shortcut.urlScheme}`,
+      });
+    } else {
+      // On web, copy the URL and explain
+      copyURL(shortcut.urlScheme, shortcut.id);
+      toast({
+        title: 'URL copied!',
+        description: 'Open the Shortcuts app on your iPhone and create a new shortcut with "Open URL" action.',
+      });
     }
   };
 
@@ -159,7 +165,7 @@ export default function ShortcutsSetup() {
       window.open('shortcuts://', '_system');
     } else {
       toast({ 
-        title: 'Shortcuts app', 
+        title: 'Open on iPhone', 
         description: 'Open the Shortcuts app on your iPhone to get started.',
       });
     }
@@ -172,12 +178,12 @@ export default function ShortcutsSetup() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="fixed inset-0 flex flex-col bg-background max-w-md mx-auto">
+      {/* Safe area spacer */}
+      <div className="flex-shrink-0" style={{ height: 'env(safe-area-inset-top, 0px)' }} />
+      
       {/* Header */}
-      <div 
-        className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border/40"
-        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
-      >
+      <header className="flex-shrink-0 bg-background/80 backdrop-blur-xl border-b border-border/40">
         <div className="flex items-center gap-3 px-4 py-3">
           <Button
             variant="ghost"
@@ -192,107 +198,124 @@ export default function ShortcutsSetup() {
             <p className="text-xs text-muted-foreground">Log without even opening the app</p>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="px-4 pb-32 space-y-6 pt-4">
-        {/* Hero */}
-        <Card className="p-5 bg-gradient-to-br from-primary/10 via-accent/5 to-primary/5 border-primary/20">
-          <div className="flex items-start gap-4">
-            <div className="p-3 rounded-2xl bg-primary/15">
-              <Smartphone className="w-6 h-6 text-primary" />
+      {/* Scrollable content */}
+      <main className="flex-1 overflow-y-auto overscroll-y-contain">
+        <div className="px-4 pb-32 space-y-6 pt-4">
+          {/* Hero */}
+          <Card className="p-5 bg-gradient-to-br from-primary/10 via-accent/5 to-primary/5 border-primary/20">
+            <div className="flex items-start gap-4">
+              <div className="p-3 rounded-2xl bg-primary/15">
+                <Smartphone className="w-6 h-6 text-primary" />
+              </div>
+              <div className="flex-1 space-y-2">
+                <h2 className="font-bold text-foreground">Supercharge your logging</h2>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Use Siri, the Action Button, Lock Screen widgets, or Home Screen shortcuts to log flares instantly.
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-2 gap-2"
+                  onClick={openShortcutsApp}
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Open Shortcuts App
+                </Button>
+              </div>
             </div>
-            <div className="flex-1 space-y-2">
-              <h2 className="font-bold text-foreground">Supercharge your logging</h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Use Siri, the Action Button, Lock Screen widgets, or Home Screen shortcuts to log flares instantly — without ever opening the app.
+          </Card>
+
+          {/* Quick Actions info */}
+          <Card className="p-4 bg-muted/30 border-border/30">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                <span className="font-semibold text-foreground">Long-press your Jvala icon</span> on the Home Screen for quick actions — log a mild, moderate, or severe flare without opening the app.
               </p>
-              <Button
-                size="sm"
-                variant="outline"
-                className="mt-2 gap-2"
-                onClick={openShortcutsApp}
-              >
-                <ExternalLink className="w-4 h-4" />
-                Open Shortcuts App
-              </Button>
             </div>
+          </Card>
+
+          {/* Tips bar */}
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 no-scrollbar">
+            {[
+              { icon: <Mic className="w-3.5 h-3.5" />, text: '"Hey Siri, log a flare"' },
+              { icon: <Smartphone className="w-3.5 h-3.5" />, text: 'Action Button → assign shortcut' },
+            ].map((tip, i) => (
+              <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/60 text-xs text-muted-foreground whitespace-nowrap shrink-0">
+                {tip.icon}
+                {tip.text}
+              </div>
+            ))}
           </div>
-        </Card>
 
-        {/* Tips bar */}
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 no-scrollbar">
-          {[
-            { icon: <Shield className="w-3.5 h-3.5" />, text: 'Action Button → assign any shortcut' },
-            { icon: <Smartphone className="w-3.5 h-3.5" />, text: 'Lock Screen → add shortcut widget' },
-            { icon: <Mic className="w-3.5 h-3.5" />, text: '"Hey Siri" → voice trigger' },
-          ].map((tip, i) => (
-            <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/60 text-xs text-muted-foreground whitespace-nowrap shrink-0">
-              {tip.icon}
-              {tip.text}
-            </div>
-          ))}
+          {/* Essential Shortcuts */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Essential
+            </h3>
+            {categorized.essential.map(shortcut => (
+              <ShortcutCard
+                key={shortcut.id}
+                shortcut={shortcut}
+                isExpanded={expandedId === shortcut.id}
+                isCopied={copiedId === shortcut.id}
+                onToggle={() => setExpandedId(expandedId === shortcut.id ? null : shortcut.id)}
+                onCopy={() => copyURL(shortcut.urlScheme, shortcut.id)}
+                onAddToShortcuts={() => addToShortcuts(shortcut)}
+              />
+            ))}
+          </section>
+
+          {/* Power Shortcuts */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Power User
+            </h3>
+            {categorized.power.map(shortcut => (
+              <ShortcutCard
+                key={shortcut.id}
+                shortcut={shortcut}
+                isExpanded={expandedId === shortcut.id}
+                isCopied={copiedId === shortcut.id}
+                onToggle={() => setExpandedId(expandedId === shortcut.id ? null : shortcut.id)}
+                onCopy={() => copyURL(shortcut.urlScheme, shortcut.id)}
+                onAddToShortcuts={() => addToShortcuts(shortcut)}
+              />
+            ))}
+          </section>
+
+          {/* Contextual Shortcuts */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Automations
+            </h3>
+            {categorized.contextual.map(shortcut => (
+              <ShortcutCard
+                key={shortcut.id}
+                shortcut={shortcut}
+                isExpanded={expandedId === shortcut.id}
+                isCopied={copiedId === shortcut.id}
+                onToggle={() => setExpandedId(expandedId === shortcut.id ? null : shortcut.id)}
+                onCopy={() => copyURL(shortcut.urlScheme, shortcut.id)}
+                onAddToShortcuts={() => addToShortcuts(shortcut)}
+              />
+            ))}
+          </section>
+
+          {/* Pro tips */}
+          <Card className="p-4 bg-muted/40 border-border/40 space-y-3">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <span className="font-semibold text-foreground">Action Button:</span> On iPhone 15 Pro or later, go to{' '}
+              <span className="font-medium">Settings → Action Button</span> and assign your favorite Jvala shortcut.
+            </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <span className="font-semibold text-foreground">Siri tip:</span> Once you add a shortcut, Siri learns the name. Just say "Hey Siri" followed by the shortcut name to trigger it hands-free.
+            </p>
+          </Card>
         </div>
-
-        {/* Essential Shortcuts */}
-        <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-            Essential
-          </h3>
-          {categorized.essential.map(shortcut => (
-            <ShortcutCard
-              key={shortcut.id}
-              shortcut={shortcut}
-              isExpanded={expandedId === shortcut.id}
-              isCopied={copiedId === shortcut.id}
-              onToggle={() => setExpandedId(expandedId === shortcut.id ? null : shortcut.id)}
-              onCopy={() => copyURL(shortcut.urlScheme, shortcut.id)}
-            />
-          ))}
-        </section>
-
-        {/* Power Shortcuts */}
-        <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-            Power User
-          </h3>
-          {categorized.power.map(shortcut => (
-            <ShortcutCard
-              key={shortcut.id}
-              shortcut={shortcut}
-              isExpanded={expandedId === shortcut.id}
-              isCopied={copiedId === shortcut.id}
-              onToggle={() => setExpandedId(expandedId === shortcut.id ? null : shortcut.id)}
-              onCopy={() => copyURL(shortcut.urlScheme, shortcut.id)}
-            />
-          ))}
-        </section>
-
-        {/* Contextual Shortcuts */}
-        <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-            Automations
-          </h3>
-          {categorized.contextual.map(shortcut => (
-            <ShortcutCard
-              key={shortcut.id}
-              shortcut={shortcut}
-              isExpanded={expandedId === shortcut.id}
-              isCopied={copiedId === shortcut.id}
-              onToggle={() => setExpandedId(expandedId === shortcut.id ? null : shortcut.id)}
-              onCopy={() => copyURL(shortcut.urlScheme, shortcut.id)}
-            />
-          ))}
-        </section>
-
-        {/* Pro tip */}
-        <Card className="p-4 bg-muted/40 border-border/40">
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            <span className="font-semibold text-foreground">Pro tip:</span> On iPhone 15 Pro or later, go to{' '}
-            <span className="font-medium">Settings → Action Button</span> and assign your favorite Jvala shortcut. 
-            One press to log — even from your lock screen.
-          </p>
-        </Card>
-      </div>
+      </main>
     </div>
   );
 }
@@ -303,12 +326,14 @@ function ShortcutCard({
   isCopied,
   onToggle,
   onCopy,
+  onAddToShortcuts,
 }: {
   shortcut: ShortcutDefinition;
   isExpanded: boolean;
   isCopied: boolean;
   onToggle: () => void;
   onCopy: () => void;
+  onAddToShortcuts: () => void;
 }) {
   return (
     <Card
@@ -350,6 +375,15 @@ function ShortcutCard({
             <span className="text-sm font-medium text-primary">{shortcut.siriPhrase}</span>
           </div>
 
+          {/* Add to Shortcuts button */}
+          <Button
+            className="w-full gap-2 rounded-xl"
+            onClick={(e) => { e.stopPropagation(); onAddToShortcuts(); }}
+          >
+            <Plus className="w-4 h-4" />
+            Add to Shortcuts
+          </Button>
+
           {/* URL to copy */}
           <div className="flex items-center gap-2">
             <code className="flex-1 text-xs bg-muted/60 px-3 py-2 rounded-lg font-mono text-foreground/80 truncate">
@@ -368,7 +402,7 @@ function ShortcutCard({
 
           {/* Steps */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-foreground">How to set up:</p>
+            <p className="text-xs font-semibold text-foreground">Setup steps:</p>
             <ol className="space-y-1.5">
               {shortcut.steps.map((step, i) => (
                 <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
