@@ -6,6 +6,8 @@
  * 
  * Supported URLs:
  * - jvala://quick-log?severity=mild&symptoms=headache,nausea
+ * - jvala://quick-log?severity=moderate&note=my head hurts and I feel dizzy
+ *   (note is AI-processed to extract symptoms/triggers/severity)
  * - jvala://voice-log  (opens voice recorder)
  * - jvala://insights   (switches to insights tab)
  * - jvala://log         (opens track view)
@@ -16,6 +18,7 @@ import { isNative } from '@/lib/capacitor';
 import { useToast } from '@/hooks/use-toast';
 import { haptics } from '@/lib/haptics';
 import { FlareEntry } from '@/types/flare';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface DeepLinkAction {
   type: 'quick-log' | 'voice-log' | 'open-view' | 'none';
