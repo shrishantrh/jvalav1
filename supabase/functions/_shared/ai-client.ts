@@ -1,47 +1,37 @@
 /**
- * Shared AI Client for Vertex AI (HIPAA-compliant)
+ * Shared AI Client
  * 
- * Uses Google Cloud Vertex AI's OpenAI-compatible endpoint.
- * Authenticates via service account JWT → access token.
- * All health data stays within Google's BAA-covered infrastructure.
+ * Routes to either:
+ *   1. Lovable AI Gateway (default, using LOVABLE_API_KEY)
+ *   2. Google Vertex AI (when GOOGLE_SERVICE_ACCOUNT_JSON is configured)
  * 
- * Required secrets:
- *   GOOGLE_SERVICE_ACCOUNT_JSON  – full JSON key file content
- *   GOOGLE_CLOUD_PROJECT_ID      – GCP project ID
- *   GOOGLE_CLOUD_REGION          – e.g. "us-central1"
+ * This allows the app to work immediately with Lovable AI,
+ * and seamlessly switch to HIPAA-compliant Vertex AI later.
  */
 
 import { SignJWT, importPKCS8 } from "https://deno.land/x/jose@v5.2.0/index.ts";
 
-// ── Token cache (edge functions are short-lived but may make multiple calls) ──
+// ── Token cache for Vertex AI ──
 let cachedAccessToken: string | null = null;
 let tokenExpiresAt = 0;
 
-// ── Model mapping: strip "google/" prefix used by Lovable gateway ──
 function resolveModel(model: string): string {
-  // Vertex AI uses just "gemini-2.5-flash" not "google/gemini-2.5-flash"
   if (model.startsWith("google/")) {
     return model.slice(7);
   }
   return model;
 }
 
-/**
- * Get a Google OAuth2 access token using a service account JWT.
- */
 async function getAccessToken(serviceAccount: {
   client_email: string;
   private_key: string;
 }): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
-
-  // Return cached token if still valid (with 60s buffer)
   if (cachedAccessToken && tokenExpiresAt > now + 60) {
     return cachedAccessToken;
   }
 
   const privateKey = await importPKCS8(serviceAccount.private_key, "RS256");
-
   const jwt = await new SignJWT({
     scope: "https://www.googleapis.com/auth/cloud-platform",
   })
@@ -71,24 +61,63 @@ async function getAccessToken(serviceAccount: {
   const tokenData = await tokenResponse.json();
   cachedAccessToken = tokenData.access_token;
   tokenExpiresAt = now + (tokenData.expires_in || 3600);
-
   return cachedAccessToken!;
 }
 
 /**
- * Configuration loaded from environment.
+ * Detect which backend to use based on available env vars.
  */
-function getConfig() {
+function getBackend(): "lovable" | "vertex" {
   const serviceAccountJson = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_JSON");
   const projectId = Deno.env.get("GOOGLE_CLOUD_PROJECT_ID");
-  const region = Deno.env.get("GOOGLE_CLOUD_REGION") || "us-central1";
+  if (serviceAccountJson && projectId) {
+    return "vertex";
+  }
+  return "lovable";
+}
 
-  if (!serviceAccountJson) {
-    throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON not configured");
+/**
+ * Call AI — automatically routes to the right backend.
+ */
+export async function callAI(
+  requestBody: Record<string, unknown>
+): Promise<Response> {
+  const backend = getBackend();
+
+  if (backend === "vertex") {
+    return callVertexAI(requestBody);
   }
-  if (!projectId) {
-    throw new Error("GOOGLE_CLOUD_PROJECT_ID not configured");
+  return callLovableAI(requestBody);
+}
+
+// ── Lovable AI Gateway ──────────────────────────────────────────────────────
+
+async function callLovableAI(requestBody: Record<string, unknown>): Promise<Response> {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey) {
+    throw new Error("LOVABLE_API_KEY not configured");
   }
+
+  const model = (requestBody.model as string) || "google/gemini-2.5-flash";
+
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ ...requestBody, model }),
+  });
+
+  return response;
+}
+
+// ── Google Vertex AI (HIPAA-compliant) ──────────────────────────────────────
+
+async function callVertexAI(requestBody: Record<string, unknown>): Promise<Response> {
+  const serviceAccountJson = Deno.env.get("GOOGLE_SERVICE_ACCOUNT_JSON")!;
+  const projectId = Deno.env.get("GOOGLE_CLOUD_PROJECT_ID")!;
+  const region = Deno.env.get("GOOGLE_CLOUD_REGION") || "us-central1";
 
   let serviceAccount: { client_email: string; private_key: string };
   try {
@@ -97,37 +126,9 @@ function getConfig() {
     throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON is not valid JSON");
   }
 
-  if (!serviceAccount.client_email || !serviceAccount.private_key) {
-    throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON missing client_email or private_key");
-  }
-
-  return { serviceAccount, projectId, region };
-}
-
-/**
- * Build the Vertex AI OpenAI-compatible endpoint URL.
- */
-function getEndpointUrl(projectId: string, region: string): string {
-  return `https://${region}-aiplatform.googleapis.com/v1beta1/projects/${projectId}/locations/${region}/endpoints/openapi/chat/completions`;
-}
-
-/**
- * Call AI via Vertex AI (HIPAA-compliant, BAA-covered).
- * 
- * Drop-in replacement for the old Lovable AI gateway calls.
- * Same OpenAI-compatible request/response format.
- * 
- * @param requestBody - OpenAI-compatible request body (model, messages, tools, etc.)
- * @returns The fetch Response object
- */
-export async function callAI(
-  requestBody: Record<string, unknown>
-): Promise<Response> {
-  const { serviceAccount, projectId, region } = getConfig();
   const accessToken = await getAccessToken(serviceAccount);
-  const endpointUrl = getEndpointUrl(projectId, region);
+  const endpointUrl = `https://${region}-aiplatform.googleapis.com/v1beta1/projects/${projectId}/locations/${region}/endpoints/openapi/chat/completions`;
 
-  // Resolve model name (strip "google/" prefix if present)
   const body = {
     ...requestBody,
     model: resolveModel((requestBody.model as string) || "gemini-2.5-flash"),
@@ -146,20 +147,28 @@ export async function callAI(
 }
 
 /**
- * Get the API key for AI calls.
- * Returns the access token for Vertex AI (for functions that build their own fetch).
- * Prefer using callAI() instead.
+ * Get API key for manual fetch calls.
  */
 export async function getAIApiKey(): Promise<string> {
-  const { serviceAccount } = getConfig();
-  return await getAccessToken(serviceAccount);
+  const backend = getBackend();
+  if (backend === "vertex") {
+    const sa = JSON.parse(Deno.env.get("GOOGLE_SERVICE_ACCOUNT_JSON")!);
+    return await getAccessToken(sa);
+  }
+  const key = Deno.env.get("LOVABLE_API_KEY");
+  if (!key) throw new Error("LOVABLE_API_KEY not configured");
+  return key;
 }
 
 /**
- * Get the full Vertex AI endpoint URL.
- * For functions that need to build custom fetch calls.
+ * Get AI endpoint URL for manual fetch calls.
  */
 export function getAIEndpointUrl(): string {
-  const { projectId, region } = getConfig();
-  return getEndpointUrl(projectId, region);
+  const backend = getBackend();
+  if (backend === "vertex") {
+    const projectId = Deno.env.get("GOOGLE_CLOUD_PROJECT_ID")!;
+    const region = Deno.env.get("GOOGLE_CLOUD_REGION") || "us-central1";
+    return `https://${region}-aiplatform.googleapis.com/v1beta1/projects/${projectId}/locations/${region}/endpoints/openapi/chat/completions`;
+  }
+  return "https://ai.gateway.lovable.dev/v1/chat/completions";
 }
