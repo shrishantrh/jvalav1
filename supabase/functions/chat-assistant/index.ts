@@ -1599,7 +1599,79 @@ serve(async (req) => {
     }
 
     console.log("✅ [chat-assistant] Response generated, length:", modelResponse.response.length);
-    return replyJson(modelResponse);
+
+    // ── Save AI memories (fire-and-forget, don't block response) ──────
+    if (modelResponse.newMemories?.length) {
+      const memoriesToSave = modelResponse.newMemories;
+      console.log(`🧠 [chat-assistant] Saving ${memoriesToSave.length} new memories`);
+      
+      // Check for duplicates and upsert
+      (async () => {
+        try {
+          for (const mem of memoriesToSave) {
+            // Check if similar memory exists
+            const { data: existing } = await supabase
+              .from("ai_memories")
+              .select("id, evidence_count, importance")
+              .eq("user_id", userId)
+              .eq("memory_type", mem.memory_type)
+              .eq("category", mem.category)
+              .ilike("content", `%${mem.content.slice(0, 50)}%`)
+              .limit(1);
+
+            if (existing?.length) {
+              // Reinforce existing memory
+              await supabase
+                .from("ai_memories")
+                .update({
+                  evidence_count: (existing[0].evidence_count || 1) + 1,
+                  importance: Math.min(1, Math.max(existing[0].importance, mem.importance)),
+                  last_reinforced_at: new Date().toISOString(),
+                })
+                .eq("id", existing[0].id);
+            } else {
+              // Insert new memory
+              await supabase.from("ai_memories").insert({
+                user_id: userId,
+                memory_type: mem.memory_type,
+                category: mem.category,
+                content: mem.content,
+                importance: mem.importance,
+              });
+            }
+          }
+          
+          // Prune old low-importance memories if we have too many (keep top 100)
+          const { count } = await supabase
+            .from("ai_memories")
+            .select("*", { count: "exact", head: true })
+            .eq("user_id", userId);
+          
+          if (count && count > 100) {
+            const { data: toDelete } = await supabase
+              .from("ai_memories")
+              .select("id")
+              .eq("user_id", userId)
+              .order("importance", { ascending: true })
+              .order("last_reinforced_at", { ascending: true })
+              .limit(count - 100);
+            
+            if (toDelete?.length) {
+              await supabase
+                .from("ai_memories")
+                .delete()
+                .in("id", toDelete.map(d => d.id));
+            }
+          }
+        } catch (memErr) {
+          console.error("🧠 [chat-assistant] Memory save error:", memErr);
+        }
+      })();
+    }
+
+    // Don't send newMemories to client
+    const { newMemories: _, ...clientResponse } = modelResponse;
+    return replyJson(clientResponse);
 
   } catch (error) {
     console.error("❌ [chat-assistant] Error:", error);
