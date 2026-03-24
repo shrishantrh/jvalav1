@@ -1101,6 +1101,7 @@ ${medications.slice(0, 3).map(m => `• ${m.medication_name} - last taken ${form
 🔗 LEARNED CORRELATIONS
 ${correlations.slice(0, 5).map(c => `• ${c.trigger_value} → ${c.outcome_value} (${c.occurrence_count}x, ${Math.round((c.confidence || 0) * 100)}% confidence)`).join("\n") || "• Still learning - keep logging triggers and symptoms together"}
 
+${memorySection}
 ═══════════════════════════════════════════════════════════════════════════════
 RESPONSE GUIDELINES
 ═══════════════════════════════════════════════════════════════════════════════
