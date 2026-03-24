@@ -1544,7 +1544,6 @@ serve(async (req) => {
     let modelResponse: AssistantReply;
     try {
       modelResponse = await callModel({
-        apiKey,
         systemPrompt,
         history,
         userMessage: message,
