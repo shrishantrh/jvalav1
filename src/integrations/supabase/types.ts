@@ -56,6 +56,48 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_memories: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          evidence_count: number
+          id: string
+          importance: number
+          last_reinforced_at: string
+          memory_type: string
+          metadata: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          content: string
+          created_at?: string
+          evidence_count?: number
+          id?: string
+          importance?: number
+          last_reinforced_at?: string
+          memory_type: string
+          metadata?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          evidence_count?: number
+          id?: string
+          importance?: number
+          last_reinforced_at?: string
+          memory_type?: string
+          metadata?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       correlations: {
         Row: {
           avg_delay_minutes: number | null
