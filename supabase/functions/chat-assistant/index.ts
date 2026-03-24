@@ -1255,12 +1255,10 @@ function handleDeterministicResponse(
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function callModel({
-  apiKey,
   systemPrompt,
   history,
   userMessage,
 }: {
-  apiKey: string;
   systemPrompt: string;
   history: { role: "user" | "assistant"; content: string }[];
   userMessage: string;
