@@ -1370,6 +1370,21 @@ async function callModel({
               type: "string",
               description: "A follow-up question or suggestion",
             },
+            newMemories: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["memory_type", "category", "content", "importance"],
+                properties: {
+                  memory_type: { type: "string", enum: ["pattern", "preference", "insight", "context", "behavior"], description: "Type of memory to store" },
+                  category: { type: "string", enum: ["triggers", "symptoms", "medications", "lifestyle", "emotional", "environmental", "general"], description: "Category of the memory" },
+                  content: { type: "string", description: "The memory content — a concise statement about the user (e.g. 'User gets migraines after drinking red wine', 'User prefers natural remedies', 'User works night shifts')" },
+                  importance: { type: "number", description: "0-1 importance score. 1 = critical health pattern, 0.3 = minor preference" },
+                },
+              },
+              description: "NEW things you learned about the user from THIS conversation that should be remembered for future conversations. Extract preferences, patterns, lifestyle facts, triggers, coping strategies, medication responses, emotional patterns. Be proactive — if someone says 'I work night shifts' remember that. If they say 'yoga helps' remember that. Only add genuinely NEW information not already in your memories above.",
+            },
           },
         },
       },
