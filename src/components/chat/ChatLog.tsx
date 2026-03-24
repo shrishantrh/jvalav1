@@ -5,10 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { FlareEntry } from "@/types/flare";
 import { Send, Mic, Bot, User, Check, Flame, BarChart3, Camera } from "lucide-react";
-import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { VoiceOverlay } from "@/components/chat/VoiceOverlay";
+import { InlineVoiceRecorder } from "@/components/chat/InlineVoiceRecorder";
 import { PhotoAnalyzer } from "@/components/chat/PhotoAnalyzer";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
