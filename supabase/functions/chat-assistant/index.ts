@@ -980,7 +980,8 @@ function buildSystemPrompt(
   correlations: any[],
   medications: any[],
   engagement: any,
-  conversationHistory: { role: string; content: string }[]
+  conversationHistory: { role: string; content: string }[],
+  aiMemories: any[] = []
 ): string {
   const userName = profile?.full_name?.split(" ")[0] || "there";
   const conditions = (profile?.conditions ?? []).join(", ") || "Not specified";
@@ -988,6 +989,13 @@ function buildSystemPrompt(
   // Build conversation context
   const recentTopics = conversationHistory.slice(-6).map(m => m.content.slice(0, 100));
   const isFirstMessage = conversationHistory.length === 0;
+
+  // Build memory section
+  const memorySection = aiMemories.length > 0 ? `
+🧠 YOUR LEARNED MEMORIES ABOUT ${userName.toUpperCase()}
+These are things you've learned over time from conversations. Use them to personalize responses.
+${aiMemories.map(m => `• [${m.memory_type}/${m.category}] ${m.content} (confidence: ${Math.round(m.importance * 100)}%, seen ${m.evidence_count}x)`).join("\n")}
+` : "";
 
   return `You are Jvala — ${userName}'s personal health companion. You are the ASSISTANT. ${userName} is the USER.
 
