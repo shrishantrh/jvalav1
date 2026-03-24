@@ -311,12 +311,6 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  useEffect(() => {
-    if (transcript) {
-      setInput(transcript);
-    }
-  }, [transcript]);
-
   const handleQuickLog = async (severity: Severity) => {
     const severityEmoji = severity === 'mild' ? '🟡' : severity === 'moderate' ? '🟠' : '🔴';
     const userMessage: ChatMessage = {
