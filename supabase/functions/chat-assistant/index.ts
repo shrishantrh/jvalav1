@@ -1465,21 +1465,26 @@ serve(async (req) => {
 
     console.log("💬 [chat-assistant] User message:", message.slice(0, 100));
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
 
-    // Fetch all user data in parallel
+    // Fetch all user data in parallel (including AI memories)
     const [
       { data: profile },
       { data: entries },
       { data: medLogs },
       { data: correlations },
       { data: engagement },
+      { data: aiMemories },
     ] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).single(),
       supabase.from("flare_entries").select("*").eq("user_id", userId).order("timestamp", { ascending: false }).limit(300),
       supabase.from("medication_logs").select("*").eq("user_id", userId).order("taken_at", { ascending: false }).limit(200),
       supabase.from("correlations").select("*").eq("user_id", userId).order("confidence", { ascending: false }).limit(50),
       supabase.from("engagement").select("*").eq("user_id", userId).single(),
+      supabase.from("ai_memories").select("*").eq("user_id", userId).order("importance", { ascending: false }).limit(50),
     ]);
 
     const safeEntries = Array.isArray(entries) ? entries : [];
