@@ -1431,6 +1431,7 @@ async function callModel({
         emotionalTone: parsed.emotionalTone ?? "neutral",
         actionableInsights: parsed.actionableInsights ?? [],
         suggestedFollowUp: parsed.suggestedFollowUp,
+        newMemories: parsed.newMemories ?? [],
       };
     } catch (e) {
       console.error("❌ Failed to parse tool args:", e);
