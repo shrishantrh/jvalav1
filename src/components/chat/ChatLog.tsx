@@ -615,12 +615,8 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
             onTranscriptReady={(text) => {
               setIsVoiceMode(false);
               setInput(text);
-              // Auto-send the voice transcript
-              setTimeout(() => {
-                const fakeInput = text;
-                setInput(fakeInput);
-                setTimeout(() => handleSend(), 50);
-              }, 50);
+              // Need to wait for state update before handleSend reads input
+              setTimeout(() => handleSend(), 100);
             }}
             onCancel={() => setIsVoiceMode(false)}
             isProcessing={isProcessing}
