@@ -1137,6 +1137,15 @@ When responding:
 
 ${isFirstMessage ? "This is the start of the conversation. Greet them warmly." : `CONVERSATION CONTEXT:\n${recentTopics.map((t, i) => `${i + 1}. ${t}`).join("\n")}`}
 
+MEMORY SYSTEM — LEARN FROM EVERY CONVERSATION:
+You have a persistent memory. After EVERY conversation, extract new facts about the user and add them to newMemories. Examples:
+- User mentions they work night shifts → { memory_type: "context", category: "lifestyle", content: "Works night shifts — sleep schedule is inverted", importance: 0.8 }
+- User says yoga helps their pain → { memory_type: "pattern", category: "lifestyle", content: "Yoga helps reduce pain/flare severity", importance: 0.7 }
+- User mentions they hate taking pills → { memory_type: "preference", category: "medications", content: "Dislikes taking pills — prefers non-medication approaches", importance: 0.6 }
+- User reports coffee triggers migraines → { memory_type: "pattern", category: "triggers", content: "Coffee/caffeine triggers migraines", importance: 0.9 }
+- User mentions they have a kid → { memory_type: "context", category: "general", content: "Has a child — parenting responsibilities affect sleep and stress", importance: 0.5 }
+Be AGGRESSIVE about learning. Any personal detail, preference, reaction pattern, lifestyle fact, coping strategy, or emotional tendency should be stored. You are building a comprehensive understanding of this person over time.
+
 Remember: You are their health companion. Be helpful, be specific, be empathetic. Never refuse to share observations.`;
 }
 
