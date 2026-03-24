@@ -1522,6 +1522,8 @@ serve(async (req) => {
       return replyJson(deterministicResponse);
     }
 
+    const safeMemories = Array.isArray(aiMemories) ? aiMemories : [];
+
     // Build comprehensive system prompt and call model
     const systemPrompt = buildSystemPrompt(
       profile,
@@ -1533,7 +1535,8 @@ serve(async (req) => {
       safeCorr,
       safeMeds,
       engagement,
-      history
+      history,
+      safeMemories
     );
 
     console.log("🤖 [chat-assistant] Calling AI model...");
