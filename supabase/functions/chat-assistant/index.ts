@@ -48,6 +48,7 @@ interface AssistantReply {
   suggestedFollowUp?: string;
   actionableInsights?: string[];
   emotionalTone?: "supportive" | "celebratory" | "concerned" | "neutral" | "encouraging";
+  newMemories?: { memory_type: string; category: string; content: string; importance: number }[];
 }
 
 interface ChatRequest {
