@@ -365,7 +365,6 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
     };
     setMessages(prev => [...prev, userMessage]);
     setInput("");
-    clearRecording();
     setIsProcessing(true);
 
     try {
