@@ -304,8 +304,7 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
   ]);
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [voiceOverlayOpen, setVoiceOverlayOpen] = useState(false);
-  const { isRecording, transcript, startRecording, stopRecording, clearRecording } = useVoiceRecording();
+  const [isVoiceMode, setIsVoiceMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
