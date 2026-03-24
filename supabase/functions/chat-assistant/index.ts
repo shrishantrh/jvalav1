@@ -48,6 +48,7 @@ interface AssistantReply {
   suggestedFollowUp?: string;
   actionableInsights?: string[];
   emotionalTone?: "supportive" | "celebratory" | "concerned" | "neutral" | "encouraging";
+  newMemories?: { memory_type: string; category: string; content: string; importance: number }[];
 }
 
 interface ChatRequest {
@@ -980,7 +981,8 @@ function buildSystemPrompt(
   correlations: any[],
   medications: any[],
   engagement: any,
-  conversationHistory: { role: string; content: string }[]
+  conversationHistory: { role: string; content: string }[],
+  aiMemories: any[] = []
 ): string {
   const userName = profile?.full_name?.split(" ")[0] || "there";
   const conditions = (profile?.conditions ?? []).join(", ") || "Not specified";
@@ -988,6 +990,13 @@ function buildSystemPrompt(
   // Build conversation context
   const recentTopics = conversationHistory.slice(-6).map(m => m.content.slice(0, 100));
   const isFirstMessage = conversationHistory.length === 0;
+
+  // Build memory section
+  const memorySection = aiMemories.length > 0 ? `
+🧠 YOUR LEARNED MEMORIES ABOUT ${userName.toUpperCase()}
+These are things you've learned over time from conversations. Use them to personalize responses.
+${aiMemories.map(m => `• [${m.memory_type}/${m.category}] ${m.content} (confidence: ${Math.round(m.importance * 100)}%, seen ${m.evidence_count}x)`).join("\n")}
+` : "";
 
   return `You are Jvala — ${userName}'s personal health companion. You are the ASSISTANT. ${userName} is the USER.
 
@@ -1093,6 +1102,7 @@ ${medications.slice(0, 3).map(m => `• ${m.medication_name} - last taken ${form
 🔗 LEARNED CORRELATIONS
 ${correlations.slice(0, 5).map(c => `• ${c.trigger_value} → ${c.outcome_value} (${c.occurrence_count}x, ${Math.round((c.confidence || 0) * 100)}% confidence)`).join("\n") || "• Still learning - keep logging triggers and symptoms together"}
 
+${memorySection}
 ═══════════════════════════════════════════════════════════════════════════════
 RESPONSE GUIDELINES
 ═══════════════════════════════════════════════════════════════════════════════
@@ -1126,6 +1136,15 @@ When responding:
 7. Celebrate their wins, even small ones
 
 ${isFirstMessage ? "This is the start of the conversation. Greet them warmly." : `CONVERSATION CONTEXT:\n${recentTopics.map((t, i) => `${i + 1}. ${t}`).join("\n")}`}
+
+MEMORY SYSTEM — LEARN FROM EVERY CONVERSATION:
+You have a persistent memory. After EVERY conversation, extract new facts about the user and add them to newMemories. Examples:
+- User mentions they work night shifts → { memory_type: "context", category: "lifestyle", content: "Works night shifts — sleep schedule is inverted", importance: 0.8 }
+- User says yoga helps their pain → { memory_type: "pattern", category: "lifestyle", content: "Yoga helps reduce pain/flare severity", importance: 0.7 }
+- User mentions they hate taking pills → { memory_type: "preference", category: "medications", content: "Dislikes taking pills — prefers non-medication approaches", importance: 0.6 }
+- User reports coffee triggers migraines → { memory_type: "pattern", category: "triggers", content: "Coffee/caffeine triggers migraines", importance: 0.9 }
+- User mentions they have a kid → { memory_type: "context", category: "general", content: "Has a child — parenting responsibilities affect sleep and stress", importance: 0.5 }
+Be AGGRESSIVE about learning. Any personal detail, preference, reaction pattern, lifestyle fact, coping strategy, or emotional tendency should be stored. You are building a comprehensive understanding of this person over time.
 
 Remember: You are their health companion. Be helpful, be specific, be empathetic. Never refuse to share observations.`;
 }
@@ -1255,12 +1274,10 @@ function handleDeterministicResponse(
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function callModel({
-  apiKey,
   systemPrompt,
   history,
   userMessage,
 }: {
-  apiKey: string;
   systemPrompt: string;
   history: { role: "user" | "assistant"; content: string }[];
   userMessage: string;
@@ -1363,6 +1380,21 @@ async function callModel({
               type: "string",
               description: "A follow-up question or suggestion",
             },
+            newMemories: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["memory_type", "category", "content", "importance"],
+                properties: {
+                  memory_type: { type: "string", enum: ["pattern", "preference", "insight", "context", "behavior"], description: "Type of memory to store" },
+                  category: { type: "string", enum: ["triggers", "symptoms", "medications", "lifestyle", "emotional", "environmental", "general"], description: "Category of the memory" },
+                  content: { type: "string", description: "The memory content — a concise statement about the user (e.g. 'User gets migraines after drinking red wine', 'User prefers natural remedies', 'User works night shifts')" },
+                  importance: { type: "number", description: "0-1 importance score. 1 = critical health pattern, 0.3 = minor preference" },
+                },
+              },
+              description: "NEW things you learned about the user from THIS conversation that should be remembered for future conversations. Extract preferences, patterns, lifestyle facts, triggers, coping strategies, medication responses, emotional patterns. Be proactive — if someone says 'I work night shifts' remember that. If they say 'yoga helps' remember that. Only add genuinely NEW information not already in your memories above.",
+            },
           },
         },
       },
@@ -1408,6 +1440,7 @@ async function callModel({
         emotionalTone: parsed.emotionalTone ?? "neutral",
         actionableInsights: parsed.actionableInsights ?? [],
         suggestedFollowUp: parsed.suggestedFollowUp,
+        newMemories: parsed.newMemories ?? [],
       };
     } catch (e) {
       console.error("❌ Failed to parse tool args:", e);
@@ -1467,21 +1500,26 @@ serve(async (req) => {
 
     console.log("💬 [chat-assistant] User message:", message.slice(0, 100));
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
 
-    // Fetch all user data in parallel
+    // Fetch all user data in parallel (including AI memories)
     const [
       { data: profile },
       { data: entries },
       { data: medLogs },
       { data: correlations },
       { data: engagement },
+      { data: aiMemories },
     ] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).single(),
       supabase.from("flare_entries").select("*").eq("user_id", userId).order("timestamp", { ascending: false }).limit(300),
       supabase.from("medication_logs").select("*").eq("user_id", userId).order("taken_at", { ascending: false }).limit(200),
       supabase.from("correlations").select("*").eq("user_id", userId).order("confidence", { ascending: false }).limit(50),
       supabase.from("engagement").select("*").eq("user_id", userId).single(),
+      supabase.from("ai_memories").select("*").eq("user_id", userId).order("importance", { ascending: false }).limit(50),
     ]);
 
     const safeEntries = Array.isArray(entries) ? entries : [];
@@ -1519,6 +1557,8 @@ serve(async (req) => {
       return replyJson(deterministicResponse);
     }
 
+    const safeMemories = Array.isArray(aiMemories) ? aiMemories : [];
+
     // Build comprehensive system prompt and call model
     const systemPrompt = buildSystemPrompt(
       profile,
@@ -1530,7 +1570,8 @@ serve(async (req) => {
       safeCorr,
       safeMeds,
       engagement,
-      history
+      history,
+      safeMemories
     );
 
     console.log("🤖 [chat-assistant] Calling AI model...");
@@ -1538,7 +1579,6 @@ serve(async (req) => {
     let modelResponse: AssistantReply;
     try {
       modelResponse = await callModel({
-        apiKey,
         systemPrompt,
         history,
         userMessage: message,
@@ -1568,7 +1608,79 @@ serve(async (req) => {
     }
 
     console.log("✅ [chat-assistant] Response generated, length:", modelResponse.response.length);
-    return replyJson(modelResponse);
+
+    // ── Save AI memories (fire-and-forget, don't block response) ──────
+    if (modelResponse.newMemories?.length) {
+      const memoriesToSave = modelResponse.newMemories;
+      console.log(`🧠 [chat-assistant] Saving ${memoriesToSave.length} new memories`);
+      
+      // Check for duplicates and upsert
+      (async () => {
+        try {
+          for (const mem of memoriesToSave) {
+            // Check if similar memory exists
+            const { data: existing } = await supabase
+              .from("ai_memories")
+              .select("id, evidence_count, importance")
+              .eq("user_id", userId)
+              .eq("memory_type", mem.memory_type)
+              .eq("category", mem.category)
+              .ilike("content", `%${mem.content.slice(0, 50)}%`)
+              .limit(1);
+
+            if (existing?.length) {
+              // Reinforce existing memory
+              await supabase
+                .from("ai_memories")
+                .update({
+                  evidence_count: (existing[0].evidence_count || 1) + 1,
+                  importance: Math.min(1, Math.max(existing[0].importance, mem.importance)),
+                  last_reinforced_at: new Date().toISOString(),
+                })
+                .eq("id", existing[0].id);
+            } else {
+              // Insert new memory
+              await supabase.from("ai_memories").insert({
+                user_id: userId,
+                memory_type: mem.memory_type,
+                category: mem.category,
+                content: mem.content,
+                importance: mem.importance,
+              });
+            }
+          }
+          
+          // Prune old low-importance memories if we have too many (keep top 100)
+          const { count } = await supabase
+            .from("ai_memories")
+            .select("*", { count: "exact", head: true })
+            .eq("user_id", userId);
+          
+          if (count && count > 100) {
+            const { data: toDelete } = await supabase
+              .from("ai_memories")
+              .select("id")
+              .eq("user_id", userId)
+              .order("importance", { ascending: true })
+              .order("last_reinforced_at", { ascending: true })
+              .limit(count - 100);
+            
+            if (toDelete?.length) {
+              await supabase
+                .from("ai_memories")
+                .delete()
+                .in("id", toDelete.map(d => d.id));
+            }
+          }
+        } catch (memErr) {
+          console.error("🧠 [chat-assistant] Memory save error:", memErr);
+        }
+      })();
+    }
+
+    // Don't send newMemories to client
+    const { newMemories: _, ...clientResponse } = modelResponse;
+    return replyJson(clientResponse);
 
   } catch (error) {
     console.error("❌ [chat-assistant] Error:", error);
