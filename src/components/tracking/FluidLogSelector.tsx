@@ -65,6 +65,7 @@ interface FluidLogSelectorProps {
   onAddMedication?: (med: MedicationDetails) => void;
   onRemoveMedication?: (medName: string) => void;
   onOpenDetails?: () => void;
+  onOpenFood?: () => void;
   disabled?: boolean;
 }
 
