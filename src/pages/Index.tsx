@@ -86,6 +86,7 @@ const Index = () => {
   const [showClinicalRecord, setShowClinicalRecord] = useState(false);
   const [showProgress, setShowProgress] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [showFoodLogger, setShowFoodLogger] = useState(false);
   const smartTrackRef = useRef<SmartTrackRef>(null);
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
