@@ -877,6 +877,16 @@ const Index = () => {
         }}
         onDecline={() => setShowAIConsentDialog(false)}
       />
+
+      {/* Food Logger */}
+      {user && (
+        <FoodLogger
+          userId={user.id}
+          open={showFoodLogger}
+          onClose={() => setShowFoodLogger(false)}
+          onLogged={() => loadEntries()}
+        />
+      )}
     </>
   );
 };
