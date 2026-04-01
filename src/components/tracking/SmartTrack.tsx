@@ -141,6 +141,7 @@ interface SmartTrackProps {
   recentEntries?: any[];
   userId: string;
   onOpenDetails?: () => void;
+  onOpenFood?: () => void;
   onNavigateToTrends?: () => void;
   aiConsented?: boolean;
   onRequestAIConsent?: () => void;
