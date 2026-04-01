@@ -1505,7 +1505,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Fetch all user data in parallel (including AI memories)
+    // Fetch all user data in parallel (including AI memories + food logs)
     const [
       { data: profile },
       { data: entries },
@@ -1513,6 +1513,7 @@ serve(async (req) => {
       { data: correlations },
       { data: engagement },
       { data: aiMemories },
+      { data: foodLogs },
     ] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).single(),
       supabase.from("flare_entries").select("*").eq("user_id", userId).order("timestamp", { ascending: false }).limit(300),
@@ -1520,9 +1521,11 @@ serve(async (req) => {
       supabase.from("correlations").select("*").eq("user_id", userId).order("confidence", { ascending: false }).limit(50),
       supabase.from("engagement").select("*").eq("user_id", userId).single(),
       supabase.from("ai_memories").select("*").eq("user_id", userId).order("importance", { ascending: false }).limit(50),
+      supabase.from("food_logs").select("food_name,brand,calories,total_fat_g,total_carbs_g,protein_g,total_sugars_g,meal_type,servings,logged_at").eq("user_id", userId).order("logged_at", { ascending: false }).limit(50),
     ]);
 
     const safeEntries = Array.isArray(entries) ? entries : [];
+    const safeFoodLogs = Array.isArray(foodLogs) ? foodLogs : [];
     const safeMeds = Array.isArray(medLogs) ? medLogs : [];
     const safeCorr = Array.isArray(correlations) ? correlations : [];
 

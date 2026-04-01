@@ -141,6 +141,7 @@ interface SmartTrackProps {
   recentEntries?: any[];
   userId: string;
   onOpenDetails?: () => void;
+  onOpenFood?: () => void;
   onNavigateToTrends?: () => void;
   aiConsented?: boolean;
   onRequestAIConsent?: () => void;
@@ -474,6 +475,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   recentEntries = [],
   userId,
   onOpenDetails,
+  onOpenFood,
   onNavigateToTrends,
   aiConsented,
   onRequestAIConsent,
@@ -1808,6 +1810,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             onAddMedication={onAddMedication}
             onRemoveMedication={onRemoveMedication}
             onOpenDetails={onOpenDetails}
+            onOpenFood={onOpenFood}
           />
         </div>
 

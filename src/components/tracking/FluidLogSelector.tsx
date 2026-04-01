@@ -65,6 +65,7 @@ interface FluidLogSelectorProps {
   onAddMedication?: (med: MedicationDetails) => void;
   onRemoveMedication?: (medName: string) => void;
   onOpenDetails?: () => void;
+  onOpenFood?: () => void;
   disabled?: boolean;
 }
 
@@ -447,7 +448,7 @@ export const FluidLogSelector = ({
   userSymptoms, userMedications, aiLogCategories = [], customTrackables = [],
   onLogSymptom, onLogMedication, onLogWellness, onLogMood,
   onLogEnergy, onLogRecovery, onLogCustom, onAddTrackable, onRemoveTrackable, onReorderTrackables,
-  onAddMedication, onRemoveMedication, onOpenDetails, disabled
+  onAddMedication, onRemoveMedication, onOpenDetails, onOpenFood, disabled
 }: FluidLogSelectorProps) => {
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [activeCondition, setActiveCondition] = useState<AILogCategory | null>(null);
@@ -708,6 +709,13 @@ export const FluidLogSelector = ({
           <Zap className="w-4 h-4 text-amber-500" />
           <span>Energy</span>
         </GlassButton>
+
+        {onOpenFood && (
+          <GlassButton onClick={() => { haptics.selection(); onOpenFood(); }} disabled={disabled} className="flex-shrink-0">
+            <Apple className="w-4 h-4 text-green-500" />
+            <span>Food</span>
+          </GlassButton>
+        )}
 
         {/* Custom trackables with drag-to-delete/reorder */}
         {customTrackables.map((t, idx) => {

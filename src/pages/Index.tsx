@@ -41,6 +41,7 @@ import { useNativePush } from "@/hooks/useNativePush";
 import { useAIConsent } from "@/hooks/useAIConsent";
 import type { SmartTrackable } from "@/components/tracking/FluidLogSelector";
 import { useDeepLinkHandler } from "@/hooks/useDeepLinkHandler";
+import { FoodLogger } from "@/components/food/FoodLogger";
 
 interface MedicationDetails {
   name: string;
@@ -85,6 +86,7 @@ const Index = () => {
   const [showClinicalRecord, setShowClinicalRecord] = useState(false);
   const [showProgress, setShowProgress] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [showFoodLogger, setShowFoodLogger] = useState(false);
   const smartTrackRef = useRef<SmartTrackRef>(null);
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
@@ -726,6 +728,7 @@ const Index = () => {
               recentEntries={entries}
               userId={user.id}
               onOpenDetails={() => setShowDetailedEntry(true)}
+              onOpenFood={() => setShowFoodLogger(true)}
               onNavigateToTrends={() => setCurrentView('insights')}
               aiConsented={aiConsented === true}
               onRequestAIConsent={() => setShowAIConsentDialog(true)}
@@ -874,6 +877,16 @@ const Index = () => {
         }}
         onDecline={() => setShowAIConsentDialog(false)}
       />
+
+      {/* Food Logger */}
+      {user && (
+        <FoodLogger
+          userId={user.id}
+          open={showFoodLogger}
+          onClose={() => setShowFoodLogger(false)}
+          onLogged={() => loadEntries()}
+        />
+      )}
     </>
   );
 };

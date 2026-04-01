@@ -448,6 +448,111 @@ export type Database = {
           },
         ]
       }
+      food_logs: {
+        Row: {
+          added_sugars_g: number | null
+          ai_confidence: number | null
+          barcode: string | null
+          brand: string | null
+          calcium_mg: number | null
+          calories: number | null
+          cholesterol_mg: number | null
+          created_at: string
+          dietary_fiber_g: number | null
+          food_name: string
+          id: string
+          iron_mg: number | null
+          logged_at: string
+          meal_type: string | null
+          photos: string[] | null
+          potassium_mg: number | null
+          protein_g: number | null
+          raw_ai_response: Json | null
+          saturated_fat_g: number | null
+          serving_size: string | null
+          servings: number | null
+          sodium_mg: number | null
+          source: string
+          total_carbs_g: number | null
+          total_fat_g: number | null
+          total_sugars_g: number | null
+          trans_fat_g: number | null
+          updated_at: string
+          user_id: string
+          vitamin_a_mcg: number | null
+          vitamin_c_mg: number | null
+          vitamin_d_mcg: number | null
+        }
+        Insert: {
+          added_sugars_g?: number | null
+          ai_confidence?: number | null
+          barcode?: string | null
+          brand?: string | null
+          calcium_mg?: number | null
+          calories?: number | null
+          cholesterol_mg?: number | null
+          created_at?: string
+          dietary_fiber_g?: number | null
+          food_name: string
+          id?: string
+          iron_mg?: number | null
+          logged_at?: string
+          meal_type?: string | null
+          photos?: string[] | null
+          potassium_mg?: number | null
+          protein_g?: number | null
+          raw_ai_response?: Json | null
+          saturated_fat_g?: number | null
+          serving_size?: string | null
+          servings?: number | null
+          sodium_mg?: number | null
+          source?: string
+          total_carbs_g?: number | null
+          total_fat_g?: number | null
+          total_sugars_g?: number | null
+          trans_fat_g?: number | null
+          updated_at?: string
+          user_id: string
+          vitamin_a_mcg?: number | null
+          vitamin_c_mg?: number | null
+          vitamin_d_mcg?: number | null
+        }
+        Update: {
+          added_sugars_g?: number | null
+          ai_confidence?: number | null
+          barcode?: string | null
+          brand?: string | null
+          calcium_mg?: number | null
+          calories?: number | null
+          cholesterol_mg?: number | null
+          created_at?: string
+          dietary_fiber_g?: number | null
+          food_name?: string
+          id?: string
+          iron_mg?: number | null
+          logged_at?: string
+          meal_type?: string | null
+          photos?: string[] | null
+          potassium_mg?: number | null
+          protein_g?: number | null
+          raw_ai_response?: Json | null
+          saturated_fat_g?: number | null
+          serving_size?: string | null
+          servings?: number | null
+          sodium_mg?: number | null
+          source?: string
+          total_carbs_g?: number | null
+          total_fat_g?: number | null
+          total_sugars_g?: number | null
+          trans_fat_g?: number | null
+          updated_at?: string
+          user_id?: string
+          vitamin_a_mcg?: number | null
+          vitamin_c_mg?: number | null
+          vitamin_d_mcg?: number | null
+        }
+        Relationships: []
+      }
       medication_logs: {
         Row: {
           created_at: string
