@@ -710,6 +710,13 @@ export const FluidLogSelector = ({
           <span>Energy</span>
         </GlassButton>
 
+        {onOpenFood && (
+          <GlassButton onClick={() => { haptics.selection(); onOpenFood(); }} disabled={disabled} className="flex-shrink-0">
+            <Apple className="w-4 h-4 text-green-500" />
+            <span>Food</span>
+          </GlassButton>
+        )}
+
         {/* Custom trackables with drag-to-delete/reorder */}
         {customTrackables.map((t, idx) => {
           const TIcon = ICON_MAP[t.icon] || Activity;
