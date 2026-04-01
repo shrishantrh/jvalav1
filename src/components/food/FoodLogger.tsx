@@ -42,7 +42,7 @@ export const FoodLogger = ({ userId, open, onClose, onLogged }: FoodLoggerProps)
   const [showFullNutrition, setShowFullNutrition] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-detect meal type based on time
   React.useEffect(() => {
