@@ -728,6 +728,7 @@ const Index = () => {
               recentEntries={entries}
               userId={user.id}
               onOpenDetails={() => setShowDetailedEntry(true)}
+              onOpenFood={() => setShowFoodLogger(true)}
               onNavigateToTrends={() => setCurrentView('insights')}
               aiConsented={aiConsented === true}
               onRequestAIConsent={() => setShowAIConsentDialog(true)}
