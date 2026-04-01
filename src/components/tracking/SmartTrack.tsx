@@ -1810,6 +1810,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             onAddMedication={onAddMedication}
             onRemoveMedication={onRemoveMedication}
             onOpenDetails={onOpenDetails}
+            onOpenFood={onOpenFood}
           />
         </div>
 
