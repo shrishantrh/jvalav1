@@ -475,6 +475,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   recentEntries = [],
   userId,
   onOpenDetails,
+  onOpenFood,
   onNavigateToTrends,
   aiConsented,
   onRequestAIConsent,
