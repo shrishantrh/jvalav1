@@ -1,8 +1,7 @@
-import React, { useState, useRef, useMemo } from 'react';
-import { X, Camera, Search, Plus, Minus, Trash2, Loader2, UtensilsCrossed, Apple, ChevronRight, ChevronDown } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { X, Camera, Search, Plus, Minus, Loader2, ChevronDown, ScanBarcode, UtensilsCrossed } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
@@ -13,7 +12,7 @@ interface FoodLoggerProps {
   userId: string;
   open: boolean;
   onClose: () => void;
-  onLogged?: () => void;
+  onLogged?: (foodName: string, calories: number, mealType: string) => void;
 }
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -25,41 +24,37 @@ const MEAL_TYPES: { value: MealType; label: string; icon: string }[] = [
   { value: 'snack', label: 'Snack', icon: '🍿' },
 ];
 
+const round = (v: number, decimals = 0) => Math.round(v * Math.pow(10, decimals)) / Math.pow(10, decimals);
+
 export const FoodLogger = ({ userId, open, onClose, onLogged }: FoodLoggerProps) => {
   const { addFoodLog, searchFood, analyzePhoto } = useFoodLogs(userId);
   const { toast } = useToast();
-  
-  const [step, setStep] = useState<'search' | 'review' | 'nutrition'>('search');
+
+  const [step, setStep] = useState<'search' | 'review'>('search');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<FoodSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [selectedFood, setSelectedFood] = useState<FoodSearchResult | null>(null);
-  const [mealType, setMealType] = useState<MealType>('snack');
+  const [mealType, setMealType] = useState<MealType>(() => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 11) return 'breakfast';
+    if (hour >= 11 && hour < 15) return 'lunch';
+    if (hour >= 17 && hour < 22) return 'dinner';
+    return 'snack';
+  });
   const [servings, setServings] = useState(1);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [analyzingPhoto, setAnalyzingPhoto] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [showFullNutrition, setShowFullNutrition] = useState(false);
-  
+  const [showNutrition, setShowNutrition] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Auto-detect meal type based on time
-  React.useEffect(() => {
-    const hour = new Date().getHours();
-    if (hour >= 5 && hour < 11) setMealType('breakfast');
-    else if (hour >= 11 && hour < 15) setMealType('lunch');
-    else if (hour >= 17 && hour < 22) setMealType('dinner');
-    else setMealType('snack');
-  }, []);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-    if (query.length < 2) {
-      setSearchResults([]);
-      return;
-    }
+    if (query.length < 2) { setSearchResults([]); return; }
     setSearching(true);
     searchTimeoutRef.current = setTimeout(async () => {
       const results = await searchFood(query);
@@ -71,7 +66,6 @@ export const FoodLogger = ({ userId, open, onClose, onLogged }: FoodLoggerProps)
   const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !file.type.startsWith('image/')) return;
-
     const reader = new FileReader();
     reader.onload = async (ev) => {
       const img = new window.Image();
@@ -81,29 +75,22 @@ export const FoodLogger = ({ userId, open, onClose, onLogged }: FoodLoggerProps)
         let { width, height } = img;
         if (width > height && width > maxSize) { height = (height * maxSize) / width; width = maxSize; }
         else if (height > maxSize) { width = (width * maxSize) / height; height = maxSize; }
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = width; canvas.height = height;
         canvas.getContext('2d')?.drawImage(img, 0, 0, width, height);
         const compressed = canvas.toDataURL('image/jpeg', 0.8);
         setPhotoUrl(compressed);
         setAnalyzingPhoto(true);
-        
         try {
           const result = await analyzePhoto(compressed);
           if (result?.items?.length) {
             const item = result.items[0];
-            setSelectedFood({
-              ...item,
-              image_url: null,
-              barcode: item.detected_barcode || null,
-            });
+            setSelectedFood({ ...item, image_url: null, barcode: item.detected_barcode || null });
             setStep('review');
             haptics.success();
-            toast({ title: `Found: ${item.food_name}`, description: `${item.calories || '?'} kcal` });
           } else {
             toast({ title: "Couldn't identify food", description: "Try searching manually", variant: "destructive" });
           }
-        } catch (e) {
+        } catch {
           toast({ title: "Analysis failed", description: "Try searching manually", variant: "destructive" });
         } finally {
           setAnalyzingPhoto(false);
@@ -124,7 +111,6 @@ export const FoodLogger = ({ userId, open, onClose, onLogged }: FoodLoggerProps)
     if (!selectedFood) return;
     setSaving(true);
     haptics.light();
-
     const result = await addFoodLog({
       food_name: selectedFood.food_name,
       brand: selectedFood.brand,
@@ -150,15 +136,13 @@ export const FoodLogger = ({ userId, open, onClose, onLogged }: FoodLoggerProps)
       potassium_mg: selectedFood.potassium_mg,
       vitamin_a_mcg: selectedFood.vitamin_a_mcg,
       vitamin_c_mg: selectedFood.vitamin_c_mg,
-      photos: photoUrl ? [photoUrl.slice(0, 200)] : null, // Don't store full data url
+      photos: photoUrl ? [photoUrl.slice(0, 200)] : null,
     } as any);
-
     setSaving(false);
-
     if (result) {
       haptics.success();
-      toast({ title: "Food logged!", description: `${selectedFood.food_name} — ${Math.round((selectedFood.calories || 0) * servings)} kcal` });
-      onLogged?.();
+      const cal = Math.round((selectedFood.calories || 0) * servings);
+      onLogged?.(selectedFood.food_name, cal, mealType);
       handleReset();
       onClose();
     }
@@ -171,326 +155,379 @@ export const FoodLogger = ({ userId, open, onClose, onLogged }: FoodLoggerProps)
     setSelectedFood(null);
     setPhotoUrl(null);
     setServings(1);
-    setShowFullNutrition(false);
+    setShowNutrition(false);
   };
 
   const scaledCalories = Math.round((selectedFood?.calories || 0) * servings);
-  const scaledFat = Math.round((selectedFood?.total_fat_g || 0) * servings * 10) / 10;
-  const scaledCarbs = Math.round((selectedFood?.total_carbs_g || 0) * servings * 10) / 10;
-  const scaledProtein = Math.round((selectedFood?.protein_g || 0) * servings * 10) / 10;
+  const scaledFat = round((selectedFood?.total_fat_g || 0) * servings, 1);
+  const scaledCarbs = round((selectedFood?.total_carbs_g || 0) * servings, 1);
+  const scaledProtein = round((selectedFood?.protein_g || 0) * servings, 1);
   const macroTotal = scaledFat * 9 + scaledCarbs * 4 + scaledProtein * 4 || 1;
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-background">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-[env(safe-area-inset-top,12px)] pb-3 border-b border-border/50">
-        <Button variant="ghost" size="icon" onClick={() => { handleReset(); onClose(); }}>
-          <X className="w-5 h-5" />
-        </Button>
-        <h2 className="text-lg font-semibold">Log Food</h2>
-        {step !== 'search' ? (
-          <Button variant="ghost" size="sm" onClick={handleReset} className="text-xs text-muted-foreground">
-            Reset
-          </Button>
-        ) : <div className="w-10" />}
-      </div>
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 z-[90] bg-black/40 backdrop-blur-sm animate-fade-in"
+        onClick={() => { handleReset(); onClose(); }}
+      />
 
-      <div className="flex-1 overflow-y-auto">
-        {/* ─── Search Step ─── */}
-        {step === 'search' && (
-          <div className="p-4 space-y-4">
-            {/* Meal Type Selector */}
-            <div className="flex gap-2">
-              {MEAL_TYPES.map(mt => (
-                <button
-                  key={mt.value}
-                  onClick={() => { setMealType(mt.value); haptics.selection(); }}
-                  className={cn(
-                    "flex-1 py-2 rounded-xl text-xs font-medium transition-all",
-                    mealType === mt.value
-                      ? "bg-primary/15 text-primary border-2 border-primary/30"
-                      : "bg-card border border-border/50 text-muted-foreground"
-                  )}
-                >
-                  <span className="text-sm">{mt.icon}</span>
-                  <br />
-                  {mt.label}
-                </button>
-              ))}
-            </div>
+      {/* Bottom Sheet */}
+      <div className={cn(
+        "fixed bottom-0 left-0 right-0 z-[100]",
+        "max-h-[85vh] flex flex-col",
+        "bg-background/80 backdrop-blur-2xl",
+        "border-t border-white/20 dark:border-white/10",
+        "rounded-t-3xl",
+        "shadow-[0_-8px_40px_rgba(0,0,0,0.12)]",
+        "animate-slide-up"
+      )}>
+        {/* Handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full bg-foreground/20" />
+        </div>
 
-            {/* Photo / Camera */}
-            <div className="flex gap-3">
-              <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoCapture} className="hidden" />
-              <Button
-                variant="outline"
-                className="flex-1 h-20 rounded-2xl border-dashed border-2 flex-col gap-1"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={analyzingPhoto}
-              >
-                {analyzingPhoto ? (
-                  <>
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                    <span className="text-xs text-muted-foreground">Analyzing...</span>
-                  </>
-                ) : (
-                  <>
-                    <Camera className="w-6 h-6 text-primary" />
-                    <span className="text-xs text-muted-foreground">Take Photo</span>
-                  </>
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                className="flex-1 h-20 rounded-2xl border-dashed border-2 flex-col gap-1"
-                onClick={() => {
-                  // For barcode, we use the same camera but instruct user
-                  const input = document.createElement('input');
-                  input.type = 'file';
-                  input.accept = 'image/*';
-                  input.capture = 'environment';
-                  input.onchange = (e: any) => handlePhotoCapture(e);
-                  input.click();
-                }}
-                disabled={analyzingPhoto}
-              >
-                <UtensilsCrossed className="w-6 h-6 text-primary" />
-                <span className="text-xs text-muted-foreground">Scan Label</span>
-              </Button>
-            </div>
-
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                value={searchQuery}
-                onChange={(e) => handleSearch(e.target.value)}
-                placeholder="Search food or paste barcode..."
-                className="pl-10 h-12 rounded-2xl bg-card"
-              />
-              {searching && (
-                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-primary" />
-              )}
-            </div>
-
-            {/* Results */}
-            <div className="space-y-2 max-h-[50vh] overflow-y-auto">
-              {searchResults.map((item, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleSelectFood(item)}
-                  className="w-full flex items-center gap-3 p-3 rounded-2xl bg-card border border-border/50 hover:border-primary/30 transition-all text-left"
-                >
-                  {item.image_url ? (
-                    <img src={item.image_url} alt="" className="w-12 h-12 rounded-xl object-cover bg-muted" />
-                  ) : (
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <Apple className="w-5 h-5 text-primary" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{item.food_name}</p>
-                    {item.brand && <p className="text-xs text-muted-foreground truncate">{item.brand}</p>}
-                    <div className="flex gap-2 mt-0.5">
-                      {item.calories && <span className="text-xs text-primary font-medium">{Math.round(item.calories)} kcal</span>}
-                      {item.serving_size && <span className="text-xs text-muted-foreground">per {item.serving_size}</span>}
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                </button>
-              ))}
-              {searchQuery.length >= 2 && !searching && searchResults.length === 0 && (
-                <p className="text-center text-sm text-muted-foreground py-8">
-                  No results found. Try a different search or take a photo.
-                </p>
-              )}
-            </div>
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pb-3">
+          <h2 className="text-lg font-bold">
+            {step === 'search' ? 'Log Food' : selectedFood?.food_name || 'Review'}
+          </h2>
+          <div className="flex items-center gap-2">
+            {step === 'review' && (
+              <button onClick={handleReset} className="text-xs text-primary font-medium">
+                Back
+              </button>
+            )}
+            <button
+              onClick={() => { handleReset(); onClose(); }}
+              className="w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-        )}
+        </div>
 
-        {/* ─── Review Step ─── */}
-        {step === 'review' && selectedFood && (
-          <div className="p-4 space-y-4">
-            {/* Food Header */}
-            <Card className="p-4 bg-card border-0 shadow-soft rounded-2xl">
-              <div className="flex items-start gap-3">
-                {photoUrl ? (
-                  <img src={photoUrl} alt="" className="w-16 h-16 rounded-xl object-cover" />
-                ) : selectedFood.image_url ? (
-                  <img src={selectedFood.image_url} alt="" className="w-16 h-16 rounded-xl object-cover bg-muted" />
-                ) : (
-                  <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Apple className="w-7 h-7 text-primary" />
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-base">{selectedFood.food_name}</h3>
-                  {selectedFood.brand && (
-                    <p className="text-sm text-muted-foreground">{selectedFood.brand}</p>
-                  )}
-                  {selectedFood.serving_size && (
-                    <Badge variant="outline" className="mt-1 text-xs">{selectedFood.serving_size}</Badge>
-                  )}
-                </div>
-              </div>
-            </Card>
-
-            {/* Macro Ring + Summary */}
-            <Card className="p-4 bg-card border-0 shadow-soft rounded-2xl">
-              <div className="flex items-center gap-4">
-                {/* Simple macro visualization */}
-                <div className="relative w-20 h-20 flex-shrink-0">
-                  <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
-                    <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
-                    {/* Fat arc (orange) */}
-                    <circle cx="18" cy="18" r="15" fill="none" stroke="#F97316" strokeWidth="3"
-                      strokeDasharray={`${(scaledFat * 9 / macroTotal) * 94.2} 94.2`} strokeLinecap="round" />
-                    {/* Carbs arc (blue) */}
-                    <circle cx="18" cy="18" r="15" fill="none" stroke="#3B82F6" strokeWidth="3"
-                      strokeDasharray={`${(scaledCarbs * 4 / macroTotal) * 94.2} 94.2`}
-                      strokeDashoffset={`${-(scaledFat * 9 / macroTotal) * 94.2}`} strokeLinecap="round" />
-                    {/* Protein arc (pink) */}
-                    <circle cx="18" cy="18" r="15" fill="none" stroke="#EC4899" strokeWidth="3"
-                      strokeDasharray={`${(scaledProtein * 4 / macroTotal) * 94.2} 94.2`}
-                      strokeDashoffset={`${-((scaledFat * 9 + scaledCarbs * 4) / macroTotal) * 94.2}`} strokeLinecap="round" />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-lg font-bold">{scaledCalories}</span>
-                    <span className="text-[9px] text-muted-foreground">kcal</span>
-                  </div>
-                </div>
-
-                <div className="flex-1 grid grid-cols-3 gap-3">
-                  <div>
-                    <p className="text-xs text-[#F97316] font-semibold">Fat</p>
-                    <p className="text-base font-bold">{scaledFat}g</p>
-                    <p className="text-[10px] text-muted-foreground">{macroTotal > 1 ? Math.round((scaledFat * 9 / macroTotal) * 100) : 0}%</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-[#3B82F6] font-semibold">Carbs</p>
-                    <p className="text-base font-bold">{scaledCarbs}g</p>
-                    <p className="text-[10px] text-muted-foreground">{macroTotal > 1 ? Math.round((scaledCarbs * 4 / macroTotal) * 100) : 0}%</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-[#EC4899] font-semibold">Protein</p>
-                    <p className="text-base font-bold">{scaledProtein}g</p>
-                    <p className="text-[10px] text-muted-foreground">{macroTotal > 1 ? Math.round((scaledProtein * 4 / macroTotal) * 100) : 0}%</p>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            {/* Servings Control */}
-            <Card className="p-4 bg-card border-0 shadow-soft rounded-2xl">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">Servings</p>
-                <div className="flex items-center gap-3">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8 rounded-full"
-                    onClick={() => { setServings(Math.max(0.25, servings - 0.25)); haptics.light(); }}
-                  >
-                    <Minus className="w-3 h-3" />
-                  </Button>
-                  <span className="text-lg font-bold w-10 text-center">{servings}</span>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8 rounded-full"
-                    onClick={() => { setServings(servings + 0.25); haptics.light(); }}
-                  >
-                    <Plus className="w-3 h-3" />
-                  </Button>
-                </div>
-              </div>
-            </Card>
-
-            {/* Meal Type */}
-            <Card className="p-4 bg-card border-0 shadow-soft rounded-2xl">
-              <p className="text-sm font-medium mb-2">Meal</p>
+        <div className="flex-1 overflow-y-auto px-5 pb-safe overscroll-contain">
+          {/* ─── SEARCH STEP ─── */}
+          {step === 'search' && (
+            <div className="space-y-4 pb-6">
+              {/* Meal Type Pills */}
               <div className="flex gap-2">
                 {MEAL_TYPES.map(mt => (
                   <button
                     key={mt.value}
                     onClick={() => { setMealType(mt.value); haptics.selection(); }}
                     className={cn(
-                      "flex-1 py-2 rounded-xl text-xs font-medium transition-all",
+                      "flex-1 py-2.5 rounded-2xl text-xs font-semibold transition-all",
+                      "bg-card/60 backdrop-blur-md border",
                       mealType === mt.value
-                        ? "bg-primary/15 text-primary border-2 border-primary/30"
-                        : "bg-muted/50 text-muted-foreground"
+                        ? "border-primary/40 bg-primary/10 text-primary shadow-[0_0_12px_rgba(var(--primary-rgb),0.15)]"
+                        : "border-white/15 text-muted-foreground"
+                    )}
+                  >
+                    <span className="text-base block mb-0.5">{mt.icon}</span>
+                    {mt.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Camera Actions */}
+              <div className="flex gap-3">
+                <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoCapture} className="hidden" />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={analyzingPhoto}
+                  className={cn(
+                    "flex-1 h-[72px] rounded-2xl flex flex-col items-center justify-center gap-1.5",
+                    "bg-gradient-to-br from-primary/15 to-primary/5",
+                    "border border-primary/20 backdrop-blur-md",
+                    "transition-all active:scale-[0.97]",
+                    analyzingPhoto && "animate-pulse"
+                  )}
+                >
+                  {analyzingPhoto ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                      <span className="text-[10px] text-primary font-medium">Analyzing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Camera className="w-5 h-5 text-primary" />
+                      <span className="text-[10px] text-muted-foreground font-medium">Snap & Scan</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment';
+                    input.onchange = (e: any) => handlePhotoCapture(e);
+                    input.click();
+                  }}
+                  disabled={analyzingPhoto}
+                  className={cn(
+                    "flex-1 h-[72px] rounded-2xl flex flex-col items-center justify-center gap-1.5",
+                    "bg-card/60 border border-white/15 backdrop-blur-md",
+                    "transition-all active:scale-[0.97]"
+                  )}
+                >
+                  <ScanBarcode className="w-5 h-5 text-foreground/70" />
+                  <span className="text-[10px] text-muted-foreground font-medium">Scan Label</span>
+                </button>
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  placeholder="Search food..."
+                  className="pl-10 h-11 rounded-2xl bg-card/60 backdrop-blur-md border-white/15"
+                />
+                {searching && (
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-primary" />
+                )}
+              </div>
+
+              {/* AI Photo Preview */}
+              {analyzingPhoto && photoUrl && (
+                <div className="relative rounded-2xl overflow-hidden">
+                  <img src={photoUrl} alt="" className="w-full h-32 object-cover rounded-2xl opacity-60" />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm rounded-2xl">
+                    <div className="flex flex-col items-center gap-2">
+                      <Loader2 className="w-8 h-8 animate-spin text-white" />
+                      <span className="text-white text-xs font-medium">Identifying food...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Search Results */}
+              <div className="space-y-1.5 max-h-[40vh] overflow-y-auto">
+                {searchResults.map((item, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleSelectFood(item)}
+                    className={cn(
+                      "w-full flex items-center gap-3 p-3 rounded-2xl text-left",
+                      "bg-card/50 backdrop-blur-md border border-white/10",
+                      "hover:border-primary/20 hover:bg-primary/5",
+                      "transition-all active:scale-[0.98]"
+                    )}
+                  >
+                    {item.image_url ? (
+                      <img src={item.image_url} alt="" className="w-11 h-11 rounded-xl object-cover" />
+                    ) : (
+                      <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <UtensilsCrossed className="w-4 h-4 text-primary" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate">{item.food_name}</p>
+                      {item.brand && <p className="text-[11px] text-muted-foreground truncate">{item.brand}</p>}
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      {item.calories != null && (
+                        <p className="text-sm font-bold text-primary">{Math.round(item.calories)}</p>
+                      )}
+                      <p className="text-[9px] text-muted-foreground">kcal</p>
+                    </div>
+                  </button>
+                ))}
+                {searchQuery.length >= 2 && !searching && searchResults.length === 0 && (
+                  <p className="text-center text-xs text-muted-foreground py-6">No results. Try a photo instead.</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ─── REVIEW STEP ─── */}
+          {step === 'review' && selectedFood && (
+            <div className="space-y-4 pb-6">
+              {/* Food Card with Photo */}
+              <div className={cn(
+                "rounded-2xl overflow-hidden",
+                "bg-card/60 backdrop-blur-xl border border-white/15"
+              )}>
+                {photoUrl && (
+                  <img src={photoUrl} alt="" className="w-full h-32 object-cover" />
+                )}
+                <div className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-bold text-base">{selectedFood.food_name}</h3>
+                      {selectedFood.brand && (
+                        <p className="text-xs text-muted-foreground mt-0.5">{selectedFood.brand}</p>
+                      )}
+                      {selectedFood.serving_size && (
+                        <Badge variant="outline" className="mt-1.5 text-[10px] border-white/20">{selectedFood.serving_size}</Badge>
+                      )}
+                    </div>
+                    {/* Calorie Badge */}
+                    <div className="text-center bg-primary/10 rounded-xl px-3 py-2">
+                      <p className="text-xl font-black text-primary">{scaledCalories}</p>
+                      <p className="text-[9px] text-primary/70 font-medium">kcal</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Macro Ring + Breakdown */}
+              <div className={cn(
+                "rounded-2xl p-4",
+                "bg-card/60 backdrop-blur-xl border border-white/15"
+              )}>
+                <div className="flex items-center gap-5">
+                  {/* Ring */}
+                  <div className="relative w-[72px] h-[72px] flex-shrink-0">
+                    <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                      <circle cx="18" cy="18" r="14" fill="none" stroke="hsl(var(--muted))" strokeWidth="2.5" opacity="0.3" />
+                      <circle cx="18" cy="18" r="14" fill="none" stroke="hsl(25, 95%, 55%)" strokeWidth="2.5"
+                        strokeDasharray={`${(scaledFat * 9 / macroTotal) * 88} 88`} strokeLinecap="round" />
+                      <circle cx="18" cy="18" r="14" fill="none" stroke="hsl(210, 90%, 55%)" strokeWidth="2.5"
+                        strokeDasharray={`${(scaledCarbs * 4 / macroTotal) * 88} 88`}
+                        strokeDashoffset={`${-(scaledFat * 9 / macroTotal) * 88}`} strokeLinecap="round" />
+                      <circle cx="18" cy="18" r="14" fill="none" stroke="hsl(320, 75%, 55%)" strokeWidth="2.5"
+                        strokeDasharray={`${(scaledProtein * 4 / macroTotal) * 88} 88`}
+                        strokeDashoffset={`${-((scaledFat * 9 + scaledCarbs * 4) / macroTotal) * 88}`} strokeLinecap="round" />
+                    </svg>
+                  </div>
+                  {/* Macros */}
+                  <div className="flex-1 grid grid-cols-3 gap-2">
+                    <MacroPill label="Fat" value={scaledFat} unit="g" color="hsl(25, 95%, 55%)" pct={macroTotal > 1 ? Math.round((scaledFat * 9 / macroTotal) * 100) : 0} />
+                    <MacroPill label="Carbs" value={scaledCarbs} unit="g" color="hsl(210, 90%, 55%)" pct={macroTotal > 1 ? Math.round((scaledCarbs * 4 / macroTotal) * 100) : 0} />
+                    <MacroPill label="Protein" value={scaledProtein} unit="g" color="hsl(320, 75%, 55%)" pct={macroTotal > 1 ? Math.round((scaledProtein * 4 / macroTotal) * 100) : 0} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Servings */}
+              <div className={cn(
+                "rounded-2xl p-4 flex items-center justify-between",
+                "bg-card/60 backdrop-blur-xl border border-white/15"
+              )}>
+                <span className="text-sm font-semibold">Servings</span>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => { setServings(Math.max(0.25, servings - 0.25)); haptics.light(); }}
+                    className="w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center active:scale-90 transition-transform"
+                  >
+                    <Minus className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="text-lg font-black w-8 text-center">{servings}</span>
+                  <button
+                    onClick={() => { setServings(servings + 0.25); haptics.light(); }}
+                    className="w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center active:scale-90 transition-transform"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Meal Selector (compact) */}
+              <div className="flex gap-1.5">
+                {MEAL_TYPES.map(mt => (
+                  <button
+                    key={mt.value}
+                    onClick={() => { setMealType(mt.value); haptics.selection(); }}
+                    className={cn(
+                      "flex-1 py-2 rounded-xl text-[11px] font-semibold transition-all",
+                      mealType === mt.value
+                        ? "bg-primary/15 text-primary border border-primary/30"
+                        : "bg-card/40 text-muted-foreground border border-transparent"
                     )}
                   >
                     {mt.icon} {mt.label}
                   </button>
                 ))}
               </div>
-            </Card>
 
-            {/* Full Nutrition Details (collapsible) */}
-            <button
-              onClick={() => setShowFullNutrition(!showFullNutrition)}
-              className="flex items-center justify-between w-full p-4 bg-card rounded-2xl border-0 shadow-soft"
-            >
-              <span className="text-sm font-medium">Full Nutrition Facts</span>
-              <ChevronDown className={cn("w-4 h-4 transition-transform", showFullNutrition && "rotate-180")} />
-            </button>
+              {/* Full Nutrition (collapsible) */}
+              <button
+                onClick={() => setShowNutrition(!showNutrition)}
+                className={cn(
+                  "w-full flex items-center justify-between p-3.5 rounded-2xl",
+                  "bg-card/40 backdrop-blur-md border border-white/10",
+                  "text-sm font-medium"
+                )}
+              >
+                Nutrition Facts
+                <ChevronDown className={cn("w-4 h-4 transition-transform", showNutrition && "rotate-180")} />
+              </button>
+              {showNutrition && (
+                <div className={cn(
+                  "rounded-2xl p-4 space-y-0",
+                  "bg-card/60 backdrop-blur-xl border border-white/15"
+                )}>
+                  <NutritionRow label="Calories" value={scaledCalories} unit="kcal" bold />
+                  <div className="w-full h-px bg-primary/30 my-1.5" />
+                  <NutritionRow label="Total Fat" value={scaledFat} unit="g" bold />
+                  <NutritionRow label="  Saturated" value={round((selectedFood.saturated_fat_g || 0) * servings)} unit="g" />
+                  <NutritionRow label="  Trans" value={round((selectedFood.trans_fat_g || 0) * servings)} unit="g" />
+                  <NutritionRow label="Cholesterol" value={round((selectedFood.cholesterol_mg || 0) * servings)} unit="mg" />
+                  <NutritionRow label="Sodium" value={round((selectedFood.sodium_mg || 0) * servings)} unit="mg" />
+                  <NutritionRow label="Total Carbs" value={scaledCarbs} unit="g" bold />
+                  <NutritionRow label="  Fiber" value={round((selectedFood.dietary_fiber_g || 0) * servings)} unit="g" />
+                  <NutritionRow label="  Sugars" value={round((selectedFood.total_sugars_g || 0) * servings)} unit="g" />
+                  <NutritionRow label="Protein" value={scaledProtein} unit="g" bold />
+                  <div className="w-full h-px bg-border/30 my-1.5" />
+                  <NutritionRow label="Vitamin D" value={round((selectedFood.vitamin_d_mcg || 0) * servings, 1)} unit="mcg" />
+                  <NutritionRow label="Calcium" value={round((selectedFood.calcium_mg || 0) * servings)} unit="mg" />
+                  <NutritionRow label="Iron" value={round((selectedFood.iron_mg || 0) * servings, 1)} unit="mg" />
+                  <NutritionRow label="Potassium" value={round((selectedFood.potassium_mg || 0) * servings)} unit="mg" />
+                </div>
+              )}
 
-            {showFullNutrition && (
-              <Card className="p-4 bg-card border-0 shadow-soft rounded-2xl">
-                <NutritionRow label="Calories" value={scaledCalories} unit="kcal" bold />
-                <div className="w-full h-px bg-primary my-2" />
-                <NutritionRow label="Total Fat" value={scaledFat} unit="g" bold />
-                <NutritionRow label="Saturated Fat" value={round((selectedFood.saturated_fat_g || 0) * servings)} unit="g" indent />
-                <NutritionRow label="Trans Fat" value={round((selectedFood.trans_fat_g || 0) * servings)} unit="g" indent />
-                <NutritionRow label="Cholesterol" value={round((selectedFood.cholesterol_mg || 0) * servings)} unit="mg" bold />
-                <NutritionRow label="Sodium" value={round((selectedFood.sodium_mg || 0) * servings)} unit="mg" bold />
-                <NutritionRow label="Total Carbohydrates" value={scaledCarbs} unit="g" bold />
-                <NutritionRow label="Dietary Fiber" value={round((selectedFood.dietary_fiber_g || 0) * servings)} unit="g" indent />
-                <NutritionRow label="Total Sugars" value={round((selectedFood.total_sugars_g || 0) * servings)} unit="g" indent />
-                <NutritionRow label="Added Sugars" value={round((selectedFood.added_sugars_g || 0) * servings)} unit="g" indent />
-                <NutritionRow label="Protein" value={scaledProtein} unit="g" bold />
-                <div className="w-full h-px bg-border my-2" />
-                <NutritionRow label="Vitamin D" value={round((selectedFood.vitamin_d_mcg || 0) * servings, 1)} unit="mcg" />
-                <NutritionRow label="Calcium" value={round((selectedFood.calcium_mg || 0) * servings)} unit="mg" />
-                <NutritionRow label="Iron" value={round((selectedFood.iron_mg || 0) * servings, 1)} unit="mg" />
-                <NutritionRow label="Potassium" value={round((selectedFood.potassium_mg || 0) * servings)} unit="mg" />
-              </Card>
-            )}
-          </div>
-        )}
+              {/* Log Button */}
+              <Button
+                onClick={handleLog}
+                disabled={saving}
+                className={cn(
+                  "w-full h-13 rounded-2xl text-base font-bold",
+                  "bg-gradient-to-r from-primary to-primary/80",
+                  "shadow-[0_4px_20px_rgba(var(--primary-rgb),0.3)]"
+                )}
+              >
+                {saving ? (
+                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                ) : (
+                  <UtensilsCrossed className="w-5 h-5 mr-2" />
+                )}
+                Log {mealType.charAt(0).toUpperCase() + mealType.slice(1)} · {scaledCalories} kcal
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Bottom Action */}
-      {step === 'review' && selectedFood && (
-        <div className="p-4 border-t border-border/50" style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}>
-          <Button
-            onClick={handleLog}
-            disabled={saving}
-            className="w-full h-14 rounded-2xl text-base font-semibold"
-          >
-            {saving ? (
-              <Loader2 className="w-5 h-5 animate-spin mr-2" />
-            ) : (
-              <Apple className="w-5 h-5 mr-2" />
-            )}
-            Add to Log • {scaledCalories} kcal
-          </Button>
-        </div>
-      )}
-    </div>
+      <style>{`
+        @keyframes slide-up {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
+        }
+        .animate-slide-up { animation: slide-up 0.35s cubic-bezier(0.32, 0.72, 0, 1); }
+        .pb-safe { padding-bottom: max(env(safe-area-inset-bottom, 16px), 16px); }
+      `}</style>
+    </>
   );
 };
 
-// ─── Helpers ───
+// ─── Sub-components ───
 
-const round = (v: number, decimals = 0) => Math.round(v * Math.pow(10, decimals)) / Math.pow(10, decimals);
+const MacroPill = ({ label, value, unit, color, pct }: { label: string; value: number; unit: string; color: string; pct: number }) => (
+  <div className="text-center">
+    <div className="w-2 h-2 rounded-full mx-auto mb-1" style={{ backgroundColor: color }} />
+    <p className="text-xs font-bold">{value}{unit}</p>
+    <p className="text-[9px] text-muted-foreground">{label} · {pct}%</p>
+  </div>
+);
 
-const NutritionRow = ({ label, value, unit, bold, indent }: { label: string; value: number; unit: string; bold?: boolean; indent?: boolean }) => (
-  <div className={cn("flex justify-between py-1.5 border-b border-border/30 last:border-0", indent && "pl-4")}>
-    <span className={cn("text-sm", bold ? "font-semibold" : "text-muted-foreground")}>{label}</span>
-    <span className={cn("text-sm", bold && "font-semibold")}>{value}{unit}</span>
+const NutritionRow = ({ label, value, unit, bold }: { label: string; value: number; unit: string; bold?: boolean }) => (
+  <div className="flex justify-between py-1 border-b border-white/5 last:border-0">
+    <span className={cn("text-xs", bold ? "font-semibold" : "text-muted-foreground")}>{label}</span>
+    <span className={cn("text-xs", bold && "font-semibold")}>{value}{unit}</span>
   </div>
 );

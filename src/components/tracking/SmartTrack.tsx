@@ -150,6 +150,7 @@ interface SmartTrackProps {
 export interface SmartTrackRef {
   addDetailedEntry: (entry: Partial<FlareEntry>) => void;
   sendChatMessage: (message: string) => void;
+  addFoodLogMessage: (foodName: string, calories: number, mealType: string) => void;
 }
 
 const STORAGE_KEY = 'jvala_smart_chat';
@@ -685,8 +686,23 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       setMessages(prev => [...prev, userMessage, confirmMessage]);
     },
     sendChatMessage: (message: string) => {
-      // Trigger handleSend with the provided message
       handleSend(message);
+    },
+    addFoodLogMessage: (foodName: string, calories: number, mealType: string) => {
+      const emoji = mealType === 'breakfast' ? '🌅' : mealType === 'lunch' ? '☀️' : mealType === 'dinner' ? '🌙' : '🍿';
+      const userMsg: ChatMessage = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: `${emoji} Logged ${mealType}: ${foodName}`,
+        timestamp: new Date(),
+      };
+      const confirmMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'system',
+        content: `✓ ${foodName} · ${calories} kcal`,
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, userMsg, confirmMsg]);
     }
   }));
 
