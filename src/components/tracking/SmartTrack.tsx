@@ -150,6 +150,7 @@ interface SmartTrackProps {
 export interface SmartTrackRef {
   addDetailedEntry: (entry: Partial<FlareEntry>) => void;
   sendChatMessage: (message: string) => void;
+  addFoodLogMessage: (foodName: string, calories: number, mealType: string) => void;
 }
 
 const STORAGE_KEY = 'jvala_smart_chat';
