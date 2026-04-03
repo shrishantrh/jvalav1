@@ -345,32 +345,55 @@ const Index = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
-        .from('flare_entries')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('timestamp', { ascending: false });
+      const [flareResult, foodResult] = await Promise.all([
+        supabase
+          .from('flare_entries')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('timestamp', { ascending: false }),
+        supabase
+          .from('food_logs')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('logged_at', { ascending: false })
+          .limit(200),
+      ]);
 
-      if (error) throw error;
+      if (flareResult.error) throw flareResult.error;
 
-      if (data) {
-        setEntries(data.map((entry: any) => ({
-          id: entry.id,
-          timestamp: new Date(entry.timestamp),
-          type: entry.entry_type,
-          severity: entry.severity,
-          energyLevel: entry.energy_level,
-          symptoms: entry.symptoms,
-          medications: entry.medications,
-          triggers: entry.triggers,
-          note: entry.note,
-          photos: entry.photos || [],
-          voiceTranscript: entry.voice_transcript,
-          followUps: entry.follow_ups || [],
-          environmentalData: entry.environmental_data,
-          physiologicalData: entry.physiological_data,
-        })));
-      }
+      const flareEntries: FlareEntry[] = (flareResult.data || []).map((entry: any) => ({
+        id: entry.id,
+        timestamp: new Date(entry.timestamp),
+        type: entry.entry_type,
+        severity: entry.severity,
+        energyLevel: entry.energy_level,
+        symptoms: entry.symptoms,
+        medications: entry.medications,
+        triggers: entry.triggers,
+        note: entry.note,
+        photos: entry.photos || [],
+        voiceTranscript: entry.voice_transcript,
+        followUps: entry.follow_ups || [],
+        environmentalData: entry.environmental_data,
+        physiologicalData: entry.physiological_data,
+      }));
+
+      const foodEntries: FlareEntry[] = (foodResult.data || []).map((fl: any) => ({
+        id: `food_${fl.id}`,
+        timestamp: new Date(fl.logged_at),
+        type: 'food' as any,
+        note: `${fl.food_name}${fl.brand ? ` (${fl.brand})` : ''} · ${Math.round((fl.calories || 0) * (fl.servings || 1))} kcal`,
+        severity: undefined,
+        symptoms: [fl.meal_type || 'snack'],
+        triggers: undefined,
+        medications: undefined,
+        photos: fl.photos || [],
+      }));
+
+      const allEntries = [...flareEntries, ...foodEntries].sort(
+        (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+      );
+      setEntries(allEntries);
     } catch (error) {
       console.error('Failed to load entries:', error);
     }

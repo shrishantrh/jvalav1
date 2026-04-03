@@ -140,6 +140,10 @@ export const WeekCalendarHistory = ({
     return getEntriesForDay(day).some(e => e.type?.startsWith('trackable:'));
   };
 
+  const hasFoodForDay = (day: Date): boolean => {
+    return getEntriesForDay(day).some(e => e.type === 'food');
+  };
+
   return (
     <div className="space-y-5" data-tour="calendar-view">
       {/* Header */}
@@ -227,6 +231,11 @@ export const WeekCalendarHistory = ({
                     "absolute bottom-1.5 w-1.5 h-1.5 rounded-full",
                     getSeverityDotColor(severity)
                   )} />
+                )}
+                
+                {/* Food dot indicator */}
+                {!severity && hasFoodForDay(day) && !isSelected && (
+                  <div className="absolute bottom-1.5 w-1.5 h-1.5 rounded-full bg-green-500" />
                 )}
                 
                 {/* Entry count for selected */}

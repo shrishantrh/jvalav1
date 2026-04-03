@@ -142,6 +142,10 @@ export const FoodLogger = ({ userId, open, onClose, onLogged }: FoodLoggerProps)
     if (result) {
       haptics.success();
       const cal = Math.round((selectedFood.calories || 0) * servings);
+      toast({
+        title: `✓ ${selectedFood.food_name} logged`,
+        description: `${cal} kcal · ${mealType}`,
+      });
       onLogged?.(selectedFood.food_name, cal, mealType);
       handleReset();
       onClose();
