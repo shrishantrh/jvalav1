@@ -186,6 +186,15 @@ const SeverityOrb = ({ severity, type, note }: { severity?: string; type?: strin
         icon: <Pill className="w-5 h-5 text-indigo-600" />
       };
     }
+    if (type === 'food') {
+      return { 
+        gradient: 'from-green-200 via-lime-100 to-emerald-50',
+        glow: 'rgba(34, 197, 94, 0.35)',
+        face: '#16a34a',
+        faceType: 'icon' as const,
+        icon: <Apple className="w-5 h-5 text-green-600" />
+      };
+    }
 
     // Severity-based
     switch (severity) {
