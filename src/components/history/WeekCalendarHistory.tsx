@@ -233,6 +233,11 @@ export const WeekCalendarHistory = ({
                   )} />
                 )}
                 
+                {/* Food dot indicator */}
+                {!severity && hasFoodForDay(day) && !isSelected && (
+                  <div className="absolute bottom-1.5 w-1.5 h-1.5 rounded-full bg-green-500" />
+                )}
+                
                 {/* Entry count for selected */}
                 {isSelected && entryCount > 0 && (
                   <span className="text-[10px] opacity-80">{entryCount}</span>
