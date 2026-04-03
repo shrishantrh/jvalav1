@@ -884,7 +884,10 @@ const Index = () => {
           userId={user.id}
           open={showFoodLogger}
           onClose={() => setShowFoodLogger(false)}
-          onLogged={() => loadEntries()}
+          onLogged={(foodName, calories, mealType) => {
+            loadEntries();
+            smartTrackRef.current?.addFoodLogMessage(foodName, calories, mealType);
+          }}
         />
       )}
     </>
