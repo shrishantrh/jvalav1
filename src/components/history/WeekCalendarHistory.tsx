@@ -140,6 +140,10 @@ export const WeekCalendarHistory = ({
     return getEntriesForDay(day).some(e => e.type?.startsWith('trackable:'));
   };
 
+  const hasFoodForDay = (day: Date): boolean => {
+    return getEntriesForDay(day).some(e => e.type === 'food');
+  };
+
   return (
     <div className="space-y-5" data-tour="calendar-view">
       {/* Header */}
