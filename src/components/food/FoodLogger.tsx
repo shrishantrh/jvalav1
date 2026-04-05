@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { X, Camera, Search, Plus, Minus, Loader2, ChevronDown, ScanBarcode, UtensilsCrossed } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { X, Camera, Search, Plus, Minus, Loader2, ChevronDown, ChevronRight, UtensilsCrossed, Flame, Droplets, Wheat, Beef, Apple, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +18,7 @@ interface FoodLoggerProps {
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
 const MEAL_TYPES: { value: MealType; label: string; icon: string }[] = [
-  { value: 'breakfast', label: 'Breakfast', icon: '🌅' },
+  { value: 'breakfast', label: 'Morning', icon: '🌅' },
   { value: 'lunch', label: 'Lunch', icon: '☀️' },
   { value: 'dinner', label: 'Dinner', icon: '🌙' },
   { value: 'snack', label: 'Snack', icon: '🍿' },
@@ -27,10 +27,10 @@ const MEAL_TYPES: { value: MealType; label: string; icon: string }[] = [
 const round = (v: number, decimals = 0) => Math.round(v * Math.pow(10, decimals)) / Math.pow(10, decimals);
 
 export const FoodLogger = ({ userId, open, onClose, onLogged }: FoodLoggerProps) => {
-  const { addFoodLog, searchFood, analyzePhoto } = useFoodLogs(userId);
+  const { addFoodLog, searchFood, analyzePhoto, getDailySummary } = useFoodLogs(userId);
   const { toast } = useToast();
 
-  const [step, setStep] = useState<'search' | 'review'>('search');
+  const [step, setStep] = useState<'input' | 'review'>('input');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<FoodSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -46,10 +46,13 @@ export const FoodLogger = ({ userId, open, onClose, onLogged }: FoodLoggerProps)
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [analyzingPhoto, setAnalyzingPhoto] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [showNutrition, setShowNutrition] = useState(false);
+  const [showFullNutrition, setShowFullNutrition] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Daily totals
+  const dailySummary = getDailySummary(new Date());
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -60,7 +63,7 @@ export const FoodLogger = ({ userId, open, onClose, onLogged }: FoodLoggerProps)
       const results = await searchFood(query);
       setSearchResults(results);
       setSearching(false);
-    }, 400);
+    }, 350);
   };
 
   const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -88,10 +91,10 @@ export const FoodLogger = ({ userId, open, onClose, onLogged }: FoodLoggerProps)
             setStep('review');
             haptics.success();
           } else {
-            toast({ title: "Couldn't identify food", description: "Try searching manually", variant: "destructive" });
+            toast({ title: "Couldn't identify food", description: "Try searching instead", variant: "destructive" });
           }
         } catch {
-          toast({ title: "Analysis failed", description: "Try searching manually", variant: "destructive" });
+          toast({ title: "Analysis failed", description: "Try searching instead", variant: "destructive" });
         } finally {
           setAnalyzingPhoto(false);
         }
@@ -153,13 +156,13 @@ export const FoodLogger = ({ userId, open, onClose, onLogged }: FoodLoggerProps)
   };
 
   const handleReset = () => {
-    setStep('search');
+    setStep('input');
     setSearchQuery('');
     setSearchResults([]);
     setSelectedFood(null);
     setPhotoUrl(null);
     setServings(1);
-    setShowNutrition(false);
+    setShowFullNutrition(false);
   };
 
   const scaledCalories = Math.round((selectedFood?.calories || 0) * servings);
@@ -174,175 +177,219 @@ export const FoodLogger = ({ userId, open, onClose, onLogged }: FoodLoggerProps)
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-[90] bg-black/40 backdrop-blur-sm animate-fade-in"
+        className="fixed inset-0 z-[90] bg-black/40 backdrop-blur-md"
         onClick={() => { handleReset(); onClose(); }}
+        style={{ animation: 'fadeIn 0.2s ease-out' }}
       />
 
       {/* Bottom Sheet */}
       <div className={cn(
         "fixed bottom-0 left-0 right-0 z-[100]",
-        "max-h-[85vh] flex flex-col",
-        "bg-background/80 backdrop-blur-2xl",
-        "border-t border-white/20 dark:border-white/10",
-        "rounded-t-3xl",
-        "shadow-[0_-8px_40px_rgba(0,0,0,0.12)]",
+        "max-h-[88vh] flex flex-col",
+        "rounded-t-[28px]",
         "animate-slide-up"
-      )}>
+      )}
+      style={{
+        background: 'linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.88) 100%)',
+        backdropFilter: 'blur(40px) saturate(1.8)',
+        WebkitBackdropFilter: 'blur(40px) saturate(1.8)',
+        borderTop: '1px solid rgba(255,255,255,0.7)',
+        boxShadow: '0 -12px 48px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.5)',
+      }}>
+        {/* Specular highlight */}
+        <div className="absolute inset-x-0 top-0 h-16 rounded-t-[28px] pointer-events-none"
+          style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.4) 0%, transparent 100%)' }} />
+
         {/* Handle */}
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-foreground/20" />
+        <div className="flex justify-center pt-2.5 pb-1 relative z-10">
+          <div className="w-9 h-[5px] rounded-full bg-foreground/15" />
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pb-3">
-          <h2 className="text-lg font-bold">
-            {step === 'search' ? 'Log Food' : selectedFood?.food_name || 'Review'}
-          </h2>
+        <div className="flex items-center justify-between px-5 pb-2 relative z-10">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(135deg, rgba(34,197,94,0.15) 0%, rgba(22,163,74,0.1) 100%)',
+                border: '1px solid rgba(34,197,94,0.2)',
+              }}>
+              <Apple className="w-4 h-4 text-green-600" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-foreground">
+                {step === 'review' ? 'Review' : 'Log Food'}
+              </h2>
+              {dailySummary.logCount > 0 && step === 'input' && (
+                <p className="text-[10px] text-muted-foreground">
+                  Today: {dailySummary.totalCalories} kcal · {dailySummary.logCount} items
+                </p>
+              )}
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             {step === 'review' && (
-              <button onClick={handleReset} className="text-xs text-primary font-medium">
+              <button onClick={handleReset} className="text-xs text-primary font-semibold px-2 py-1 rounded-lg active:bg-primary/10 transition-colors">
                 Back
               </button>
             )}
             <button
               onClick={() => { handleReset(); onClose(); }}
-              className="w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center"
+              className="w-7 h-7 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+              style={{ background: 'rgba(0,0,0,0.06)' }}
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5 text-foreground/60" />
             </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 pb-safe overscroll-contain">
-          {/* ─── SEARCH STEP ─── */}
-          {step === 'search' && (
-            <div className="space-y-4 pb-6">
-              {/* Meal Type Pills */}
-              <div className="flex gap-2">
+        <div className="flex-1 overflow-y-auto px-5 pb-safe overscroll-contain relative z-10">
+          {/* ─── INPUT STEP ─── */}
+          {step === 'input' && (
+            <div className="space-y-3 pb-6">
+              {/* Meal Type Selector */}
+              <div className="flex gap-1.5">
                 {MEAL_TYPES.map(mt => (
                   <button
                     key={mt.value}
                     onClick={() => { setMealType(mt.value); haptics.selection(); }}
                     className={cn(
-                      "flex-1 py-2.5 rounded-2xl text-xs font-semibold transition-all",
-                      "bg-card/60 backdrop-blur-md border",
-                      mealType === mt.value
-                        ? "border-primary/40 bg-primary/10 text-primary shadow-[0_0_12px_rgba(var(--primary-rgb),0.15)]"
-                        : "border-white/15 text-muted-foreground"
+                      "flex-1 py-2 rounded-2xl text-[11px] font-semibold transition-all",
+                      "active:scale-[0.96]"
                     )}
+                    style={{
+                      background: mealType === mt.value
+                        ? 'linear-gradient(135deg, rgba(34,197,94,0.15) 0%, rgba(22,163,74,0.08) 100%)'
+                        : 'rgba(0,0,0,0.03)',
+                      border: mealType === mt.value
+                        ? '1px solid rgba(34,197,94,0.25)'
+                        : '1px solid transparent',
+                      color: mealType === mt.value ? 'rgb(22,163,74)' : undefined,
+                    }}
                   >
-                    <span className="text-base block mb-0.5">{mt.icon}</span>
+                    <span className="text-sm block">{mt.icon}</span>
                     {mt.label}
                   </button>
                 ))}
               </div>
 
-              {/* Camera Actions */}
-              <div className="flex gap-3">
+              {/* Camera + Search Row */}
+              <div className="flex gap-2">
                 <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoCapture} className="hidden" />
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={analyzingPhoto}
-                  className={cn(
-                    "flex-1 h-[72px] rounded-2xl flex flex-col items-center justify-center gap-1.5",
-                    "bg-gradient-to-br from-primary/15 to-primary/5",
-                    "border border-primary/20 backdrop-blur-md",
-                    "transition-all active:scale-[0.97]",
-                    analyzingPhoto && "animate-pulse"
-                  )}
+                  className="w-14 h-12 rounded-2xl flex flex-col items-center justify-center gap-0.5 active:scale-[0.95] transition-all flex-shrink-0"
+                  style={{
+                    background: analyzingPhoto
+                      ? 'linear-gradient(135deg, rgba(34,197,94,0.2) 0%, rgba(22,163,74,0.15) 100%)'
+                      : 'linear-gradient(135deg, rgba(34,197,94,0.12) 0%, rgba(22,163,74,0.06) 100%)',
+                    border: '1px solid rgba(34,197,94,0.2)',
+                  }}
                 >
                   {analyzingPhoto ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                      <span className="text-[10px] text-primary font-medium">Analyzing...</span>
-                    </>
+                    <Loader2 className="w-5 h-5 animate-spin text-green-600" />
                   ) : (
-                    <>
-                      <Camera className="w-5 h-5 text-primary" />
-                      <span className="text-[10px] text-muted-foreground font-medium">Snap & Scan</span>
-                    </>
+                    <Camera className="w-5 h-5 text-green-600" />
                   )}
                 </button>
-                <button
-                  onClick={() => {
-                    const input = document.createElement('input');
-                    input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment';
-                    input.onchange = (e: any) => handlePhotoCapture(e);
-                    input.click();
-                  }}
-                  disabled={analyzingPhoto}
-                  className={cn(
-                    "flex-1 h-[72px] rounded-2xl flex flex-col items-center justify-center gap-1.5",
-                    "bg-card/60 border border-white/15 backdrop-blur-md",
-                    "transition-all active:scale-[0.97]"
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    placeholder="Search food or scan..."
+                    className="pl-9 h-12 rounded-2xl border-0 text-sm"
+                    style={{
+                      background: 'rgba(0,0,0,0.04)',
+                    }}
+                  />
+                  {searching && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-green-600" />
                   )}
-                >
-                  <ScanBarcode className="w-5 h-5 text-foreground/70" />
-                  <span className="text-[10px] text-muted-foreground font-medium">Scan Label</span>
-                </button>
-              </div>
-
-              {/* Search Bar */}
-              <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  placeholder="Search food..."
-                  className="pl-10 h-11 rounded-2xl bg-card/60 backdrop-blur-md border-white/15"
-                />
-                {searching && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-primary" />
-                )}
+                </div>
               </div>
 
               {/* AI Photo Preview */}
               {analyzingPhoto && photoUrl && (
-                <div className="relative rounded-2xl overflow-hidden">
-                  <img src={photoUrl} alt="" className="w-full h-32 object-cover rounded-2xl opacity-60" />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm rounded-2xl">
-                    <div className="flex flex-col items-center gap-2">
-                      <Loader2 className="w-8 h-8 animate-spin text-white" />
-                      <span className="text-white text-xs font-medium">Identifying food...</span>
+                <div className="relative rounded-2xl overflow-hidden"
+                  style={{
+                    border: '1px solid rgba(34,197,94,0.2)',
+                    boxShadow: '0 4px 16px rgba(34,197,94,0.1)',
+                  }}>
+                  <img src={photoUrl} alt="" className="w-full h-28 object-cover opacity-70" />
+                  <div className="absolute inset-0 flex items-center justify-center backdrop-blur-sm"
+                    style={{ background: 'rgba(0,0,0,0.2)' }}>
+                    <div className="flex flex-col items-center gap-1.5">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center"
+                        style={{ background: 'rgba(255,255,255,0.9)', boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>
+                        <Loader2 className="w-5 h-5 animate-spin text-green-600" />
+                      </div>
+                      <span className="text-white text-[11px] font-semibold drop-shadow">Identifying food...</span>
                     </div>
                   </div>
                 </div>
               )}
 
+              {/* Daily Summary Bar (if has logs) */}
+              {dailySummary.logCount > 0 && !searchQuery && (
+                <div className="rounded-2xl p-3"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(34,197,94,0.06) 0%, rgba(22,163,74,0.03) 100%)',
+                    border: '1px solid rgba(34,197,94,0.1)',
+                  }}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-semibold text-muted-foreground">Today's Nutrition</span>
+                    <span className="text-[10px] text-muted-foreground">{dailySummary.logCount} items</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    <DailyStat label="Calories" value={dailySummary.totalCalories} unit="kcal" color="rgb(239,68,68)" />
+                    <DailyStat label="Fat" value={round(dailySummary.totalFat, 1)} unit="g" color="hsl(25, 95%, 55%)" />
+                    <DailyStat label="Carbs" value={round(dailySummary.totalCarbs, 1)} unit="g" color="hsl(210, 90%, 55%)" />
+                    <DailyStat label="Protein" value={round(dailySummary.totalProtein, 1)} unit="g" color="hsl(320, 75%, 55%)" />
+                  </div>
+                </div>
+              )}
+
               {/* Search Results */}
-              <div className="space-y-1.5 max-h-[40vh] overflow-y-auto">
+              <div className="space-y-1 max-h-[45vh] overflow-y-auto">
                 {searchResults.map((item, i) => (
                   <button
                     key={i}
                     onClick={() => handleSelectFood(item)}
-                    className={cn(
-                      "w-full flex items-center gap-3 p-3 rounded-2xl text-left",
-                      "bg-card/50 backdrop-blur-md border border-white/10",
-                      "hover:border-primary/20 hover:bg-primary/5",
-                      "transition-all active:scale-[0.98]"
-                    )}
+                    className="w-full flex items-center gap-3 p-3 rounded-2xl text-left active:scale-[0.98] transition-all"
+                    style={{
+                      background: 'rgba(255,255,255,0.7)',
+                      border: '1px solid rgba(255,255,255,0.8)',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                    }}
                   >
                     {item.image_url ? (
-                      <img src={item.image_url} alt="" className="w-11 h-11 rounded-xl object-cover" />
+                      <img src={item.image_url} alt="" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
                     ) : (
-                      <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
-                        <UtensilsCrossed className="w-4 h-4 text-primary" />
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{ background: 'rgba(34,197,94,0.1)' }}>
+                        <UtensilsCrossed className="w-4 h-4 text-green-600" />
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate">{item.food_name}</p>
+                      <p className="text-sm font-semibold truncate text-foreground">{item.food_name}</p>
                       {item.brand && <p className="text-[11px] text-muted-foreground truncate">{item.brand}</p>}
+                      {item.serving_size && <p className="text-[10px] text-muted-foreground/60">{item.serving_size}</p>}
                     </div>
                     <div className="text-right flex-shrink-0">
                       {item.calories != null && (
-                        <p className="text-sm font-bold text-primary">{Math.round(item.calories)}</p>
+                        <p className="text-sm font-bold text-green-600">{Math.round(item.calories)}</p>
                       )}
                       <p className="text-[9px] text-muted-foreground">kcal</p>
                     </div>
                   </button>
                 ))}
                 {searchQuery.length >= 2 && !searching && searchResults.length === 0 && (
-                  <p className="text-center text-xs text-muted-foreground py-6">No results. Try a photo instead.</p>
+                  <div className="text-center py-8">
+                    <Camera className="w-8 h-8 mx-auto mb-2 text-muted-foreground/30" />
+                    <p className="text-xs text-muted-foreground">No results found</p>
+                    <p className="text-[10px] text-muted-foreground/60 mt-1">Try a photo instead</p>
+                  </div>
                 )}
               </div>
             </div>
@@ -350,124 +397,146 @@ export const FoodLogger = ({ userId, open, onClose, onLogged }: FoodLoggerProps)
 
           {/* ─── REVIEW STEP ─── */}
           {step === 'review' && selectedFood && (
-            <div className="space-y-4 pb-6">
-              {/* Food Card with Photo */}
-              <div className={cn(
-                "rounded-2xl overflow-hidden",
-                "bg-card/60 backdrop-blur-xl border border-white/15"
-              )}>
+            <div className="space-y-3 pb-6">
+              {/* Food Hero Card */}
+              <div className="rounded-2xl overflow-hidden"
+                style={{
+                  background: 'linear-gradient(145deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.75) 100%)',
+                  border: '1px solid rgba(255,255,255,0.6)',
+                  boxShadow: 'inset 0 1px 3px rgba(255,255,255,0.4), 0 4px 16px rgba(0,0,0,0.06)',
+                }}>
                 {photoUrl && (
-                  <img src={photoUrl} alt="" className="w-full h-32 object-cover" />
+                  <div className="relative h-28">
+                    <img src={photoUrl} alt="" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, transparent 40%, rgba(255,255,255,0.9) 100%)' }} />
+                  </div>
                 )}
                 <div className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-bold text-base">{selectedFood.food_name}</h3>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-base text-foreground leading-tight">{selectedFood.food_name}</h3>
                       {selectedFood.brand && (
                         <p className="text-xs text-muted-foreground mt-0.5">{selectedFood.brand}</p>
                       )}
                       {selectedFood.serving_size && (
-                        <Badge variant="outline" className="mt-1.5 text-[10px] border-white/20">{selectedFood.serving_size}</Badge>
+                        <p className="text-[10px] text-muted-foreground/60 mt-1">{selectedFood.serving_size}</p>
                       )}
                     </div>
-                    {/* Calorie Badge */}
-                    <div className="text-center bg-primary/10 rounded-xl px-3 py-2">
-                      <p className="text-xl font-black text-primary">{scaledCalories}</p>
-                      <p className="text-[9px] text-primary/70 font-medium">kcal</p>
+                    {/* Calorie orb */}
+                    <div className="w-16 h-16 rounded-2xl flex flex-col items-center justify-center flex-shrink-0"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(34,197,94,0.12) 0%, rgba(22,163,74,0.06) 100%)',
+                        border: '1px solid rgba(34,197,94,0.2)',
+                        boxShadow: '0 4px 12px rgba(34,197,94,0.1)',
+                      }}>
+                      <span className="text-lg font-black text-green-600">{scaledCalories}</span>
+                      <span className="text-[8px] font-semibold text-green-600/60">kcal</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Macro Ring + Breakdown */}
-              <div className={cn(
-                "rounded-2xl p-4",
-                "bg-card/60 backdrop-blur-xl border border-white/15"
-              )}>
-                <div className="flex items-center gap-5">
-                  {/* Ring */}
-                  <div className="relative w-[72px] h-[72px] flex-shrink-0">
+              {/* Macro Breakdown */}
+              <div className="rounded-2xl p-4"
+                style={{
+                  background: 'linear-gradient(145deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.75) 100%)',
+                  border: '1px solid rgba(255,255,255,0.6)',
+                  boxShadow: 'inset 0 1px 3px rgba(255,255,255,0.4), 0 4px 16px rgba(0,0,0,0.06)',
+                }}>
+                <div className="flex items-center gap-4">
+                  {/* Macro Ring */}
+                  <div className="relative w-16 h-16 flex-shrink-0">
                     <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
-                      <circle cx="18" cy="18" r="14" fill="none" stroke="hsl(var(--muted))" strokeWidth="2.5" opacity="0.3" />
-                      <circle cx="18" cy="18" r="14" fill="none" stroke="hsl(25, 95%, 55%)" strokeWidth="2.5"
+                      <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="3" />
+                      <circle cx="18" cy="18" r="14" fill="none" stroke="hsl(25, 95%, 55%)" strokeWidth="3"
                         strokeDasharray={`${(scaledFat * 9 / macroTotal) * 88} 88`} strokeLinecap="round" />
-                      <circle cx="18" cy="18" r="14" fill="none" stroke="hsl(210, 90%, 55%)" strokeWidth="2.5"
+                      <circle cx="18" cy="18" r="14" fill="none" stroke="hsl(210, 90%, 55%)" strokeWidth="3"
                         strokeDasharray={`${(scaledCarbs * 4 / macroTotal) * 88} 88`}
                         strokeDashoffset={`${-(scaledFat * 9 / macroTotal) * 88}`} strokeLinecap="round" />
-                      <circle cx="18" cy="18" r="14" fill="none" stroke="hsl(320, 75%, 55%)" strokeWidth="2.5"
+                      <circle cx="18" cy="18" r="14" fill="none" stroke="hsl(320, 75%, 55%)" strokeWidth="3"
                         strokeDasharray={`${(scaledProtein * 4 / macroTotal) * 88} 88`}
                         strokeDashoffset={`${-((scaledFat * 9 + scaledCarbs * 4) / macroTotal) * 88}`} strokeLinecap="round" />
                     </svg>
                   </div>
-                  {/* Macros */}
+                  {/* Macro pills */}
                   <div className="flex-1 grid grid-cols-3 gap-2">
-                    <MacroPill label="Fat" value={scaledFat} unit="g" color="hsl(25, 95%, 55%)" pct={macroTotal > 1 ? Math.round((scaledFat * 9 / macroTotal) * 100) : 0} />
-                    <MacroPill label="Carbs" value={scaledCarbs} unit="g" color="hsl(210, 90%, 55%)" pct={macroTotal > 1 ? Math.round((scaledCarbs * 4 / macroTotal) * 100) : 0} />
-                    <MacroPill label="Protein" value={scaledProtein} unit="g" color="hsl(320, 75%, 55%)" pct={macroTotal > 1 ? Math.round((scaledProtein * 4 / macroTotal) * 100) : 0} />
+                    <MacroPill label="Fat" value={scaledFat} color="hsl(25, 95%, 55%)" pct={macroTotal > 1 ? Math.round((scaledFat * 9 / macroTotal) * 100) : 0} />
+                    <MacroPill label="Carbs" value={scaledCarbs} color="hsl(210, 90%, 55%)" pct={macroTotal > 1 ? Math.round((scaledCarbs * 4 / macroTotal) * 100) : 0} />
+                    <MacroPill label="Protein" value={scaledProtein} color="hsl(320, 75%, 55%)" pct={macroTotal > 1 ? Math.round((scaledProtein * 4 / macroTotal) * 100) : 0} />
                   </div>
                 </div>
               </div>
 
-              {/* Servings */}
-              <div className={cn(
-                "rounded-2xl p-4 flex items-center justify-between",
-                "bg-card/60 backdrop-blur-xl border border-white/15"
-              )}>
-                <span className="text-sm font-semibold">Servings</span>
-                <div className="flex items-center gap-4">
+              {/* Servings Control */}
+              <div className="rounded-2xl p-3.5 flex items-center justify-between"
+                style={{
+                  background: 'rgba(255,255,255,0.7)',
+                  border: '1px solid rgba(255,255,255,0.6)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                }}>
+                <span className="text-sm font-semibold text-foreground">Servings</span>
+                <div className="flex items-center gap-3">
                   <button
                     onClick={() => { setServings(Math.max(0.25, servings - 0.25)); haptics.light(); }}
-                    className="w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center active:scale-90 transition-transform"
+                    className="w-8 h-8 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+                    style={{ background: 'rgba(0,0,0,0.06)' }}
                   >
                     <Minus className="w-3.5 h-3.5" />
                   </button>
-                  <span className="text-lg font-black w-8 text-center">{servings}</span>
+                  <span className="text-lg font-black w-8 text-center text-foreground">{servings}</span>
                   <button
                     onClick={() => { setServings(servings + 0.25); haptics.light(); }}
-                    className="w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center active:scale-90 transition-transform"
+                    className="w-8 h-8 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+                    style={{ background: 'rgba(0,0,0,0.06)' }}
                   >
                     <Plus className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
 
-              {/* Meal Selector (compact) */}
+              {/* Meal Type (compact) */}
               <div className="flex gap-1.5">
                 {MEAL_TYPES.map(mt => (
                   <button
                     key={mt.value}
                     onClick={() => { setMealType(mt.value); haptics.selection(); }}
                     className={cn(
-                      "flex-1 py-2 rounded-xl text-[11px] font-semibold transition-all",
-                      mealType === mt.value
-                        ? "bg-primary/15 text-primary border border-primary/30"
-                        : "bg-card/40 text-muted-foreground border border-transparent"
+                      "flex-1 py-2 rounded-xl text-[11px] font-semibold transition-all active:scale-[0.96]"
                     )}
+                    style={{
+                      background: mealType === mt.value
+                        ? 'linear-gradient(135deg, rgba(34,197,94,0.15) 0%, rgba(22,163,74,0.08) 100%)'
+                        : 'rgba(0,0,0,0.03)',
+                      border: mealType === mt.value ? '1px solid rgba(34,197,94,0.2)' : '1px solid transparent',
+                      color: mealType === mt.value ? 'rgb(22,163,74)' : undefined,
+                    }}
                   >
                     {mt.icon} {mt.label}
                   </button>
                 ))}
               </div>
 
-              {/* Full Nutrition (collapsible) */}
+              {/* Nutrition Facts (collapsible) */}
               <button
-                onClick={() => setShowNutrition(!showNutrition)}
-                className={cn(
-                  "w-full flex items-center justify-between p-3.5 rounded-2xl",
-                  "bg-card/40 backdrop-blur-md border border-white/10",
-                  "text-sm font-medium"
-                )}
+                onClick={() => setShowFullNutrition(!showFullNutrition)}
+                className="w-full flex items-center justify-between p-3 rounded-2xl text-sm font-medium active:scale-[0.99] transition-transform"
+                style={{
+                  background: 'rgba(255,255,255,0.6)',
+                  border: '1px solid rgba(255,255,255,0.5)',
+                }}
               >
-                Nutrition Facts
-                <ChevronDown className={cn("w-4 h-4 transition-transform", showNutrition && "rotate-180")} />
+                <span className="text-foreground">Nutrition Facts</span>
+                <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform duration-200", showFullNutrition && "rotate-180")} />
               </button>
-              {showNutrition && (
-                <div className={cn(
-                  "rounded-2xl p-4 space-y-0",
-                  "bg-card/60 backdrop-blur-xl border border-white/15"
-                )}>
+              {showFullNutrition && (
+                <div className="rounded-2xl p-4 space-y-0"
+                  style={{
+                    background: 'linear-gradient(145deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.75) 100%)',
+                    border: '1px solid rgba(255,255,255,0.6)',
+                    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.3), 0 2px 8px rgba(0,0,0,0.04)',
+                  }}>
                   <NutritionRow label="Calories" value={scaledCalories} unit="kcal" bold />
-                  <div className="w-full h-px bg-primary/30 my-1.5" />
+                  <div className="w-full h-[2px] my-1" style={{ background: 'rgba(34,197,94,0.2)' }} />
                   <NutritionRow label="Total Fat" value={scaledFat} unit="g" bold />
                   <NutritionRow label="  Saturated" value={round((selectedFood.saturated_fat_g || 0) * servings)} unit="g" />
                   <NutritionRow label="  Trans" value={round((selectedFood.trans_fat_g || 0) * servings)} unit="g" />
@@ -477,7 +546,7 @@ export const FoodLogger = ({ userId, open, onClose, onLogged }: FoodLoggerProps)
                   <NutritionRow label="  Fiber" value={round((selectedFood.dietary_fiber_g || 0) * servings)} unit="g" />
                   <NutritionRow label="  Sugars" value={round((selectedFood.total_sugars_g || 0) * servings)} unit="g" />
                   <NutritionRow label="Protein" value={scaledProtein} unit="g" bold />
-                  <div className="w-full h-px bg-border/30 my-1.5" />
+                  <div className="w-full h-px my-1" style={{ background: 'rgba(0,0,0,0.06)' }} />
                   <NutritionRow label="Vitamin D" value={round((selectedFood.vitamin_d_mcg || 0) * servings, 1)} unit="mcg" />
                   <NutritionRow label="Calcium" value={round((selectedFood.calcium_mg || 0) * servings)} unit="mg" />
                   <NutritionRow label="Iron" value={round((selectedFood.iron_mg || 0) * servings, 1)} unit="mg" />
@@ -489,18 +558,19 @@ export const FoodLogger = ({ userId, open, onClose, onLogged }: FoodLoggerProps)
               <Button
                 onClick={handleLog}
                 disabled={saving}
-                className={cn(
-                  "w-full h-13 rounded-2xl text-base font-bold",
-                  "bg-gradient-to-r from-primary to-primary/80",
-                  "shadow-[0_4px_20px_rgba(var(--primary-rgb),0.3)]"
-                )}
+                className="w-full h-[52px] rounded-2xl text-[15px] font-bold border-0"
+                style={{
+                  background: 'linear-gradient(135deg, rgb(34,197,94) 0%, rgb(22,163,74) 100%)',
+                  boxShadow: '0 4px 20px rgba(34,197,94,0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
+                  color: 'white',
+                }}
               >
                 {saving ? (
                   <Loader2 className="w-5 h-5 animate-spin mr-2" />
                 ) : (
-                  <UtensilsCrossed className="w-5 h-5 mr-2" />
+                  <Apple className="w-5 h-5 mr-2" />
                 )}
-                Log {mealType.charAt(0).toUpperCase() + mealType.slice(1)} · {scaledCalories} kcal
+                Log · {scaledCalories} kcal
               </Button>
             </div>
           )}
@@ -512,8 +582,12 @@ export const FoodLogger = ({ userId, open, onClose, onLogged }: FoodLoggerProps)
           from { transform: translateY(100%); }
           to { transform: translateY(0); }
         }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
         .animate-slide-up { animation: slide-up 0.35s cubic-bezier(0.32, 0.72, 0, 1); }
-        .pb-safe { padding-bottom: max(env(safe-area-inset-bottom, 16px), 16px); }
+        .pb-safe { padding-bottom: max(env(safe-area-inset-bottom, 20px), 20px); }
       `}</style>
     </>
   );
@@ -521,17 +595,25 @@ export const FoodLogger = ({ userId, open, onClose, onLogged }: FoodLoggerProps)
 
 // ─── Sub-components ───
 
-const MacroPill = ({ label, value, unit, color, pct }: { label: string; value: number; unit: string; color: string; pct: number }) => (
-  <div className="text-center">
-    <div className="w-2 h-2 rounded-full mx-auto mb-1" style={{ backgroundColor: color }} />
-    <p className="text-xs font-bold">{value}{unit}</p>
+const MacroPill = ({ label, value, color, pct }: { label: string; value: number; color: string; pct: number }) => (
+  <div className="text-center p-2 rounded-xl"
+    style={{ background: `${color}08`, border: `1px solid ${color}15` }}>
+    <div className="w-2 h-2 rounded-full mx-auto mb-1" style={{ backgroundColor: color, boxShadow: `0 2px 6px ${color}40` }} />
+    <p className="text-xs font-bold text-foreground">{value}g</p>
     <p className="text-[9px] text-muted-foreground">{label} · {pct}%</p>
   </div>
 );
 
+const DailyStat = ({ label, value, unit, color }: { label: string; value: number; unit: string; color: string }) => (
+  <div className="text-center">
+    <p className="text-sm font-bold" style={{ color }}>{value}</p>
+    <p className="text-[9px] text-muted-foreground">{unit}</p>
+  </div>
+);
+
 const NutritionRow = ({ label, value, unit, bold }: { label: string; value: number; unit: string; bold?: boolean }) => (
-  <div className="flex justify-between py-1 border-b border-white/5 last:border-0">
-    <span className={cn("text-xs", bold ? "font-semibold" : "text-muted-foreground")}>{label}</span>
-    <span className={cn("text-xs", bold && "font-semibold")}>{value}{unit}</span>
+  <div className="flex justify-between py-1.5" style={{ borderBottom: '1px solid rgba(0,0,0,0.03)' }}>
+    <span className={cn("text-xs", bold ? "font-semibold text-foreground" : "text-muted-foreground")}>{label}</span>
+    <span className={cn("text-xs tabular-nums", bold ? "font-semibold text-foreground" : "text-muted-foreground")}>{value} {unit}</span>
   </div>
 );
