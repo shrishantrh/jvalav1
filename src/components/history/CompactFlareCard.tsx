@@ -483,7 +483,7 @@ export const CompactFlareCard = ({
 
   const hasWeatherData = temp || humidity || pressure || windSpeed || uvIndex || aqi || condition;
   const hasPhysData = physiologicalMetrics.some((metric) => metric.value !== '--');
-  const hasData = entry.type === 'flare' || city || hasWeatherData || hasPhysData || entry.symptoms?.length || entry.triggers?.length || (entry.note && !isNoteMetadata);
+  const hasData = entry.type === 'flare' || entry.type === 'food' || city || hasWeatherData || hasPhysData || entry.symptoms?.length || entry.triggers?.length || (entry.note && !isNoteMetadata);
 
   const trackableValue = getTrackableValue();
 
