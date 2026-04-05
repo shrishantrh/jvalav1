@@ -403,8 +403,9 @@ export const CompactFlareCard = ({
     if (entry.type === 'recovery') return 'Recovery';
     if (entry.type === 'energy') return 'Energy';
     if (entry.type === 'medication') return 'Medication';
+    if (entry.type === 'food') return entry.note || 'Food';
     // For actual flare entries, prefix with "Flare •" to distinguish from other logs
-    const isFlare = entry.type === 'flare' || (!entry.type?.startsWith('trackable:') && !['wellness', 'recovery', 'energy', 'medication'].includes(entry.type || ''));
+    const isFlare = entry.type === 'flare' || (!entry.type?.startsWith('trackable:') && !['wellness', 'recovery', 'energy', 'medication', 'food'].includes(entry.type || ''));
     const flarePrefix = isFlare && entry.severity ? 'Flare • ' : '';
     switch (entry.severity) {
       case 'none': return `${flarePrefix}Mild`;
