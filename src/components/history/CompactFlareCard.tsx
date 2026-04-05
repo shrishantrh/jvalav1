@@ -516,10 +516,13 @@ export const CompactFlareCard = ({
                   <span className="text-base font-bold text-foreground">
                     {getLabel()}
                   </span>
-                  {entry.type && entry.type !== 'flare' && !['wellness', 'recovery', 'energy', 'medication'].includes(entry.type) && !entry.type.startsWith('trackable:') && (
+                  {entry.type && entry.type !== 'flare' && !['wellness', 'recovery', 'energy', 'medication', 'food'].includes(entry.type) && !entry.type.startsWith('trackable:') && (
                     <Badge variant="secondary" className="text-[10px] capitalize">
                       {entry.type}
                     </Badge>
+                  )}
+                  {entry.type === 'food' && entry.nutritionData && (
+                    <span className="text-xs font-bold text-green-600">{entry.nutritionData.calories} kcal</span>
                   )}
                 </div>
                 {/* Show trackable value as subtle text */}
