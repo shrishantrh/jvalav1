@@ -382,12 +382,25 @@ const Index = () => {
         id: `food_${fl.id}`,
         timestamp: new Date(fl.logged_at),
         type: 'food' as any,
-        note: `${fl.food_name}${fl.brand ? ` (${fl.brand})` : ''} · ${Math.round((fl.calories || 0) * (fl.servings || 1))} kcal`,
+        note: fl.food_name,
         severity: undefined,
         symptoms: [fl.meal_type || 'snack'],
         triggers: undefined,
         medications: undefined,
         photos: fl.photos || [],
+        nutritionData: {
+          calories: Math.round((fl.calories || 0) * (fl.servings || 1)),
+          totalFat: Number(((fl.total_fat_g || 0) * (fl.servings || 1)).toFixed(1)),
+          totalCarbs: Number(((fl.total_carbs_g || 0) * (fl.servings || 1)).toFixed(1)),
+          protein: Number(((fl.protein_g || 0) * (fl.servings || 1)).toFixed(1)),
+          fiber: Number(((fl.dietary_fiber_g || 0) * (fl.servings || 1)).toFixed(1)),
+          sugar: Number(((fl.total_sugars_g || 0) * (fl.servings || 1)).toFixed(1)),
+          sodium: Math.round((fl.sodium_mg || 0) * (fl.servings || 1)),
+          servings: fl.servings || 1,
+          servingSize: fl.serving_size,
+          mealType: fl.meal_type || 'snack',
+          brand: fl.brand,
+        },
       }));
 
       const allEntries = [...flareEntries, ...foodEntries].sort(

@@ -982,7 +982,8 @@ function buildSystemPrompt(
   medications: any[],
   engagement: any,
   conversationHistory: { role: string; content: string }[],
-  aiMemories: any[] = []
+  aiMemories: any[] = [],
+  foodLogs: any[] = []
 ): string {
   const userName = profile?.full_name?.split(" ")[0] || "there";
   const conditions = (profile?.conditions ?? []).join(", ") || "Not specified";
@@ -1098,6 +1099,22 @@ ${positivePatterns.map(p => `• ${p}`).join("\n") || "• Keep logging to ident
 💊 MEDICATION TRACKING
 • Total medication logs: ${medications.length}
 ${medications.slice(0, 3).map(m => `• ${m.medication_name} - last taken ${formatDate(new Date(m.taken_at))}`).join("\n") || "• No medications logged yet"}
+
+🍎 NUTRITION & FOOD LOGS
+${foodLogs.length > 0 ? (() => {
+  const today = new Date().toISOString().split("T")[0];
+  const todayLogs = foodLogs.filter((f: any) => f.logged_at?.startsWith(today));
+  const todayCal = todayLogs.reduce((s: number, f: any) => s + (Number(f.calories) || 0) * (Number(f.servings) || 1), 0);
+  const todayProtein = todayLogs.reduce((s: number, f: any) => s + (Number(f.protein_g) || 0) * (Number(f.servings) || 1), 0);
+  const todayCarbs = todayLogs.reduce((s: number, f: any) => s + (Number(f.total_carbs_g) || 0) * (Number(f.servings) || 1), 0);
+  const todayFat = todayLogs.reduce((s: number, f: any) => s + (Number(f.total_fat_g) || 0) * (Number(f.servings) || 1), 0);
+  const todaySugar = todayLogs.reduce((s: number, f: any) => s + (Number(f.total_sugars_g) || 0) * (Number(f.servings) || 1), 0);
+  return `• Total food logs: ${foodLogs.length}
+• Today: ${todayLogs.length} items — ${Math.round(todayCal)} kcal, ${Math.round(todayProtein)}g protein, ${Math.round(todayCarbs)}g carbs, ${Math.round(todayFat)}g fat, ${Math.round(todaySugar)}g sugar
+• Recent foods: ${foodLogs.slice(0, 8).map((f: any) => `${f.food_name}${f.brand ? ` (${f.brand})` : ''} ${Math.round((Number(f.calories)||0)*(Number(f.servings)||1))}kcal [${f.meal_type}]`).join(", ")}`;
+})() : "• No food logged yet. Encourage the user to try the food logging feature!"}
+
+You MUST use this food/nutrition data when the user asks about their diet, nutrition, calories, macros, eating patterns, or food. Proactively mention food patterns when relevant to their health — e.g., high sugar intake correlating with flares, low protein days, etc.
 
 🔗 LEARNED CORRELATIONS
 ${correlations.slice(0, 5).map(c => `• ${c.trigger_value} → ${c.outcome_value} (${c.occurrence_count}x, ${Math.round((c.confidence || 0) * 100)}% confidence)`).join("\n") || "• Still learning - keep logging triggers and symptoms together"}
@@ -1574,7 +1591,8 @@ serve(async (req) => {
       safeMeds,
       engagement,
       history,
-      safeMemories
+      safeMemories,
+      safeFoodLogs
     );
 
     console.log("🤖 [chat-assistant] Calling AI model...");

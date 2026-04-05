@@ -403,8 +403,9 @@ export const CompactFlareCard = ({
     if (entry.type === 'recovery') return 'Recovery';
     if (entry.type === 'energy') return 'Energy';
     if (entry.type === 'medication') return 'Medication';
+    if (entry.type === 'food') return entry.note || 'Food';
     // For actual flare entries, prefix with "Flare •" to distinguish from other logs
-    const isFlare = entry.type === 'flare' || (!entry.type?.startsWith('trackable:') && !['wellness', 'recovery', 'energy', 'medication'].includes(entry.type || ''));
+    const isFlare = entry.type === 'flare' || (!entry.type?.startsWith('trackable:') && !['wellness', 'recovery', 'energy', 'medication', 'food'].includes(entry.type || ''));
     const flarePrefix = isFlare && entry.severity ? 'Flare • ' : '';
     switch (entry.severity) {
       case 'none': return `${flarePrefix}Mild`;
@@ -482,7 +483,7 @@ export const CompactFlareCard = ({
 
   const hasWeatherData = temp || humidity || pressure || windSpeed || uvIndex || aqi || condition;
   const hasPhysData = physiologicalMetrics.some((metric) => metric.value !== '--');
-  const hasData = entry.type === 'flare' || city || hasWeatherData || hasPhysData || entry.symptoms?.length || entry.triggers?.length || (entry.note && !isNoteMetadata);
+  const hasData = entry.type === 'flare' || entry.type === 'food' || city || hasWeatherData || hasPhysData || entry.symptoms?.length || entry.triggers?.length || (entry.note && !isNoteMetadata);
 
   const trackableValue = getTrackableValue();
 
@@ -515,15 +516,24 @@ export const CompactFlareCard = ({
                   <span className="text-base font-bold text-foreground">
                     {getLabel()}
                   </span>
-                  {entry.type && entry.type !== 'flare' && !['wellness', 'recovery', 'energy', 'medication'].includes(entry.type) && !entry.type.startsWith('trackable:') && (
+                  {entry.type && entry.type !== 'flare' && !['wellness', 'recovery', 'energy', 'medication', 'food'].includes(entry.type) && !entry.type.startsWith('trackable:') && (
                     <Badge variant="secondary" className="text-[10px] capitalize">
                       {entry.type}
                     </Badge>
                   )}
+                  {entry.type === 'food' && entry.nutritionData && (
+                    <span className="text-xs font-bold text-green-600">{entry.nutritionData.calories} kcal</span>
+                  )}
                 </div>
                 {/* Show trackable value as subtle text */}
-                {trackableValue && (
+                {trackableValue && entry.type !== 'food' && (
                   <p className="text-xs text-muted-foreground font-medium mb-1">{trackableValue}</p>
+                )}
+                {entry.type === 'food' && entry.nutritionData && (
+                  <p className="text-xs text-muted-foreground font-medium mb-1">
+                    {entry.nutritionData.brand ? `${entry.nutritionData.brand} · ` : ''}{entry.nutritionData.mealType}
+                    {entry.nutritionData.servings && entry.nutritionData.servings > 1 ? ` · ${entry.nutritionData.servings} servings` : ''}
+                  </p>
                 )}
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1.5">
@@ -538,7 +548,7 @@ export const CompactFlareCard = ({
                   )}
                 </div>
                 
-                {entry.symptoms && entry.symptoms.length > 0 && (
+                {entry.type !== 'food' && entry.symptoms && entry.symptoms.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {entry.symptoms.slice(0, 2).map((s, i) => (
                       <Badge 
@@ -560,6 +570,20 @@ export const CompactFlareCard = ({
                     )}
                   </div>
                 )}
+                {/* Food macro preview on collapsed view */}
+                {entry.type === 'food' && entry.nutritionData && (
+                  <div className="flex gap-3 mt-2">
+                    <span className="text-[10px] font-medium" style={{ color: 'hsl(25, 95%, 55%)' }}>
+                      F {entry.nutritionData.totalFat}g
+                    </span>
+                    <span className="text-[10px] font-medium" style={{ color: 'hsl(210, 90%, 55%)' }}>
+                      C {entry.nutritionData.totalCarbs}g
+                    </span>
+                    <span className="text-[10px] font-medium" style={{ color: 'hsl(320, 75%, 55%)' }}>
+                      P {entry.nutritionData.protein}g
+                    </span>
+                  </div>
+                )}
               </div>
 
               {hasData && (
@@ -574,6 +598,52 @@ export const CompactFlareCard = ({
 
         <CollapsibleContent>
           <div className="px-4 pb-4 space-y-4 border-t border-white/30 pt-4 relative z-10">
+            {/* Food Nutrition Breakdown */}
+            {entry.type === 'food' && entry.nutritionData && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-2">Nutrition Details</p>
+                <div className="grid grid-cols-4 gap-2 mb-3">
+                  {[
+                    { label: 'Calories', value: entry.nutritionData.calories || 0, unit: 'kcal', color: 'rgb(239,68,68)' },
+                    { label: 'Fat', value: entry.nutritionData.totalFat || 0, unit: 'g', color: 'hsl(25, 95%, 55%)' },
+                    { label: 'Carbs', value: entry.nutritionData.totalCarbs || 0, unit: 'g', color: 'hsl(210, 90%, 55%)' },
+                    { label: 'Protein', value: entry.nutritionData.protein || 0, unit: 'g', color: 'hsl(320, 75%, 55%)' },
+                  ].map(m => (
+                    <div key={m.label} className="text-center p-2.5 rounded-2xl backdrop-blur-sm"
+                      style={{
+                        background: `linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.85) 100%)`,
+                        border: '1px solid rgba(255,255,255,0.6)',
+                      }}>
+                      <p className="text-sm font-bold" style={{ color: m.color }}>{m.value}</p>
+                      <p className="text-[8px] text-muted-foreground">{m.unit}</p>
+                      <p className="text-[8px] text-muted-foreground">{m.label}</p>
+                    </div>
+                  ))}
+                </div>
+                {(entry.nutritionData.fiber || entry.nutritionData.sugar || entry.nutritionData.sodium) ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    {entry.nutritionData.fiber ? (
+                      <div className="text-center p-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.5)' }}>
+                        <p className="text-xs font-semibold">{entry.nutritionData.fiber}g</p>
+                        <p className="text-[8px] text-muted-foreground">Fiber</p>
+                      </div>
+                    ) : null}
+                    {entry.nutritionData.sugar ? (
+                      <div className="text-center p-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.5)' }}>
+                        <p className="text-xs font-semibold">{entry.nutritionData.sugar}g</p>
+                        <p className="text-[8px] text-muted-foreground">Sugar</p>
+                      </div>
+                    ) : null}
+                    {entry.nutritionData.sodium ? (
+                      <div className="text-center p-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.5)' }}>
+                        <p className="text-xs font-semibold">{entry.nutritionData.sodium}mg</p>
+                        <p className="text-[8px] text-muted-foreground">Sodium</p>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            )}
             {/* Weather Condition Banner */}
             {condition && (
               <div 
