@@ -1591,7 +1591,8 @@ serve(async (req) => {
       safeMeds,
       engagement,
       history,
-      safeMemories
+      safeMemories,
+      safeFoodLogs
     );
 
     console.log("🤖 [chat-assistant] Calling AI model...");
