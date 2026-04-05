@@ -982,7 +982,8 @@ function buildSystemPrompt(
   medications: any[],
   engagement: any,
   conversationHistory: { role: string; content: string }[],
-  aiMemories: any[] = []
+  aiMemories: any[] = [],
+  foodLogs: any[] = []
 ): string {
   const userName = profile?.full_name?.split(" ")[0] || "there";
   const conditions = (profile?.conditions ?? []).join(", ") || "Not specified";
