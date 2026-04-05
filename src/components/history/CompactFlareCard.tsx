@@ -598,6 +598,52 @@ export const CompactFlareCard = ({
 
         <CollapsibleContent>
           <div className="px-4 pb-4 space-y-4 border-t border-white/30 pt-4 relative z-10">
+            {/* Food Nutrition Breakdown */}
+            {entry.type === 'food' && entry.nutritionData && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-2">Nutrition Details</p>
+                <div className="grid grid-cols-4 gap-2 mb-3">
+                  {[
+                    { label: 'Calories', value: entry.nutritionData.calories || 0, unit: 'kcal', color: 'rgb(239,68,68)' },
+                    { label: 'Fat', value: entry.nutritionData.totalFat || 0, unit: 'g', color: 'hsl(25, 95%, 55%)' },
+                    { label: 'Carbs', value: entry.nutritionData.totalCarbs || 0, unit: 'g', color: 'hsl(210, 90%, 55%)' },
+                    { label: 'Protein', value: entry.nutritionData.protein || 0, unit: 'g', color: 'hsl(320, 75%, 55%)' },
+                  ].map(m => (
+                    <div key={m.label} className="text-center p-2.5 rounded-2xl backdrop-blur-sm"
+                      style={{
+                        background: `linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.85) 100%)`,
+                        border: '1px solid rgba(255,255,255,0.6)',
+                      }}>
+                      <p className="text-sm font-bold" style={{ color: m.color }}>{m.value}</p>
+                      <p className="text-[8px] text-muted-foreground">{m.unit}</p>
+                      <p className="text-[8px] text-muted-foreground">{m.label}</p>
+                    </div>
+                  ))}
+                </div>
+                {(entry.nutritionData.fiber || entry.nutritionData.sugar || entry.nutritionData.sodium) ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    {entry.nutritionData.fiber ? (
+                      <div className="text-center p-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.5)' }}>
+                        <p className="text-xs font-semibold">{entry.nutritionData.fiber}g</p>
+                        <p className="text-[8px] text-muted-foreground">Fiber</p>
+                      </div>
+                    ) : null}
+                    {entry.nutritionData.sugar ? (
+                      <div className="text-center p-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.5)' }}>
+                        <p className="text-xs font-semibold">{entry.nutritionData.sugar}g</p>
+                        <p className="text-[8px] text-muted-foreground">Sugar</p>
+                      </div>
+                    ) : null}
+                    {entry.nutritionData.sodium ? (
+                      <div className="text-center p-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.5)' }}>
+                        <p className="text-xs font-semibold">{entry.nutritionData.sodium}mg</p>
+                        <p className="text-[8px] text-muted-foreground">Sodium</p>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            )}
             {/* Weather Condition Banner */}
             {condition && (
               <div 
