@@ -35,6 +35,21 @@ export interface FlareEntry {
     mood?: string;
   };
 
+  // Nutrition data for food logs
+  nutritionData?: {
+    calories?: number;
+    totalFat?: number;
+    totalCarbs?: number;
+    protein?: number;
+    fiber?: number;
+    sugar?: number;
+    sodium?: number;
+    servings?: number;
+    servingSize?: string;
+    mealType?: string;
+    brand?: string;
+  };
+
   // Follow-ups for tracking progress
   followUps?: {
     timestamp: string;
