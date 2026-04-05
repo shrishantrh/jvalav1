@@ -526,8 +526,14 @@ export const CompactFlareCard = ({
                   )}
                 </div>
                 {/* Show trackable value as subtle text */}
-                {trackableValue && (
+                {trackableValue && entry.type !== 'food' && (
                   <p className="text-xs text-muted-foreground font-medium mb-1">{trackableValue}</p>
+                )}
+                {entry.type === 'food' && entry.nutritionData && (
+                  <p className="text-xs text-muted-foreground font-medium mb-1">
+                    {entry.nutritionData.brand ? `${entry.nutritionData.brand} · ` : ''}{entry.nutritionData.mealType}
+                    {entry.nutritionData.servings && entry.nutritionData.servings > 1 ? ` · ${entry.nutritionData.servings} servings` : ''}
+                  </p>
                 )}
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1.5">
@@ -542,7 +548,7 @@ export const CompactFlareCard = ({
                   )}
                 </div>
                 
-                {entry.symptoms && entry.symptoms.length > 0 && (
+                {entry.type !== 'food' && entry.symptoms && entry.symptoms.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {entry.symptoms.slice(0, 2).map((s, i) => (
                       <Badge 
@@ -562,6 +568,20 @@ export const CompactFlareCard = ({
                         +{entry.symptoms.length - 2}
                       </Badge>
                     )}
+                  </div>
+                )}
+                {/* Food macro preview on collapsed view */}
+                {entry.type === 'food' && entry.nutritionData && (
+                  <div className="flex gap-3 mt-2">
+                    <span className="text-[10px] font-medium" style={{ color: 'hsl(25, 95%, 55%)' }}>
+                      F {entry.nutritionData.totalFat}g
+                    </span>
+                    <span className="text-[10px] font-medium" style={{ color: 'hsl(210, 90%, 55%)' }}>
+                      C {entry.nutritionData.totalCarbs}g
+                    </span>
+                    <span className="text-[10px] font-medium" style={{ color: 'hsl(320, 75%, 55%)' }}>
+                      P {entry.nutritionData.protein}g
+                    </span>
                   </div>
                 )}
               </div>
