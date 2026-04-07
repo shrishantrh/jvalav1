@@ -42,6 +42,7 @@ import { useAIConsent } from "@/hooks/useAIConsent";
 import type { SmartTrackable } from "@/components/tracking/FluidLogSelector";
 import { useDeepLinkHandler } from "@/hooks/useDeepLinkHandler";
 import { FoodLogger } from "@/components/food/FoodLogger";
+import { VoiceConversation } from "@/components/voice/VoiceConversation";
 
 interface MedicationDetails {
   name: string;
