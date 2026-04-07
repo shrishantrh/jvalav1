@@ -928,6 +928,14 @@ const Index = () => {
           }}
         />
       )}
+
+      {/* Voice Conversation */}
+      {showVoiceCall && (
+        <VoiceConversation
+          onClose={() => setShowVoiceCall(false)}
+          userName={userProfile?.full_name || undefined}
+        />
+      )}
     </>
   );
 };
