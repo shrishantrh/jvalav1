@@ -122,7 +122,7 @@ export const VoiceConversation = ({ onClose, userName }: VoiceConversationProps)
         <div className="text-sm text-muted-foreground">
           {isConnected ? (
             <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
               Connected
             </span>
           ) : "Voice Call"}
