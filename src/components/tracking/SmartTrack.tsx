@@ -1847,6 +1847,22 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             >
               {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
             </Button>
+
+            {/* Voice Call Button */}
+            {onOpenVoiceCall && (
+              <Button
+                variant="outline"
+                size="icon"
+                className="shrink-0 h-9 w-9"
+                onClick={onOpenVoiceCall}
+                style={{
+                  background: 'hsl(var(--card) / 0.9)',
+                  borderColor: 'hsl(var(--border) / 0.5)',
+                }}
+              >
+                <Phone className="w-4 h-4" />
+              </Button>
+            )}
             
             <Input
               value={input}
