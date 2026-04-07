@@ -24,11 +24,11 @@ export const VoiceConversation = ({ onClose, userName }: VoiceConversationProps)
   const conversation = useConversation({
     onConnect: () => {
       console.log("[VoiceConversation] Connected");
-      haptics.impact("medium");
+      haptics.impact();
     },
     onDisconnect: () => {
       console.log("[VoiceConversation] Disconnected");
-      haptics.impact("light");
+      haptics.impact();
     },
     onMessage: (message: any) => {
       if (message.type === "user_transcript" && message.user_transcription_event?.user_transcript) {
@@ -82,8 +82,8 @@ export const VoiceConversation = ({ onClose, userName }: VoiceConversationProps)
 
   const endConversation = useCallback(async () => {
     await conversation.endSession();
-    haptics.impact("light");
-    onClose();
+      haptics.impact();
+      onClose();
   }, [conversation, onClose]);
 
   const isSpeaking = conversation.isSpeaking;
