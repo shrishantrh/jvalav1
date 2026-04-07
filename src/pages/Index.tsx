@@ -766,10 +766,11 @@ const Index = () => {
               recentEntries={entries}
               userId={user.id}
               onOpenDetails={() => setShowDetailedEntry(true)}
-              onOpenFood={() => setShowFoodLogger(true)}
-              onNavigateToTrends={() => setCurrentView('insights')}
-              aiConsented={aiConsented === true}
-              onRequestAIConsent={() => setShowAIConsentDialog(true)}
+               onOpenFood={() => setShowFoodLogger(true)}
+               onOpenVoiceCall={() => setShowVoiceCall(true)}
+               onNavigateToTrends={() => setCurrentView('insights')}
+               aiConsented={aiConsented === true}
+               onRequestAIConsent={() => setShowAIConsentDialog(true)}
             />
             
             {/* Detailed Entry Dialog */}

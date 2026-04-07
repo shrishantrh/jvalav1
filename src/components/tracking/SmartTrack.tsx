@@ -142,6 +142,7 @@ interface SmartTrackProps {
   userId: string;
   onOpenDetails?: () => void;
   onOpenFood?: () => void;
+  onOpenVoiceCall?: () => void;
   onNavigateToTrends?: () => void;
   aiConsented?: boolean;
   onRequestAIConsent?: () => void;
