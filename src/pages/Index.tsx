@@ -87,6 +87,7 @@ const Index = () => {
   const [showProgress, setShowProgress] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showFoodLogger, setShowFoodLogger] = useState(false);
+  const [showVoiceCall, setShowVoiceCall] = useState(false);
   const smartTrackRef = useRef<SmartTrackRef>(null);
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
