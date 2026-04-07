@@ -42,6 +42,7 @@ import { useAIConsent } from "@/hooks/useAIConsent";
 import type { SmartTrackable } from "@/components/tracking/FluidLogSelector";
 import { useDeepLinkHandler } from "@/hooks/useDeepLinkHandler";
 import { FoodLogger } from "@/components/food/FoodLogger";
+import { VoiceConversation } from "@/components/voice/VoiceConversation";
 
 interface MedicationDetails {
   name: string;
@@ -87,6 +88,7 @@ const Index = () => {
   const [showProgress, setShowProgress] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showFoodLogger, setShowFoodLogger] = useState(false);
+  const [showVoiceCall, setShowVoiceCall] = useState(false);
   const smartTrackRef = useRef<SmartTrackRef>(null);
   const { user, loading, signOut } = useAuth();
   const navigate = useNavigate();
@@ -764,10 +766,11 @@ const Index = () => {
               recentEntries={entries}
               userId={user.id}
               onOpenDetails={() => setShowDetailedEntry(true)}
-              onOpenFood={() => setShowFoodLogger(true)}
-              onNavigateToTrends={() => setCurrentView('insights')}
-              aiConsented={aiConsented === true}
-              onRequestAIConsent={() => setShowAIConsentDialog(true)}
+               onOpenFood={() => setShowFoodLogger(true)}
+               onOpenVoiceCall={() => setShowVoiceCall(true)}
+               onNavigateToTrends={() => setCurrentView('insights')}
+               aiConsented={aiConsented === true}
+               onRequestAIConsent={() => setShowAIConsentDialog(true)}
             />
             
             {/* Detailed Entry Dialog */}
@@ -924,6 +927,14 @@ const Index = () => {
             loadEntries();
             smartTrackRef.current?.addFoodLogMessage(foodName, calories, mealType);
           }}
+        />
+      )}
+
+      {/* Voice Conversation */}
+      {showVoiceCall && (
+        <VoiceConversation
+          onClose={() => setShowVoiceCall(false)}
+          userName={userProfile?.full_name || undefined}
         />
       )}
     </>

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { FlareEntry } from "@/types/flare";
-import { Send, Mic, MicOff, Check, Sparkles, Thermometer, Droplets, Calendar, AlertTriangle, BarChart3, Activity, TrendingUp, Search, ExternalLink } from "lucide-react";
+import { Send, Mic, MicOff, Check, Sparkles, Thermometer, Droplets, Calendar, AlertTriangle, BarChart3, Activity, TrendingUp, Search, ExternalLink, Phone } from "lucide-react";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -142,6 +142,7 @@ interface SmartTrackProps {
   userId: string;
   onOpenDetails?: () => void;
   onOpenFood?: () => void;
+  onOpenVoiceCall?: () => void;
   onNavigateToTrends?: () => void;
   aiConsented?: boolean;
   onRequestAIConsent?: () => void;
@@ -477,6 +478,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   userId,
   onOpenDetails,
   onOpenFood,
+  onOpenVoiceCall,
   onNavigateToTrends,
   aiConsented,
   onRequestAIConsent,
@@ -1845,6 +1847,22 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             >
               {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
             </Button>
+
+            {/* Voice Call Button */}
+            {onOpenVoiceCall && (
+              <Button
+                variant="outline"
+                size="icon"
+                className="shrink-0 h-9 w-9"
+                onClick={onOpenVoiceCall}
+                style={{
+                  background: 'hsl(var(--card) / 0.9)',
+                  borderColor: 'hsl(var(--border) / 0.5)',
+                }}
+              >
+                <Phone className="w-4 h-4" />
+              </Button>
+            )}
             
             <Input
               value={input}
