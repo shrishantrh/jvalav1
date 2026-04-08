@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { FlareEntry } from "@/types/flare";
-import { Send, Mic, Bot, User, Check, Flame, BarChart3, Camera } from "lucide-react";
+import { Send, Mic, Bot, User, Check, Flame, BarChart3, Camera, Phone } from "lucide-react";
 import { useVoiceRecording } from "@/hooks/useVoiceRecording";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { VoiceOverlay } from "@/components/chat/VoiceOverlay";
 import { PhotoAnalyzer } from "@/components/chat/PhotoAnalyzer";
+import { VoiceConversation } from "@/components/chat/VoiceConversation";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -306,6 +307,7 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [voiceOverlayOpen, setVoiceOverlayOpen] = useState(false);
+  const [voiceCallOpen, setVoiceCallOpen] = useState(false);
   const { isRecording, transcript, startRecording, stopRecording, clearRecording } = useVoiceRecording();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -643,8 +645,20 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
           onClick={() => setVoiceOverlayOpen(true)}
           className="h-9 w-9 flex-shrink-0 rounded-full"
           disabled={isProcessing}
+          title="Voice note"
         >
           <Mic className="w-4 h-4" />
+        </Button>
+
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setVoiceCallOpen(true)}
+          className="h-9 w-9 flex-shrink-0 rounded-full border-pink-500/40 hover:bg-pink-500/10 hover:border-pink-500 text-pink-500"
+          disabled={isProcessing}
+          title="Call Jvala"
+        >
+          <Phone className="w-4 h-4" />
         </Button>
 
         <Button
@@ -657,7 +671,7 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
         </Button>
       </div>
 
-      {/* Voice Overlay */}
+      {/* Voice Note Overlay (record + transcribe) */}
       <VoiceOverlay
         isOpen={voiceOverlayOpen}
         onClose={() => setVoiceOverlayOpen(false)}
@@ -666,6 +680,12 @@ export const ChatLog = ({ onSave, userSymptoms = [], userConditions = [], userId
           setVoiceOverlayOpen(false);
           setTimeout(() => handleSend(), 50);
         }}
+      />
+
+      {/* Voice Call (ElevenLabs real-time conversation) */}
+      <VoiceConversation
+        isOpen={voiceCallOpen}
+        onClose={() => setVoiceCallOpen(false)}
       />
     </div>
   );

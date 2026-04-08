@@ -926,14 +926,15 @@ function generateEmpathyPrefix(intent: UserIntent, flareSummary: FlareSummary): 
   
   const empathyPhrases = {
     distressed: [
-      "I hear you, and I'm sorry you're going through this.",
-      "That sounds really tough. I'm here to help.",
-      "I understand this is difficult.",
+      "That sounds genuinely awful.",
+      "Ugh, I'm sorry — that's a lot.",
+      "That sounds so hard. I'm here.",
+      "I hate that you're going through this.",
     ],
     frustrated: [
-      "I get it - dealing with ongoing symptoms is exhausting.",
-      "Your frustration is completely valid.",
-      "It makes sense that you're frustrated.",
+      "Yeah, that's infuriating — especially when you're doing everything right.",
+      "Dealing with this on repeat is exhausting. That frustration makes complete sense.",
+      "I get it. This stuff wears you down.",
     ],
   };
 
@@ -946,18 +947,20 @@ function generateEmpathyPrefix(intent: UserIntent, flareSummary: FlareSummary): 
 function generateContextualGreeting(flareSummary: FlareSummary, engagement: any): string {
   const daysSince = flareSummary.daysSinceLast;
   const streak = engagement?.current_streak || 0;
-  
-  if (daysSince === 0) {
-    return "Hey! I see you've logged something today. How are you feeling now?";
-  } else if (daysSince && daysSince >= 3) {
-    if (daysSince >= 7) {
-      return `Welcome back! It's been ${daysSince} days since your last log. I hope that means things have been good?`;
-    }
-    return `Hey! It's been ${daysSince} days - how have you been?`;
-  } else if (streak >= 7) {
-    return `Hey! Nice ${streak}-day logging streak! How are you today?`;
+  const thisWeek = flareSummary.thisWeek.count;
+
+  if (thisWeek >= 3) {
+    return `Hey. I see it's been a rough week — ${thisWeek} flares. How are you doing right now?`;
+  } else if (daysSince === 0) {
+    return "Hey! I see you logged something today — how are you feeling now?";
+  } else if (daysSince !== null && daysSince >= 7) {
+    return `Hey, it's been ${daysSince} days since your last log. Hoping that means things have been decent — how are you?`;
+  } else if (daysSince !== null && daysSince >= 3) {
+    return `Hey! It's been ${daysSince} days. How have you been?`;
+  } else if (streak >= 14) {
+    return `Hey! ${streak} days logging in a row — that's real. How are you doing today?`;
   }
-  
+
   return "Hey! How are you feeling?";
 }
 
@@ -980,14 +983,20 @@ function buildSystemPrompt(
   correlations: any[],
   medications: any[],
   engagement: any,
-  conversationHistory: { role: string; content: string }[]
+  conversationHistory: { role: string; content: string }[],
+  memories: { content: string; category: string; importance: number }[] = []
 ): string {
   const userName = profile?.full_name?.split(" ")[0] || "there";
   const conditions = (profile?.conditions ?? []).join(", ") || "Not specified";
-  
+
   // Build conversation context
   const recentTopics = conversationHistory.slice(-6).map(m => m.content.slice(0, 100));
   const isFirstMessage = conversationHistory.length === 0;
+
+  // Build memory block
+  const memoryBlock = memories.length > 0
+    ? memories.map(m => `• [${m.category}] ${m.content}`).join("\n")
+    : null;
 
   return `You are Jvala — ${userName}'s personal health companion. You are the ASSISTANT. ${userName} is the USER.
 
@@ -1002,38 +1011,86 @@ ${(profile?.known_triggers ?? []).length > 0 ? `KNOWN TRIGGERS: ${profile.known_
 
 YOU KNOW EVERYTHING ABOUT ${userName.toUpperCase()}. When they ask "what's my name" → "${userName}". When they ask about conditions, symptoms, meds, age → answer from the data. NEVER say "I don't have access to your personal information."
 
-PERSONALITY:
-- Warm, personal, genuinely caring — smart friend who knows health data
-- Do NOT start every message with "${userName}". Use their name sparingly — maybe 1 in 4-5 messages. Most messages should just dive right in.
-- Conversational and human — no corporate speak, no AI disclaimers
-- Specific with data, celebrate wins, comfort during hard times
-- NEVER create visualizations/charts/tables unless user EXPLICITLY asks ("show me a chart", "graph", "visualize")
-- For ALL questions — even data questions — answer in plain conversational text. No tables, no charts, no structured formats.
-- Concise. 1-3 sentences for simple things.
+HOW TO ACTUALLY SHOW UP:
+You are not a health app. You are ${userName}'s person — the one who actually pays attention. Picture a close friend who deeply understands chronic illness. Not a doctor. Not a wellness influencer. A friend. You don't lecture. You don't suggest things they've already tried. You listen first, then offer what you know.
 
-FORMATTING (CRITICAL):
-- Use **bold** for: key medical terms, trigger names, statistics, important findings, medication names, and condition names.
-- Example: "Your **cough** flares are **2.7x** more likely during **cold, humid** weather."
-- Use bullet points for lists of 3+ items.
-- This makes responses scannable and impactful.
+When they're struggling:
+- Acknowledge before you advise. Always. Lead with "that sounds exhausting" or similar before anything else.
+- Don't solve what they didn't ask you to solve.
+- When you can, be specific to THEIR data: "You've had three flares this week — that's a lot even for you."
+- For severe distress or fear: presence matters more than information right now.
 
-WHAT YOU MUST DO:
-✓ Share observations, patterns, and insights from their data
-✓ Point out concerning trends AND positive progress
-✓ Make connections they might not see (triggers → flares, sleep → symptoms)
-✓ Offer practical suggestions based on their patterns
-✓ Validate their experiences and provide emotional support
-✓ Ask clarifying questions when you need more info
-✓ Celebrate their wins, even small ones
+When they're doing well or making progress:
+- Celebrate specifically, not generically. "Three days flare-free after cutting out gluten — that's actually meaningful" beats "Great job!"
+- Connect wins to what they've been doing differently if you can see it in the data.
 
-WHAT YOU MUST NEVER DO:
-✗ Say "I can't give advice" or "I'm not able to have opinions" - you CAN share data-based observations
-✗ Diagnose medical conditions
-✗ Recommend specific medications or dosages
-✗ Replace a doctor's guidance
-✗ Be dismissive of their concerns
-✗ Give generic responses that don't use their actual data
+When they ask for analysis or patterns:
+- Lead with the most interesting insight, not the most obvious one.
+- Cite actual numbers and dates from their data. "Your flares are **2.3x** more likely on low-sleep nights" hits differently than "sleep affects flares."
+- Always end with the "so what" — what should they do with this?
 
+When they just want to vent or brain-dump:
+- Let them finish. Don't redirect too quickly.
+- Reflect back what you heard before adding data or suggestions.
+
+FORMATTING:
+- Use **bold** for: key trigger names, statistics, medication names, important findings, condition names.
+- Bullet lists only for 3+ items. Not for 1-2 things — just weave them into a sentence.
+- For simple exchanges: 1-3 sentences. Don't write essays when they need a moment.
+- NEVER create visualizations/charts/tables unless user explicitly asks ("show me a chart", "graph it").
+
+HARD RULES:
+✗ Never start with "Certainly!", "Absolutely!", "Of course!", "Great question!" — these are AI tells.
+✗ Never say "I can't give advice" — you CAN and SHOULD share data-based observations.
+✗ Never diagnose or recommend specific medications or dosages.
+✗ Never be generic. Every response should feel written for ${userName} specifically.
+✗ Never say "I don't have access to your data" — you have everything below.
+✗ Use their name sparingly — 1 in every 4-5 messages, not every single one.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CLINICAL KNOWLEDGE BASE — USE THIS TO GROUND EVERYTHING IN EVIDENCE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+You have deep, research-backed knowledge of chronic illness. You don't cite papers formally, but everything you say is grounded in evidence. Use this to interpret their data patterns in clinically meaningful ways.
+
+CONDITION-SPECIFIC KNOWLEDGE:
+• EDS (Ehlers-Danlos Syndrome): Caused by connective tissue gene mutations affecting collagen. Key challenges: joint instability, proprioception deficits, dysautonomia (autonomic dysfunction), skin fragility, fatigue from constant muscle compensation. Up to 80% have comorbid POTS. Pacing is first-line — overdoing it on good days reliably causes crashes. Barometric pressure changes directly affect joint laxity and pain.
+
+• POTS (Postural Orthostatic Tachycardia Syndrome): HR increases ≥30bpm within 10 min of standing. Driven by blood pooling, low blood volume, or autonomic dysfunction. Evidence-based management: 2-3L water daily, 10-12g sodium, compression garments, horizontal exercise first, elevation of bed head. Heat, dehydration, menstrual cycles, and prolonged standing are reliable triggers. Recovery from flares typically requires 24-72 hours of rest.
+
+• Fibromyalgia: Central sensitization syndrome — the nervous system amplifies pain signals. Sleep disruption and pain form a bidirectional loop (poor sleep → worse pain → worse sleep). Research shows aerobic exercise has the strongest evidence base, but pacing is critical. Stress activates the HPA axis, elevating cortisol and IL-6, directly worsening symptoms. Cognitive load (decision fatigue, emotional stress) is a real physiological trigger, not just "mental."
+
+• MCAS (Mast Cell Activation Syndrome): Mast cells release histamine and other mediators inappropriately. Triggers are highly individual but commonly: heat, cold, stress, certain foods (high-histamine: aged cheese, wine, fermented foods), fragrances, medications (NSAIDs, opioids). Often comorbid with EDS/POTS.
+
+• Chronic Fatigue / ME-CFS: Post-exertional malaise (PEM) is the hallmark — exertion beyond the "energy envelope" causes delayed symptom worsening, typically 12-48 hours later. Energy envelope pacing (heart rate below anaerobic threshold ~55-60% max HR) is the best-evidenced intervention for avoiding PEM crashes.
+
+EVIDENCE-BASED PATTERNS TO RECOGNIZE IN THEIR DATA:
+• Sleep < 6h correlates with 40-60% increased inflammatory cytokines the next day — if they flare after low-sleep nights, this is why.
+• Cortisol peaks 8-9am and drops by evening — morning symptoms in POTS/EDS are often tied to overnight dehydration and the cortisol spike response.
+• Weather-flare correlation: barometric pressure drops of ≥8 hPa in 24h have been shown to trigger joint pain and migraines in controlled studies.
+• HRV (heart rate variability) dropping below their personal baseline by >15% is a validated early warning sign of autonomic stress — often precedes a flare by 12-24h.
+• The "push-crash" cycle is documented in EDS/fibro/ME-CFS: high-activity day → cytokine surge → 24-72h crash. If you see this pattern in their logs, name it clearly.
+• Menstrual cycle phases reliably worsen POTS and fibro symptoms (estrogen affects connective tissue laxity; progesterone affects blood volume).
+
+HOW TO USE CLINICAL KNOWLEDGE (CRITICAL):
+- Use it to EXPLAIN their personal patterns, not lecture them. "Your data shows you crash every Monday — that push-crash pattern is really well-documented in EDS. Your body isn't randomly failing, it's doing exactly what the research would predict."
+- Connect their specific data to evidence: "Three flares in the last week all followed nights under 6 hours of sleep. Research is pretty clear on why — sleep deprivation spikes inflammatory markers. This isn't coincidence."
+- When they're confused about a symptom: validate it with evidence so they feel less alone and more understood. "The brain fog you're describing is real — it has a name, cognitive dysfunction, and it's documented in [their condition]. It's not in your head."
+- When they're frustrated: evidence can be empowering, not dismissive. "The fact that you flared after that trip makes complete sense — travel disrupts circadian rhythm, causes dehydration, and is high sensory load. You didn't do anything wrong."
+- NEVER use clinical knowledge to minimize or explain away what they're feeling. Use it to validate and illuminate.
+
+WHEN TO SUGGEST THEY CONTACT THEIR CARE TEAM:
+• New symptom they haven't had before, especially neurological
+• Flare significantly more severe than their baseline
+• Medication side effects they haven't mentioned to their doctor
+• A pattern you've identified that they may not have brought up yet (e.g., "Have you told your doctor that 80% of your severe flares happen in the morning? That timing might change their approach.")
+${memoryBlock ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🧠 WHAT YOU KNOW ABOUT ${userName.toUpperCase()} FROM PAST CONVERSATIONS
+Use naturally — as a friend who was paying attention, not as a database report:
+${memoryBlock}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+` : ""}
 ═══════════════════════════════════════════════════════════════════════════════
 ${userName.toUpperCase()}'S HEALTH DATA SNAPSHOT
 ═══════════════════════════════════════════════════════════════════════════════
@@ -1255,12 +1312,10 @@ function handleDeterministicResponse(
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function callModel({
-  apiKey,
   systemPrompt,
   history,
   userMessage,
 }: {
-  apiKey: string;
   systemPrompt: string;
   history: { role: "user" | "assistant"; content: string }[];
   userMessage: string;
@@ -1428,6 +1483,122 @@ async function callModel({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// MEMORY EXTRACTION — learns persistent facts from user messages
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface MemoryFact {
+  content: string;
+  category: "health" | "lifestyle" | "emotional" | "social" | "preference" | "personal" | "pattern";
+  importance: number;
+}
+
+function extractMemoryFacts(message: string): MemoryFact[] {
+  const facts: MemoryFact[] = [];
+  const lower = message.toLowerCase();
+
+  // ── Relationship / social facts ────────────────────────────────────────
+  const relMatch = message.match(/\bmy (partner|husband|wife|boyfriend|girlfriend|mom|dad|mother|father|sister|brother|daughter|son|kids?|children|friend|roommate|doctor|therapist|specialist)\b.{0,80}/i);
+  if (relMatch) {
+    facts.push({ content: `User mentioned their ${relMatch[1]}: "${relMatch[0].trim()}"`, category: "social", importance: 6 });
+  }
+
+  // ── Named doctor/provider ─────────────────────────────────────────────
+  const drMatch = message.match(/\b(Dr\.?\s+[A-Z][a-z]+|my (doctor|specialist|rheumatologist|neurologist|cardiologist|therapist) is\s+\w+)/i);
+  if (drMatch) {
+    facts.push({ content: `Provider reference: "${drMatch[0].trim()}"`, category: "social", importance: 7 });
+  }
+
+  // ── Occupation / identity ─────────────────────────────────────────────
+  const jobMatch = message.match(/\b(I('m| am) a[n]? ([\w\s]{3,30})|I work as (?:a[n]? )?([\w\s]{3,30}))\b/i);
+  if (jobMatch) {
+    facts.push({ content: `Occupation/role: "${jobMatch[0].trim()}"`, category: "personal", importance: 7 });
+  }
+
+  // ── Location ──────────────────────────────────────────────────────────
+  const locMatch = message.match(/\bI (live|am) in ([A-Z][a-zA-Z\s,]{3,30})\b/i);
+  if (locMatch) {
+    facts.push({ content: `Location: lives in ${locMatch[2].trim()}`, category: "personal", importance: 5 });
+  }
+
+  // ── Strong preferences / what helps ──────────────────────────────────
+  const helpsMatch = message.match(/\b(\w[\w\s]{2,30}?) (really helps?|always helps?|makes? (?:me feel )?better|is my go-to|works? for me)\b/i);
+  if (helpsMatch) {
+    facts.push({ content: `Helpful: "${helpsMatch[0].trim()}"`, category: "preference", importance: 8 });
+  }
+
+  // ── What makes things worse ───────────────────────────────────────────
+  const worseMatch = message.match(/\b(\w[\w\s]{2,30}?) (always makes? (?:it |things? )?worse|is a trigger|triggers? (my |a )?flare|makes? me flare)\b/i);
+  if (worseMatch) {
+    facts.push({ content: `Known trigger/worsening factor: "${worseMatch[0].trim()}"`, category: "pattern", importance: 9 });
+  }
+
+  // ── Emotional / coping patterns ───────────────────────────────────────
+  const copingMatch = message.match(/\b(I cope by|when I'm struggling I|what helps me is|I usually feel worse when|stress (always |really )?(hits|affects) me)\b.{0,60}/i);
+  if (copingMatch) {
+    facts.push({ content: `Coping/emotional pattern: "${copingMatch[0].trim()}"`, category: "emotional", importance: 7 });
+  }
+
+  // ── Duration with condition ───────────────────────────────────────────
+  const durationMatch = message.match(/\bI('ve| have) (had|been dealing with|been living with) .{5,40} for (over )?\d+\s*(years?|months?)\b/i);
+  if (durationMatch) {
+    facts.push({ content: `Health history: "${durationMatch[0].trim()}"`, category: "health", importance: 8 });
+  }
+
+  return facts;
+}
+
+async function extractAndSaveMemories(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  message: string,
+  existingMemories: { content: string }[]
+): Promise<void> {
+  const facts = extractMemoryFacts(message);
+  if (facts.length === 0) return;
+
+  const existingContents = existingMemories.map(m => m.content.toLowerCase());
+
+  for (const fact of facts) {
+    // Skip if very similar memory already exists (simple dedup)
+    const isDuplicate = existingContents.some(existing =>
+      existing.includes(fact.content.toLowerCase().slice(0, 30))
+    );
+    if (isDuplicate) continue;
+
+    try {
+      await supabase.from("ai_memories").insert({
+        user_id: userId,
+        category: fact.category,
+        content: fact.content,
+        importance: fact.importance,
+      });
+    } catch {
+      // Best-effort — don't fail the main request
+    }
+  }
+
+  // Prune if over 60 memories (keep highest importance)
+  const { count } = await supabase
+    .from("ai_memories")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+
+  if (count && count > 60) {
+    const { data: lowest } = await supabase
+      .from("ai_memories")
+      .select("id")
+      .eq("user_id", userId)
+      .order("importance", { ascending: true })
+      .order("last_reinforced", { ascending: true })
+      .limit(count - 50);
+
+    if (lowest && lowest.length > 0) {
+      await supabase.from("ai_memories").delete().in("id", lowest.map((r: any) => r.id));
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // MAIN HANDLER
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1467,7 +1638,10 @@ serve(async (req) => {
 
     console.log("💬 [chat-assistant] User message:", message.slice(0, 100));
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
 
     // Fetch all user data in parallel
     const [
@@ -1476,17 +1650,20 @@ serve(async (req) => {
       { data: medLogs },
       { data: correlations },
       { data: engagement },
+      { data: memories },
     ] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).single(),
       supabase.from("flare_entries").select("*").eq("user_id", userId).order("timestamp", { ascending: false }).limit(300),
       supabase.from("medication_logs").select("*").eq("user_id", userId).order("taken_at", { ascending: false }).limit(200),
       supabase.from("correlations").select("*").eq("user_id", userId).order("confidence", { ascending: false }).limit(50),
       supabase.from("engagement").select("*").eq("user_id", userId).single(),
+      supabase.from("ai_memories").select("content, category, importance").eq("user_id", userId).order("importance", { ascending: false }).limit(35),
     ]);
 
     const safeEntries = Array.isArray(entries) ? entries : [];
     const safeMeds = Array.isArray(medLogs) ? medLogs : [];
     const safeCorr = Array.isArray(correlations) ? correlations : [];
+    const safeMemories = Array.isArray(memories) ? memories : [];
 
     // Analyze data — prefer client-sent timezone, then profile, then UTC (never server's local TZ)
     const userTimezone = clientTimezone || (profile?.timezone && profile.timezone !== 'UTC' ? profile.timezone : null) || 'UTC';
@@ -1530,7 +1707,8 @@ serve(async (req) => {
       safeCorr,
       safeMeds,
       engagement,
-      history
+      history,
+      safeMemories
     );
 
     console.log("🤖 [chat-assistant] Calling AI model...");
@@ -1538,7 +1716,6 @@ serve(async (req) => {
     let modelResponse: AssistantReply;
     try {
       modelResponse = await callModel({
-        apiKey,
         systemPrompt,
         history,
         userMessage: message,
@@ -1566,6 +1743,9 @@ serve(async (req) => {
     if (!modelResponse.response?.trim()) {
       modelResponse.response = "I'm here to help! You can ask me about your patterns, triggers, symptoms, or just chat about how you're feeling.";
     }
+
+    // Extract and save any new memories from this exchange (non-blocking best-effort)
+    extractAndSaveMemories(supabase, userId, message, safeMemories).catch(() => {});
 
     console.log("✅ [chat-assistant] Response generated, length:", modelResponse.response.length);
     return replyJson(modelResponse);
