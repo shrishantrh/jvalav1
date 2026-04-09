@@ -1122,54 +1122,16 @@ function handleDeterministicResponse(
   medications: any[],
   engagement: any
 ): AssistantReply | null {
+  // Let the AI model handle virtually everything — it's smarter and more personal
+  // Only intercept clear medication logs for speed
   const lower = message.toLowerCase();
 
-  // Handle greetings with contextual response
-  if (intent.primary === "greeting") {
-    return {
-      response: generateContextualGreeting(flareSummary, engagement),
-      shouldLog: false,
-      entryData: null,
-      visualization: null,
-      emotionalTone: "supportive",
-    };
-  }
-
-  // Handle gratitude
-  if (intent.primary === "gratitude") {
-    const responses = [
-      "You're welcome! I'm always here when you need me. 💙",
-      "Happy to help! Is there anything else you'd like to know about your patterns?",
-      "Glad I could help! Remember, I'm here whenever you need to log or chat.",
-    ];
-    return {
-      response: responses[Math.floor(Math.random() * responses.length)],
-      shouldLog: false,
-      entryData: null,
-      visualization: null,
-      emotionalTone: "supportive",
-    };
-  }
-
-  // Handle medication reports
   if (intent.primary === "medication_report" || (intent.isSymptomReport && /\b(took|taking|just)\b/.test(lower))) {
     const { medications: meds } = extractMedications(message);
-    if (meds.length > 0) {
-      const recentSameMed = medications.find(m => 
-        meds.some(newMed => m.medication_name.toLowerCase().includes(newMed.toLowerCase()))
-      );
-      
-      let response = `Got it, logging ${meds.join(", ")}. 💊`;
-      if (recentSameMed) {
-        const lastTime = new Date(recentSameMed.taken_at);
-        const hoursSince = Math.round((Date.now() - lastTime.getTime()) / (1000 * 60 * 60));
-        if (hoursSince < 24) {
-          response += ` I see you also took ${recentSameMed.medication_name} ${hoursSince}h ago.`;
-        }
-      }
-      
+    if (meds.length > 0 && !extractSymptoms(message).symptoms.length) {
+      // Pure medication report — fast-track it
       return {
-        response,
+        response: `Logged ${meds.join(", ")} 💊`,
         shouldLog: true,
         entryData: { type: "medication", medications: meds },
         visualization: null,
@@ -1179,50 +1141,7 @@ function handleDeterministicResponse(
     }
   }
 
-  // Handle symptom reports
-  if (intent.primary === "symptom_report" && intent.isSymptomReport) {
-    const { symptoms } = extractSymptoms(message);
-    const { triggers } = extractTriggers(message);
-    const severity = detectSeverity(message);
-    const energy = detectEnergyLevel(message);
-
-    if (symptoms.length > 0 || severity) {
-      let response = "";
-      const empathy = generateEmpathyPrefix(intent, flareSummary);
-      
-      if (severity === "severe") {
-        response = `${empathy}I'm logging this severe flare with ${symptoms.join(", ") || "your symptoms"}. `;
-        if (triggers.length > 0) {
-          response += `I see you mentioned ${triggers.join(", ")} - I'll track that connection. `;
-        }
-        response += "I hope you can rest. Is there anything specific that helps during severe episodes?";
-      } else if (severity === "moderate") {
-        response = `${empathy}Logging your ${severity || "moderate"} flare${symptoms.length ? ` with ${symptoms.join(", ")}` : ""}. `;
-        response += "How long has this been going on?";
-      } else {
-        response = `${empathy}Got it, logging ${symptoms.join(", ") || "your symptoms"}${severity ? ` as ${severity}` : ""}. `;
-        response += "Hang in there! 💙";
-      }
-
-      return {
-        response,
-        shouldLog: true,
-        entryData: {
-          type: "flare",
-          severity: severity || "moderate",
-          symptoms,
-          triggers,
-          energyLevel: energy || undefined,
-        },
-        visualization: null,
-        confidence: 0.9,
-        emotionalTone: severity === "severe" ? "concerned" : "supportive",
-        suggestedFollowUp: "Would you like to add any details about what might have triggered this?",
-      };
-    }
-  }
-
-  // Let the AI model handle everything else with full context
+  // Everything else goes to the AI for a natural, contextual response
   return null;
 }
 
