@@ -935,6 +935,7 @@ const Index = () => {
         <VoiceConversation
           onClose={() => setShowVoiceCall(false)}
           userName={userProfile?.full_name || undefined}
+          agentId={import.meta.env.VITE_ELEVENLABS_AGENT_ID || undefined}
         />
       )}
     </>
