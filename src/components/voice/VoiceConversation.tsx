@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useConversation } from "@elevenlabs/react";
-import { Phone, PhoneOff, Mic, MicOff, Volume2 } from "lucide-react";
+import { Phone, PhoneOff, Mic } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { haptics } from "@/lib/haptics";
@@ -8,12 +8,10 @@ import { haptics } from "@/lib/haptics";
 interface VoiceConversationProps {
   onClose: () => void;
   userName?: string;
+  agentId?: string;
 }
 
-// Jvala's ElevenLabs Agent ID — configure in ElevenLabs dashboard
-const JVALA_AGENT_ID = "jvala-health-companion";
-
-export const VoiceConversation = ({ onClose, userName }: VoiceConversationProps) => {
+export const VoiceConversation = ({ onClose, userName, agentId }: VoiceConversationProps) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [transcripts, setTranscripts] = useState<{ role: "user" | "agent"; text: string }[]>([]);
@@ -62,12 +60,47 @@ export const VoiceConversation = ({ onClose, userName }: VoiceConversationProps)
     setError(null);
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      // For now, use the public agent approach since we need to configure the agent first
-      // In production, use the signed URL from our edge function
-      await conversation.startSession({
-        agentId: JVALA_AGENT_ID,
-      });
+
+      if (agentId) {
+        // Try to get authenticated token with user context
+        try {
+          const { data, error: fnError } = await supabase.functions.invoke("voice-conversation-token", {
+            body: { agentId },
+          });
+
+          if (data?.token) {
+            // Use WebRTC with conversation token + user context overrides
+            const sessionOpts: any = {
+              conversationToken: data.token,
+              connectionType: "webrtc",
+            };
+            
+            // Inject user context as dynamic prompt override if available
+            if (data.userContext) {
+              sessionOpts.overrides = {
+                agent: {
+                  prompt: {
+                    prompt: data.userContext,
+                  },
+                },
+              };
+            }
+            
+            await conversation.startSession(sessionOpts);
+            return;
+          }
+        } catch (tokenErr) {
+          console.warn("Token fetch failed, trying public agent:", tokenErr);
+        }
+
+        // Fallback: connect as public agent
+        await conversation.startSession({
+          agentId,
+          connectionType: "webrtc",
+        });
+      } else {
+        setError("Voice agent not configured yet. Set up your ElevenLabs agent ID in settings.");
+      }
     } catch (err: any) {
       console.error("Failed to start voice conversation:", err);
       if (err.name === "NotAllowedError") {
@@ -78,18 +111,17 @@ export const VoiceConversation = ({ onClose, userName }: VoiceConversationProps)
     } finally {
       setIsConnecting(false);
     }
-  }, [conversation]);
+  }, [conversation, agentId]);
 
   const endConversation = useCallback(async () => {
     await conversation.endSession();
-      haptics.impact();
-      onClose();
+    haptics.impact();
+    onClose();
   }, [conversation, onClose]);
 
   const isSpeaking = conversation.isSpeaking;
   const isConnected = conversation.status === "connected";
 
-  // Generate waveform bars based on audio level
   const renderWaveform = (level: number, count: number, color: string) => (
     <div className="flex items-center justify-center gap-[3px] h-16">
       {Array.from({ length: count }).map((_, i) => {
@@ -114,7 +146,6 @@ export const VoiceConversation = ({ onClose, userName }: VoiceConversationProps)
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-gradient-to-b from-background via-background to-primary/5">
-      {/* Safe area top */}
       <div className="pt-[env(safe-area-inset-top,0px)]" />
       
       {/* Header */}
@@ -137,17 +168,14 @@ export const VoiceConversation = ({ onClose, userName }: VoiceConversationProps)
 
       {/* Main content */}
       <div className="flex-1 flex flex-col items-center justify-center px-8 gap-8">
-        {/* Avatar / Visual */}
+        {/* Avatar */}
         <div className="relative">
-          {/* Pulsing rings when speaking */}
           {isSpeaking && (
             <>
               <div className="absolute inset-0 rounded-full bg-primary/10 animate-ping" style={{ animationDuration: "2s" }} />
               <div className="absolute -inset-4 rounded-full bg-primary/5 animate-ping" style={{ animationDuration: "3s" }} />
             </>
           )}
-          
-          {/* Main circle */}
           <div className={cn(
             "w-32 h-32 rounded-full flex items-center justify-center transition-all duration-500",
             isConnected 
@@ -165,7 +193,7 @@ export const VoiceConversation = ({ onClose, userName }: VoiceConversationProps)
           </div>
         </div>
 
-        {/* Status text */}
+        {/* Status */}
         <div className="text-center space-y-2">
           <h2 className="text-2xl font-semibold">
             {isConnected ? "Jvala" : "Talk to Jvala"}
@@ -181,13 +209,10 @@ export const VoiceConversation = ({ onClose, userName }: VoiceConversationProps)
           </p>
         </div>
 
-        {/* Waveform visualization */}
+        {/* Waveform */}
         {isConnected && (
           <div className="w-full max-w-xs space-y-4">
-            {/* Agent speaking waveform */}
             {isSpeaking && renderWaveform(outputLevel, 24, "hsl(var(--primary))")}
-            
-            {/* User input waveform */}
             {!isSpeaking && (
               <div className="flex flex-col items-center gap-2">
                 {renderWaveform(inputLevel, 24, "hsl(var(--muted-foreground))")}
@@ -200,7 +225,7 @@ export const VoiceConversation = ({ onClose, userName }: VoiceConversationProps)
           </div>
         )}
 
-        {/* Recent transcript */}
+        {/* Transcript */}
         {transcripts.length > 0 && (
           <div className="w-full max-w-sm space-y-2 max-h-40 overflow-y-auto">
             {transcripts.slice(-4).map((t, i) => (
