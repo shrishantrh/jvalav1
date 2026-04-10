@@ -49,7 +49,24 @@ const GRADIENT_COLORS = {
 };
 
 export const PremiumInsightsCharts = ({ entries }: PremiumInsightsChartsProps) => {
+  const { user } = useAuth();
   const [expandedCharts, setExpandedCharts] = useState<Set<string>>(new Set(['timeline']));
+  const [predictionData, setPredictionData] = useState<any[]>([]);
+
+  // Fetch prediction history
+  useEffect(() => {
+    if (!user) return;
+    const fetchPredictions = async () => {
+      const { data } = await supabase
+        .from('prediction_logs')
+        .select('predicted_at, risk_score, risk_level, outcome_logged, was_correct, brier_score, outcome_severity')
+        .eq('user_id', user.id)
+        .order('predicted_at', { ascending: true })
+        .limit(60);
+      if (data) setPredictionData(data);
+    };
+    fetchPredictions();
+  }, [user]);
 
   const toggleChart = (chartId: string) => {
     const newSet = new Set(expandedCharts);
@@ -60,6 +77,19 @@ export const PremiumInsightsCharts = ({ entries }: PremiumInsightsChartsProps) =
     }
     setExpandedCharts(newSet);
   };
+
+  // Prediction accuracy chart data
+  const predictionChartData = useMemo(() => {
+    return predictionData
+      .filter(p => p.outcome_logged)
+      .map(p => ({
+        date: format(new Date(p.predicted_at), 'MMM d'),
+        predicted: p.risk_score,
+        actual: p.outcome_severity === 'none' ? 0 : p.outcome_severity === 'mild' ? 33 : p.outcome_severity === 'moderate' ? 66 : 100,
+        correct: p.was_correct,
+        brier: p.brier_score != null ? Math.round(p.brier_score * 100) / 100 : null,
+      }));
+  }, [predictionData]);
 
   // Process data
   const timelineData = useMemo(() => {
