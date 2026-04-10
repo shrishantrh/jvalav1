@@ -94,7 +94,7 @@ export const HealthForecast = ({ userId, currentWeather, menstrualDay, onViewDet
         (pred.riskLevel === "moderate" && !hadFlare) ||
         ((pred.riskLevel === "high" || pred.riskLevel === "very_high") && hadFlare);
 
-      await supabase.from("prediction_logs" as any).update({
+      await supabase.from("prediction_logs").update({
         outcome_logged: true,
         outcome_severity: hadFlare ? (severity || "moderate") : "none",
         outcome_flare_count: hadFlare ? 1 : 0,
