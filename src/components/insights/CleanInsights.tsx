@@ -550,6 +550,9 @@ export const CleanInsights = ({ entries, userConditions = [], onAskAI }: CleanIn
         </div>
       )}
 
+      {/* Predictions vs Actuals + Medication Effectiveness */}
+      <PredictionHistory />
+
       {/* Action Button */}
       <Button
         data-tour="deep-research"
