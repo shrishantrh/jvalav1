@@ -658,6 +658,69 @@ export type Database = {
         }
         Relationships: []
       }
+      prediction_logs: {
+        Row: {
+          brier_score: number | null
+          confidence: number
+          created_at: string
+          factors: Json | null
+          id: string
+          model_version: string | null
+          outcome_flare_count: number | null
+          outcome_logged: boolean | null
+          outcome_severity: string | null
+          predicted_at: string
+          risk_level: string
+          risk_score: number
+          timeframe: string | null
+          updated_at: string
+          user_feedback: string | null
+          user_id: string
+          verified_at: string | null
+          was_correct: boolean | null
+        }
+        Insert: {
+          brier_score?: number | null
+          confidence: number
+          created_at?: string
+          factors?: Json | null
+          id?: string
+          model_version?: string | null
+          outcome_flare_count?: number | null
+          outcome_logged?: boolean | null
+          outcome_severity?: string | null
+          predicted_at?: string
+          risk_level: string
+          risk_score: number
+          timeframe?: string | null
+          updated_at?: string
+          user_feedback?: string | null
+          user_id: string
+          verified_at?: string | null
+          was_correct?: boolean | null
+        }
+        Update: {
+          brier_score?: number | null
+          confidence?: number
+          created_at?: string
+          factors?: Json | null
+          id?: string
+          model_version?: string | null
+          outcome_flare_count?: number | null
+          outcome_logged?: boolean | null
+          outcome_severity?: string | null
+          predicted_at?: string
+          risk_level?: string
+          risk_score?: number
+          timeframe?: string | null
+          updated_at?: string
+          user_feedback?: string | null
+          user_id?: string
+          verified_at?: string | null
+          was_correct?: boolean | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           biological_sex: string | null
