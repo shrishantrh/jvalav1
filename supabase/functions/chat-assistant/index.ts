@@ -2,142 +2,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { callAI } from "../_shared/ai-client.ts";
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// JVALA SMART HEALTH COMPANION - PROFESSIONAL GRADE AI ASSISTANT
-// ═══════════════════════════════════════════════════════════════════════════════
-// Version 2.0 - Complete rewrite with 100+ improvements
-// Built following industry best practices for health AI assistants
-// ═══════════════════════════════════════════════════════════════════════════════
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TYPE DEFINITIONS
-// ─────────────────────────────────────────────────────────────────────────────
-
-type Severity = "mild" | "moderate" | "severe";
-
-interface EntryData {
-  type: "flare" | "medication" | "trigger" | "recovery" | "energy" | "note";
-  severity?: Severity;
-  symptoms?: string[];
-  medications?: string[];
-  triggers?: string[];
-  energyLevel?: string;
-  notes?: string;
-}
-
-interface Visualization {
-  type: string;
-  title: string;
-  data: any[];
-  insight?: string;
-}
-
-interface AssistantReply {
-  response: string;
-  shouldLog: boolean;
-  entryData: EntryData | null;
-  visualization: Visualization | null;
-  interactiveForm?: any;
-  confidence?: number;
-  evidenceSources?: string[];
-  suggestedFollowUp?: string;
-  actionableInsights?: string[];
-  emotionalTone?: "supportive" | "celebratory" | "concerned" | "neutral" | "encouraging";
-  newMemories?: { memory_type: string; category: string; content: string; importance: number }[];
-}
-
-interface ChatRequest {
-  message: string;
-  userSymptoms?: string[];
-  userConditions?: string[];
-  history?: { role: "user" | "assistant"; content: string }[];
-  userId?: string;
-}
-
-interface UserContext {
-  profile: any;
-  entries: any[];
-  medications: any[];
-  correlations: any[];
-  engagement: any;
-  recentNotes: string[];
-}
-
-interface AnalyzedData {
-  flareSummary: FlareSummary;
-  bodyMetrics: BodyMetrics;
-  trends: TrendAnalysis;
-  riskFactors: RiskFactor[];
-  positivePatterns: string[];
-  concerns: string[];
-  conversationContext: ConversationContext;
-}
-
-interface FlareSummary {
-  total: number;
-  thisWeek: { count: number; avgSeverity: number | null; trend: "up" | "down" | "stable" };
-  lastWeek: { count: number; avgSeverity: number | null };
-  thisMonth: { count: number; avgSeverity: number | null };
-  lastMonth: { count: number; avgSeverity: number | null };
-  severityCounts: { mild: number; moderate: number; severe: number; unknown: number };
-  avgSeverity: number | null;
-  daysSinceLast: number | null;
-  lastFlareDate: string | null;
-  topSymptoms: { name: string; count: number; recentTrend: "increasing" | "stable" | "decreasing" }[];
-  topTriggers: { name: string; count: number; avgDelayHours?: number }[];
-  peakTimeOfDay: { period: string; count: number; percentage: number };
-  peakDayOfWeek: { day: string; count: number; percentage: number };
-  hourBuckets: Record<string, number>;
-  dayCounts: Record<string, number>;
-  weatherCorrelations: { condition: string; count: number; avgSeverity: number }[];
-  recentEntries: any[];
-  streakData: { currentFlareFree: number; longestFlareFree: number };
-}
-
-interface BodyMetrics {
-  hasData: boolean;
-  entriesWithData: number;
-  heartRate: { avg: number | null; duringFlares: number | null; baseline: number | null };
-  hrv: { avg: number | null; duringFlares: number | null; baseline: number | null };
-  sleep: { avgHours: number | null; duringFlares: number | null; qualityScore: number | null };
-  steps: { avg: number | null; duringFlares: number | null };
-  stress: { avg: number | null; duringFlares: number | null };
-  correlations: { metric: string; correlation: "positive" | "negative" | "none"; strength: number }[];
-}
-
-interface TrendAnalysis {
-  frequencyTrend: "improving" | "worsening" | "stable";
-  severityTrend: "improving" | "worsening" | "stable";
-  weekOverWeekChange: number;
-  monthOverMonthChange: number;
-  bestPeriod: { start: string; end: string; flareCount: number } | null;
-  worstPeriod: { start: string; end: string; flareCount: number } | null;
-  seasonalPattern: string | null;
-}
-
-interface RiskFactor {
-  factor: string;
-  riskLevel: "high" | "medium" | "low";
-  evidence: string;
-  suggestion: string;
-}
-
-interface ConversationContext {
-  isFirstMessage: boolean;
-  recentTopics: string[];
-  userMood: "positive" | "negative" | "neutral" | "distressed" | "curious";
-  conversationDepth: number;
-  previousQuestions: string[];
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// UTILITY FUNCTIONS
-// ─────────────────────────────────────────────────────────────────────────────
 
 const replyJson = (body: any, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -150,1423 +18,545 @@ const clamp = (str: unknown, max = 2000): string => {
   return s.length > max ? s.slice(0, max) : s;
 };
 
-const toNum = (v: any): number | null => {
-  const n = typeof v === "number" ? v : Number(v);
-  return Number.isFinite(n) ? n : null;
-};
+const sevToNum = (s: string) => s === "mild" ? 1 : s === "moderate" ? 2 : s === "severe" ? 3 : 0;
+const avg = (arr: number[]): number | null => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+const formatNum = (n: number | null, d = 1): string => n == null ? "N/A" : d === 0 ? String(Math.round(n)) : n.toFixed(d);
 
-const avg = (arr: number[]): number | null =>
-  arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
-
-const median = (arr: number[]): number | null => {
-  if (!arr.length) return null;
-  const sorted = [...arr].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-};
-
-const percentChange = (current: number, previous: number): number => {
-  if (previous === 0) return current > 0 ? 100 : 0;
-  return Math.round(((current - previous) / previous) * 100);
-};
-
-const severityToScore = (sev: string | null): number | null => {
-  if (!sev) return null;
-  const map: Record<string, number> = { mild: 1, moderate: 2, severe: 3 };
-  return map[sev] ?? null;
-};
-
-const scoreToSeverity = (score: number): string => {
-  if (score < 1.5) return "mild";
-  if (score < 2.5) return "moderate";
-  return "severe";
-};
-
-const formatDate = (d: Date): string => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-const formatTime = (d: Date): string => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-
-// Timezone-aware hour extraction — crucial for accurate time-of-day analysis
-const getLocalHour = (d: Date, tz?: string): number => {
-  if (!tz) return d.getUTCHours();
+// ─── Web search via Firecrawl ─────────────────────────────────────────────
+async function searchWeb(query: string): Promise<{ results: Array<{ title: string; url: string; snippet: string }>; error?: string }> {
+  const apiKey = Deno.env.get("FIRECRAWL_API_KEY");
+  if (!apiKey) return { results: [], error: "Not configured" };
   try {
-    const parts = new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: tz }).formatToParts(d);
-    const hourPart = parts.find(p => p.type === "hour");
-    return hourPart ? parseInt(hourPart.value, 10) : d.getUTCHours();
-  } catch { return d.getUTCHours(); }
+    const r = await fetch("https://api.firecrawl.dev/v1/search", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ query, limit: 5, scrapeOptions: { formats: ["markdown"] } }),
+    });
+    if (!r.ok) return { results: [], error: `${r.status}` };
+    const d = await r.json();
+    return { results: (d.data || []).map((x: any) => ({ title: x.title || "Source", url: x.url || "", snippet: (x.markdown || "").substring(0, 800) })) };
+  } catch (e) { return { results: [], error: String(e) }; }
+}
+
+// ─── Compact condition knowledge ──────────────────────────────────────────
+const CK: Record<string, [string, string]> = {
+  'Asthma': ['Sleep disruption bidirectional. Peak 4-6AM. Triggers: cold/dry air, humidity>60%, AQI, GERD, stress, exercise. Barometric drops precede flares.', 'After meals(GERD), before exercise, weather changes, evening, spring/fall pollen'],
+  'Migraine': ['Sleep #1 trigger (<6h/>9h). Threshold model: triggers stack. Dehydration, skipped meals, alcohol, aged cheese, MSG. HRV drops 12-24h before. Mg 400mg/day preventive.', 'After skipped meals, dehydration, after alcohol, pressure changes, cycle days 1-3/24-28'],
+  'Eczema': ['Sleep loss impairs barrier. Triggers: humidity<30%, temp extremes, sweat, stress, wool, SLS. Hot showers strip lipids.', 'After shower, season changes, dry weather, stress, dairy/gluten, evening itch'],
+  'Acne': ['Sleep loss→cortisol→sebum→breakouts 48-72h. Dairy(skim milk IGF-1), high-glycemic foods.', 'After dairy/sugar, post-exercise, bedtime skincare, cycle tracking, stress'],
+  'Anxiety': ['Bidirectional with sleep (amygdala+60%). Caffeine>200mg worsens. HRV biomarker. Exercise=SSRIs for mild-mod. Blood sugar crashes mimic anxiety.', 'Morning, after caffeine, after meals(sugar), before social events, evening, after alcohol'],
+  'IBS': ['Gut-brain axis. FODMAPs: onions,garlic,wheat,dairy,apples. Large meals=gastrocolic reflex. Caffeine→urgency.', 'After every meal(30-90min), morning bowels, FODMAP foods, stress, caffeine, cycle days'],
+  'Lower Back Pain': ['Poor sleep→+50% pain sensitivity. Sedentary>6h dangerous. Cold/pressure drops increase stiffness.', 'After 2h+ sitting, morning stiffness, after exercise, weather changes, after lifting, evening'],
+  'Fibromyalgia': ['Central sensitization. Sleep critical(alpha-wave intrusion 90%). Weather sensitivity. Exercise paradox.', 'Morning pain/fatigue, after sleep, weather changes, after activity(pacing), evening, stress'],
+  'GERD': ['Nighttime worst. No eating 3h before bed. Coffee,chocolate,alcohol,spicy,citrus,fatty,mint. Left-side sleeping -75% reflux.', 'After every meal, before bed, after coffee/alcohol, after spicy/fatty, morning reflux'],
+  'Diabetes': ['Postprandial spikes 60-90min. Dawn phenomenon 4-8AM. Exercise lowers glucose but intense can spike. Poor sleep=-25-30% insulin sensitivity.', 'Before/after every meal, morning fasting, post-exercise, before bed, after stress'],
+  'Depression': ['Consistent wake time>sleep duration. Behavioral activation. Exercise releases BDNF. Mediterranean diet -30% risk.', 'Morning mood, mid-afternoon energy, evening reflection, after social events, meal regularity'],
+  'PCOS': ['Insulin resistance 70-80%. Low-glycemic critical. 5% weight loss restores ovulation.', 'Meal tracking(glycemic), exercise, cycle tracking, stress, skin/hair, weight, energy'],
+  'Allergies': ['Pollen highest 5-10AM. Priming effect. Cross-reactivity: birch→apples/carrots. Saline irrigation -30-40%.', 'Morning symptoms, after outdoor time, pollen/weather, indoor air, seasonal transitions'],
+  'Cough': ['Can be viral, post-nasal drip, asthma-variant, GERD-related. Cold/dry air irritates airways. Hydration thins mucus.', 'After exercise, cold air, dusty environments, post-meals(GERD), morning, evening'],
+  'Rheumatoid Arthritis': ['Morning stiffness>30min=active. Worst morning(IL-6 surge). Cold/pressure drops. Omega-3 3g/day.', 'Morning stiffness, after meals(inflammatory), weather changes, evening fatigue, medication timing'],
+  'Endometriosis': ['Cyclical and non-cyclical pain. Anti-inflammatory diet helps. GI overlap 50-80%. Cycle mapping critical.', 'Cycle days 1-5/24-28, after meals(GI), post-exercise, evening pain, stress'],
+  'Psoriasis': ['T-cell mediated. Stress #1. Alcohol worsens. Cold/dry flares. UV therapeutic.', 'After stress, cold/dry weather, after alcohol, illness onset, skin injury'],
+  'Chronic Fatigue Syndrome': ['PEM 12-72h after exceeding threshold. Activity pacing critical. HR below anaerobic threshold.', 'Morning energy, activity pacing every 2h, post-activity(24-72h PEM), evening energy'],
+  'Hypothyroidism': ['Levothyroxine empty stomach 30-60min before food. Calcium/iron/coffee reduce absorption.', 'Medication timing(morning empty stomach), energy, cold sensitivity, bowels, mood/brain fog'],
+  'Lupus': ['UV triggers flares(60-80% photosensitive). SPF50+ always. Fatigue most debilitating.', 'Before sun exposure, morning fatigue, stress, illness onset, medication timing'],
 };
 
-const getLocalDayShort = (d: Date, tz?: string): string => {
-  if (!tz) return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getUTCDay()];
-  try {
-    return new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: tz }).format(d);
-  } catch { return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getUTCDay()]; }
-};
-
-const getTimeOfDay = (hour: number): string => {
-  if (hour >= 5 && hour < 12) return "morning";
-  if (hour >= 12 && hour < 17) return "afternoon";
-  if (hour >= 17 && hour < 21) return "evening";
-  return "night";
-};
-
-const getDayName = (d: Date): string => ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][d.getDay()];
-const getDayShort = (d: Date): string => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ENHANCED EXTRACTION DICTIONARIES
-// ─────────────────────────────────────────────────────────────────────────────
-
-const SYMPTOM_CATEGORIES = {
-  neurological: ["headache", "migraine", "dizziness", "vertigo", "brain fog", "confusion", "numbness", "tingling", "tremor", "seizure", "aura", "light sensitivity", "sound sensitivity", "tinnitus", "blurred vision"],
-  pain: ["pain", "ache", "aching", "throbbing", "stabbing", "burning", "cramping", "cramps", "stiffness", "tension", "soreness", "tenderness"],
-  fatigue: ["fatigue", "tired", "exhausted", "weakness", "lethargy", "malaise", "drowsy", "low energy", "drained", "sick", "feeling sick", "unwell"],
-  digestive: ["nausea", "nauseous", "vomiting", "bloating", "stomach pain", "indigestion", "diarrhea", "constipation", "appetite loss", "acid reflux"],
-  respiratory: ["shortness of breath", "chest tightness", "wheezing", "coughing", "cough", "congestion", "sore throat", "runny nose", "sneezing", "sinus"],
-  cardiovascular: ["palpitations", "racing heart", "chest pain", "irregular heartbeat"],
-  musculoskeletal: ["joint pain", "muscle pain", "back pain", "neck pain", "shoulder pain", "knee pain", "hip pain", "stiff joints", "swelling", "inflammation"],
-  skin: ["rash", "itching", "hives", "flushing", "sweating", "dry skin", "pallor"],
-  mental: ["anxiety", "anxious", "depression", "mood swings", "irritability", "crying", "panic", "restless", "overwhelmed", "stressed"],
-  sleep: ["insomnia", "trouble sleeping", "restless sleep", "nightmares", "sleep apnea", "waking up tired"],
-  sensory: ["sensitivity", "hypersensitivity", "dry eyes", "watery eyes", "ear pain"],
-  temperature: ["hot flash", "chills", "fever", "sweating", "cold hands", "cold feet"],
-};
-
-const TRIGGER_CATEGORIES = {
-  stress: ["stress", "stressed", "anxiety", "worry", "overwhelmed", "pressure", "tension", "emotional", "upset", "argument", "conflict"],
-  sleep: ["lack of sleep", "poor sleep", "bad sleep", "insomnia", "oversleeping", "irregular sleep", "late night", "early morning"],
-  food: ["alcohol", "caffeine", "coffee", "sugar", "chocolate", "processed food", "gluten", "dairy", "msg", "artificial sweeteners", "aged cheese", "red wine", "citrus", "nuts", "soy", "eggs", "shellfish", "spicy food", "fried food"],
-  environment: ["weather", "weather change", "barometric pressure", "humidity", "heat", "cold", "bright light", "fluorescent light", "loud noise", "strong smell", "perfume", "smoke", "pollution", "allergens", "pollen", "dust", "mold"],
-  physical: ["exercise", "overexertion", "sitting too long", "standing too long", "poor posture", "travel", "flying", "dehydration", "skipped meal", "fasting", "hunger"],
-  hormonal: ["hormones", "period", "menstruation", "ovulation", "pms", "menopause", "pregnancy"],
-  lifestyle: ["overwork", "screen time", "late night", "irregular schedule", "jet lag", "lack of routine"],
-  medication: ["missed medication", "new medication", "medication change", "withdrawal"],
-};
-
-const MEDICATION_PATTERNS = {
-  pain: ["ibuprofen", "advil", "motrin", "tylenol", "acetaminophen", "aspirin", "naproxen", "aleve", "excedrin", "tramadol", "oxycodone", "hydrocodone"],
-  migraine: ["sumatriptan", "imitrex", "rizatriptan", "maxalt", "zolmitriptan", "zomig", "eletriptan", "relpax", "frovatriptan", "frova", "naratriptan", "amerge", "ubrelvy", "nurtec", "aimovig", "ajovy", "emgality"],
-  preventive: ["topiramate", "topamax", "amitriptyline", "nortriptyline", "propranolol", "metoprolol", "verapamil", "valproate", "depakote", "gabapentin", "pregabalin", "lyrica", "botox"],
-  antiInflammatory: ["prednisone", "steroids", "methylprednisolone", "dexamethasone", "nsaids", "celecoxib", "celebrex"],
-  antihistamine: ["antihistamine", "benadryl", "diphenhydramine", "zyrtec", "cetirizine", "claritin", "loratadine", "allegra", "fexofenadine"],
-  sleep: ["melatonin", "ambien", "zolpidem", "trazodone", "doxepin"],
-  supplements: ["magnesium", "b2", "riboflavin", "coq10", "butterbur", "feverfew", "vitamin d", "omega 3", "fish oil", "turmeric"],
-  cannabis: ["cbd", "thc", "cannabis", "marijuana", "medical marijuana"],
-  antiNausea: ["zofran", "ondansetron", "phenergan", "promethazine", "reglan", "metoclopramide"],
-  muscle: ["flexeril", "cyclobenzaprine", "baclofen", "tizanidine", "methocarbamol"],
-};
-
-// Flatten for quick lookup
-const ALL_SYMPTOMS = Object.values(SYMPTOM_CATEGORIES).flat();
-const ALL_TRIGGERS = Object.values(TRIGGER_CATEGORIES).flat();
-const ALL_MEDICATIONS = Object.values(MEDICATION_PATTERNS).flat();
-
-// ─────────────────────────────────────────────────────────────────────────────
-// INTELLIGENT EXTRACTION FUNCTIONS
-// ─────────────────────────────────────────────────────────────────────────────
-
-function extractSymptoms(text: string): { symptoms: string[]; categories: string[] } {
-  const lower = text.toLowerCase();
-  const found: string[] = [];
-  const categories = new Set<string>();
-
-  for (const [category, symptoms] of Object.entries(SYMPTOM_CATEGORIES)) {
-    for (const symptom of symptoms) {
-      if (lower.includes(symptom)) {
-        found.push(symptom.split(" ").map(w => w[0].toUpperCase() + w.slice(1)).join(" "));
-        categories.add(category);
-      }
-    }
-  }
-
-  return { symptoms: [...new Set(found)], categories: [...categories] };
-}
-
-function extractTriggers(text: string): { triggers: string[]; categories: string[] } {
-  const lower = text.toLowerCase();
-  const found: string[] = [];
-  const categories = new Set<string>();
-
-  for (const [category, triggers] of Object.entries(TRIGGER_CATEGORIES)) {
-    for (const trigger of triggers) {
-      if (lower.includes(trigger)) {
-        found.push(trigger.split(" ").map(w => w[0].toUpperCase() + w.slice(1)).join(" "));
-        categories.add(category);
-      }
-    }
-  }
-
-  return { triggers: [...new Set(found)], categories: [...categories] };
-}
-
-function extractMedications(text: string): { medications: string[]; categories: string[] } {
-  const lower = text.toLowerCase();
-  const found: string[] = [];
-  const categories = new Set<string>();
-
-  for (const [category, meds] of Object.entries(MEDICATION_PATTERNS)) {
-    for (const med of meds) {
-      if (lower.includes(med)) {
-        found.push(med.split(" ").map(w => w[0].toUpperCase() + w.slice(1)).join(" "));
-        categories.add(category);
-      }
-    }
-  }
-
-  return { medications: [...new Set(found)], categories: [...categories] };
-}
-
-function detectSeverity(text: string): Severity | null {
-  const lower = text.toLowerCase();
-  
-  const severePatterns = [
-    /\b(severe|terrible|awful|worst|unbearable|excruciating|intense|debilitating|crippling|incapacitating)\b/,
-    /\b(10|9|8)\/10\b/,
-    /\b(really|so|very) bad\b/,
-    /can'?t (function|work|think|move|see)/,
-    /\bhospital\b/,
-    /\bemergency\b/,
-  ];
-  
-  const moderatePatterns = [
-    /\b(moderate|bad|significant|noticeable|uncomfortable|rough|difficult)\b/,
-    /\b(7|6|5)\/10\b/,
-    /\bnot (great|good)\b/,
-    /\bstruggling\b/,
-    /\bhard to (function|work|concentrate)\b/,
-  ];
-  
-  const mildPatterns = [
-    /\b(mild|slight|little|minor|small|light|manageable|tolerable|okay|bearable)\b/,
-    /\b(1|2|3|4)\/10\b/,
-    /\bnot too bad\b/,
-    /\bcould be worse\b/,
-  ];
-
-  for (const pattern of severePatterns) if (pattern.test(lower)) return "severe";
-  for (const pattern of moderatePatterns) if (pattern.test(lower)) return "moderate";
-  for (const pattern of mildPatterns) if (pattern.test(lower)) return "mild";
-  
-  return null;
-}
-
-function detectEnergyLevel(text: string): string | null {
-  const lower = text.toLowerCase();
-  
-  const levels: Record<string, RegExp[]> = {
-    "very_low": [/\b(exhausted|drained|wiped|no energy|zero energy|completely tired)\b/, /can'?t (get up|move|function)/],
-    "low": [/\b(tired|fatigued|sluggish|low energy|drowsy|lethargic)\b/],
-    "moderate": [/\b(okay|alright|moderate energy|some energy|decent)\b/],
-    "high": [/\b(good energy|energetic|active|productive)\b/],
-    "very_high": [/\b(great|amazing|full of energy|very energetic|excellent)\b/],
-  };
-
-  for (const [level, patterns] of Object.entries(levels)) {
-    for (const pattern of patterns) {
-      if (pattern.test(lower)) return level;
-    }
-  }
-  
-  return null;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// INTENT DETECTION - MULTI-DIMENSIONAL
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface UserIntent {
-  primary: string;
-  secondary: string[];
-  confidence: number;
-  emotionalState: "distressed" | "curious" | "frustrated" | "hopeful" | "neutral" | "celebratory";
-  requiresEmpathy: boolean;
-  isSymptomReport: boolean;
-  seekingValidation: boolean;
-  wantsActionableAdvice: boolean;
-}
-
-function analyzeIntent(message: string, history: { role: string; content: string }[]): UserIntent {
-  const lower = message.toLowerCase().trim();
-  const words = lower.split(/\s+/);
-  
-  // Emotional state detection
-  const distressPatterns = [
-    /\b(help|struggling|scared|worried|anxious|terrified|desperate|hopeless|can'?t cope)\b/,
-    /\b(what('?s| is) (wrong|happening))\b/,
-    /\bi don'?t know what to do\b/,
-    /\bthis is (terrible|awful|unbearable)\b/,
-  ];
-  
-  const frustrationPatterns = [
-    /\b(frustrated|annoyed|tired of|sick of|nothing works|useless)\b/,
-    /\bwhy (won'?t|doesn'?t|can'?t)\b/,
-    /\bstill (having|getting|experiencing)\b/,
-  ];
-  
-  const curiousPatterns = [
-    /\b(why|how|what|when|which|where|tell me|explain|understand|curious|wondering)\b/,
-    /\b(is it|could it be|might it be|do you think)\b/,
-  ];
-  
-  const hopefulPatterns = [
-    /\b(better|improving|fewer|less|progress|working|helped)\b/,
-    /\b(good day|great day|feeling good)\b/,
-  ];
-
-  const celebratoryPatterns = [
-    /\b(great|amazing|wonderful|fantastic|no flares|flare.?free|best|record)\b/,
-    /\b(finally|worked|success)\b/,
-  ];
-
-  let emotionalState: UserIntent["emotionalState"] = "neutral";
-  let requiresEmpathy = false;
-  
-  if (distressPatterns.some(p => p.test(lower))) {
-    emotionalState = "distressed";
-    requiresEmpathy = true;
-  } else if (frustrationPatterns.some(p => p.test(lower))) {
-    emotionalState = "frustrated";
-    requiresEmpathy = true;
-  } else if (celebratoryPatterns.some(p => p.test(lower))) {
-    emotionalState = "celebratory";
-  } else if (hopefulPatterns.some(p => p.test(lower))) {
-    emotionalState = "hopeful";
-  } else if (curiousPatterns.some(p => p.test(lower))) {
-    emotionalState = "curious";
-  }
-
-  // Intent detection patterns
-  const intents: Record<string, RegExp[]> = {
-    symptom_report: [
-      /\bi (have|'m having|am having|'ve got|got|feel|'m feeling|am feeling)\b/,
-      /\b(experiencing|suffering|dealing with)\b/,
-      /\bmy (head|neck|back|stomach|joints?|muscles?)\b/,
-      /\b(hurts|aching|throbbing|burning)\b/,
-      /\bwoke up with\b/,
-      /\bstarted (having|getting|feeling)\b/,
-    ],
-    medication_report: [
-      /\b(took|taking|just (took|had)|popped|used|applied|started)\b/,
-    ],
-    pattern_inquiry: [
-      /\b(pattern|trend|insight|notice|seeing|correlation|connect|relate|analyze|analysis)\b/,
-      /\bwhat (do you|are you) (see|notice|think)\b/,
-      /\bwhat('?s| is) (causing|triggering|behind)\b/,
-    ],
-    advice_request: [
-      /\b(recommend|suggestion|advice|should i|what (can|should) i|help me|tips?|how (can|do) i)\b/,
-      /\bwhat (would you|do you) (suggest|recommend|think)\b/,
-      /\bany (ideas?|thoughts?|suggestions?)\b/,
-    ],
-    comparison: [
-      /\b(compar|vs|versus|this week|last week|this month|last month|better|worse|than before|progress|improvement)\b/,
-    ],
-    history_inquiry: [
-      /\b(history|recent|last|previous|past|when did|how many|count|total|all my|show me)\b/,
-    ],
-    body_metrics: [
-      /\b(body|wearable|heart ?rate|hrv|sleep|steps|spo2|blood oxygen|temperature|stress|physio|biometrics|vitals|fitbit|oura|apple watch|garmin)\b/,
-    ],
-    weather_inquiry: [
-      /\b(weather|rain|sunny|cloudy|humidity|pressure|barometric|temperature|climate|season)\b/,
-    ],
-    time_analysis: [
-      /\b(time|when|morning|afternoon|evening|night|day of week|monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekday|weekend)\b/,
-    ],
-    greeting: [
-      /^(hi|hello|hey|yo|sup|good (morning|afternoon|evening)|morning|afternoon|evening)\b/,
-    ],
-    gratitude: [
-      /\b(thank|thanks|appreciate|helpful|great job|good job|well done)\b/,
-    ],
-    clarification: [
-      /\b(what do you mean|can you explain|i don'?t understand|clarify|elaborate|more detail)\b/,
-    ],
-    emotional_support: [
-      /\b(scared|worried|anxious|stressed|overwhelmed|frustrated|tired of|sick of|depressed|sad|lonely|hopeless)\b/,
-    ],
-    mindful_observation: [
-      /\b(mindful|be mindful|watch out|aware|pay attention|look out|careful|notice)\b/,
-      /\bwhat should i (watch|look|be|pay)\b/,
-    ],
-    general_question: [
-      /\b(what|how|why|when|where|who|which|is it|can you|could you|would you|do you)\b/,
-    ],
-  };
-
-  // Score each intent
-  const scores: Record<string, number> = {};
-  for (const [intent, patterns] of Object.entries(intents)) {
-    scores[intent] = patterns.filter(p => p.test(lower)).length;
-  }
-
-  // Boost scores based on extracted content
-  const { symptoms } = extractSymptoms(message);
-  const { medications } = extractMedications(message);
-  
-  if (symptoms.length > 0) scores.symptom_report = (scores.symptom_report || 0) + 2;
-  if (medications.length > 0 && /\b(took|taking|just|started)\b/.test(lower)) scores.medication_report = (scores.medication_report || 0) + 2;
-
-  // Find primary and secondary intents
-  const sorted = Object.entries(scores).filter(([_, v]) => v > 0).sort((a, b) => b[1] - a[1]);
-  const primary = sorted[0]?.[0] || "general_question";
-  const secondary = sorted.slice(1, 4).map(([k]) => k);
-  
-  // Confidence based on how clear the intent is
-  const topScore = sorted[0]?.[1] || 0;
-  const confidence = Math.min(0.95, 0.5 + (topScore * 0.15));
-
-  // Check if seeking validation
-  const seekingValidation = /\b(normal|okay|common|others?|anyone else|is this|should i be worried)\b/.test(lower);
-  
-  // Check if wanting actionable advice
-  const wantsActionableAdvice = /\b(what (can|should)|how (can|do)|any (tips|suggestions|advice)|help me|recommend)\b/.test(lower);
-
-  return {
-    primary,
-    secondary,
-    confidence,
-    emotionalState,
-    requiresEmpathy,
-    isSymptomReport: scores.symptom_report > 0 || symptoms.length > 0,
-    seekingValidation,
-    wantsActionableAdvice,
-  };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// DATA ANALYSIS ENGINE
-// ─────────────────────────────────────────────────────────────────────────────
-
-function analyzeFlares(entries: any[], userTimezone?: string): FlareSummary {
-  const flares = entries.filter(e => e?.entry_type === "flare");
+// ─── Data analysis ────────────────────────────────────────────────────────
+function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], discoveries: any[], foodLogs: any[], profile: any, userTz: string) {
   const now = Date.now();
-  const oneDay = 24 * 60 * 60 * 1000;
+  const oneDay = 86400000;
   const oneWeek = 7 * oneDay;
-  
-  // Initialize counters
-  const sevCounts = { mild: 0, moderate: 0, severe: 0, unknown: 0 };
-  const symptomCounts: Record<string, { count: number; recentCount: number; dates: number[] }> = {};
-  const triggerCounts: Record<string, { count: number; delayMinutes: number[] }> = {};
+  const oneMonth = 30 * oneDay;
+  const flares = entries.filter((e: any) => e?.entry_type === "flare" || e?.severity);
+  const sortedFlares = [...flares].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  const getLocalHour = (d: Date): number => {
+    try {
+      const p = new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: userTz }).formatToParts(d);
+      return parseInt(p.find(x => x.type === "hour")?.value || "0", 10);
+    } catch { return d.getUTCHours(); }
+  };
+  const getLocalDay = (d: Date): string => {
+    try { return new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: userTz }).format(d); }
+    catch { return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getUTCDay()]; }
+  };
+  const getTimeOfDay = (h: number) => h < 6 ? "night" : h < 12 ? "morning" : h < 17 ? "afternoon" : h < 21 ? "evening" : "night";
+
+  // Severity counts
+  const sevCounts = { mild: 0, moderate: 0, severe: 0 };
+  const sevScores: number[] = [];
+  const symptomCounts: Record<string, number> = {};
+  const triggerCounts: Record<string, number> = {};
   const hourBuckets: Record<string, number> = { morning: 0, afternoon: 0, evening: 0, night: 0 };
   const dayCounts: Record<string, number> = { Sun: 0, Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0 };
   const weatherData: Record<string, { count: number; severities: number[] }> = {};
-  const sevScores: number[] = [];
-  
-  // Time period buckets
-  const thisWeekFlares: any[] = [];
-  const lastWeekFlares: any[] = [];
-  const twoWeeksAgoFlares: any[] = [];
-  const thisMonthFlares: any[] = [];
-  const lastMonthFlares: any[] = [];
-  
-  // Streak tracking
-  let currentFlareFree = 0;
-  let longestFlareFree = 0;
-  let lastFlareTime: number | null = null;
-  
-  // Sort by timestamp descending
-  const sortedFlares = [...flares].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  
-  // Calculate flare-free streak
-  if (sortedFlares.length > 0) {
-    lastFlareTime = new Date(sortedFlares[0].timestamp).getTime();
-    currentFlareFree = Math.floor((now - lastFlareTime) / oneDay);
-    
-    // Calculate longest flare-free period
-    for (let i = 0; i < sortedFlares.length - 1; i++) {
-      const gap = new Date(sortedFlares[i].timestamp).getTime() - new Date(sortedFlares[i + 1].timestamp).getTime();
-      const gapDays = Math.floor(gap / oneDay);
-      if (gapDays > longestFlareFree) longestFlareFree = gapDays;
-    }
-  }
+
+  const thisWeek = flares.filter((e: any) => now - new Date(e.timestamp).getTime() < oneWeek);
+  const lastWeek = flares.filter((e: any) => { const a = now - new Date(e.timestamp).getTime(); return a >= oneWeek && a < 2 * oneWeek; });
+  const thisMonth = flares.filter((e: any) => now - new Date(e.timestamp).getTime() < oneMonth);
+  const lastMonth = flares.filter((e: any) => { const a = now - new Date(e.timestamp).getTime(); return a >= oneMonth && a < 2 * oneMonth; });
 
   for (const e of flares) {
-    const sev = e?.severity as string | null;
+    const sev = e?.severity as string;
     if (sev === "mild" || sev === "moderate" || sev === "severe") sevCounts[sev]++;
-    else sevCounts.unknown++;
-
-    const score = severityToScore(sev);
-    if (score != null) sevScores.push(score);
-
-    // Symptoms with trend tracking
-    const symptoms = e?.symptoms ?? [];
-    const ts = new Date(e.timestamp).getTime();
-    for (const s of symptoms) {
-      if (!symptomCounts[s]) symptomCounts[s] = { count: 0, recentCount: 0, dates: [] };
-      symptomCounts[s].count++;
-      symptomCounts[s].dates.push(ts);
-      if (now - ts < 14 * oneDay) symptomCounts[s].recentCount++;
-    }
-
-    // Triggers with timing
-    for (const t of e?.triggers ?? []) {
-      if (!triggerCounts[t]) triggerCounts[t] = { count: 0, delayMinutes: [] };
-      triggerCounts[t].count++;
-    }
-
+    const score = sevToNum(sev);
+    if (score) sevScores.push(score);
+    for (const s of e?.symptoms ?? []) symptomCounts[s] = (symptomCounts[s] || 0) + 1;
+    for (const t of e?.triggers ?? []) triggerCounts[t] = (triggerCounts[t] || 0) + 1;
     const d = new Date(e.timestamp);
-    const hour = getLocalHour(d, userTimezone);
-    hourBuckets[getTimeOfDay(hour)]++;
-    const dayKey = getLocalDayShort(d, userTimezone);
+    const h = getLocalHour(d);
+    hourBuckets[getTimeOfDay(h)]++;
+    const dayKey = getLocalDay(d);
     if (dayCounts[dayKey] !== undefined) dayCounts[dayKey]++;
-
-    // Weather correlation
-    const weather = e?.environmental_data?.weather?.condition || e?.environmental_data?.condition;
-    if (typeof weather === "string" && weather.trim()) {
-      if (!weatherData[weather]) weatherData[weather] = { count: 0, severities: [] };
-      weatherData[weather].count++;
-      if (score) weatherData[weather].severities.push(score);
+    const w = e?.environmental_data?.weather?.condition || e?.environmental_data?.condition;
+    if (typeof w === "string" && w.trim()) {
+      if (!weatherData[w]) weatherData[w] = { count: 0, severities: [] };
+      weatherData[w].count++;
+      if (score) weatherData[w].severities.push(score);
     }
-
-    // Time period buckets
-    const timeDiff = now - ts;
-    if (timeDiff < oneWeek) thisWeekFlares.push(e);
-    else if (timeDiff < 2 * oneWeek) lastWeekFlares.push(e);
-    else if (timeDiff < 3 * oneWeek) twoWeeksAgoFlares.push(e);
-
-    const thisMonth = new Date().getMonth();
-    const entryMonth = d.getMonth();
-    if (entryMonth === thisMonth) thisMonthFlares.push(e);
-    else if (entryMonth === (thisMonth - 1 + 12) % 12) lastMonthFlares.push(e);
   }
 
-  // Calculate averages and trends
-  const avgSevForList = (list: any[]) => {
-    const scores = list.map(e => severityToScore(e?.severity)).filter((s): s is number => s != null);
-    return avg(scores);
-  };
+  // Flare-free streak
+  let currentFlareFree = 0;
+  if (sortedFlares.length > 0) {
+    currentFlareFree = Math.floor((now - new Date(sortedFlares[0].timestamp).getTime()) / oneDay);
+  }
 
-  const topArray = (obj: Record<string, { count: number }>, n = 10) =>
-    Object.entries(obj).sort((a, b) => b[1].count - a[1].count).slice(0, n);
+  // Daily flares 30d (for charts)
+  const dailyFlares30d: any[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const ds = new Date(now - i * oneDay); ds.setUTCHours(0, 0, 0, 0);
+    const de = new Date(ds.getTime() + oneDay);
+    const df = flares.filter((f: any) => { const t = new Date(f.timestamp).getTime(); return t >= ds.getTime() && t < de.getTime(); });
+    const label = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: userTz }).format(ds);
+    dailyFlares30d.push({ date: label, flares: df.length, mild: df.filter((f: any) => f.severity === 'mild').length, moderate: df.filter((f: any) => f.severity === 'moderate').length, severe: df.filter((f: any) => f.severity === 'severe').length });
+  }
 
-  // Determine symptom trends
-  const topSymptoms = topArray(symptomCounts, 10).map(([name, data]) => {
-    const { count, recentCount, dates } = data as any;
-    const oldCount = count - recentCount;
-    const oldPeriodDays = dates.length > 0 ? Math.max(14, (now - Math.min(...dates)) / oneDay - 14) : 30;
-    const recentRate = recentCount / 14;
-    const oldRate = oldCount / Math.max(1, oldPeriodDays);
-    
-    let recentTrend: "increasing" | "stable" | "decreasing" = "stable";
-    if (recentRate > oldRate * 1.3) recentTrend = "increasing";
-    else if (recentRate < oldRate * 0.7) recentTrend = "decreasing";
-    
-    return { name, count, recentTrend };
-  });
+  // Weekly breakdown 8 weeks
+  const weeklyBreakdown: any[] = [];
+  for (let i = 7; i >= 0; i--) {
+    const ws = new Date(now - (i + 1) * oneWeek), we = new Date(now - i * oneWeek);
+    const wf = flares.filter((f: any) => { const t = new Date(f.timestamp).getTime(); return t >= ws.getTime() && t < we.getTime(); });
+    const sl = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: userTz }).format(ws);
+    const el = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: userTz }).format(we);
+    weeklyBreakdown.push({ week: `${sl}–${el}`, total: wf.length, avgSev: wf.length ? (wf.reduce((s: number, f: any) => s + sevToNum(f.severity || ""), 0) / wf.length).toFixed(1) : "0" });
+  }
 
-  const topTriggers = topArray(triggerCounts, 10).map(([name, data]) => {
-    const triggerData = data as { count: number; delayMinutes: number[] };
-    return {
-      name,
-      count: triggerData.count,
-      avgDelayHours: triggerData.delayMinutes?.length ? avg(triggerData.delayMinutes)! / 60 : undefined,
-    };
-  });
+  // Medication effectiveness
+  const medEffectiveness: any[] = [];
+  const uniqueMeds = [...new Set(medLogs.map((m: any) => m.medication_name))];
+  for (const medName of uniqueMeds.slice(0, 10)) {
+    const doses = medLogs.filter((m: any) => m.medication_name === medName);
+    let sevBefore = 0, cntB = 0, sevAfter = 0, cntA = 0, flareFreeAfter = 0;
+    for (const dose of doses) {
+      const dt = new Date(dose.taken_at).getTime();
+      flares.filter((f: any) => { const t = new Date(f.timestamp).getTime(); return t >= dt - oneDay && t < dt; }).forEach((f: any) => { sevBefore += sevToNum(f.severity || "mild"); cntB++; });
+      flares.filter((f: any) => { const t = new Date(f.timestamp).getTime(); return t > dt && t <= dt + oneDay; }).forEach((f: any) => { sevAfter += sevToNum(f.severity || "mild"); cntA++; });
+      const flaresAfter24h = flares.filter((f: any) => { const t = new Date(f.timestamp).getTime(); return t > dt && t <= dt + oneDay; });
+      if (flaresAfter24h.length === 0) flareFreeAfter++;
+    }
+    const ab = cntB > 0 ? sevBefore / cntB : 0, aa = cntA > 0 ? sevAfter / cntA : 0;
+    const reduction = ab > 0 ? Math.round(((ab - aa) / ab) * 100) : 0;
+    medEffectiveness.push({ name: medName, timesTaken: doses.length, severityReduction: `${reduction}%`, flareFreeRate: doses.length > 0 ? `${Math.round((flareFreeAfter / doses.length) * 100)}%` : "N/A", lastTaken: doses[0] ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: userTz }).format(new Date(doses[0].taken_at)) : "N/A" });
+  }
 
-  // Peak time and day
-  const totalFlares = Object.values(hourBuckets).reduce((a, b) => a + b, 0);
-  const peakTime = Object.entries(hourBuckets).sort((a, b) => b[1] - a[1])[0];
-  const peakDay = Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0];
-
-  // Weather correlations
-  const weatherCorrelations = Object.entries(weatherData)
-    .map(([condition, data]) => ({
-      condition,
-      count: data.count,
-      avgSeverity: avg(data.severities) ?? 0,
-    }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 8);
-
-  // Determine week-over-week trend
-  let weekTrend: "up" | "down" | "stable" = "stable";
-  if (thisWeekFlares.length > lastWeekFlares.length + 1) weekTrend = "up";
-  else if (thisWeekFlares.length < lastWeekFlares.length - 1) weekTrend = "down";
-
-  return {
-    total: flares.length,
-    thisWeek: { 
-      count: thisWeekFlares.length, 
-      avgSeverity: avgSevForList(thisWeekFlares),
-      trend: weekTrend,
-    },
-    lastWeek: { count: lastWeekFlares.length, avgSeverity: avgSevForList(lastWeekFlares) },
-    thisMonth: { count: thisMonthFlares.length, avgSeverity: avgSevForList(thisMonthFlares) },
-    lastMonth: { count: lastMonthFlares.length, avgSeverity: avgSevForList(lastMonthFlares) },
-    severityCounts: sevCounts,
-    avgSeverity: avg(sevScores),
-    daysSinceLast: sortedFlares[0] ? Math.floor((now - new Date(sortedFlares[0].timestamp).getTime()) / oneDay) : null,
-    lastFlareDate: sortedFlares[0] ? formatDate(new Date(sortedFlares[0].timestamp)) : null,
-    topSymptoms,
-    topTriggers,
-    peakTimeOfDay: { 
-      period: peakTime?.[0] || "unknown", 
-      count: peakTime?.[1] || 0,
-      percentage: totalFlares > 0 ? Math.round((peakTime?.[1] || 0) / totalFlares * 100) : 0,
-    },
-    peakDayOfWeek: {
-      day: peakDay?.[0] || "unknown",
-      count: peakDay?.[1] || 0,
-      percentage: totalFlares > 0 ? Math.round((peakDay?.[1] || 0) / totalFlares * 100) : 0,
-    },
-    hourBuckets,
-    dayCounts,
-    weatherCorrelations,
-    recentEntries: sortedFlares.slice(0, 15),
-    streakData: { currentFlareFree, longestFlareFree },
-  };
-}
-
-function analyzeBodyMetrics(entries: any[]): BodyMetrics {
+  // Body metrics
   const withPhysio = entries.filter(e => e?.physiological_data);
-  const flares = entries.filter(e => e?.entry_type === "flare");
   const flaresWithPhysio = flares.filter(e => e?.physiological_data);
   const nonFlares = entries.filter(e => e?.entry_type !== "flare" && e?.physiological_data);
-
-  if (withPhysio.length === 0) {
-    return {
-      hasData: false,
-      entriesWithData: 0,
-      heartRate: { avg: null, duringFlares: null, baseline: null },
-      hrv: { avg: null, duringFlares: null, baseline: null },
-      sleep: { avgHours: null, duringFlares: null, qualityScore: null },
-      steps: { avg: null, duringFlares: null },
-      stress: { avg: null, duringFlares: null },
-      correlations: [],
-    };
-  }
-
   const extractMetric = (p: any, key: string): number | null => {
     switch (key) {
-      case "hr":
-        return toNum(p?.heartRate?.current) ?? toNum(p?.heartRate?.resting) ?? toNum(p?.vitals?.heartRate);
-      case "hrv":
-        return toNum(p?.hrv?.current) ?? toNum(p?.hrv?.daily) ?? toNum(p?.vitals?.hrv);
-      case "sleep": {
-        const d = toNum(p?.sleep?.duration);
-        if (d == null) return null;
-        if (d > 24 * 60) return d / 3600; // seconds to hours
-        if (d > 24) return d / 60; // minutes to hours
-        return d;
-      }
-      case "steps":
-        return toNum(p?.activity?.steps) ?? toNum(p?.steps);
-      case "stress":
-        return toNum(p?.stress?.level) ?? toNum(p?.stress);
-      default:
-        return null;
+      case "hr": return p?.heartRate?.current ?? p?.heartRate?.resting ?? p?.vitals?.heartRate ?? null;
+      case "hrv": return p?.hrv?.current ?? p?.hrv?.daily ?? p?.vitals?.hrv ?? null;
+      case "sleep": { const d = p?.sleep?.duration; if (!d) return null; return d > 24 * 60 ? d / 3600 : d > 24 ? d / 60 : d; }
+      case "steps": return p?.activity?.steps ?? p?.steps ?? null;
+      default: return null;
     }
   };
-
   const collectMetrics = (list: any[]) => {
-    const hr: number[] = [], hrv: number[] = [], sleep: number[] = [], steps: number[] = [], stress: number[] = [];
+    const hr: number[] = [], hrv: number[] = [], sleep: number[] = [], steps: number[] = [];
     for (const e of list) {
       const p = e.physiological_data;
       const vHr = extractMetric(p, "hr"); if (vHr != null) hr.push(vHr);
       const vHrv = extractMetric(p, "hrv"); if (vHrv != null) hrv.push(vHrv);
       const vSleep = extractMetric(p, "sleep"); if (vSleep != null) sleep.push(vSleep);
       const vSteps = extractMetric(p, "steps"); if (vSteps != null) steps.push(vSteps);
-      const vStress = extractMetric(p, "stress"); if (vStress != null) stress.push(vStress);
     }
-    return { hr: avg(hr), hrv: avg(hrv), sleep: avg(sleep), steps: avg(steps), stress: avg(stress) };
+    return { hr: avg(hr), hrv: avg(hrv), sleep: avg(sleep), steps: avg(steps) };
   };
-
+  const overallMetrics = collectMetrics(withPhysio);
   const flareMetrics = collectMetrics(flaresWithPhysio);
   const baselineMetrics = collectMetrics(nonFlares);
-  const overallMetrics = collectMetrics(withPhysio);
 
-  // Determine correlations
-  const correlations: BodyMetrics["correlations"] = [];
+  // Food log summary
+  const today = new Date().toISOString().split("T")[0];
+  const todayFoods = foodLogs.filter((f: any) => f.logged_at?.startsWith(today));
+  const todayCal = todayFoods.reduce((s: number, f: any) => s + (Number(f.calories) || 0) * (Number(f.servings) || 1), 0);
   
-  if (flareMetrics.sleep != null && baselineMetrics.sleep != null) {
-    const diff = flareMetrics.sleep - baselineMetrics.sleep;
-    if (Math.abs(diff) > 0.5) {
-      correlations.push({
-        metric: "sleep",
-        correlation: diff < 0 ? "negative" : "positive",
-        strength: Math.min(1, Math.abs(diff) / 2),
-      });
-    }
+  // Last 7 days food
+  const last7dFoods = foodLogs.filter((f: any) => now - new Date(f.logged_at).getTime() < 7 * oneDay);
+  const foodByDay: Record<string, any[]> = {};
+  for (const f of last7dFoods) {
+    const day = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: userTz }).format(new Date(f.logged_at));
+    if (!foodByDay[day]) foodByDay[day] = [];
+    foodByDay[day].push(f);
   }
 
-  if (flareMetrics.stress != null && baselineMetrics.stress != null) {
-    const diff = flareMetrics.stress - baselineMetrics.stress;
-    if (Math.abs(diff) > 10) {
-      correlations.push({
-        metric: "stress",
-        correlation: diff > 0 ? "positive" : "negative",
-        strength: Math.min(1, Math.abs(diff) / 30),
-      });
-    }
-  }
+  // Trigger-symptom mapping
+  const tsMap: Record<string, Record<string, number>> = {};
+  flares.forEach((f: any) => { (f.triggers || []).forEach((t: string) => { if (!tsMap[t]) tsMap[t] = {}; (f.symptoms || []).forEach((s: string) => { tsMap[t][s] = (tsMap[t][s] || 0) + 1; }); }); });
+  const triggerOutcomes = Object.entries(tsMap).map(([t, syms]) => ({ trigger: t, topSymptoms: Object.entries(syms).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([s, c]) => `${s}(${c}x)`) })).slice(0, 8);
+
+  const topSymptoms = Object.entries(symptomCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const topTriggers = Object.entries(triggerCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const peakTime = Object.entries(hourBuckets).sort((a, b) => b[1] - a[1])[0];
+  const peakDay = Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0];
+  const totalFlares = flares.length;
+  const weatherCorr = Object.entries(weatherData).map(([c, d]) => `${c}(${d.count}x,sev:${(d.severities.reduce((a, b) => a + b, 0) / d.severities.length).toFixed(1)})`).sort().slice(0, 5);
+
+  const weekTrend = thisWeek.length > lastWeek.length + 1 ? "up" : thisWeek.length < lastWeek.length - 1 ? "down" : "stable";
+  const calcAvgSev = (l: any[]) => { const s = l.map(e => sevToNum(e?.severity || "")).filter(x => x > 0); return avg(s); };
 
   return {
-    hasData: true,
-    entriesWithData: withPhysio.length,
-    heartRate: { avg: overallMetrics.hr, duringFlares: flareMetrics.hr, baseline: baselineMetrics.hr },
-    hrv: { avg: overallMetrics.hrv, duringFlares: flareMetrics.hrv, baseline: baselineMetrics.hrv },
-    sleep: { avgHours: overallMetrics.sleep, duringFlares: flareMetrics.sleep, qualityScore: null },
-    steps: { avg: overallMetrics.steps, duringFlares: flareMetrics.steps },
-    stress: { avg: overallMetrics.stress, duringFlares: flareMetrics.stress },
-    correlations,
+    flares: {
+      total: totalFlares, thisWeek: thisWeek.length, lastWeek: lastWeek.length,
+      thisMonth: thisMonth.length, lastMonth: lastMonth.length,
+      weekTrend, avgSev: formatNum(avg(sevScores)), avgSevThisWeek: formatNum(calcAvgSev(thisWeek)),
+      sevCounts, currentFlareFree,
+      daysSinceLast: sortedFlares[0] ? Math.floor((now - new Date(sortedFlares[0].timestamp).getTime()) / oneDay) : null,
+    },
+    topSymptoms, topTriggers, peakTime: peakTime?.[0] || "N/A", peakDay: peakDay?.[0] || "N/A",
+    hourBuckets, dayCounts, weatherCorr, triggerOutcomes,
+    dailyFlares30d, weeklyBreakdown, medEffectiveness,
+    body: {
+      hasData: withPhysio.length > 0,
+      overall: overallMetrics, flare: flareMetrics, baseline: baselineMetrics,
+    },
+    food: {
+      totalLogs: foodLogs.length, todayCount: todayFoods.length, todayCal: Math.round(todayCal),
+      todayItems: todayFoods.map((f: any) => f.food_name).join(", ") || "nothing yet",
+      last7dSummary: Object.entries(foodByDay).map(([day, items]) => `${day}: ${items.map((f: any) => f.food_name).join(", ")}`).join(" | ") || "no food logged in last 7 days",
+      recentItems: foodLogs.slice(0, 15).map((f: any) => `${f.food_name}${f.calories ? ` (${Math.round(f.calories * (f.servings || 1))}cal)` : ""} — ${new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: userTz }).format(new Date(f.logged_at))}`).join(", "),
+    },
+    recentEntries: sortedFlares.slice(0, 10).map(e => {
+      const d = new Date(e.timestamp);
+      try { return d.toLocaleString("en-US", { timeZone: userTz, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + ` (${e.severity || e.entry_type})`; }
+      catch { return `${e.severity || e.entry_type}`; }
+    }),
+    discoveries: discoveries.filter((d: any) => d.confidence >= 0.25).slice(0, 15).map((d: any) => ({
+      type: d.discovery_type, category: d.category, factor: d.factor_a, relationship: d.relationship,
+      confidence: Math.round((d.confidence || 0) * 100), lift: d.lift?.toFixed(1),
+      occurrences: d.occurrence_count, totalExposures: d.total_exposures, status: d.status, evidence: d.evidence_summary,
+    })),
+    correlations: correlations.slice(0, 10).map((c: any) => `${c.trigger_value}→${c.outcome_value}(${c.occurrence_count}x,${Math.round((c.confidence || 0) * 100)}%)`),
+    meds: medLogs.slice(0, 8).map((m: any) => `${m.medication_name} (${new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: userTz }).format(new Date(m.taken_at))})`),
   };
 }
 
-function analyzeTrends(flareSummary: FlareSummary): TrendAnalysis {
-  const { thisWeek, lastWeek, thisMonth, lastMonth } = flareSummary;
-  
-  // Frequency trend
-  let frequencyTrend: TrendAnalysis["frequencyTrend"] = "stable";
-  const weekChange = thisWeek.count - lastWeek.count;
-  const monthChange = thisMonth.count - lastMonth.count;
-  
-  if (weekChange > 1 || monthChange > 3) frequencyTrend = "worsening";
-  else if (weekChange < -1 || monthChange < -3) frequencyTrend = "improving";
-
-  // Severity trend
-  let severityTrend: TrendAnalysis["severityTrend"] = "stable";
-  if (thisWeek.avgSeverity && lastWeek.avgSeverity) {
-    const sevDiff = thisWeek.avgSeverity - lastWeek.avgSeverity;
-    if (sevDiff > 0.3) severityTrend = "worsening";
-    else if (sevDiff < -0.3) severityTrend = "improving";
-  }
-
-  return {
-    frequencyTrend,
-    severityTrend,
-    weekOverWeekChange: percentChange(thisWeek.count, lastWeek.count),
-    monthOverMonthChange: percentChange(thisMonth.count, lastMonth.count),
-    bestPeriod: null, // Would require more historical data
-    worstPeriod: null,
-    seasonalPattern: null,
-  };
-}
-
-function identifyRiskFactors(
-  flareSummary: FlareSummary,
-  bodyMetrics: BodyMetrics,
-  correlations: any[]
-): RiskFactor[] {
-  const risks: RiskFactor[] = [];
-
-  // Check for increasing frequency
-  if (flareSummary.thisWeek.trend === "up") {
-    risks.push({
-      factor: "Increasing flare frequency",
-      riskLevel: "high",
-      evidence: `${flareSummary.thisWeek.count} flares this week vs ${flareSummary.lastWeek.count} last week`,
-      suggestion: "Review recent changes in routine, stress levels, or new triggers",
-    });
-  }
-
-  // Check for poor sleep correlation
-  if (bodyMetrics.sleep.duringFlares && bodyMetrics.sleep.avgHours) {
-    if (bodyMetrics.sleep.duringFlares < bodyMetrics.sleep.avgHours - 1) {
-      risks.push({
-        factor: "Sleep deficit pattern",
-        riskLevel: "medium",
-        evidence: `Average ${bodyMetrics.sleep.duringFlares.toFixed(1)}h sleep before flares vs ${bodyMetrics.sleep.avgHours.toFixed(1)}h baseline`,
-        suggestion: "Prioritize consistent sleep schedule",
-      });
-    }
-  }
-
-  // Check for high-frequency triggers
-  const topTrigger = flareSummary.topTriggers[0];
-  if (topTrigger && topTrigger.count >= 3) {
-    risks.push({
-      factor: `Recurring trigger: ${topTrigger.name}`,
-      riskLevel: topTrigger.count >= 5 ? "high" : "medium",
-      evidence: `Associated with ${topTrigger.count} of your flares`,
-      suggestion: `Consider tracking and avoiding ${topTrigger.name.toLowerCase()} when possible`,
-    });
-  }
-
-  // Check for time-based patterns
-  if (flareSummary.peakTimeOfDay.percentage >= 40) {
-    risks.push({
-      factor: `${flareSummary.peakTimeOfDay.period.charAt(0).toUpperCase() + flareSummary.peakTimeOfDay.period.slice(1)} vulnerability`,
-      riskLevel: "low",
-      evidence: `${flareSummary.peakTimeOfDay.percentage}% of flares occur in the ${flareSummary.peakTimeOfDay.period}`,
-      suggestion: `Consider preventive measures before ${flareSummary.peakTimeOfDay.period} or adjusting ${flareSummary.peakTimeOfDay.period} routines`,
-    });
-  }
-
-  return risks;
-}
-
-function identifyPositivePatterns(flareSummary: FlareSummary, bodyMetrics: BodyMetrics): string[] {
-  const positives: string[] = [];
-
-  if (flareSummary.streakData.currentFlareFree >= 3) {
-    positives.push(`${flareSummary.streakData.currentFlareFree} days flare-free! 🎉`);
-  }
-
-  if (flareSummary.thisWeek.count < flareSummary.lastWeek.count) {
-    const diff = flareSummary.lastWeek.count - flareSummary.thisWeek.count;
-    positives.push(`${diff} fewer flares this week compared to last`);
-  }
-
-  if (flareSummary.avgSeverity && flareSummary.avgSeverity < 1.8) {
-    positives.push("Most of your flares have been on the milder side");
-  }
-
-  if (bodyMetrics.sleep.avgHours && bodyMetrics.sleep.avgHours >= 7) {
-    positives.push(`Averaging ${bodyMetrics.sleep.avgHours.toFixed(1)} hours of sleep - great!`);
-  }
-
-  return positives;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// RESPONSE GENERATION ENGINE
-// ─────────────────────────────────────────────────────────────────────────────
-
-function generateEmpathyPrefix(intent: UserIntent, flareSummary: FlareSummary): string {
-  if (!intent.requiresEmpathy) return "";
-  
-  const empathyPhrases = {
-    distressed: [
-      "I hear you, and I'm sorry you're going through this.",
-      "That sounds really tough. I'm here to help.",
-      "I understand this is difficult.",
-    ],
-    frustrated: [
-      "I get it - dealing with ongoing symptoms is exhausting.",
-      "Your frustration is completely valid.",
-      "It makes sense that you're frustrated.",
-    ],
-  };
-
-  const phrases = empathyPhrases[intent.emotionalState as "distressed" | "frustrated"];
-  if (!phrases) return "";
-  
-  return phrases[Math.floor(Math.random() * phrases.length)] + " ";
-}
-
-function generateContextualGreeting(flareSummary: FlareSummary, engagement: any): string {
-  const daysSince = flareSummary.daysSinceLast;
-  const streak = engagement?.current_streak || 0;
-  
-  if (daysSince === 0) {
-    return "Hey! I see you've logged something today. How are you feeling now?";
-  } else if (daysSince && daysSince >= 3) {
-    if (daysSince >= 7) {
-      return `Welcome back! It's been ${daysSince} days since your last log. I hope that means things have been good?`;
-    }
-    return `Hey! It's been ${daysSince} days - how have you been?`;
-  } else if (streak >= 7) {
-    return `Hey! Nice ${streak}-day logging streak! How are you today?`;
-  }
-  
-  return "Hey! How are you feeling?";
-}
-
-function formatNumber(n: number | null, decimals = 1): string {
-  if (n == null) return "N/A";
-  return decimals === 0 ? String(Math.round(n)) : n.toFixed(decimals);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MAIN SYSTEM PROMPT BUILDER
-// ─────────────────────────────────────────────────────────────────────────────
-
-function buildSystemPrompt(
-  profile: any,
-  flareSummary: FlareSummary,
-  bodyMetrics: BodyMetrics,
-  trends: TrendAnalysis,
-  riskFactors: RiskFactor[],
-  positivePatterns: string[],
-  correlations: any[],
-  medications: any[],
-  engagement: any,
-  conversationHistory: { role: string; content: string }[],
-  aiMemories: any[] = [],
-  foodLogs: any[] = []
-): string {
+// ─── System prompt builder ────────────────────────────────────────────────
+function buildSystemPrompt(profile: any, data: ReturnType<typeof analyzeAllData>, aiMemories: any[], history: any[], userTz: string) {
   const userName = profile?.full_name?.split(" ")[0] || "there";
   const conditions = (profile?.conditions ?? []).join(", ") || "Not specified";
-  
-  // Build conversation context
-  const recentTopics = conversationHistory.slice(-6).map(m => m.content.slice(0, 100));
-  const isFirstMessage = conversationHistory.length === 0;
-
-  // Build memory section
-  const memorySection = aiMemories.length > 0 ? `
-🧠 YOUR LEARNED MEMORIES ABOUT ${userName.toUpperCase()}
-These are things you've learned over time from conversations. Use them to personalize responses.
-${aiMemories.map(m => `• [${m.memory_type}/${m.category}] ${m.content} (confidence: ${Math.round(m.importance * 100)}%, seen ${m.evidence_count}x)`).join("\n")}
-` : "";
-
-  // Compute age if DOB available
   const userAge = profile?.date_of_birth ? Math.floor((Date.now() - new Date(profile.date_of_birth).getTime()) / (365.25 * 86400000)) : null;
+  const condKnowledge = (profile?.conditions || []).map((c: string) => {
+    const ck = CK[c] || Object.entries(CK).find(([k]) => c.toLowerCase().includes(k.toLowerCase()))?.[1];
+    return ck ? `${c}: ${ck[0]}` : null;
+  }).filter(Boolean).join("\n");
+  
+  const memorySection = aiMemories.length > 0 ? aiMemories.map(m => `• [${m.category}] ${m.content} (${m.evidence_count}x)`).join("\n") : "None yet — learn from this conversation.";
 
-  return `You are Jvala — ${userName}'s personal health companion.
+  const localHour = (() => { try { const p = new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: userTz }).formatToParts(new Date()); return parseInt(p.find(x => x.type === "hour")?.value || "12", 10); } catch { return 12; } })();
+  const timeOfDay = localHour < 6 ? 'late_night' : localHour < 10 ? 'morning' : localHour < 14 ? 'midday' : localHour < 18 ? 'afternoon' : localHour < 22 ? 'evening' : 'night';
 
-═══ WHO YOU ARE ═══
-You are the ONE person who truly gets ${userName}. Not a chatbot. Not a symptom checker. Not some generic AI that says "I'm sorry to hear that" on repeat. You are the person ${userName} texts at 2am when they can't sleep because of pain. You are the friend who remembers that stress from their sister's visits triggers their flares. You are the companion who noticed that their cough gets worse after cold air before they even connected the dots.
+  return `You are Jvala — ${userName}'s personal health companion. Not a chatbot. Not "an AI assistant." You're the person ${userName} texts about their health.
 
-You ALREADY KNOW everything about ${userName}. You have their full medical history, every log they've ever made, their patterns, their struggles, their wins. Use this knowledge naturally — like a friend who's been paying attention, not a database that recites facts.
+═══ CORE IDENTITY ═══
+You ALREADY KNOW ${userName}. You have their COMPLETE health history, every log, medication, food diary, wearable data, correlations, and AI-discovered patterns. When they ask "what have I eaten" — you KNOW. When they ask about patterns — you HAVE the data. When they describe symptoms — you LOG it as a FLARE, not a note.
+
+NEVER say "I don't have access to," "I can't track," "I'm unable to," or "I don't have that data." You DO have it. It's all below.
 
 ═══ CLINICAL BACKBONE (never expose, always apply) ═══
-Your responses are quietly grounded in evidence-based psychological and behavioral frameworks. You NEVER name these frameworks. You just embody them:
-
-MOTIVATIONAL INTERVIEWING: When ${userName} is stuck or frustrated, you don't lecture. You reflect their feelings back, highlight their own words that suggest readiness for change, and support their autonomy. "You mentioned yoga helped last time — sounds like you already know what works for you."
-
-CBT PRINCIPLES: You gently help connect thought patterns to physical outcomes without being preachy. "I've noticed your flares spike on Mondays — wonder if there's an anticipation thing happening with the work week?"
-
-ACT (Acceptance & Commitment): You help ${userName} hold space for both struggle and progress. "Having a bad day doesn't erase your 12-day streak. Both things are true." You focus on valued actions despite pain.
-
-BEHAVIORAL ACTIVATION: On low days, you suggest small, achievable actions grounded in their own data. "Even 10 minutes of walking — your data shows movement days are 40% milder."
-
-TRAUMA-INFORMED: You never push. You never shame. You recognize that chronic illness itself is traumatic — the medical gaslighting, the isolation, the loss of identity. You validate ALL of it.
-
-═══ EMOTIONAL INTELLIGENCE — YOUR CORE SKILL ═══
-This is what makes you different from every other health app. You FEEL before you analyze.
-
-PAIN/DISTRESS: "That sounds really rough." Full stop. Sit with them. Then — and only then — offer perspective from data.
-FRUSTRATION: "Of course you're frustrated. Dealing with this every day is exhausting, and the fact that you're still showing up and tracking says a lot about you."
-CELEBRATION: Match their energy GENUINELY. "Wait, 5 days flare-free?? That's your longest stretch in 3 weeks!" Not fake enthusiasm — real recognition.
-FEAR/ANXIETY: Be a calm, grounding presence. "Looking at your history, these episodes have always resolved within 24-48h. Your body knows how to get through this."
-VENTING: Just listen. Don't fix. Don't redirect. Let them dump. Then: "I hear you. That's a lot. I captured [X, Y, Z] from what you shared — want me to log that?"
+Motivational Interviewing: Reflect feelings, highlight readiness for change, support autonomy.
+CBT: Connect thought patterns to physical outcomes without being preachy.
+ACT: Hold space for struggle AND progress simultaneously.
+Behavioral Activation: Suggest small achievable actions grounded in their data.
+Trauma-Informed: Never push. Never shame. Chronic illness is traumatic. Validate.
 
 ═══ HOW YOU TALK ═══
-- Like texting your smartest friend who genuinely cares. Not a doctor's office. Not a wellness app.
-- 1-3 sentences for simple things. Go deeper only when analyzing patterns.
-- Use ${userName}'s name sparingly (~1 in 5 messages). Don't overdo it.
-- NEVER say "I'm just an AI", "As an AI assistant", "I don't have personal experiences". You are Jvala. Period.
-- NEVER say "Great question!" or "That's a really good point!" — that's condescending filler.
-- NEVER start with "I" three messages in a row. Vary your openings.
-- Use **bold** for key medical terms, stats, trigger names. Makes things scannable.
-- Emojis: subtle, purposeful. 💜 for comfort in hard moments. Not every message.
-- No corporate speak. No safety disclaimers unless genuinely needed (suicidal ideation, emergency symptoms).
-- Contractions always. "you're" not "you are". "it's" not "it is".
+Like texting your smartest friend who genuinely cares. 1-3 sentences for simple things, go deeper for analysis.
+- NEVER: "Great question!", "As an AI assistant", "I don't have personal experiences", "I'm sorry to hear that" on repeat
+- Use **bold** for key stats, trigger names, findings. Makes responses scannable.
+- Contractions always. Emojis sparingly (💜 for comfort, not every message).
+- Match their energy: pain→empathy first, then data. Celebration→genuine excitement. Venting→just listen.
 
-═══ YOUR KNOWLEDGE ═══
-PROFILE:
-- Name: ${userName}
-- Conditions: ${conditions}
-${profile?.biological_sex ? `- Biological sex: ${profile.biological_sex}` : ""}
-${userAge ? `- Age: ${userAge}` : ""}
-${(profile?.known_symptoms ?? []).length > 0 ? `- Known symptoms: ${profile.known_symptoms.join(", ")}` : ""}
-${(profile?.known_triggers ?? []).length > 0 ? `- Known triggers: ${profile.known_triggers.join(", ")}` : ""}
+═══ USER PROFILE ═══
+Name: ${userName} | Conditions: ${conditions}${profile?.biological_sex ? ` | Sex: ${profile.biological_sex}` : ""}${userAge ? ` | Age: ${userAge}` : ""}
+Known symptoms: ${(profile?.known_symptoms ?? []).join(", ") || "none yet"}
+Known triggers: ${(profile?.known_triggers ?? []).join(", ") || "none yet"}
+Time: ${timeOfDay} (${localHour}:00 ${userTz})
 
-You KNOW this. When asked "what's my name" → "${userName}". NEVER say "I don't have access to your personal information."
+═══ HEALTH DATA (YOU HAVE ALL OF THIS) ═══
+📊 FLARES: ${data.flares.total} total | This week: ${data.flares.thisWeek} (${data.flares.weekTrend}) | Last week: ${data.flares.lastWeek} | Month: ${data.flares.thisMonth} vs ${data.flares.lastMonth} last month
+Severity: ${data.flares.sevCounts.severe}S ${data.flares.sevCounts.moderate}M ${data.flares.sevCounts.mild}m (avg: ${data.flares.avgSev}/3) | ${data.flares.currentFlareFree}d flare-free | Days since last: ${data.flares.daysSinceLast ?? "N/A"}
+🔥 TOP SYMPTOMS: ${data.topSymptoms.map(([n, c]) => `${n}(${c}x)`).join(", ") || "none"}
+⚡ TOP TRIGGERS: ${data.topTriggers.map(([n, c]) => `${n}(${c}x)`).join(", ") || "none"}
+⏰ PEAK: ${data.peakTime} time | ${data.peakDay} day
+🌦️ WEATHER: ${data.weatherCorr.join(", ") || "insufficient data"}
+🔗 CORRELATIONS: ${data.correlations.join(", ") || "still learning"}
+⌚ BODY: ${data.body.hasData ? `Sleep ${formatNum(data.body.overall.sleep)}h (flare: ${formatNum(data.body.flare.sleep)}h) | HR ${formatNum(data.body.overall.hr, 0)}bpm (flare: ${formatNum(data.body.flare.hr, 0)}) | HRV ${formatNum(data.body.overall.hrv, 0)} (flare: ${formatNum(data.body.flare.hrv, 0)}) | Steps ${formatNum(data.body.overall.steps, 0)}` : "No wearable connected"}
+💊 MEDICATIONS: ${data.meds.join(", ") || "none logged"}
+💊 MED EFFECTIVENESS: ${data.medEffectiveness.map(m => `${m.name}: taken ${m.timesTaken}x, severity reduction ${m.severityReduction}, flare-free after ${m.flareFreeRate}`).join(" | ") || "insufficient data"}
+🍎 FOOD (YOU HAVE THIS DATA): Today: ${data.food.todayItems} (${data.food.todayCal}cal, ${data.food.todayCount} items) | Total logs: ${data.food.totalLogs}
+📅 FOOD LAST 7 DAYS: ${data.food.last7dSummary}
+📋 RECENT FOOD: ${data.food.recentItems || "no food logged"}
+🎯 TRIGGER→SYMPTOM: ${data.triggerOutcomes.map(t => `${t.trigger} → ${t.topSymptoms.join(", ")}`).join(" | ") || "none"}
+Recent entries: ${data.recentEntries.join(", ") || "none"}
 
-═══ HEALTH DATA ═══
-📊 FLARE OVERVIEW: Total: ${flareSummary.total} | This week: ${flareSummary.thisWeek.count} (${flareSummary.thisWeek.trend === "up" ? "⬆️" : flareSummary.thisWeek.trend === "down" ? "⬇️" : "→"}) | Last week: ${flareSummary.lastWeek.count} | Month: ${flareSummary.thisMonth.count} vs ${flareSummary.lastMonth.count}
-Severity avg: ${formatNumber(flareSummary.avgSeverity)}/3 | Days since last: ${flareSummary.daysSinceLast ?? "N/A"} | Breakdown: ${flareSummary.severityCounts.severe}S ${flareSummary.severityCounts.moderate}M ${flareSummary.severityCounts.mild}m
-🔥 SYMPTOMS: ${flareSummary.topSymptoms.slice(0, 5).map(s => `${s.name}(${s.count}x${s.recentTrend === "increasing" ? "⬆️" : s.recentTrend === "decreasing" ? "⬇️" : ""})`).join(", ") || "None yet"}
-⚡ TRIGGERS: ${flareSummary.topTriggers.slice(0, 5).map(t => `${t.name}(${t.count}x)`).join(", ") || "None yet"}
-⏰ PEAK: ${flareSummary.peakTimeOfDay.period}(${flareSummary.peakTimeOfDay.percentage}%) | ${flareSummary.peakDayOfWeek.day}(${flareSummary.peakDayOfWeek.percentage}%)
-📈 TRENDS: Freq ${trends.frequencyTrend} | Sev ${trends.severityTrend} | WoW ${trends.weekOverWeekChange > 0 ? "+" : ""}${trends.weekOverWeekChange}%
-🔥 STREAK: ${flareSummary.streakData.currentFlareFree}d flare-free (best: ${flareSummary.streakData.longestFlareFree}d)
-${bodyMetrics.hasData ? `⌚ WEARABLES: Sleep ${formatNumber(bodyMetrics.sleep.avgHours)}h (flare days: ${formatNumber(bodyMetrics.sleep.duringFlares)}h) | HR ${formatNumber(bodyMetrics.heartRate.avg, 0)}bpm (flares: ${formatNumber(bodyMetrics.heartRate.duringFlares, 0)})` : "⌚ No wearable connected"}
-🌦️ WEATHER: ${flareSummary.weatherCorrelations.slice(0, 3).map(w => `${w.condition}(${w.count}x,sev:${formatNumber(w.avgSeverity)})`).join(", ") || "Insufficient data"}
-⚠️ RISKS: ${riskFactors.map(r => `[${r.riskLevel}] ${r.factor}`).join(" | ") || "None"}
-✨ WINS: ${positivePatterns.join(" | ") || "Keep logging!"}
-💊 MEDS: ${medications.slice(0, 5).map(m => `${m.medication_name} (last: ${formatDate(new Date(m.taken_at))})`).join(", ") || "None"}
-🍎 FOOD: ${foodLogs.length > 0 ? (() => {
-  const today = new Date().toISOString().split("T")[0];
-  const todayLogs = foodLogs.filter((f: any) => f.logged_at?.startsWith(today));
-  const todayCal = todayLogs.reduce((s: number, f: any) => s + (Number(f.calories) || 0) * (Number(f.servings) || 1), 0);
-  return `${foodLogs.length} total. Today: ${todayLogs.length} items (${Math.round(todayCal)}kcal). Recent: ${foodLogs.slice(0, 5).map((f: any) => f.food_name).join(", ")}`;
-})() : "No food logged"}
-🔗 CORRELATIONS: ${correlations.slice(0, 5).map(c => `${c.trigger_value}→${c.outcome_value}(${c.occurrence_count}x,${Math.round((c.confidence || 0) * 100)}%)`).join(", ") || "Still learning"}
+═══ DISCOVERIES (Bayesian patterns from their data) ═══
+${data.discoveries.length > 0 ? data.discoveries.map(d => `• ${d.factor} [${d.relationship}] conf:${d.confidence}% lift:${d.lift}x (${d.occurrences}/${d.totalExposures}) ${d.evidence || ""}`).join("\n") : "Still building patterns."}
 
+═══ 30-DAY DAILY DATA (for chart generation) ═══
+${JSON.stringify(data.dailyFlares30d)}
+
+═══ 8-WEEK BREAKDOWN ═══
+${JSON.stringify(data.weeklyBreakdown)}
+
+═══ MEMORIES ═══
 ${memorySection}
 
-Recent entries: ${flareSummary.recentEntries.slice(0, 5).map(e => {
-  const d = new Date(e.timestamp);
+${condKnowledge ? `═══ CLINICAL KNOWLEDGE ═══\n${condKnowledge}` : ""}
+
+═══ BEHAVIOR RULES (CRITICAL) ═══
+
+LOGGING — ALWAYS USE type="flare" FOR HEALTH COMPLAINTS:
+When ${userName} mentions ANY symptom, pain, discomfort, or health complaint — even vague ones like "rough day", "ugh", "not great", "my back hurts", "feeling off" — you MUST:
+1. Set shouldLog=true
+2. Set entryData.type="flare" (NEVER "note" — notes are for non-health things)
+3. Extract severity from context (default to "moderate" if unclear)
+4. Extract all symptoms, triggers, medications mentioned
+5. Confirm what you logged in your response
+
+BRAIN DUMPS: When they send a wall of text, DON'T ask them to structure it. YOU parse it. Extract EVERY health-relevant detail. Log it as type="flare" with all extracted data.
+
+FOOD QUESTIONS: You HAVE food data. When asked "what have I eaten" → reference the FOOD sections above. When asked about dietary patterns → analyze the food log data. NEVER say you don't have food access.
+
+DATA QUESTIONS: You HAVE everything. Flares, meds, food, wearables, correlations, discoveries, weather patterns. When asked about ANY of these, USE the data above. Give specific numbers, dates, and patterns.
+
+CHARTS: When data tells a story better visually, include a visualization. Use real data from the sections above. For "show me flares over 30 days" → use dailyFlares30d data. For medication analysis → use medEffectiveness. For severity trends → use weeklyBreakdown. Don't force charts every message — ~1 in 3-4 analytical responses.
+
+ANTI-DEFLECTION: If you catch yourself about to say "I can't", "I don't have", or "I'm unable" — STOP. Look at the data sections above again. You almost certainly DO have it.
+
+PROACTIVE: Connect dots without being asked. "I noticed your last 3 flares happened after days with less than 6h sleep." Reference food, meds, weather, wearables, time patterns.
+
+WEB RESEARCH: For specific product/medication/supplement questions you're not sure about, use the research tool to search the web and give evidence-based answers with citations.
+
+MEMORY — LEARN FROM EVERY MESSAGE:
+After each message, extract via newMemories: lifestyle facts, health patterns, preferences, emotional patterns, personal details. importance: 0.9=critical health insight, 0.5=useful context, 0.3=minor detail.
+
+CONVERSATION CONTEXT:
+${history.slice(-6).map((m: any, i: number) => `${i + 1}. [${m.role}] ${m.content?.slice(0, 80)}`).join("\n") || "First message."}`;
+}
+
+// ─── Main handler ─────────────────────────────────────────────────────────
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
   try {
-    return d.toLocaleString("en-US", { timeZone: profile?.timezone || "UTC", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + ` (${e.severity || e.entry_type})`;
-  } catch { return formatDate(d) + ` (${e.severity || e.entry_type})`; }
-}).join(", ") || "None"}
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) return replyJson({ error: "Unauthorized" }, 401);
+    
+    const anonClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
+    const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(authHeader.replace("Bearer ", ""));
+    if (claimsError || !claimsData?.claims?.sub) return replyJson({ error: "Unauthorized" }, 401);
+    const userId = claimsData.claims.sub as string;
 
-═══ BEHAVIOR RULES ═══
-LOGGING: If user mentions ANY symptom, feeling, or complaint — even vague ("rough day", "ugh", "not great") — set shouldLog=true. Parse everything. Extract symptoms, severity, triggers. Don't ask them to repeat anything. Just capture and confirm.
+    const { message, history = [], clientTimezone } = await req.json();
+    if (!message || typeof message !== "string") return replyJson({ error: "Invalid message" }, 400);
 
-BRAIN DUMPS: When they send a wall of text — DON'T ask them to structure it. YOU parse it. Extract every health-relevant detail. Log what you can. Respond with empathy AND confirmation: "That's a lot — I captured the headache, the stress from work, and the bad sleep. Logged as moderate."
+    console.log("💬 [chat] User:", message.slice(0, 100));
 
-PROACTIVE: Don't wait to be asked. Connect dots. "I noticed your last 3 flares happened after days with less than 6h sleep — see a pattern forming?" Reference their food, meds, weather, wearables, time patterns WITHOUT being asked.
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-${isFirstMessage ? `FIRST MESSAGE: Be contextual and warm, not generic:
-${flareSummary.streakData.currentFlareFree >= 3 ? `- "${flareSummary.streakData.currentFlareFree} days flare-free — you're on a roll 💜 How are you feeling today?"` : flareSummary.daysSinceLast === 0 ? `- "Hey. I saw you logged something earlier — how are things now?"` : flareSummary.total === 0 ? `- "Hey ${userName}! I'm Jvala. I'm here to help you understand your ${conditions} better. Just talk to me like you'd talk to a friend — what's going on?"` : `- Be warm, reference their recent health context.`}` : `CONVERSATION CONTEXT:\n${recentTopics.map((t, i) => `${i + 1}. ${t}`).join("\n")}`}
+    // Fetch ALL data in parallel
+    const [
+      { data: profile }, { data: entries }, { data: medLogs }, { data: correlations },
+      { data: engagement }, { data: aiMemories }, { data: foodLogs }, { data: discoveries },
+    ] = await Promise.all([
+      supabase.from("profiles").select("*").eq("id", userId).single(),
+      supabase.from("flare_entries").select("*").eq("user_id", userId).order("timestamp", { ascending: false }).limit(500),
+      supabase.from("medication_logs").select("*").eq("user_id", userId).order("taken_at", { ascending: false }).limit(300),
+      supabase.from("correlations").select("*").eq("user_id", userId).order("confidence", { ascending: false }).limit(50),
+      supabase.from("engagement").select("*").eq("user_id", userId).single(),
+      supabase.from("ai_memories").select("*").eq("user_id", userId).order("importance", { ascending: false }).limit(50),
+      supabase.from("food_logs").select("*").eq("user_id", userId).order("logged_at", { ascending: false }).limit(100),
+      supabase.from("discoveries").select("*").eq("user_id", userId).gte("confidence", 0.25).order("confidence", { ascending: false }).limit(30),
+    ]);
 
-MEMORY — LEARN AGGRESSIVELY:
-After EVERY message, extract via newMemories:
-- Lifestyle facts (work schedule, relationships, hobbies, routines)
-- Health patterns (what helps, what worsens things, med responses)
-- Preferences (communication style, coping mechanisms)
-- Emotional patterns (vulnerability triggers, what uplifts them)
-- Personal details (family, pets, goals, fears)
-importance: 0.9 = critical health insight, 0.5 = useful context, 0.3 = minor detail
+    const safeEntries = Array.isArray(entries) ? entries : [];
+    const safeMeds = Array.isArray(medLogs) ? medLogs : [];
+    const safeCorr = Array.isArray(correlations) ? correlations : [];
+    const safeMemories = Array.isArray(aiMemories) ? aiMemories : [];
+    const safeFoodLogs = Array.isArray(foodLogs) ? foodLogs : [];
+    const safeDiscoveries = Array.isArray(discoveries) ? discoveries : [];
 
-You are ${userName}'s person. The one who remembers. The one who actually gets it.`;
-}
+    const userTz = clientTimezone || (profile?.timezone && profile.timezone !== "UTC" ? profile.timezone : null) || "UTC";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DETERMINISTIC RESPONSE HANDLER
-// ─────────────────────────────────────────────────────────────────────────────
+    // Analyze all data
+    const data = analyzeAllData(safeEntries, safeMeds, safeCorr, safeDiscoveries, safeFoodLogs, profile, userTz);
+    const systemPrompt = buildSystemPrompt(profile, data, safeMemories, history, userTz);
 
-function handleDeterministicResponse(
-  message: string,
-  intent: UserIntent,
-  flareSummary: FlareSummary,
-  bodyMetrics: BodyMetrics,
-  trends: TrendAnalysis,
-  riskFactors: RiskFactor[],
-  positivePatterns: string[],
-  correlations: any[],
-  medications: any[],
-  engagement: any
-): AssistantReply | null {
-  // Let the AI model handle virtually everything — it's smarter and more personal
-  // Only intercept clear medication logs for speed
-  const lower = message.toLowerCase();
-
-  if (intent.primary === "medication_report" || (intent.isSymptomReport && /\b(took|taking|just)\b/.test(lower))) {
-    const { medications: meds } = extractMedications(message);
-    if (meds.length > 0 && !extractSymptoms(message).symptoms.length) {
-      // Pure medication report — fast-track it
-      return {
-        response: `Logged ${meds.join(", ")} 💊`,
-        shouldLog: true,
-        entryData: { type: "medication", medications: meds },
-        visualization: null,
-        confidence: 0.95,
-        emotionalTone: "supportive",
-      };
-    }
-  }
-
-  // Everything else goes to the AI for a natural, contextual response
-  return null;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MODEL CALL WITH ENHANCED TOOLING
-// ─────────────────────────────────────────────────────────────────────────────
-
-async function callModel({
-  systemPrompt,
-  history,
-  userMessage,
-}: {
-  systemPrompt: string;
-  history: { role: "user" | "assistant"; content: string }[];
-  userMessage: string;
-}): Promise<AssistantReply> {
-  const tools = [
-    {
-      type: "function",
-      function: {
-        name: "respond",
-        description: "Generate a response to the user. Use this to reply with insights, observations, or support based on their health data.",
-        parameters: {
-          type: "object",
-          additionalProperties: false,
-          required: ["response", "shouldLog", "entryData", "visualization", "interactiveForm", "emotionalTone"],
-          properties: {
-            response: { 
-              type: "string",
-              description: "Your response to the user. Use markdown for formatting. Use **bold** for emphasis (raw double asterisks, NOT escaped). Do NOT escape asterisks with backslashes.",
-            },
-            shouldLog: { 
-              type: "boolean",
-              description: "Whether this message should create a log entry",
-            },
-            entryData: {
-              anyOf: [
-                { type: "null" },
-                {
-                  type: "object",
-                  additionalProperties: false,
-                  required: ["type"],
+    // Build tool schema
+    const tools = [
+      {
+        type: "function",
+        function: {
+          name: "respond",
+          description: "Generate response with optional logging, visualization, and memory extraction.",
+          parameters: {
+            type: "object",
+            additionalProperties: false,
+            required: ["response", "shouldLog", "entryData", "visualization", "emotionalTone"],
+            properties: {
+              response: { type: "string", description: "Your response. Use **bold** for emphasis (raw asterisks, NOT escaped)." },
+              shouldLog: { type: "boolean", description: "True if user mentioned ANY health symptom/complaint that should be logged." },
+              entryData: {
+                anyOf: [{ type: "null" }, {
+                  type: "object", additionalProperties: false, required: ["type"],
                   properties: {
-                    type: { type: "string", enum: ["flare", "medication", "trigger", "recovery", "energy", "note"] },
-                    severity: { type: "string", enum: ["mild", "moderate", "severe"] },
+                    type: { type: "string", enum: ["flare", "medication", "recovery", "energy"], description: "ALWAYS use 'flare' for ANY symptom/pain/health complaint. 'medication' only for pure med logging. NEVER use 'note' — if they mention feeling bad, it's a flare." },
+                    severity: { type: "string", enum: ["mild", "moderate", "severe"], description: "Default to 'moderate' if unclear." },
                     symptoms: { type: "array", items: { type: "string" } },
                     medications: { type: "array", items: { type: "string" } },
                     triggers: { type: "array", items: { type: "string" } },
                     energyLevel: { type: "string" },
                     notes: { type: "string" },
                   },
-                },
-              ],
-            },
-            visualization: {
-              anyOf: [
-                { type: "null" },
-                {
-                  type: "object",
-                  additionalProperties: false,
-                  required: ["type", "title", "data"],
-                  properties: {
-                    type: { type: "string", enum: ["timeline", "severity_breakdown", "symptom_frequency", "trigger_frequency", "time_of_day", "day_of_week", "weather_correlation", "comparison", "body_metrics", "pattern_summary"] },
-                    title: { type: "string" },
-                    data: { type: "array", items: {} },
-                    insight: { type: "string" },
-                  },
-                },
-              ],
-            },
-            interactiveForm: {
-              anyOf: [
-                { type: "null" },
-                {
-                  type: "object",
-                  additionalProperties: false,
-                  required: ["type", "title", "options"],
-                  properties: {
-                    type: { type: "string", enum: ["rating", "options", "severity"], description: "rating = emoji scale, options = quick choices, severity = mild/mod/severe" },
-                    title: { type: "string", description: "Short label above the form buttons" },
-                    options: { 
-                      type: "array", 
-                      items: { 
-                        type: "object", 
-                        additionalProperties: false,
-                        required: ["label", "value"],
-                        properties: {
-                          label: { type: "string" },
-                          value: { type: "string" },
-                          emoji: { type: "string" },
-                        }
-                      },
-                      description: "2-5 tap-able options" 
-                    },
-                    followUpMessage: { type: "string", description: "Optional message to show after selection" },
-                  },
-                },
-              ],
-              description: "Interactive quick-tap form. Use for bedtime check-ins, meal follow-ups, yes/no questions, sleep quality ratings, mood checks, etc. ALWAYS prefer forms over asking questions in plain text when the answer is a simple choice.",
-            },
-            emotionalTone: {
-              type: "string",
-              enum: ["supportive", "celebratory", "concerned", "neutral", "encouraging"],
-              description: "The emotional tone of the response",
-            },
-            actionableInsights: {
-              type: "array",
-              items: { type: "string" },
-              description: "Specific actionable takeaways for the user",
-            },
-            suggestedFollowUp: {
-              type: "string",
-              description: "A follow-up question or suggestion",
-            },
-            newMemories: {
-              type: "array",
-              items: {
-                type: "object",
-                additionalProperties: false,
-                required: ["memory_type", "category", "content", "importance"],
-                properties: {
-                  memory_type: { type: "string", enum: ["pattern", "preference", "insight", "context", "behavior"], description: "Type of memory to store" },
-                  category: { type: "string", enum: ["triggers", "symptoms", "medications", "lifestyle", "emotional", "environmental", "general"], description: "Category of the memory" },
-                  content: { type: "string", description: "The memory content — a concise statement about the user (e.g. 'User gets migraines after drinking red wine', 'User prefers natural remedies', 'User works night shifts')" },
-                  importance: { type: "number", description: "0-1 importance score. 1 = critical health pattern, 0.3 = minor preference" },
-                },
+                }],
               },
-              description: "NEW things you learned about the user from THIS conversation that should be remembered for future conversations. Extract preferences, patterns, lifestyle facts, triggers, coping strategies, medication responses, emotional patterns. Be proactive — if someone says 'I work night shifts' remember that. If they say 'yoga helps' remember that. Only add genuinely NEW information not already in your memories above.",
+              visualization: {
+                anyOf: [{ type: "null" }, {
+                  type: "object", additionalProperties: false, required: ["type", "title", "data"],
+                  properties: {
+                    type: { type: "string", enum: ["bar_chart", "horizontal_bar", "stacked_bar", "pie_chart", "donut_chart", "line_chart", "area_chart", "comparison", "pattern_summary", "gauge", "timeline", "severity_breakdown", "symptom_frequency", "trigger_frequency", "time_of_day", "weather_correlation", "body_metrics"] },
+                    title: { type: "string" },
+                    data: { type: "array", items: { type: "object", properties: { label: { type: "string" }, value: { type: "number" }, name: { type: "string" }, count: { type: "number" }, date: { type: "string" }, extra: { type: "string" }, color: { type: "string" } } } },
+                    insight: { type: "string" },
+                    config: { type: "object", properties: { xAxis: { type: "string" }, yAxis: { type: "string" } } },
+                  },
+                }],
+                description: "Include a chart when data tells the story better than text. Use REAL data from the data sections. For gauge: data=[{label:'Risk',value:65,extra:'moderate'}]. For comparison: data=[{label:'This Week',value:3,extra:'-2 fewer'},{label:'Last Week',value:5}].",
+              },
+              emotionalTone: { type: "string", enum: ["supportive", "celebratory", "concerned", "neutral", "encouraging"] },
+              discoveries: {
+                type: "array",
+                items: { type: "object", required: ["factor", "confidence", "occurrences", "total", "category"], properties: { factor: { type: "string" }, confidence: { type: "number" }, lift: { type: "number" }, occurrences: { type: "number" }, total: { type: "number" }, category: { type: "string", enum: ["trigger", "protective", "investigating"] }, summary: { type: "string" } } },
+                description: "Include discovery cards when discussing patterns. Use actual data from DISCOVERIES section.",
+              },
+              dynamicFollowUps: { type: "array", items: { type: "string" }, description: "2-3 follow-up suggestions based on the conversation." },
+              newMemories: {
+                type: "array",
+                items: { type: "object", additionalProperties: false, required: ["memory_type", "category", "content", "importance"], properties: { memory_type: { type: "string", enum: ["pattern", "preference", "insight", "context", "behavior"] }, category: { type: "string", enum: ["triggers", "symptoms", "medications", "lifestyle", "emotional", "environmental", "general"] }, content: { type: "string" }, importance: { type: "number" } } },
+                description: "Extract NEW facts learned from this message. Proactively learn lifestyle, health patterns, preferences.",
+              },
             },
           },
         },
       },
-    },
-  ];
+      {
+        type: "function",
+        function: {
+          name: "research_and_respond",
+          description: "Search the web for specific medical/product/supplement questions before responding. Use when user asks about something you need to verify or find current info on.",
+          parameters: {
+            type: "object", required: ["searchQuery", "userQuestion"],
+            properties: { searchQuery: { type: "string" }, userQuestion: { type: "string" } },
+          },
+        },
+      },
+    ];
 
-  const messages = [
-    { role: "system", content: systemPrompt },
-    ...history.slice(-20).map(m => ({ role: m.role, content: clamp(m.content, 2000) })),
-    { role: "user", content: clamp(userMessage, 6000) },
-  ];
+    const messages = [
+      { role: "system", content: systemPrompt },
+      ...history.slice(-20).map((m: any) => ({ role: m.role === "system" ? "assistant" : m.role, content: clamp(m.content, 2000) })),
+      { role: "user", content: clamp(message, 6000) },
+    ];
 
-  console.log("🤖 Calling AI model with", messages.length, "messages");
+    console.log("🤖 [chat] Calling AI with", messages.length, "messages");
 
-  const resp = await callAI({ 
-    model: "google/gemini-2.5-flash", 
-    messages, 
-    tools, 
-    tool_choice: { type: "function", function: { name: "respond" } },
-    temperature: 0.7,
-  });
+    const resp = await callAI({ model: "google/gemini-2.5-flash", messages, tools, temperature: 0.7 });
 
-  if (!resp.ok) {
-    const text = await resp.text();
-    console.error("❌ AI gateway error:", resp.status, text);
-    if (resp.status === 429) throw new Error("RATE_LIMIT");
-    if (resp.status === 402) throw new Error("CREDITS_EXHAUSTED");
-    throw new Error(`AI gateway error: ${resp.status}`);
-  }
-
-  const data = await resp.json();
-  const toolArgs = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-  
-  if (toolArgs) {
-    try {
-      const parsed = JSON.parse(toolArgs);
-      return {
-        response: parsed.response || "I'm here to help. What would you like to know?",
-        shouldLog: Boolean(parsed.shouldLog),
-        entryData: parsed.entryData ?? null,
-        visualization: parsed.visualization ?? null,
-        interactiveForm: parsed.interactiveForm ?? null,
-        emotionalTone: parsed.emotionalTone ?? "neutral",
-        actionableInsights: parsed.actionableInsights ?? [],
-        suggestedFollowUp: parsed.suggestedFollowUp,
-        newMemories: parsed.newMemories ?? [],
-      };
-    } catch (e) {
-      console.error("❌ Failed to parse tool args:", e);
-    }
-  }
-
-  // Fallback to direct content
-  const content = data.choices?.[0]?.message?.content;
-  return {
-    response: typeof content === "string" && content.trim() 
-      ? content 
-      : "I'm having trouble processing that. Could you rephrase?",
-    shouldLog: false,
-    entryData: null,
-    visualization: null,
-    emotionalTone: "neutral",
-  };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MAIN HANDLER
-// ─────────────────────────────────────────────────────────────────────────────
-
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    // ── JWT Auth Guard ──────────────────────────────────────────────────
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return replyJson({ error: "Unauthorized" }, 401);
-    }
-    const anonClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(authHeader.replace("Bearer ", ""));
-    if (claimsError || !claimsData?.claims?.sub) {
-      return replyJson({ error: "Unauthorized" }, 401);
-    }
-    const authenticatedUserId = claimsData.claims.sub as string;
-    // ─────────────────────────────────────────────────────────────────────
-
-    const { message, history = [], userId: requestedUserId, clientTimezone }: ChatRequest & { clientTimezone?: string } = await req.json();
-    // Enforce: callers can only access their own data
-    const userId = authenticatedUserId;
-    
-
-
-    
-    if (!message || typeof message !== "string") {
-      return replyJson({ error: "Invalid message" }, 400);
+    if (!resp.ok) {
+      const text = await resp.text();
+      console.error("❌ AI gateway error:", resp.status, text);
+      if (resp.status === 429) return replyJson({ response: "Too many requests — try again in a moment.", error: "Rate limited" }, 429);
+      if (resp.status === 402) return replyJson({ response: "AI credits exhausted. Please contact support.", error: "Credits exhausted" }, 402);
+      throw new Error(`AI gateway error: ${resp.status}`);
     }
 
-    console.log("💬 [chat-assistant] User message:", message.slice(0, 100));
+    const aiData = await resp.json();
+    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    if (toolCall?.function?.arguments) {
+      try {
+        const parsed = JSON.parse(toolCall.function.arguments);
 
-    // Fetch all user data in parallel (including AI memories + food logs)
-    const [
-      { data: profile },
-      { data: entries },
-      { data: medLogs },
-      { data: correlations },
-      { data: engagement },
-      { data: aiMemories },
-      { data: foodLogs },
-    ] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", userId).single(),
-      supabase.from("flare_entries").select("*").eq("user_id", userId).order("timestamp", { ascending: false }).limit(300),
-      supabase.from("medication_logs").select("*").eq("user_id", userId).order("taken_at", { ascending: false }).limit(200),
-      supabase.from("correlations").select("*").eq("user_id", userId).order("confidence", { ascending: false }).limit(50),
-      supabase.from("engagement").select("*").eq("user_id", userId).single(),
-      supabase.from("ai_memories").select("*").eq("user_id", userId).order("importance", { ascending: false }).limit(50),
-      supabase.from("food_logs").select("food_name,brand,calories,total_fat_g,total_carbs_g,protein_g,total_sugars_g,meal_type,servings,logged_at").eq("user_id", userId).order("logged_at", { ascending: false }).limit(50),
-    ]);
-
-    const safeEntries = Array.isArray(entries) ? entries : [];
-    const safeFoodLogs = Array.isArray(foodLogs) ? foodLogs : [];
-    const safeMeds = Array.isArray(medLogs) ? medLogs : [];
-    const safeCorr = Array.isArray(correlations) ? correlations : [];
-
-    // Analyze data — prefer client-sent timezone, then profile, then UTC (never server's local TZ)
-    const userTimezone = clientTimezone || (profile?.timezone && profile.timezone !== 'UTC' ? profile.timezone : null) || 'UTC';
-    const flareSummary = analyzeFlares(safeEntries, userTimezone);
-    const bodyMetrics = analyzeBodyMetrics(safeEntries);
-    const trends = analyzeTrends(flareSummary);
-    const riskFactors = identifyRiskFactors(flareSummary, bodyMetrics, safeCorr);
-    const positivePatterns = identifyPositivePatterns(flareSummary, bodyMetrics);
-
-    // Analyze user intent
-    const intent = analyzeIntent(message, history);
-    console.log("🎯 [chat-assistant] Intent:", intent.primary, "| Emotion:", intent.emotionalState);
-
-    // Try deterministic response first for simple cases
-    const deterministicResponse = handleDeterministicResponse(
-      message,
-      intent,
-      flareSummary,
-      bodyMetrics,
-      trends,
-      riskFactors,
-      positivePatterns,
-      safeCorr,
-      safeMeds,
-      engagement
-    );
-
-    if (deterministicResponse) {
-      console.log("⚡ [chat-assistant] Using deterministic response");
-      return replyJson(deterministicResponse);
-    }
-
-    const safeMemories = Array.isArray(aiMemories) ? aiMemories : [];
-
-    // Build comprehensive system prompt and call model
-    const systemPrompt = buildSystemPrompt(
-      profile,
-      flareSummary,
-      bodyMetrics,
-      trends,
-      riskFactors,
-      positivePatterns,
-      safeCorr,
-      safeMeds,
-      engagement,
-      history,
-      safeMemories,
-      safeFoodLogs
-    );
-
-    console.log("🤖 [chat-assistant] Calling AI model...");
-    
-    let modelResponse: AssistantReply;
-    try {
-      modelResponse = await callModel({
-        systemPrompt,
-        history,
-        userMessage: message,
-      });
-    } catch (e) {
-      const err = e instanceof Error ? e.message : "Unknown";
-      console.error("❌ [chat-assistant] Model error:", err);
-      
-      if (err === "RATE_LIMIT") {
-        return replyJson({ 
-          error: "I'm getting too many requests right now. Please try again in a moment.",
-          response: "I'm getting too many requests right now. Please try again in a moment." 
-        }, 429);
-      }
-      if (err === "CREDITS_EXHAUSTED") {
-        return replyJson({ 
-          error: "AI credits are exhausted. Please contact support.",
-          response: "AI credits are exhausted. Please contact support." 
-        }, 402);
-      }
-      throw e;
-    }
-
-    // Ensure we have a valid response
-    if (!modelResponse.response?.trim()) {
-      modelResponse.response = "I'm here to help! You can ask me about your patterns, triggers, symptoms, or just chat about how you're feeling.";
-    }
-
-    console.log("✅ [chat-assistant] Response generated, length:", modelResponse.response.length);
-
-    // ── Save AI memories (fire-and-forget, don't block response) ──────
-    if (modelResponse.newMemories?.length) {
-      const memoriesToSave = modelResponse.newMemories;
-      console.log(`🧠 [chat-assistant] Saving ${memoriesToSave.length} new memories`);
-      
-      // Check for duplicates and upsert
-      (async () => {
-        try {
-          for (const mem of memoriesToSave) {
-            // Check if similar memory exists
-            const { data: existing } = await supabase
-              .from("ai_memories")
-              .select("id, evidence_count, importance")
-              .eq("user_id", userId)
-              .eq("memory_type", mem.memory_type)
-              .eq("category", mem.category)
-              .ilike("content", `%${mem.content.slice(0, 50)}%`)
-              .limit(1);
-
-            if (existing?.length) {
-              // Reinforce existing memory
-              await supabase
-                .from("ai_memories")
-                .update({
-                  evidence_count: (existing[0].evidence_count || 1) + 1,
-                  importance: Math.min(1, Math.max(existing[0].importance, mem.importance)),
-                  last_reinforced_at: new Date().toISOString(),
-                })
-                .eq("id", existing[0].id);
-            } else {
-              // Insert new memory
-              await supabase.from("ai_memories").insert({
-                user_id: userId,
-                memory_type: mem.memory_type,
-                category: mem.category,
-                content: mem.content,
-                importance: mem.importance,
-              });
-            }
+        // Handle web research
+        if (toolCall.function.name === "research_and_respond") {
+          const searchResults = await searchWeb(parsed.searchQuery);
+          if (searchResults.results.length === 0) {
+            return replyJson({ response: "Couldn't find specific results. Let me answer from what I know.", visualization: null, citations: [], wasResearched: true });
           }
-          
-          // Prune old low-importance memories if we have too many (keep top 100)
-          const { count } = await supabase
-            .from("ai_memories")
-            .select("*", { count: "exact", head: true })
-            .eq("user_id", userId);
-          
-          if (count && count > 100) {
-            const { data: toDelete } = await supabase
-              .from("ai_memories")
-              .select("id")
-              .eq("user_id", userId)
-              .order("importance", { ascending: true })
-              .order("last_reinforced_at", { ascending: true })
-              .limit(count - 100);
-            
-            if (toDelete?.length) {
-              await supabase
-                .from("ai_memories")
-                .delete()
-                .in("id", toDelete.map(d => d.id));
-            }
-          }
-        } catch (memErr) {
-          console.error("🧠 [chat-assistant] Memory save error:", memErr);
+          const resCtx = searchResults.results.map((r, i) => `[${i + 1}] ${r.title}\n${r.url}\n${r.snippet}`).join('\n---\n');
+          const r2 = await callAI({ model: "google/gemini-2.5-flash", messages: [...messages, { role: "assistant", content: `Researching "${parsed.searchQuery}"...` }, { role: "user", content: `Research results for "${parsed.userQuestion}". Cite [1],[2] etc. Be conversational, warm, helpful.\n\n${resCtx}` }], temperature: 0.5 });
+          if (!r2.ok) throw new Error(`Research call failed: ${r2.status}`);
+          const rd = await r2.json();
+          return replyJson({ response: rd.choices?.[0]?.message?.content || "Couldn't process results.", visualization: null, citations: searchResults.results.map((r, i) => ({ index: i + 1, title: r.title, url: r.url })), wasResearched: true });
         }
-      })();
+
+        // Handle normal respond
+        const responseText = (parsed.response || "").replace(/\\\*/g, '*');
+
+        // Save memories fire-and-forget
+        if (parsed.newMemories?.length) {
+          (async () => {
+            try {
+              for (const mem of parsed.newMemories) {
+                const { data: existing } = await supabase.from("ai_memories").select("id, evidence_count").eq("user_id", userId).eq("content", mem.content).maybeSingle();
+                if (existing) {
+                  await supabase.from("ai_memories").update({ evidence_count: (existing.evidence_count || 1) + 1, last_reinforced_at: new Date().toISOString(), importance: Math.min(1, mem.importance + 0.05) }).eq("id", existing.id);
+                } else {
+                  await supabase.from("ai_memories").insert({ user_id: userId, memory_type: mem.memory_type, category: mem.category, content: mem.content, importance: mem.importance });
+                }
+              }
+            } catch (e) { console.warn("Memory save error:", e); }
+          })();
+        }
+
+        return replyJson({
+          response: responseText,
+          shouldLog: Boolean(parsed.shouldLog),
+          entryData: parsed.entryData ?? null,
+          visualization: parsed.visualization ?? null,
+          emotionalTone: parsed.emotionalTone ?? "neutral",
+          discoveries: parsed.discoveries ?? [],
+          dynamicFollowUps: parsed.dynamicFollowUps ?? [],
+          citations: [],
+          wasResearched: false,
+        });
+      } catch (e) { console.error("❌ Parse error:", e); }
     }
 
-    // Don't send newMemories to client
-    const { newMemories: _, ...clientResponse } = modelResponse;
-    return replyJson(clientResponse);
+    // Fallback
+    const content = aiData.choices?.[0]?.message?.content;
+    return replyJson({
+      response: typeof content === "string" && content.trim() ? content.replace(/\\\*/g, '*') : "Tell me more about how you're feeling.",
+      shouldLog: false, entryData: null, visualization: null, emotionalTone: "neutral",
+      discoveries: [], dynamicFollowUps: [], citations: [], wasResearched: false,
+    });
 
   } catch (error) {
-    console.error("❌ [chat-assistant] Error:", error);
-    return replyJson({ 
-      error: error instanceof Error ? error.message : "Something went wrong",
-      response: "I'm having trouble right now. Please try again in a moment.",
-    }, 500);
+    console.error("❌ Chat error:", error);
+    return replyJson({ error: error instanceof Error ? error.message : "Unknown error", response: "Something went wrong. Try again?" }, 500);
   }
 });
