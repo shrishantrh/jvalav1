@@ -1,4 +1,4 @@
-import { BarChart3, Brain, TrendingUp, Sparkles, Target, Clock, MapPin } from "lucide-react";
+import { BarChart3, Brain, TrendingUp, Sparkles, Target, Clock, MapPin, Utensils, Pill, Heart, Zap, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AIChatPromptsProps {
@@ -7,14 +7,16 @@ interface AIChatPromptsProps {
   followUps?: string[];
 }
 
-// Static capability buttons showing what AI can do
+// Static capability buttons — each one the AI can definitively answer
 const CAPABILITY_PROMPTS = [
-  { icon: BarChart3, label: "30-day chart", prompt: "Show me a chart of my daily flare count over the last 30 days", color: "text-blue-500" },
-  { icon: TrendingUp, label: "Med effectiveness", prompt: "Which of my medications reduced my flare severity the most?", color: "text-purple-500" },
-  { icon: Brain, label: "My patterns", prompt: "What are my strongest confirmed patterns and triggers?", color: "text-pink-500" },
-  { icon: Target, label: "Trigger → symptom", prompt: "Which triggers lead to which symptoms for me, and how often?", color: "text-orange-500" },
-  { icon: Clock, label: "Peak times", prompt: "Show me a chart of what hours and days I flare most", color: "text-cyan-500" },
-  { icon: MapPin, label: "Weekly trend", prompt: "Show me a chart of my weekly flare trend with severity breakdown", color: "text-green-500" },
+  { icon: Brain, label: "Deep analysis", prompt: "Give me a deep analysis of all my triggers, protective factors, and patterns. What's statistically significant and what should I act on?", color: "text-pink-500" },
+  { icon: BarChart3, label: "30-day chart", prompt: "Show me a chart of my daily flare count and severity over the last 30 days with a trend line", color: "text-blue-500" },
+  { icon: Target, label: "Flare risk", prompt: "What's my flare risk right now? Factor in my sleep, recent activity, weather, diet, and any medications I've missed.", color: "text-orange-500" },
+  { icon: TrendingUp, label: "Meds analysis", prompt: "Which of my medications reduced my flare severity the most? Show me a comparison chart.", color: "text-purple-500" },
+  { icon: Utensils, label: "Food patterns", prompt: "Analyze my food logs — are any foods correlated with my flares? Show me the data.", color: "text-green-500" },
+  { icon: Clock, label: "Time patterns", prompt: "Show me charts of what hours and days I flare most, and whether there's a circadian pattern", color: "text-cyan-500" },
+  { icon: Heart, label: "Body metrics", prompt: "Compare my heart rate, HRV, and sleep metrics on flare days vs non-flare days. What stands out?", color: "text-red-500" },
+  { icon: Shield, label: "What helps", prompt: "What are my confirmed protective factors? What reduces my flare risk based on my actual data?", color: "text-emerald-500" },
 ];
 
 export const AIChatPrompts = ({ onSendPrompt, variant = 'capabilities', followUps = [] }: AIChatPromptsProps) => {
@@ -32,7 +34,7 @@ export const AIChatPrompts = ({ onSendPrompt, variant = 'capabilities', followUp
             )}
           >
             <Sparkles className="w-3 h-3" />
-            {prompt.length > 40 ? prompt.slice(0, 40) + '...' : prompt}
+            {prompt.length > 45 ? prompt.slice(0, 45) + '...' : prompt}
           </button>
         ))}
       </div>
@@ -62,40 +64,53 @@ export const AIChatPrompts = ({ onSendPrompt, variant = 'capabilities', followUp
 // Dynamic follow-up suggestions based on AI response content
 export const generateFollowUps = (aiResponse: string, hasCharts: boolean): string[] => {
   const followUps: string[] = [];
-  const lowerResponse = aiResponse.toLowerCase();
+  const lower = aiResponse.toLowerCase();
   
-  if (lowerResponse.includes('trigger') || lowerResponse.includes('pattern')) {
+  if (lower.includes('trigger') || lower.includes('pattern')) {
     followUps.push("Which triggers lead to my worst symptoms?");
-    followUps.push("Show me a chart of my top triggers");
+    followUps.push("Show me a chart comparing trigger frequency");
   }
   
-  if (lowerResponse.includes('flare') || lowerResponse.includes('symptom')) {
-    followUps.push("Show me my weekly severity trend");
-    followUps.push("Which medications reduced my flare severity?");
+  if (lower.includes('flare') || lower.includes('symptom')) {
+    followUps.push("Compare this week's flares to last week");
+    followUps.push("Which medications help reduce my flare severity?");
   }
   
-  if (lowerResponse.includes('weather') || lowerResponse.includes('temperature')) {
-    followUps.push("Show me a chart of weather vs flares");
+  if (lower.includes('weather') || lower.includes('pressure') || lower.includes('humidity')) {
+    followUps.push("Show me a chart of barometric pressure vs flares");
   }
   
-  if (lowerResponse.includes('sleep') || lowerResponse.includes('rest')) {
-    followUps.push("How does sleep affect my flare severity?");
+  if (lower.includes('sleep') || lower.includes('rest') || lower.includes('fatigue')) {
+    followUps.push("How does my sleep duration correlate with next-day flares?");
+    followUps.push("Show my HRV trend over the last month");
   }
   
-  if (lowerResponse.includes('medication') || lowerResponse.includes('medicine')) {
+  if (lower.includes('medication') || lower.includes('medicine') || lower.includes('drug')) {
     followUps.push("Which medication gave me the most flare-free days?");
-    followUps.push("Show me a chart comparing medication effectiveness");
+    followUps.push("Am I missing any medication doses?");
+  }
+  
+  if (lower.includes('food') || lower.includes('diet') || lower.includes('eat')) {
+    followUps.push("Which foods appear before my worst flares?");
+    followUps.push("Show me my daily calorie intake vs flare severity");
   }
   
   if (hasCharts) {
-    followUps.push("Break this down by severity");
-    followUps.push("Compare to last month");
+    followUps.push("Break this down by severity level");
+    followUps.push("Compare to last month's data");
+  }
+  
+  if (lower.includes('risk') || lower.includes('predict')) {
+    followUps.push("What can I do right now to lower my risk?");
+    followUps.push("How accurate have your predictions been?");
   }
   
   if (followUps.length < 3) {
-    followUps.push("Show me my 30-day flare chart");
-    followUps.push("What's my flare risk today?");
+    followUps.push("Show me my 30-day flare trend");
+    followUps.push("What's my flare risk right now?");
+    followUps.push("Give me a full health summary");
   }
   
-  return followUps.slice(0, 4);
+  // Deduplicate and limit
+  return [...new Set(followUps)].slice(0, 4);
 };
