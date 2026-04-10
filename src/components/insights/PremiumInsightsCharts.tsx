@@ -32,7 +32,8 @@ import {
   Heart,
   TrendingUp,
   Zap,
-  BarChart3
+  BarChart3,
+  Target
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
