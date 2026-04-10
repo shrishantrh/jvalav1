@@ -223,6 +223,7 @@ Make it practical and personalized to my data.`;
         discoveries: data.discoveries,
         followUp: data.dynamicFollowUps?.[0] || data.followUp,
         protocolSteps: data.protocolSteps,
+        proactiveInsight: data.proactiveInsight,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
