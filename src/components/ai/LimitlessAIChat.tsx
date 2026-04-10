@@ -27,6 +27,7 @@ interface Message {
   discoveries?: StructuredDiscovery[];
   followUp?: string;
   protocolSteps?: string[];
+  proactiveInsight?: string;
 }
 
 interface LimitlessAIChatProps {
