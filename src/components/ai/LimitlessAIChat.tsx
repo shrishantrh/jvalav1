@@ -197,11 +197,19 @@ Make it practical and personalized to my data.`;
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("limitless-ai", {
+      // Build conversation history for chat-assistant
+      const historyForAI = messages
+        .slice(-20)
+        .map((m) => ({ role: m.role, content: m.content }))
+        .filter((m): m is { role: 'user' | 'assistant'; content: string } => m.role === 'user' || m.role === 'assistant');
+
+      const { data, error } = await supabase.functions.invoke("chat-assistant", {
         body: { 
-          query: messageText, 
+          message: messageText,
           userId,
-          isProtocolMode 
+          history: historyForAI,
+          clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          isProtocolMode,
         },
       });
 
@@ -212,7 +220,7 @@ Make it practical and personalized to my data.`;
         content: data.response || "I'm here to help with your health patterns.",
         visualization: data.visualization,
         discoveries: data.discoveries,
-        followUp: data.followUp,
+        followUp: data.dynamicFollowUps?.[0] || data.followUp,
         protocolSteps: data.protocolSteps,
       };
 

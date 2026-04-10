@@ -1,5 +1,6 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { parseBold } from '@/lib/renderBold';
+import { PredictionHistory } from '@/components/insights/PredictionHistory';
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -548,6 +549,9 @@ export const CleanInsights = ({ entries, userConditions = [], onAskAI }: CleanIn
           </p>
         </div>
       )}
+
+      {/* Predictions vs Actuals + Medication Effectiveness */}
+      <PredictionHistory />
 
       {/* Action Button */}
       <Button
