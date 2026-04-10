@@ -1,4 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   LineChart, 
   Line, 
@@ -30,7 +32,8 @@ import {
   Heart,
   TrendingUp,
   Zap,
-  BarChart3
+  BarChart3,
+  Target
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
@@ -47,7 +50,24 @@ const GRADIENT_COLORS = {
 };
 
 export const PremiumInsightsCharts = ({ entries }: PremiumInsightsChartsProps) => {
+  const { user } = useAuth();
   const [expandedCharts, setExpandedCharts] = useState<Set<string>>(new Set(['timeline']));
+  const [predictionData, setPredictionData] = useState<any[]>([]);
+
+  // Fetch prediction history
+  useEffect(() => {
+    if (!user) return;
+    const fetchPredictions = async () => {
+      const { data } = await supabase
+        .from('prediction_logs')
+        .select('predicted_at, risk_score, risk_level, outcome_logged, was_correct, brier_score, outcome_severity')
+        .eq('user_id', user.id)
+        .order('predicted_at', { ascending: true })
+        .limit(60);
+      if (data) setPredictionData(data);
+    };
+    fetchPredictions();
+  }, [user]);
 
   const toggleChart = (chartId: string) => {
     const newSet = new Set(expandedCharts);
@@ -58,6 +78,19 @@ export const PremiumInsightsCharts = ({ entries }: PremiumInsightsChartsProps) =
     }
     setExpandedCharts(newSet);
   };
+
+  // Prediction accuracy chart data
+  const predictionChartData = useMemo(() => {
+    return predictionData
+      .filter(p => p.outcome_logged)
+      .map(p => ({
+        date: format(new Date(p.predicted_at), 'MMM d'),
+        predicted: p.risk_score,
+        actual: p.outcome_severity === 'none' ? 0 : p.outcome_severity === 'mild' ? 33 : p.outcome_severity === 'moderate' ? 66 : 100,
+        correct: p.was_correct,
+        brier: p.brier_score != null ? Math.round(p.brier_score * 100) / 100 : null,
+      }));
+  }, [predictionData]);
 
   // Process data
   const timelineData = useMemo(() => {
@@ -151,7 +184,36 @@ export const PremiumInsightsCharts = ({ entries }: PremiumInsightsChartsProps) =
     );
   }
 
-  const charts = [
+  const charts: any[] = [
+    // Prediction Accuracy Chart (only if we have verified predictions)
+    ...(predictionChartData.length >= 2 ? [{
+      id: 'predictions',
+      title: 'Prediction Accuracy',
+      subtitle: `${predictionChartData.filter(p => p.correct).length}/${predictionChartData.length} correct`,
+      icon: Target,
+      gradient: 'from-primary/10 to-transparent',
+      chart: (
+        <div className="h-52 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={predictionChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} domain={[0, 100]} />
+              <Tooltip
+                contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: '12px', boxShadow: '0 10px 40px -10px rgba(0,0,0,0.2)', padding: '12px' }}
+                labelStyle={{ fontWeight: 600, marginBottom: 4 }}
+                formatter={(value: number, name: string) => [
+                  `${value}%`,
+                  name === 'predicted' ? 'Predicted Risk' : 'Actual Outcome'
+                ]}
+              />
+              <Line type="monotone" dataKey="predicted" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4, fill: 'hsl(var(--primary))' }} name="predicted" />
+              <Line type="monotone" dataKey="actual" stroke="hsl(var(--destructive))" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 4, fill: 'hsl(var(--destructive))' }} name="actual" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      ),
+    }] : []),
     {
       id: 'timeline',
       title: 'Flare Timeline',
