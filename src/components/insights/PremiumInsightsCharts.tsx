@@ -183,7 +183,36 @@ export const PremiumInsightsCharts = ({ entries }: PremiumInsightsChartsProps) =
     );
   }
 
-  const charts = [
+  const charts: any[] = [
+    // Prediction Accuracy Chart (only if we have verified predictions)
+    ...(predictionChartData.length >= 2 ? [{
+      id: 'predictions',
+      title: 'Prediction Accuracy',
+      subtitle: `${predictionChartData.filter(p => p.correct).length}/${predictionChartData.length} correct`,
+      icon: Target,
+      gradient: 'from-primary/10 to-transparent',
+      chart: (
+        <div className="h-52 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={predictionChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} domain={[0, 100]} />
+              <Tooltip
+                contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: '12px', boxShadow: '0 10px 40px -10px rgba(0,0,0,0.2)', padding: '12px' }}
+                labelStyle={{ fontWeight: 600, marginBottom: 4 }}
+                formatter={(value: number, name: string) => [
+                  `${value}%`,
+                  name === 'predicted' ? 'Predicted Risk' : 'Actual Outcome'
+                ]}
+              />
+              <Line type="monotone" dataKey="predicted" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4, fill: 'hsl(var(--primary))' }} name="predicted" />
+              <Line type="monotone" dataKey="actual" stroke="hsl(var(--destructive))" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 4, fill: 'hsl(var(--destructive))' }} name="actual" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      ),
+    }] : []),
     {
       id: 'timeline',
       title: 'Flare Timeline',
