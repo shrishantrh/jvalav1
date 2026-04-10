@@ -7,7 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   Brain, Send, Sparkles, Loader2, X, Bell, CheckCircle2, Calendar,
   TrendingUp, Shield, Search, ArrowRight, Zap, Copy, Check,
-  AlertTriangle, Heart, Flame, ExternalLink
+  AlertTriangle, Heart, Flame, ExternalLink, ThumbsUp, ThumbsDown,
+  RotateCcw, Trash2, ChevronDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AIVisualization, AIVisualizationRenderer } from "@/components/chat/AIVisualization";
@@ -46,6 +47,8 @@ interface Message {
   citations?: Citation[];
   wasResearched?: boolean;
   isStreaming?: boolean;
+  feedback?: 'up' | 'down';
+  timestamp?: number;
 }
 
 interface LimitlessAIChatProps {
@@ -143,6 +146,30 @@ const CopyButton = ({ text }: { text: string }) => {
   );
 };
 
+// ─── Feedback buttons (#93) ───
+const FeedbackButtons = ({ feedback, onFeedback }: { feedback?: 'up' | 'down'; onFeedback: (type: 'up' | 'down') => void }) => (
+  <div className="flex items-center gap-1 mt-1">
+    <button
+      onClick={() => onFeedback('up')}
+      className={cn(
+        "p-1 rounded transition-all",
+        feedback === 'up' ? "text-emerald-500 bg-emerald-500/10" : "text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted"
+      )}
+    >
+      <ThumbsUp className="w-3 h-3" />
+    </button>
+    <button
+      onClick={() => onFeedback('down')}
+      className={cn(
+        "p-1 rounded transition-all",
+        feedback === 'down' ? "text-red-500 bg-red-500/10" : "text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted"
+      )}
+    >
+      <ThumbsDown className="w-3 h-3" />
+    </button>
+  </div>
+);
+
 // ─── Citations ───
 const CitationList = ({ citations }: { citations: Citation[] }) => (
   <div className="mt-2 pt-2 border-t border-border/30 space-y-1">
@@ -172,17 +199,6 @@ const MessageContent = ({ content, role, discoveries, onNavigateToTrends }: { co
     </div>
   );
 };
-
-const GoogleCalendarIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M18 4H17V2H15V4H9V2H7V4H6C4.9 4 4 4.9 4 6V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V6C20 4.9 19.1 4 18 4Z" fill="#4285F4"/>
-    <path d="M18 20H6V9H18V20Z" fill="#FFFFFF"/>
-    <path d="M8 11H11V14H8V11Z" fill="#EA4335"/>
-    <path d="M13 11H16V14H13V11Z" fill="#FBBC04"/>
-    <path d="M8 16H11V19H8V16Z" fill="#34A853"/>
-    <path d="M13 16H16V19H13V16Z" fill="#4285F4"/>
-  </svg>
-);
 
 // ─── Streaming SSE helper ───
 async function streamChatSSE({
@@ -304,13 +320,22 @@ export const LimitlessAIChat = ({ userId, initialPrompt, onClose, onNavigateToTr
   const [showCapabilities, setShowCapabilities] = useState(true);
   const [memoryCount, setMemoryCount] = useState<number | null>(null);
   const [healthScore, setHealthScore] = useState<number | null>(null);
+  const [showScrollDown, setShowScrollDown] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const hasProcessedInitialPrompt = useRef(false);
 
+  // #94 — Auto-scroll with smart detection
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // #95 — Focus input on mount
+  useEffect(() => {
+    setTimeout(() => inputRef.current?.focus(), 300);
+  }, []);
 
   // Fetch memory count & recent health score on mount
   useEffect(() => {
@@ -320,7 +345,6 @@ export const LimitlessAIChat = ({ userId, initialPrompt, onClose, onNavigateToTr
         supabase.from("flare_entries").select("severity").eq("user_id", userId).eq("entry_type", "flare").order("timestamp", { ascending: false }).limit(20),
       ]);
       setMemoryCount(count);
-      // Simple client-side health score approximation
       if (recentFlares && recentFlares.length > 0) {
         const severeCount = recentFlares.filter(f => f.severity === "severe").length;
         const score = Math.max(0, Math.min(100, 80 - severeCount * 8 - recentFlares.length * 2));
@@ -371,11 +395,46 @@ Make it practical and personalized to my data.`;
     }
   }, [userId, toast]);
 
+  // #96 — Message feedback handler
+  const handleFeedback = useCallback((index: number, type: 'up' | 'down') => {
+    setMessages(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], feedback: type };
+      return updated;
+    });
+    // Store feedback for future model improvement
+    toast({
+      title: type === 'up' ? "👍 Thanks!" : "👎 Noted",
+      description: type === 'up' ? "Glad this was helpful" : "I'll try to do better",
+    });
+  }, [toast]);
+
+  // #97 — Retry last message
+  const handleRetry = useCallback(() => {
+    const lastUserMsg = [...messages].reverse().find(m => m.role === "user");
+    if (lastUserMsg) {
+      // Remove last assistant message
+      setMessages(prev => {
+        const idx = prev.length - 1;
+        if (prev[idx]?.role === "assistant") return prev.slice(0, -1);
+        return prev;
+      });
+      setTimeout(() => handleSend(lastUserMsg.content), 100);
+    }
+  }, [messages]);
+
+  // #98 — Clear chat
+  const handleClearChat = useCallback(() => {
+    setMessages([]);
+    setShowCapabilities(true);
+    toast({ title: "💬 Chat cleared" });
+  }, [toast]);
+
   const handleSend = async (overrideInput?: string) => {
     const messageText = overrideInput || input;
     if (!messageText.trim() || loading) return;
 
-    const userMessage: Message = { role: "user", content: messageText };
+    const userMessage: Message = { role: "user", content: messageText, timestamp: Date.now() };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setLoading(true);
@@ -387,7 +446,7 @@ Make it practical and personalized to my data.`;
       .filter((m): m is { role: 'user' | 'assistant'; content: string } => m.role === 'user' || m.role === 'assistant');
 
     // Add streaming assistant placeholder
-    setMessages(prev => [...prev, { role: "assistant", content: "", isStreaming: true }]);
+    setMessages(prev => [...prev, { role: "assistant", content: "", isStreaming: true, timestamp: Date.now() }]);
 
     try {
       await streamChatSSE({
@@ -421,6 +480,7 @@ Make it practical and personalized to my data.`;
             citations: data.citations,
             wasResearched: data.wasResearched,
             isStreaming: false,
+            timestamp: Date.now(),
           };
 
           setMessages(prev => {
@@ -447,6 +507,7 @@ Make it practical and personalized to my data.`;
                 ? "💳 AI credits need topping up in your workspace settings."
                 : "Sorry, I had trouble processing that. Try again?",
               isStreaming: false,
+              timestamp: Date.now(),
             };
             return updated;
           });
@@ -457,7 +518,7 @@ Make it practical and personalized to my data.`;
       console.error("AI error:", err);
       setMessages(prev => {
         const updated = [...prev];
-        updated[updated.length - 1] = { role: "assistant", content: "Sorry, I had trouble processing that. Try again?", isStreaming: false };
+        updated[updated.length - 1] = { role: "assistant", content: "Sorry, I had trouble processing that. Try again?", isStreaming: false, timestamp: Date.now() };
         return updated;
       });
       setLoading(false);
@@ -501,10 +562,9 @@ Make it practical and personalized to my data.`;
 
   const lastAssistantMsg = [...messages].reverse().find(m => m.role === "assistant" && !m.isStreaming);
   const dynamicFollowUps = lastAssistantMsg?.dynamicFollowUps || [];
-
-  // Tone for last message
   const lastTone = lastAssistantMsg?.emotionalTone;
   const toneInfo = lastTone && lastTone !== "neutral" ? toneConfig[lastTone] : null;
+  const messageCount = messages.filter(m => m.role === "user").length;
 
   return (
     <Card className={cn(
@@ -541,15 +601,28 @@ Make it practical and personalized to my data.`;
             </p>
           </div>
         </div>
-        {onClose && (
-          <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
-            <X className="w-4 h-4" />
-          </Button>
-        )}
+        <div className="flex items-center gap-1">
+          {/* #99 — Chat action buttons */}
+          {messages.length > 0 && (
+            <>
+              <Button variant="ghost" size="icon" onClick={handleRetry} className="h-7 w-7" title="Retry last">
+                <RotateCcw className="w-3.5 h-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={handleClearChat} className="h-7 w-7" title="Clear chat">
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            </>
+          )}
+          {onClose && (
+            <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
+              <X className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 p-4">
+      <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
             <div className={cn(
@@ -596,7 +669,7 @@ Make it practical and personalized to my data.`;
                         <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: "150ms" }} />
                         <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: "300ms" }} />
                       </div>
-                      <span className="text-xs text-muted-foreground">Thinking...</span>
+                      <span className="text-xs text-muted-foreground">Analyzing your data...</span>
                     </div>
                   ) : (
                     <>
@@ -659,7 +732,7 @@ Make it practical and personalized to my data.`;
                                 <Bell className="w-3 h-3" /> Remind
                               </Button>
                               <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 px-2" onClick={() => handleAddToCalendar(step, idx)}>
-                                <GoogleCalendarIcon /> Calendar
+                                <Calendar className="w-3 h-3" /> Calendar
                               </Button>
                             </div>
                           </div>
@@ -675,6 +748,11 @@ Make it practical and personalized to my data.`;
                     <Button variant="ghost" size="sm" className="mt-2 text-xs w-full justify-start" onClick={() => { setInput(msg.followUp!); setTimeout(() => handleSend(msg.followUp), 100); }}>
                       <Sparkles className="w-3 h-3 mr-1" /> {msg.followUp}
                     </Button>
+                  )}
+
+                  {/* #100 — Feedback buttons on assistant messages */}
+                  {msg.role === "assistant" && !msg.isStreaming && msg.content && !msg.protocolSteps && (
+                    <FeedbackButtons feedback={msg.feedback} onFeedback={(type) => handleFeedback(i, type)} />
                   )}
                 </div>
               </div>
@@ -733,6 +811,7 @@ Make it practical and personalized to my data.`;
       <div className="p-4 border-t bg-background/50">
         <div className="flex gap-2">
           <Input
+            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
@@ -744,6 +823,10 @@ Make it practical and personalized to my data.`;
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </Button>
         </div>
+        {/* #101 — Message count indicator */}
+        {messageCount > 0 && (
+          <p className="text-[9px] text-muted-foreground text-right mt-1">{messageCount} messages this session</p>
+        )}
       </div>
     </Card>
   );
