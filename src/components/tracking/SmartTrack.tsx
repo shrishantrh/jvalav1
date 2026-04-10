@@ -1142,32 +1142,6 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     setIsProcessing(true);
 
     try {
-      // Get the most recent entry ID for potential updates
-      const mostRecentEntry = recentEntries[0];
-
-      const userContext = {
-        conditions: userConditions,
-        knownSymptoms: userSymptoms,
-        knownTriggers: userTriggers,
-        medications: userMedications,
-        currentLocation,
-        userName,
-        dateOfBirth: userDOB,
-        biologicalSex: userBiologicalSex,
-        mostRecentEntryId: mostRecentEntry?.id,
-        recentEntries: recentEntries.slice(0, 50).map(e => ({
-          id: e.id,
-          type: e.type,
-          severity: e.severity,
-          symptoms: e.symptoms || [],
-          triggers: e.triggers || [],
-          note: e.note || '',
-          timestamp: e.timestamp,
-          environmental_data: e.environmentalData,
-          physiological_data: e.physiologicalData,
-        })),
-      };
-
       // Single unified AI call — chat-assistant has ALL data access
       const { data: aiData, error: aiError } = await supabase.functions.invoke('chat-assistant', {
         body: {
