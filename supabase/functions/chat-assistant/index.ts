@@ -367,9 +367,9 @@ serve(async (req) => {
     if (!authHeader?.startsWith("Bearer ")) return replyJson({ error: "Unauthorized" }, 401);
     
     const anonClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } });
-    const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(authHeader.replace("Bearer ", ""));
-    if (claimsError || !claimsData?.claims?.sub) return replyJson({ error: "Unauthorized" }, 401);
-    const userId = claimsData.claims.sub as string;
+    const { data: { user }, error: userError } = await anonClient.auth.getUser();
+    if (userError || !user?.id) return replyJson({ error: "Unauthorized" }, 401);
+    const userId = user.id;
 
     const { message, history = [], clientTimezone } = await req.json();
     if (!message || typeof message !== "string") return replyJson({ error: "Invalid message" }, 400);

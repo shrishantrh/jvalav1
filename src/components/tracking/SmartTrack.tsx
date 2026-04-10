@@ -1168,97 +1168,35 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         })),
       };
 
-      // Run both assistants:
-      // - smart-assistant (keeps existing structured logging/update behavior)
-      // - limitless-ai (richer reasoning + charts)
-      const [smartResult, limitlessResult] = await Promise.allSettled([
-        supabase.functions.invoke('smart-assistant', {
-          body: {
-            message: text,
-            userContext,
-            userId,
-            clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            history: messages.slice(-8).map(m => ({
-              role: m.role === 'system' ? 'assistant' : m.role,
-              content: m.content,
-            }))
-          }
-        }),
-        supabase.functions.invoke('limitless-ai', {
-          body: { 
-            query: text, 
-            userId, 
-            clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            chatHistory: messages.slice(-20).map(m => ({
-              role: m.role === 'system' ? 'assistant' : m.role,
-              content: m.content + (m.entryData ? ` [LOG: ${m.entryData.type}${m.entryData.severity ? ' ' + m.entryData.severity : ''}]` : ''),
-            })),
-          },
-        })
-      ]);
+      // Single unified AI call — chat-assistant has ALL data access
+      const { data: aiData, error: aiError } = await supabase.functions.invoke('chat-assistant', {
+        body: {
+          message: text,
+          clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          history: messages.slice(-20).map(m => ({
+            role: m.role === 'system' ? 'assistant' : m.role,
+            content: m.content + (m.entryData ? ` [LOG: ${m.entryData.type}${m.entryData.severity ? ' ' + m.entryData.severity : ''}]` : ''),
+          })),
+        },
+      });
 
-      const smart = smartResult.status === 'fulfilled' ? smartResult.value : null;
-      const limitless = limitlessResult.status === 'fulfilled' ? limitlessResult.value : null;
+      if (aiError) throw aiError;
 
-      if (smart?.error) throw smart.error;
-      if (limitless?.error) console.warn('Limitless AI error:', limitless.error);
-
-      const smartData = smart?.data;
-      const limitlessData = limitless?.data;
-
-      // Prefer Limitless response if present
-      let responseContent = (limitlessData?.response || smartData?.response || "").trim();
+      let responseContent = (aiData?.response || "").trim();
       if (!responseContent) responseContent = "Tell me more.";
-
-      // Keep correlation follow-up messaging from smart-assistant (if present)
-      if (smartData?.activityLog && smartData?.correlationWarning) {
-        const warning = smartData.correlationWarning;
-        const delayText = warning.avgDelayMinutes < 60
-          ? `${warning.avgDelayMinutes} min`
-          : `${Math.round(warning.avgDelayMinutes / 60)} hr`;
-
-        responseContent += `\n\n⚠️ Pattern detected: ${warning.triggerValue} has preceded ${warning.outcomeValue} ${warning.occurrenceCount} times (~${delayText} later). I'll check in with you later.`;
-      } else if (smartData?.activityLog && smartData?.shouldFollowUp) {
-        responseContent += `\n\n📋 Logged your ${smartData.activityLog.activity_type}. I'll check in ${smartData.followUpDelay} min to see how you feel.`;
-
-        setPendingFollowUp({
-          activityType: smartData.activityLog.activity_type,
-          activityId: smartData.activityLog.id,
-          followUpTime: new Date(Date.now() + smartData.followUpDelay * 60 * 1000)
-        });
-      }
-
-      // Handle entry updates if AI suggests one
-      if (smartData?.updateEntry && smartData.updateEntry.entryId && onUpdateEntry) {
-        onUpdateEntry(smartData.updateEntry.entryId, smartData.updateEntry.updates);
-      }
 
       const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: responseContent,
         timestamp: new Date(),
-        // smart-assistant fields
-        entryData: smartData?.entryData,
-        isAIGenerated: smartData?.isAIGenerated,
-        dataUsed: smartData?.dataUsed,
-        weatherUsed: smartData?.weatherUsed,
-        weatherCard: smartData?.weatherCard,
-        chartData: smartData?.chartData,
-        updateInfo: smartData?.updateEntry,
-        activityDetected: smartData?.activityLog ? { type: smartData.activityLog.activity_type, intensity: smartData.activityLog.intensity } : undefined,
-        correlationWarning: smartData?.correlationWarning,
-        // Severity form from smart-assistant (when symptoms detected without explicit severity)
-        proactiveForm: smartData?.severityForm || undefined,
-        // limitless-ai fields
-        visualization: limitlessData?.visualization,
-        followUp: limitlessData?.followUp,
-        dynamicFollowUps: limitlessData?.dynamicFollowUps,
-        // Research & citations
-        citations: limitlessData?.citations || [],
-        wasResearched: limitlessData?.wasResearched || false,
-        // Discovery cards from limitless-ai
-        discoveryCards: (limitlessData?.discoveries || []).map((d: any) => ({
+        isAIGenerated: true,
+        entryData: aiData?.entryData ?? undefined,
+        visualization: aiData?.visualization ?? undefined,
+        dynamicFollowUps: aiData?.dynamicFollowUps ?? [],
+        citations: aiData?.citations ?? [],
+        wasResearched: aiData?.wasResearched ?? false,
+        discoveryCards: (aiData?.discoveries || []).map((d: any) => ({
           factor: d.factor,
           confidence: d.confidence,
           lift: d.lift || 1,
@@ -1270,38 +1208,17 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       };
       setMessages(prev => [...prev, assistantMessage]);
 
-      // Preserve existing structured logging behavior (smart-assistant)
-      if (smartData?.multipleEntries && smartData.multipleEntries.length > 0) {
-        console.log('📝 Logging multiple entries:', smartData.multipleEntries.length);
-
+      // Log entry if AI detected health data
+      if (aiData?.shouldLog && aiData?.entryData) {
         const contextData = await getEntryContext();
-
-        for (const entryData of smartData.multipleEntries) {
-          const entry: Partial<FlareEntry> = {
-            ...entryData,
-            note: text,
-            timestamp: new Date(),
-            environmentalData: contextData.environmentalData || undefined,
-            physiologicalData: contextData.physiologicalData || undefined,
-          };
-          await onSave(entry);
-        }
-      } else if (smartData?.entryData && smartData?.shouldLog) {
-        const contextData = await getEntryContext();
-
         const entry: Partial<FlareEntry> = {
-          ...smartData.entryData,
+          ...aiData.entryData,
           note: text,
           timestamp: new Date(),
           environmentalData: contextData.environmentalData || undefined,
           physiologicalData: contextData.physiologicalData || undefined,
         };
-
         await onSave(entry);
-      }
-
-      // Trigger background discovery analysis after any chat-based log
-      if (smartData?.multipleEntries?.length > 0 || (smartData?.entryData && smartData?.shouldLog)) {
         scheduleAnalysis();
       }
     } catch (error) {
