@@ -24,6 +24,14 @@ const median = (arr: number[]): number | null => { if (!arr.length) return null;
 const stddev = (arr: number[]): number | null => { const a = avg(arr); if (a == null || arr.length < 2) return null; return Math.sqrt(arr.reduce((s,v) => s + (v-a)**2, 0) / arr.length); };
 const formatNum = (n: number | null, d = 1): string => n == null ? "N/A" : d === 0 ? String(Math.round(n)) : n.toFixed(d);
 const pct = (a: number, b: number) => b === 0 ? 0 : Math.round((a / b) * 100);
+const pearson = (xs: number[], ys: number[]): number | null => {
+  if (xs.length < 3 || xs.length !== ys.length) return null;
+  const mx = avg(xs)!, my = avg(ys)!;
+  let num = 0, dx2 = 0, dy2 = 0;
+  for (let i = 0; i < xs.length; i++) { const dx = xs[i]-mx, dy = ys[i]-my; num += dx*dy; dx2 += dx*dx; dy2 += dy*dy; }
+  const den = Math.sqrt(dx2 * dy2);
+  return den === 0 ? 0 : num / den;
+};
 
 // ─── Web search via Firecrawl ─────────────────────────────────────────────
 async function searchWeb(query: string): Promise<{ results: Array<{ title: string; url: string; snippet: string }>; error?: string }> {
@@ -78,11 +86,11 @@ const CK: Record<string, [string, string]> = {
   'POTS': ['Tilt table diagnostic. Salt 5-10g/day + 2-3L water. Compression garments. Counter-maneuvers. Exercise recondition.', 'Standing up, morning, hot environments, after meals, prolonged standing, dehydration'],
   'Interstitial Cystitis': ['Bladder instillation. Avoid citrus/caffeine/alcohol/spicy. Stress exacerbates. Pelvic floor PT.', 'After trigger foods, stress, cold weather, sitting, bladder fullness, sexual activity'],
   'TMJ': ['Bruxism biggest factor. Stress-jaw tension link. Soft diet during flares. Moist heat.', 'Morning jaw pain, after stress, after chewing, teeth grinding, posture, cold weather'],
-  'Raynaud\'s': ['Cold #1 trigger. Stress secondary. Layer extremities. Calcium channel blockers. Biofeedback effective.', 'Cold exposure, stress, air conditioning, holding cold objects, morning, winter'],
+  "Raynaud's": ['Cold #1 trigger. Stress secondary. Layer extremities. Calcium channel blockers. Biofeedback effective.', 'Cold exposure, stress, air conditioning, holding cold objects, morning, winter'],
 };
 
 // ─── Advanced data analysis ──────────────────────────────────────────────
-function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], discoveries: any[], foodLogs: any[], profile: any, userTz: string) {
+function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], discoveries: any[], foodLogs: any[], profile: any, userTz: string, activityLogs: any[]) {
   const now = Date.now();
   const oneDay = 86400000;
   const oneWeek = 7 * oneDay;
@@ -102,6 +110,7 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
   };
   const getTimeOfDay = (h: number) => h < 6 ? "night" : h < 12 ? "morning" : h < 17 ? "afternoon" : h < 21 ? "evening" : "night";
   const fmtDate = (d: Date) => { try { return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: userTz }).format(d); } catch { return d.toLocaleDateString(); } };
+  const getMonth = (d: Date): string => { try { return new Intl.DateTimeFormat('en-US', { month: 'short', timeZone: userTz }).format(d); } catch { return d.toLocaleDateString(); } };
 
   const sevCounts = { mild: 0, moderate: 0, severe: 0 };
   const sevScores: number[] = [];
@@ -118,33 +127,47 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
   const thisMonth = flares.filter((e: any) => now - new Date(e.timestamp).getTime() < oneMonth);
   const lastMonth = flares.filter((e: any) => { const a = now - new Date(e.timestamp).getTime(); return a >= oneMonth && a < 2 * oneMonth; });
 
-  // #1 — Symptom co-occurrence matrix
+  // Symptom co-occurrence matrix
   const symptomPairs: Record<string, number> = {};
-  // #2 — Hour-level granularity 
-  // #3 — City tracking
-  // #4 — Severity by time of day
   const sevByTimeOfDay: Record<string, number[]> = { morning: [], afternoon: [], evening: [], night: [] };
-  // #5 — Severity by day of week
   const sevByDay: Record<string, number[]> = { Sun: [], Mon: [], Tue: [], Wed: [], Thu: [], Fri: [], Sat: [] };
-  // #6 — Weekend vs weekday
   let weekendFlares = 0, weekdayFlares = 0;
-  // #7 — Flare duration tracking
   const durations: number[] = [];
-  // #8 — Multi-symptom flares
   let multiSymptomCount = 0;
-  // #9 — Note sentiment tracking
   const notesWithContent: string[] = [];
-  // #10 — Trigger co-occurrence
   const triggerPairs: Record<string, number> = {};
+  // #36 — Seasonal pattern
+  const monthCounts: Record<string, number> = {};
+  // #37 — Symptom severity mapping
+  const symptomSeverity: Record<string, number[]> = {};
+  // #38 — Trigger severity mapping
+  const triggerSeverity: Record<string, number[]> = {};
+  // #39 — Night flare tracking
+  let nightFlares = 0;
+  // #40 — Duration by severity
+  const durationBySev: Record<string, number[]> = { mild: [], moderate: [], severe: [] };
+  // #41 — Consecutive severe flares
+  let maxConsecutiveSevere = 0, currentConsecutiveSevere = 0;
+  // #42 — First vs second half of month
+  let firstHalfMonth = 0, secondHalfMonth = 0;
+  // #43 — Note length correlation
+  const noteLengthVsSev: { length: number; severity: number }[] = [];
 
   for (const e of flares) {
     const sev = e?.severity as string;
     if (sev === "mild" || sev === "moderate" || sev === "severe") sevCounts[sev]++;
     const score = sevToNum(sev);
     if (score) sevScores.push(score);
+
+    // Consecutive severe tracking
+    if (sev === "severe") { currentConsecutiveSevere++; maxConsecutiveSevere = Math.max(maxConsecutiveSevere, currentConsecutiveSevere); }
+    else { currentConsecutiveSevere = 0; }
     
     const symptoms = e?.symptoms ?? [];
-    for (const s of symptoms) symptomCounts[s] = (symptomCounts[s] || 0) + 1;
+    for (const s of symptoms) {
+      symptomCounts[s] = (symptomCounts[s] || 0) + 1;
+      if (score) { if (!symptomSeverity[s]) symptomSeverity[s] = []; symptomSeverity[s].push(score); }
+    }
     if (symptoms.length >= 2) {
       multiSymptomCount++;
       for (let i = 0; i < symptoms.length; i++) {
@@ -156,7 +179,10 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
     }
     
     const triggers = e?.triggers ?? [];
-    for (const t of triggers) triggerCounts[t] = (triggerCounts[t] || 0) + 1;
+    for (const t of triggers) {
+      triggerCounts[t] = (triggerCounts[t] || 0) + 1;
+      if (score) { if (!triggerSeverity[t]) triggerSeverity[t] = []; triggerSeverity[t].push(score); }
+    }
     if (triggers.length >= 2) {
       for (let i = 0; i < triggers.length; i++) {
         for (let j = i+1; j < triggers.length; j++) {
@@ -172,6 +198,7 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
     const tod = getTimeOfDay(h);
     hourBuckets[tod]++;
     if (score) sevByTimeOfDay[tod].push(score);
+    if (h >= 22 || h < 5) nightFlares++;
     
     const dayKey = getLocalDay(d);
     if (dayCounts[dayKey] !== undefined) {
@@ -182,6 +209,14 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
     const isWeekend = dayKey === "Sat" || dayKey === "Sun";
     if (isWeekend) weekendFlares++; else weekdayFlares++;
     
+    // Month tracking for seasonal pattern
+    const month = getMonth(d);
+    monthCounts[month] = (monthCounts[month] || 0) + 1;
+    
+    // First vs second half
+    const dayOfMonth = d.getDate();
+    if (dayOfMonth <= 15) firstHalfMonth++; else secondHalfMonth++;
+    
     const w = e?.environmental_data?.weather?.condition || e?.environmental_data?.condition;
     if (typeof w === "string" && w.trim()) {
       if (!weatherData[w]) weatherData[w] = { count: 0, severities: [] };
@@ -190,17 +225,23 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
     }
     
     if (e?.city) cityCounts[e.city] = (cityCounts[e.city] || 0) + 1;
-    if (e?.duration_minutes) durations.push(e.duration_minutes);
-    if (e?.note?.trim()) notesWithContent.push(e.note);
+    if (e?.duration_minutes) {
+      durations.push(e.duration_minutes);
+      if (sev && durationBySev[sev]) durationBySev[sev].push(e.duration_minutes);
+    }
+    if (e?.note?.trim()) {
+      notesWithContent.push(e.note);
+      if (score) noteLengthVsSev.push({ length: e.note.length, severity: score });
+    }
   }
 
-  // #11 — Current flare-free streak
+  // Current flare-free streak
   let currentFlareFree = 0;
   if (sortedFlares.length > 0) {
     currentFlareFree = Math.floor((now - new Date(sortedFlares[0].timestamp).getTime()) / oneDay);
   }
 
-  // #12 — Daily flares 30d with severity averages
+  // Daily flares 30d with severity averages
   const dailyFlares30d: any[] = [];
   for (let i = 29; i >= 0; i--) {
     const ds = new Date(now - i * oneDay); ds.setUTCHours(0, 0, 0, 0);
@@ -217,7 +258,7 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
     });
   }
 
-  // #13 — Weekly breakdown 8 weeks
+  // Weekly breakdown 8 weeks
   const weeklyBreakdown: any[] = [];
   for (let i = 7; i >= 0; i--) {
     const ws = new Date(now - (i + 1) * oneWeek), we = new Date(now - i * oneWeek);
@@ -231,27 +272,31 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
     });
   }
 
-  // #14 — Medication effectiveness (enhanced)
+  // Medication effectiveness (enhanced)
   const medEffectiveness: any[] = [];
   const uniqueMeds = [...new Set(medLogs.map((m: any) => m.medication_name))];
   for (const medName of uniqueMeds.slice(0, 12)) {
     const doses = medLogs.filter((m: any) => m.medication_name === medName);
     let sevBefore = 0, cntB = 0, sevAfter = 0, cntA = 0, flareFreeAfter = 0;
     const beforeScores: number[] = [], afterScores: number[] = [];
+    // #44 — Dose-response: track how quickly relief comes
+    const reliefTimes: number[] = [];
     for (const dose of doses) {
       const dt = new Date(dose.taken_at).getTime();
       flares.filter((f: any) => { const t = new Date(f.timestamp).getTime(); return t >= dt - oneDay && t < dt; }).forEach((f: any) => { 
         const s = sevToNum(f.severity || "mild"); sevBefore += s; cntB++; beforeScores.push(s); 
       });
-      flares.filter((f: any) => { const t = new Date(f.timestamp).getTime(); return t > dt && t <= dt + oneDay; }).forEach((f: any) => { 
+      const flaresAfter = flares.filter((f: any) => { const t = new Date(f.timestamp).getTime(); return t > dt && t <= dt + oneDay; });
+      flaresAfter.forEach((f: any) => { 
         const s = sevToNum(f.severity || "mild"); sevAfter += s; cntA++; afterScores.push(s);
       });
-      const flaresAfter24h = flares.filter((f: any) => { const t = new Date(f.timestamp).getTime(); return t > dt && t <= dt + oneDay; });
-      if (flaresAfter24h.length === 0) flareFreeAfter++;
+      if (flaresAfter.length === 0) flareFreeAfter++;
+      // Time to next flare after dose
+      const nextFlare = sortedFlares.find((f: any) => new Date(f.timestamp).getTime() > dt);
+      if (nextFlare) reliefTimes.push((new Date(nextFlare.timestamp).getTime() - dt) / 3600000);
     }
     const ab = cntB > 0 ? sevBefore / cntB : 0, aa = cntA > 0 ? sevAfter / cntA : 0;
     const reduction = ab > 0 ? Math.round(((ab - aa) / ab) * 100) : 0;
-    // #15 — Time since last dose
     const lastDose = doses[0] ? new Date(doses[0].taken_at) : null;
     const hoursSinceLastDose = lastDose ? Math.round((now - lastDose.getTime()) / 3600000) : null;
     medEffectiveness.push({ 
@@ -262,10 +307,11 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
       hoursSinceLastDose,
       lastTaken: lastDose ? fmtDate(lastDose) : "N/A",
       dosage: doses[0]?.dosage || "standard",
+      avgHoursToRelief: reliefTimes.length > 0 ? Math.round(avg(reliefTimes)!) : null,
     });
   }
 
-  // #16 — Body metrics with full physiological data extraction
+  // Body metrics with full physiological data extraction
   const withPhysio = entries.filter(e => e?.physiological_data);
   const flaresWithPhysio = flares.filter(e => e?.physiological_data);
   const nonFlares = entries.filter(e => e?.entry_type !== "flare" && !e?.severity && e?.physiological_data);
@@ -315,12 +361,50 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
   const flareMetrics = collectMetrics(flaresWithPhysio);
   const baselineMetrics = collectMetrics(nonFlares);
 
-  // #17 — Food analysis (enhanced)
+  // #45 — Sleep-flare lag analysis: does poor sleep predict next-day flares?
+  const sleepFlareLag: { sleepHours: number; nextDayFlares: number; nextDaySev: number }[] = [];
+  for (let i = 29; i >= 1; i--) {
+    const dayStart = new Date(now - i * oneDay); dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart.getTime() + oneDay);
+    const nextDayStart = dayEnd;
+    const nextDayEnd = new Date(nextDayStart.getTime() + oneDay);
+    // Get sleep from entries on this day
+    const dayEntries = entries.filter((e: any) => { const t = new Date(e.timestamp).getTime(); return t >= dayStart.getTime() && t < dayEnd.getTime() && e.physiological_data; });
+    const sleepVals = dayEntries.map(e => extractMetric(e.physiological_data, "sleep")).filter((v): v is number => v != null && v > 0);
+    if (sleepVals.length === 0) continue;
+    const avgSleep = avg(sleepVals)!;
+    const nextDayFlareList = flares.filter((f: any) => { const t = new Date(f.timestamp).getTime(); return t >= nextDayStart.getTime() && t < nextDayEnd.getTime(); });
+    const nextDaySevs = nextDayFlareList.map(f => sevToNum(f.severity || "")).filter(v => v > 0);
+    sleepFlareLag.push({ sleepHours: avgSleep, nextDayFlares: nextDayFlareList.length, nextDaySev: nextDaySevs.length ? avg(nextDaySevs)! : 0 });
+  }
+  const sleepFlareCorrelation = sleepFlareLag.length >= 5 ? pearson(sleepFlareLag.map(d => d.sleepHours), sleepFlareLag.map(d => d.nextDayFlares)) : null;
+
+  // #46 — Exercise-flare analysis
+  const exerciseAnalysis: { type: string; intensity: string; flaresAfter: number; totalSessions: number }[] = [];
+  const exerciseTypes = new Set((activityLogs || []).filter((a: any) => a.activity_type === 'exercise').map((a: any) => a.activity_value || 'general'));
+  for (const exType of [...exerciseTypes].slice(0, 8)) {
+    const sessions = (activityLogs || []).filter((a: any) => a.activity_type === 'exercise' && (a.activity_value || 'general') === exType);
+    let flaresAfterExercise = 0;
+    for (const session of sessions) {
+      const st = new Date(session.timestamp).getTime();
+      const hasFlareAfter = flares.some((f: any) => { const ft = new Date(f.timestamp).getTime(); return ft > st && ft <= st + oneDay; });
+      if (hasFlareAfter) flaresAfterExercise++;
+    }
+    exerciseAnalysis.push({ type: exType, intensity: sessions[0]?.intensity || 'moderate', flaresAfter: flaresAfterExercise, totalSessions: sessions.length });
+  }
+
+  // #47 — Hydration tracking from food logs
+  const hydrationItems = foodLogs.filter((f: any) => /water|tea|coffee|juice|smoothie|milk|broth|soup/i.test(f.food_name || ''));
+  const dailyHydration = hydrationItems.length;
+
+  // Food analysis (enhanced)
   const today = new Date().toISOString().split("T")[0];
   const todayFoods = foodLogs.filter((f: any) => f.logged_at?.startsWith(today));
   const todayCal = todayFoods.reduce((s: number, f: any) => s + (Number(f.calories) || 0) * (Number(f.servings) || 1), 0);
   const todayProtein = todayFoods.reduce((s: number, f: any) => s + (Number(f.protein_g) || 0) * (Number(f.servings) || 1), 0);
   const todayFiber = todayFoods.reduce((s: number, f: any) => s + (Number(f.dietary_fiber_g) || 0) * (Number(f.servings) || 1), 0);
+  const todaySugar = todayFoods.reduce((s: number, f: any) => s + (Number(f.total_sugars_g || f.added_sugars_g) || 0) * (Number(f.servings) || 1), 0);
+  const todaySodium = todayFoods.reduce((s: number, f: any) => s + (Number(f.sodium_mg) || 0) * (Number(f.servings) || 1), 0);
   const last7dFoods = foodLogs.filter((f: any) => now - new Date(f.logged_at).getTime() < 7 * oneDay);
   const foodByDay: Record<string, any[]> = {};
   for (const f of last7dFoods) {
@@ -329,7 +413,16 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
     foodByDay[day].push(f);
   }
 
-  // #18 — Inflammatory scoring
+  // #48 — Macronutrient balance
+  const macros7d = {
+    avgProtein: last7dFoods.length ? Math.round(last7dFoods.reduce((s: number, f: any) => s + (Number(f.protein_g) || 0), 0) / Math.max(1, Object.keys(foodByDay).length)) : null,
+    avgFiber: last7dFoods.length ? Math.round(last7dFoods.reduce((s: number, f: any) => s + (Number(f.dietary_fiber_g) || 0), 0) / Math.max(1, Object.keys(foodByDay).length)) : null,
+    avgSugar: last7dFoods.length ? Math.round(last7dFoods.reduce((s: number, f: any) => s + (Number(f.total_sugars_g || f.added_sugars_g) || 0), 0) / Math.max(1, Object.keys(foodByDay).length)) : null,
+    avgSodium: last7dFoods.length ? Math.round(last7dFoods.reduce((s: number, f: any) => s + (Number(f.sodium_mg) || 0), 0) / Math.max(1, Object.keys(foodByDay).length)) : null,
+    avgFat: last7dFoods.length ? Math.round(last7dFoods.reduce((s: number, f: any) => s + (Number(f.total_fat_g) || 0), 0) / Math.max(1, Object.keys(foodByDay).length)) : null,
+  };
+
+  // Inflammatory scoring
   const inflammatoryFoods = foodLogs.filter((f: any) => {
     const sugars = Number(f.added_sugars_g || f.total_sugars_g) || 0;
     const satFat = Number(f.saturated_fat_g) || 0;
@@ -344,7 +437,7 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
     return fiber > 5 || vitC > 30 || /salmon|berr|spinach|broccoli|turmeric|ginger|olive oil|avocado|nuts|walnut|almond|kale|sweet potato|green tea/.test(name);
   });
 
-  // #19 — Food-flare correlation (2-12h window)
+  // Food-flare correlation (2-12h window)
   const foodFlareCorrelation: Record<string, { count: number; total: number; severities: number[] }> = {};
   for (const flare of sortedFlares.slice(0, 50)) {
     const ft = new Date(flare.timestamp).getTime();
@@ -369,14 +462,28 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
     .sort((a, b) => b.rate - a.rate)
     .slice(0, 10);
 
-  // #20 — Meal type analysis
+  // #49 — Protective foods (eaten frequently but rarely before flares)
+  const protectiveFoods = Object.entries(foodFlareCorrelation)
+    .filter(([_, d]) => d.total >= 5 && d.count <= 1)
+    .map(([name, d]) => ({ name, total: d.total, flareRate: pct(d.count, d.total) }))
+    .sort((a, b) => a.flareRate - b.flareRate)
+    .slice(0, 5);
+
+  // Meal type analysis
   const mealTypeCounts: Record<string, number> = {};
   for (const f of foodLogs) {
     const mt = f.meal_type || "snack";
     mealTypeCounts[mt] = (mealTypeCounts[mt] || 0) + 1;
   }
 
-  // #21 — Trigger-symptom mapping (enhanced with severity)
+  // #50 — Late-night eating vs flares
+  const lateNightEating = foodLogs.filter((f: any) => {
+    const h = new Date(f.logged_at).getHours();
+    return h >= 21 || h < 4;
+  });
+  const lateNightEatingRate = foodLogs.length > 0 ? pct(lateNightEating.length, foodLogs.length) : 0;
+
+  // Trigger-symptom mapping (enhanced with severity)
   const tsMap: Record<string, Record<string, { count: number; severities: number[] }>> = {};
   flares.forEach((f: any) => { 
     (f.triggers || []).forEach((t: string) => { 
@@ -393,12 +500,12 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
     topSymptoms: Object.entries(syms).sort((a, b) => b[1].count - a[1].count).slice(0, 3).map(([s, d]) => `${s}(${d.count}x, avg sev ${(d.severities.reduce((a,b)=>a+b,0)/d.severities.length).toFixed(1)})`)
   })).slice(0, 10);
 
-  // #22 — Severity trajectory
+  // Severity trajectory
   const sevTrajectory = sortedFlares.slice(0, 15).reverse().map(f => sevToNum(f.severity || ""));
   const isEscalating = sevTrajectory.length >= 4 && sevTrajectory.slice(-3).every((v, i, a) => i === 0 || v >= a[i - 1]);
   const isImproving = sevTrajectory.length >= 4 && sevTrajectory.slice(-3).every((v, i, a) => i === 0 || v <= a[i - 1]);
 
-  // #23 — Gap analysis (recovery periods)
+  // Gap analysis (recovery periods)
   const gapsBetweenFlares: number[] = [];
   for (let i = 0; i < sortedFlares.length - 1; i++) {
     const gap = new Date(sortedFlares[i].timestamp).getTime() - new Date(sortedFlares[i + 1].timestamp).getTime();
@@ -408,7 +515,7 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
   const maxGapDays = gapsBetweenFlares.length > 0 ? Math.max(...gapsBetweenFlares) : null;
   const minGapDays = gapsBetweenFlares.length > 0 ? Math.min(...gapsBetweenFlares) : null;
 
-  // #24 — Medication adherence
+  // Medication adherence
   const medAdherence: Record<string, { expected: number; actual: number; missedDays: number }> = {};
   for (const med of uniqueMeds) {
     const doses = medLogs.filter((m: any) => m.medication_name === med);
@@ -422,14 +529,26 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
     medAdherence[med] = { expected: daySpan * expectedPerDay, actual: doses.length, missedDays: daySpan - daysWithDoses };
   }
 
-  // #25 — Flare clustering (multiple flares within 48h)
+  // Flare clustering (multiple flares within 48h)
   let clusterCount = 0;
   for (let i = 0; i < sortedFlares.length - 1; i++) {
     const gap = new Date(sortedFlares[i].timestamp).getTime() - new Date(sortedFlares[i + 1].timestamp).getTime();
     if (gap < 2 * oneDay) clusterCount++;
   }
 
-  // #26 — Health score (enhanced multi-factor)
+  // #51 — Symptom progression within clusters
+  const clusterProgression: string[] = [];
+  for (let i = 0; i < sortedFlares.length - 1; i++) {
+    const gap = new Date(sortedFlares[i].timestamp).getTime() - new Date(sortedFlares[i + 1].timestamp).getTime();
+    if (gap < 2 * oneDay) {
+      const s1 = sevToNum(sortedFlares[i+1].severity || ""), s2 = sevToNum(sortedFlares[i].severity || "");
+      if (s2 > s1) clusterProgression.push("escalating");
+      else if (s2 < s1) clusterProgression.push("resolving");
+      else clusterProgression.push("stable");
+    }
+  }
+
+  // Health score (enhanced multi-factor)
   const sleepFactor = overallMetrics.sleep != null ? (overallMetrics.sleep >= 7 && overallMetrics.sleep <= 9 ? 10 : overallMetrics.sleep >= 6 ? 5 : 0) : 0;
   const hrvFactor = overallMetrics.hrv != null ? Math.min(10, Math.round(overallMetrics.hrv / 5)) : 0;
   const healthScore = Math.max(0, Math.min(100, Math.round(
@@ -447,16 +566,31 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
     + (antiInflammatoryFoods.length > inflammatoryFoods.length ? 5 : -3)
   )));
 
-  // #27 — Worst flare details
+  // #52 — Health score breakdown
+  const healthScoreBreakdown = {
+    flareImpact: -(thisWeek.length * 6 + sevCounts.severe * 4 + sevCounts.moderate * 1.5),
+    recoveryBonus: currentFlareFree * 2,
+    medBonus: medEffectiveness.filter(m => parseInt(m.severityReduction) > 20).length * 4,
+    trajectoryImpact: isEscalating ? -12 : isImproving ? 8 : 0,
+    sleepBonus: sleepFactor,
+    hrvBonus: hrvFactor,
+    dietImpact: antiInflammatoryFoods.length > inflammatoryFoods.length ? 5 : -3,
+  };
+
+  // Worst flare details
   const worstFlare = sortedFlares.find(f => f.severity === "severe") || sortedFlares[0];
   const worstFlareDetail = worstFlare ? {
     date: fmtDate(new Date(worstFlare.timestamp)),
     severity: worstFlare.severity,
     symptoms: (worstFlare.symptoms || []).slice(0, 5).join(", "),
     triggers: (worstFlare.triggers || []).slice(0, 5).join(", "),
+    note: worstFlare.note?.slice(0, 60) || "",
+    meds: (worstFlare.medications || []).join(", "),
+    env: worstFlare.environmental_data?.weather?.condition || "",
+    physio: worstFlare.physiological_data ? `HR:${extractMetric(worstFlare.physiological_data, "hr") || '?'} HRV:${extractMetric(worstFlare.physiological_data, "hrv") || '?'}` : "",
   } : null;
 
-  // #28 — Best period (longest gap context)
+  // Best period (longest gap context)
   let bestPeriodStart: string | null = null, bestPeriodEnd: string | null = null;
   if (maxGapDays && maxGapDays > 1) {
     for (let i = 0; i < sortedFlares.length - 1; i++) {
@@ -469,11 +603,11 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
     }
   }
 
-  // #29 — Hourly heatmap data
+  // Hourly heatmap data
   const hourlyHeatmap = hourCounts.map((c, h) => ({ hour: `${h}:00`, count: c }));
   const peakHour = hourCounts.indexOf(Math.max(...hourCounts));
 
-  // #30 — Environmental pressure/humidity analysis
+  // Environmental pressure/humidity analysis
   const pressureData: { pressure: number; severity: number }[] = [];
   const humidityData: { humidity: number; severity: number }[] = [];
   const tempData: { temp: number; severity: number }[] = [];
@@ -485,12 +619,53 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
     if (env?.weather?.temperature != null && score) tempData.push({ temp: env.weather.temperature, severity: score });
   }
 
-  // #31 — Air quality correlation
+  // #53 — Pressure-severity correlation coefficient
+  const pressureCorr = pressureData.length >= 5 ? pearson(pressureData.map(d => d.pressure), pressureData.map(d => d.severity)) : null;
+  const humidityCorr = humidityData.length >= 5 ? pearson(humidityData.map(d => d.humidity), humidityData.map(d => d.severity)) : null;
+  const tempCorr = tempData.length >= 5 ? pearson(tempData.map(d => d.temp), tempData.map(d => d.severity)) : null;
+
+  // Air quality correlation
   const aqiData: { aqi: number; severity: number }[] = [];
   for (const e of flares) {
     const aqi = e?.environmental_data?.airQuality?.aqi;
     const score = sevToNum(e?.severity || "");
     if (aqi && score) aqiData.push({ aqi, severity: score });
+  }
+
+  // #54 — Pollen correlation
+  const pollenData: { level: number; severity: number }[] = [];
+  for (const e of flares) {
+    const pollen = e?.environmental_data?.pollen?.overall ?? e?.environmental_data?.pollen?.total;
+    const score = sevToNum(e?.severity || "");
+    if (pollen && score) pollenData.push({ level: pollen, severity: score });
+  }
+
+  // #55 — Most dangerous trigger (highest avg severity)
+  const dangerousTriggers = Object.entries(triggerSeverity)
+    .filter(([_, sevs]) => sevs.length >= 2)
+    .map(([trigger, sevs]) => ({ trigger, avgSev: (sevs.reduce((a,b)=>a+b,0)/sevs.length), count: sevs.length }))
+    .sort((a, b) => b.avgSev - a.avgSev)
+    .slice(0, 5);
+
+  // #56 — Most dangerous symptom
+  const dangerousSymptoms = Object.entries(symptomSeverity)
+    .filter(([_, sevs]) => sevs.length >= 2)
+    .map(([symptom, sevs]) => ({ symptom, avgSev: (sevs.reduce((a,b)=>a+b,0)/sevs.length), count: sevs.length }))
+    .sort((a, b) => b.avgSev - a.avgSev)
+    .slice(0, 5);
+
+  // #57 — Flare velocity (rate of change over last 2 weeks)
+  const twoWeeksAgoFlares = flares.filter((e: any) => { const a = now - new Date(e.timestamp).getTime(); return a >= oneWeek && a < 2 * oneWeek; }).length;
+  const flareVelocity = thisWeek.length - twoWeeksAgoFlares;
+
+  // #58 — Medication timing patterns
+  const medTimingPatterns: Record<string, { morning: number; afternoon: number; evening: number; night: number }> = {};
+  for (const med of medLogs) {
+    const name = med.medication_name;
+    if (!medTimingPatterns[name]) medTimingPatterns[name] = { morning: 0, afternoon: 0, evening: 0, night: 0 };
+    const h = new Date(med.taken_at).getHours();
+    const tod = getTimeOfDay(h);
+    medTimingPatterns[name][tod]++;
   }
 
   // Compile
@@ -508,21 +683,24 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
   const monthTrend = thisMonth.length > lastMonth.length * 1.2 ? "⬆️ UP" : thisMonth.length < lastMonth.length * 0.8 ? "⬇️ DOWN" : "➡️ STABLE";
   const calcAvgSev = (l: any[]) => { const s = l.map(e => sevToNum(e?.severity || "")).filter(x => x > 0); return avg(s); };
 
-  // #32 — Worst day of week
   const worstDay = Object.entries(sevByDay).map(([d, sevs]) => [d, sevs.length ? sevs.reduce((a,b)=>a+b,0)/sevs.length : 0] as [string, number]).sort((a,b) => (b[1] as number) - (a[1] as number))[0];
-  // #33 — Worst time of day
   const worstTime = Object.entries(sevByTimeOfDay).map(([t, sevs]) => [t, sevs.length ? sevs.reduce((a,b)=>a+b,0)/sevs.length : 0] as [string, number]).sort((a,b) => (b[1] as number) - (a[1] as number))[0];
 
-  // #34 — Logging consistency (days with at least 1 entry / total days)
   const uniqueLogDays = new Set(entries.map((e: any) => new Date(e.timestamp).toISOString().split('T')[0])).size;
   const firstEntry = entries.length ? new Date(entries[entries.length - 1].timestamp) : new Date();
   const totalDaysSinceStart = Math.max(1, Math.floor((now - firstEntry.getTime()) / oneDay));
   const loggingConsistency = pct(uniqueLogDays, totalDaysSinceStart);
 
-  // #35 — Energy level analysis
   const energyEntries = entries.filter((e: any) => e?.energy_level);
   const energyMap: Record<string, number> = {};
   energyEntries.forEach((e: any) => { energyMap[e.energy_level] = (energyMap[e.energy_level] || 0) + 1; });
+
+  // #59 — Seasonal pattern summary
+  const seasonalPattern = Object.entries(monthCounts).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([m, c]) => `${m}(${c})`).join(", ");
+
+  // #60 — Average flares per day for different time ranges
+  const flaresPerDay7d = thisWeek.length / 7;
+  const flaresPerDay30d = thisMonth.length / 30;
 
   return {
     flares: {
@@ -532,31 +710,46 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
       avgSevMedian: formatNum(median(sevScores)), sevStddev: formatNum(stddev(sevScores)),
       sevCounts, currentFlareFree,
       daysSinceLast: sortedFlares[0] ? Math.floor((now - new Date(sortedFlares[0].timestamp).getTime()) / oneDay) : null,
-      isEscalating, isImproving, healthScore,
+      isEscalating, isImproving, healthScore, healthScoreBreakdown,
       avgGapDays, maxGapDays, minGapDays,
       clusterCount, multiSymptomCount,
-      weekendFlares, weekdayFlares,
+      weekendFlares, weekdayFlares, nightFlares,
       avgDuration: avg(durations) ? Math.round(avg(durations)!) : null,
       loggingConsistency,
+      maxConsecutiveSevere,
+      firstHalfMonth, secondHalfMonth,
+      flareVelocity,
+      flaresPerDay7d: flaresPerDay7d.toFixed(1),
+      flaresPerDay30d: flaresPerDay30d.toFixed(1),
+      durationBySev: Object.entries(durationBySev).filter(([_, a]) => a.length > 0).map(([s, a]) => `${s}: avg ${Math.round(avg(a)!)}min`).join(", "),
     },
     topSymptoms, topTriggers, topSymptomPairs, topTriggerPairs,
+    dangerousTriggers, dangerousSymptoms,
     peakTime: peakTime?.[0] || "N/A", peakDay: peakDay?.[0] || "N/A", peakHour,
     worstDay: worstDay ? `${worstDay[0]} (avg sev ${(worstDay[1] as number).toFixed(1)})` : "N/A",
     worstTime: worstTime ? `${worstTime[0]} (avg sev ${(worstTime[1] as number).toFixed(1)})` : "N/A",
     hourBuckets, dayCounts, hourlyHeatmap, weatherCorr, triggerOutcomes,
     topCities, worstFlareDetail, bestPeriod: bestPeriodStart ? `${bestPeriodStart} → ${bestPeriodEnd} (${maxGapDays}d flare-free)` : null,
     dailyFlares30d, weeklyBreakdown, medEffectiveness, medAdherence,
+    medTimingPatterns,
     inflammatoryFoodCount: inflammatoryFoods.length,
     antiInflammatoryFoodCount: antiInflammatoryFoods.length,
-    suspiciousFoods,
-    mealTypeCounts,
+    suspiciousFoods, protectiveFoods,
+    mealTypeCounts, lateNightEatingRate,
+    macros7d,
     sevTrajectory,
+    clusterProgression: clusterProgression.length > 0 ? clusterProgression.join(", ") : "none",
+    seasonalPattern,
+    sleepFlareCorrelation: sleepFlareCorrelation != null ? sleepFlareCorrelation.toFixed(2) : "insufficient data",
+    exerciseAnalysis,
+    hydrationItems: dailyHydration,
     sevByTimeOfDay: Object.entries(sevByTimeOfDay).map(([t, s]) => `${t}: avg ${s.length ? (s.reduce((a,b)=>a+b,0)/s.length).toFixed(1) : 'N/A'} (${s.length} flares)`).join(", "),
     energySummary: Object.entries(energyMap).map(([e, c]) => `${e}(${c}x)`).join(", ") || "none logged",
-    pressureCorr: pressureData.length >= 3 ? `${pressureData.length} data points, avg pressure during flares: ${(pressureData.reduce((s,d)=>s+d.pressure,0)/pressureData.length).toFixed(0)}hPa` : "insufficient data",
-    humidityCorr: humidityData.length >= 3 ? `avg humidity during flares: ${(humidityData.reduce((s,d)=>s+d.humidity,0)/humidityData.length).toFixed(0)}%` : "insufficient data",
-    tempCorr: tempData.length >= 3 ? `avg temp during flares: ${(tempData.reduce((s,d)=>s+d.temp,0)/tempData.length).toFixed(1)}°` : "insufficient data",
-    aqiCorr: aqiData.length >= 3 ? `avg AQI during flares: ${(aqiData.reduce((s,d)=>s+d.aqi,0)/aqiData.length).toFixed(0)}` : "insufficient data",
+    pressureCorr: pressureData.length >= 3 ? `${pressureData.length} pts, avg ${(pressureData.reduce((s,d)=>s+d.pressure,0)/pressureData.length).toFixed(0)}hPa${pressureCorr != null ? `, r=${pressureCorr.toFixed(2)}` : ''}` : "insufficient data",
+    humidityCorr: humidityData.length >= 3 ? `avg ${(humidityData.reduce((s,d)=>s+d.humidity,0)/humidityData.length).toFixed(0)}%${humidityCorr != null ? `, r=${humidityCorr.toFixed(2)}` : ''}` : "insufficient data",
+    tempCorr: tempData.length >= 3 ? `avg ${(tempData.reduce((s,d)=>s+d.temp,0)/tempData.length).toFixed(1)}°${tempCorr != null ? `, r=${tempCorr.toFixed(2)}` : ''}` : "insufficient data",
+    aqiCorr: aqiData.length >= 3 ? `avg AQI ${(aqiData.reduce((s,d)=>s+d.aqi,0)/aqiData.length).toFixed(0)}` : "insufficient data",
+    pollenCorr: pollenData.length >= 3 ? `avg pollen ${(pollenData.reduce((s,d)=>s+d.level,0)/pollenData.length).toFixed(0)}` : "insufficient data",
     body: {
       hasData: withPhysio.length > 0, dataPoints: withPhysio.length,
       overall: overallMetrics, flare: flareMetrics, baseline: baselineMetrics,
@@ -564,6 +757,7 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
     food: {
       totalLogs: foodLogs.length, todayCount: todayFoods.length, todayCal: Math.round(todayCal),
       todayProtein: Math.round(todayProtein), todayFiber: Math.round(todayFiber),
+      todaySugar: Math.round(todaySugar), todaySodium: Math.round(todaySodium),
       todayItems: todayFoods.map((f: any) => f.food_name).join(", ") || "nothing yet",
       last7dSummary: Object.entries(foodByDay).map(([day, items]) => `${day}: ${items.map((f: any) => f.food_name).join(", ")}`).join(" | ") || "no food logged in last 7 days",
       recentItems: foodLogs.slice(0, 20).map((f: any) => `${f.food_name}${f.calories ? ` (${Math.round(Number(f.calories) * (Number(f.servings) || 1))}cal)` : ""} [${f.meal_type || 'snack'}] — ${fmtDate(new Date(f.logged_at))}`).join(", "),
@@ -611,7 +805,7 @@ function buildSystemPrompt(profile: any, data: ReturnType<typeof analyzeAllData>
     return `${med}: ${pctVal}% (${d.actual}/${d.expected}, ${d.missedDays} missed days)`;
   }).join(", ") || "insufficient data";
 
-  // #36 — Compute compound risk score
+  // Compound risk score
   const riskFactors: string[] = [];
   if (data.flares.isEscalating) riskFactors.push("severity escalating");
   if (data.flares.clusterCount > 1) riskFactors.push("flare clustering");
@@ -619,15 +813,29 @@ function buildSystemPrompt(profile: any, data: ReturnType<typeof analyzeAllData>
   if (data.body.hasData && data.body.flare.hrv != null && data.body.baseline.hrv != null && data.body.flare.hrv < data.body.baseline.hrv * 0.8) riskFactors.push("HRV suppressed");
   if (data.body.hasData && data.body.overall.sleep != null && data.body.overall.sleep < 6) riskFactors.push("sleep deficit");
   if (data.inflammatoryFoodCount > data.antiInflammatoryFoodCount * 2) riskFactors.push("high inflammatory diet");
+  if (data.flares.nightFlares > data.flares.total * 0.3) riskFactors.push("frequent night flares");
+  if (data.flares.maxConsecutiveSevere >= 3) riskFactors.push(`${data.flares.maxConsecutiveSevere} consecutive severe flares`);
+  if (data.flares.flareVelocity > 2) riskFactors.push("rapid flare acceleration");
+  if (data.lateNightEatingRate > 20) riskFactors.push("frequent late-night eating");
   Object.entries(data.medAdherence).forEach(([med, d]) => { if (d.expected > 0 && d.actual / d.expected < 0.7) riskFactors.push(`${med} adherence low`); });
   
   const compoundRisk = Math.min(95, Math.max(5, 
-    25 + riskFactors.length * 12 
+    25 + riskFactors.length * 10 
     + (data.flares.thisWeek * 5) 
     - (data.flares.currentFlareFree * 3)
     + (data.flares.isEscalating ? 15 : 0)
     - (data.flares.isImproving ? 10 : 0)
+    + (data.flares.flareVelocity * 3)
   ));
+
+  // #61 — Protective factors
+  const protectiveFactors: string[] = [];
+  if (data.flares.currentFlareFree > 3) protectiveFactors.push(`${data.flares.currentFlareFree}d flare-free streak`);
+  if (data.flares.isImproving) protectiveFactors.push("improving severity trend");
+  if (data.body.overall.sleep != null && data.body.overall.sleep >= 7) protectiveFactors.push(`good sleep (${formatNum(data.body.overall.sleep)}h avg)`);
+  if (data.antiInflammatoryFoodCount > data.inflammatoryFoodCount) protectiveFactors.push("anti-inflammatory diet balance");
+  if (data.exerciseAnalysis.length > 0) protectiveFactors.push(`active (${data.exerciseAnalysis.length} exercise types)`);
+  if (data.flares.loggingConsistency > 70) protectiveFactors.push("consistent logging");
 
   return `You are Jvala — ${userName}'s personal health intelligence companion. You KNOW them. You've tracked every flare, every meal, every medication, every night of sleep. You are their health memory.
 
@@ -642,6 +850,8 @@ function buildSystemPrompt(profile: any, data: ReturnType<typeof analyzeAllData>
 8. When asked about time periods → use dailyFlares30d and weeklyBreakdown.
 9. Proactively surface patterns the user didn't ask about. Connect dots.
 10. Be warm but data-driven. Validate feelings, then show the numbers.
+11. Use markdown: **bold**, bullet points, numbered lists for structure.
+12. Never give the same opening twice in a conversation.
 
 ═══ CLINICAL FRAMEWORKS (invisible) ═══
 • Motivational Interviewing: Reflect → affirm → support autonomy
@@ -659,6 +869,8 @@ Texting your smartest friend who genuinely cares AND has a medical degree.
 - Use contractions. Natural tone. Emojis sparingly (💜🔥📊⚡).
 - NEVER repeat: "Great question!", "I'm sorry to hear that" verbatim.
 - When giving recommendations, be specific: "Try eating salmon 3x this week" not "eat more omega-3s."
+- Reference their memories/history: "Remember last time you mentioned X?"
+- Acknowledge progress: "You've been ${data.flares.currentFlareFree}d flare-free — that's real."
 
 ═══ TIME-AWARE INTELLIGENCE ═══
 Current: ${timeOfDay} (${localHour}:00 ${userTz})
@@ -671,25 +883,30 @@ ${timeOfDay === 'midday' || timeOfDay === 'afternoon' ? `🌤️ ${timeOfDay} �
 Name: ${userName} | Conditions: ${conditions}${profile?.biological_sex ? ` | Sex: ${profile.biological_sex}` : ""}${userAge ? ` | Age: ${userAge}` : ""}${profile?.height_cm ? ` | Height: ${profile.height_cm}cm` : ""}${profile?.weight_kg ? ` | Weight: ${profile.weight_kg}kg` : ""}${profile?.blood_type ? ` | Blood: ${profile.blood_type}` : ""}
 Known symptoms: ${(profile?.known_symptoms ?? []).join(", ") || "none specified"}
 Known triggers: ${(profile?.known_triggers ?? []).join(", ") || "none specified"}
-${hsEmoji} Health Score: **${data.flares.healthScore}/100**
+${hsEmoji} Health Score: **${data.flares.healthScore}/100** (breakdown: flare impact ${data.flares.healthScoreBreakdown.flareImpact}, recovery +${data.flares.healthScoreBreakdown.recoveryBonus}, meds +${data.flares.healthScoreBreakdown.medBonus}, trajectory ${data.flares.healthScoreBreakdown.trajectoryImpact}, sleep +${data.flares.healthScoreBreakdown.sleepBonus}, HRV +${data.flares.healthScoreBreakdown.hrvBonus}, diet ${data.flares.healthScoreBreakdown.dietImpact})
 🎯 Compound Risk Score: **${compoundRisk}%** ${riskFactors.length ? `(${riskFactors.join(", ")})` : "(no major risk factors)"}
+🛡️ Protective: ${protectiveFactors.join(", ") || "building baseline"}
 ${trajectoryNote}${clusterNote}
 
 ═══ FLARE DATA (COMPLETE) ═══
 📊 Total: **${data.flares.total}** | This week: **${data.flares.thisWeek}** (${data.flares.weekTrend}) | Last week: ${data.flares.lastWeek} | Month: **${data.flares.thisMonth}** (${data.flares.monthTrend}) vs ${data.flares.lastMonth} last month
 Severity: ${data.flares.sevCounts.severe}S ${data.flares.sevCounts.moderate}M ${data.flares.sevCounts.mild}m | Avg: ${data.flares.avgSev}/3 (median: ${data.flares.avgSevMedian}, σ: ${data.flares.sevStddev}) | This week avg: ${data.flares.avgSevThisWeek}
 Flare-free: **${data.flares.currentFlareFree}d** | Days since last: ${data.flares.daysSinceLast ?? "N/A"} | Avg gap: ${data.flares.avgGapDays ?? "N/A"}d | Best streak: ${data.flares.maxGapDays ?? "N/A"}d | Shortest gap: ${data.flares.minGapDays ?? "N/A"}d
-Clusters (within 48h): ${data.flares.clusterCount} | Multi-symptom flares: ${data.flares.multiSymptomCount}/${data.flares.total}
-Weekend: ${data.flares.weekendFlares} vs Weekday: ${data.flares.weekdayFlares}
-Avg duration: ${data.flares.avgDuration ? `${data.flares.avgDuration}min` : "N/A"} | Logging consistency: ${data.flares.loggingConsistency}%
+Rate: ${data.flares.flaresPerDay7d}/day (7d) | ${data.flares.flaresPerDay30d}/day (30d) | Velocity: ${data.flares.flareVelocity > 0 ? '⬆️' : data.flares.flareVelocity < 0 ? '⬇️' : '➡️'} ${data.flares.flareVelocity}/week
+Clusters (within 48h): ${data.flares.clusterCount} ${data.clusterProgression !== 'none' ? `(pattern: ${data.clusterProgression})` : ''} | Multi-symptom flares: ${data.flares.multiSymptomCount}/${data.flares.total} | Max consecutive severe: ${data.flares.maxConsecutiveSevere}
+Weekend: ${data.flares.weekendFlares} vs Weekday: ${data.flares.weekdayFlares} | Night(10pm-5am): ${data.flares.nightFlares} | 1st half month: ${data.flares.firstHalfMonth} vs 2nd half: ${data.flares.secondHalfMonth}
+Avg duration: ${data.flares.avgDuration ? `${data.flares.avgDuration}min` : "N/A"} ${data.flares.durationBySev ? `(${data.flares.durationBySev})` : ''} | Logging consistency: ${data.flares.loggingConsistency}%
 Severity trajectory (last 15): [${data.sevTrajectory.join(',')}]
-${data.worstFlareDetail ? `Worst flare: ${data.worstFlareDetail.date} — ${data.worstFlareDetail.severity}, symptoms: ${data.worstFlareDetail.symptoms}, triggers: ${data.worstFlareDetail.triggers}` : ''}
+📅 Seasonal: ${data.seasonalPattern || "insufficient data"}
+${data.worstFlareDetail ? `Worst flare: ${data.worstFlareDetail.date} — ${data.worstFlareDetail.severity}, symptoms: ${data.worstFlareDetail.symptoms}, triggers: ${data.worstFlareDetail.triggers}${data.worstFlareDetail.env ? `, weather: ${data.worstFlareDetail.env}` : ''}${data.worstFlareDetail.physio ? `, vitals: ${data.worstFlareDetail.physio}` : ''}` : ''}
 ${data.bestPeriod ? `Best period: ${data.bestPeriod}` : ''}
 
 🔥 SYMPTOMS: ${data.topSymptoms.map(([n, c]) => `**${n}**(${c}x)`).join(", ") || "none"}
 🔥 SYMPTOM PAIRS: ${data.topSymptomPairs.map(([p, c]) => `${p}(${c}x)`).join(", ") || "none"}
+🔥 MOST SEVERE SYMPTOMS: ${data.dangerousSymptoms.map(s => `${s.symptom}(avg sev ${s.avgSev.toFixed(1)}, ${s.count}x)`).join(", ") || "N/A"}
 ⚡ TRIGGERS: ${data.topTriggers.map(([n, c]) => `**${n}**(${c}x)`).join(", ") || "none"}
 ⚡ TRIGGER COMBOS: ${data.topTriggerPairs.map(([p, c]) => `${p}(${c}x)`).join(", ") || "none"}
+⚡ MOST DANGEROUS TRIGGERS: ${data.dangerousTriggers.map(t => `**${t.trigger}**(avg sev ${t.avgSev.toFixed(1)}, ${t.count}x)`).join(", ") || "N/A"}
 ⏰ PEAK TIME: ${data.peakTime} | PEAK DAY: ${data.peakDay} | PEAK HOUR: ${data.peakHour}:00
 🔴 WORST: Day=${data.worstDay}, Time=${data.worstTime}
 Severity by time: ${data.sevByTimeOfDay}
@@ -698,7 +915,7 @@ By day: ${Object.entries(data.dayCounts).map(([d, c]) => `${d}:${c}`).join(' ')}
 ⚡ ENERGY: ${data.energySummary}
 
 🌦️ WEATHER-FLARE: ${data.weatherCorr.join(", ") || "insufficient data"}
-🌡️ Pressure: ${data.pressureCorr} | Humidity: ${data.humidityCorr} | Temperature: ${data.tempCorr} | AQI: ${data.aqiCorr}
+🌡️ Pressure: ${data.pressureCorr} | Humidity: ${data.humidityCorr} | Temperature: ${data.tempCorr} | AQI: ${data.aqiCorr} | Pollen: ${data.pollenCorr}
 📍 TOP CITIES: ${data.topCities.map(([c, n]) => `${c}(${n}x)`).join(", ") || "no location data"}
 
 🔗 CORRELATIONS: ${data.correlations.join(", ") || "still learning"}
@@ -709,18 +926,25 @@ ${data.body.hasData ? `  Overall — HR ${formatNum(data.body.overall.hr, 0)}bpm
   🔴 On FLARE days — HR ${formatNum(data.body.flare.hr, 0)} | HRV ${formatNum(data.body.flare.hrv, 0)} | Sleep ${formatNum(data.body.flare.sleep)}h | Steps ${formatNum(data.body.flare.steps, 0)} | SpO2 ${formatNum(data.body.flare.spo2, 0)}%
   🟢 BASELINE (non-flare) — HR ${formatNum(data.body.baseline.hr, 0)} | HRV ${formatNum(data.body.baseline.hrv, 0)} | Sleep ${formatNum(data.body.baseline.sleep)}h | Steps ${formatNum(data.body.baseline.steps, 0)}` : "No wearable data yet"}
   ${data.body.hasData && data.body.flare.hrv != null && data.body.baseline.hrv != null ? `HRV DELTA: flare ${formatNum(data.body.flare.hrv, 0)} vs baseline ${formatNum(data.body.baseline.hrv, 0)} (${data.body.flare.hrv < data.body.baseline.hrv ? `↓${Math.round(data.body.baseline.hrv - data.body.flare.hrv)}ms drop on flare days` : 'no significant difference'})` : ''}
+😴 SLEEP→FLARE LAG: r=${data.sleepFlareCorrelation} ${typeof data.sleepFlareCorrelation === 'string' ? '' : Number(data.sleepFlareCorrelation) < -0.3 ? '⚠️ Poor sleep predicts next-day flares' : Number(data.sleepFlareCorrelation) > 0.3 ? '✅ More sleep = more flare days (may be compensatory)' : 'No strong correlation'}
 
 💊 RECENT MEDS: ${data.meds.join(", ") || "none"}
-💊 MED EFFECTIVENESS: ${data.medEffectiveness.map(m => `**${m.name}**: ${m.timesTaken}x, sev ↓${m.severityReduction} (before:${m.avgBefore}→after:${m.avgAfter}), flare-free ${m.flareFreeRate}${m.hoursSinceLastDose != null ? `, last ${m.hoursSinceLastDose}h ago` : ''}`).join(" | ") || "insufficient data"}
+💊 MED EFFECTIVENESS: ${data.medEffectiveness.map(m => `**${m.name}**: ${m.timesTaken}x, sev ↓${m.severityReduction} (before:${m.avgBefore}→after:${m.avgAfter}), flare-free ${m.flareFreeRate}${m.avgHoursToRelief ? `, relief ~${m.avgHoursToRelief}h` : ''}${m.hoursSinceLastDose != null ? `, last ${m.hoursSinceLastDose}h ago` : ''}`).join(" | ") || "insufficient data"}
 💊 MED ADHERENCE: ${adherenceSummary}
+💊 MED TIMING: ${Object.entries(data.medTimingPatterns).map(([m, t]) => `${m}: ${Object.entries(t).filter(([_,c]) => c > 0).map(([tod,c]) => `${tod}(${c})`).join(',')}`).join(' | ') || 'N/A'}
 
-🍎 FOOD TODAY: ${data.food.todayItems} (${data.food.todayCal}cal, ${data.food.todayProtein}g protein, ${data.food.todayFiber}g fiber, ${data.food.todayCount} items)
+🏃 EXERCISE: ${data.exerciseAnalysis.length > 0 ? data.exerciseAnalysis.map(e => `${e.type}(${e.totalSessions}x, ${e.flaresAfter} flares after = ${e.totalSessions > 0 ? pct(e.flaresAfter, e.totalSessions) : 0}%)`).join(', ') : 'no exercise data'}
+
+🍎 FOOD TODAY: ${data.food.todayItems} (${data.food.todayCal}cal, ${data.food.todayProtein}g protein, ${data.food.todayFiber}g fiber, ${data.food.todaySugar}g sugar, ${data.food.todaySodium}mg sodium, ${data.food.todayCount} items)
 📅 FOOD 7-DAY: ${data.food.last7dSummary}
 ${data.food.avgDailyCal ? `📊 AVG DAILY CAL: ~${data.food.avgDailyCal}` : ''}
+📊 7D MACROS: protein ${data.macros7d.avgProtein ?? '?'}g, fiber ${data.macros7d.avgFiber ?? '?'}g, sugar ${data.macros7d.avgSugar ?? '?'}g, sodium ${data.macros7d.avgSodium ?? '?'}mg, fat ${data.macros7d.avgFat ?? '?'}g
 📋 RECENT FOOD (${data.food.totalLogs} total): ${data.food.recentItems || "no food logged"}
 🔥 INFLAMMATORY: ${data.inflammatoryFoodCount} pro-inflammatory | ${data.antiInflammatoryFoodCount} anti-inflammatory (${data.inflammatoryFoodCount > data.antiInflammatoryFoodCount ? '⚠️ imbalanced' : '✅ balanced'})
-🚨 SUSPICIOUS FOODS: ${data.suspiciousFoods.length > 0 ? data.suspiciousFoods.map(f => `**${f.name}**(${f.count}/${f.total} times before flare = ${f.rate}%, avg sev ${f.avgSev})`).join(", ") : "none identified"}
-🍽️ MEAL TYPES: ${Object.entries(data.mealTypeCounts).map(([t,c]) => `${t}:${c}`).join(", ") || "N/A"}
+🚨 SUSPICIOUS FOODS: ${data.suspiciousFoods.length > 0 ? data.suspiciousFoods.map(f => `**${f.name}**(${f.count}/${f.total} = ${f.rate}%, avg sev ${f.avgSev})`).join(", ") : "none identified"}
+🛡️ PROTECTIVE FOODS: ${data.protectiveFoods.length > 0 ? data.protectiveFoods.map(f => `${f.name}(${f.total}x eaten, only ${f.flareRate}% flare rate)`).join(", ") : "insufficient data"}
+🍽️ MEAL TYPES: ${Object.entries(data.mealTypeCounts).map(([t,c]) => `${t}:${c}`).join(", ") || "N/A"} | Late-night eating: ${data.lateNightEatingRate}%
+💧 HYDRATION ITEMS: ${data.hydrationItems}
 
 📝 RECENT NOTES: ${data.noteSample || "none"}
 
@@ -745,21 +969,26 @@ ${memorySection}
 ${condKnowledge ? `═══ CONDITION KNOWLEDGE ═══\n${condKnowledge}` : ""}
 
 ═══ CAPABILITIES — USE ALL OF THESE ═══
-1. CHART ANYTHING: bar_chart, line_chart, area_chart, stacked_bar, horizontal_bar, pie_chart, donut_chart, gauge, comparison, timeline, severity_breakdown, symptom_frequency, trigger_frequency, time_of_day, weather_correlation, body_metrics, health_score. Use REAL data from above.
+1. CHART ANYTHING: bar_chart, line_chart, area_chart, stacked_bar, horizontal_bar, pie_chart, donut_chart, gauge, comparison, pattern_summary, timeline, severity_breakdown, symptom_frequency, trigger_frequency, time_of_day, weather_correlation, body_metrics, health_score, heatmap, radar. Use REAL data from above.
 2. PREDICT RISK: Use compoundRisk=${compoundRisk}%, risk factors, and your clinical knowledge.
-3. MEDICATION ANALYSIS: Compare effectiveness, adherence, flare-free rates, severity reduction.
-4. FOOD ANALYSIS: Correlate food with flares, inflammatory scoring, calorie trends, suspicious foods.
+3. MEDICATION ANALYSIS: Compare effectiveness, adherence, flare-free rates, severity reduction, time-to-relief.
+4. FOOD ANALYSIS: Correlate food with flares, inflammatory scoring, calorie trends, suspicious foods, protective foods, macros.
 5. BODY METRICS: Compare HR/HRV/sleep/SpO2/temp/RR on flare vs non-flare days.
-6. TIME COMPARISONS: Week-over-week, month-over-month with deltas.
-7. HEALTH SCORE: ${data.flares.healthScore}/100 — explain factors, suggest improvements.
+6. TIME COMPARISONS: Week-over-week, month-over-month with deltas. Flare velocity.
+7. HEALTH SCORE: ${data.flares.healthScore}/100 — explain factors, suggest the ONE change with highest impact.
 8. PROACTIVE INSIGHTS: Notice things unprompted. If severity escalates, say it. If food patterns emerge, mention them.
-9. WEB RESEARCH: Use research_and_respond for med/supplement/condition questions.
+9. WEB RESEARCH: Use research_and_respond for med/supplement/condition questions user asks that go beyond their data.
 10. ACTION PLANS: Create specific steps with timing for protocol activation.
 11. DAILY BRIEFING: Comprehensive morning/evening report with scores, risks, and recommendations.
 12. EMOTIONAL SUPPORT: Track mood, connect emotional→physical patterns.
 13. SYMPTOM CLUSTERING: Identify which symptoms co-occur and what triggers the clusters.
 14. RECOVERY ANALYSIS: What conditions/behaviors precede longest flare-free periods.
 15. CIRCADIAN ANALYSIS: Hourly heatmap patterns, worst times, best times.
+16. SLEEP-FLARE PREDICTION: Use sleep-flare lag correlation to predict next-day risk.
+17. EXERCISE IMPACT: Analyze how different exercise types affect flare frequency.
+18. SEASONAL PATTERNS: ${data.seasonalPattern || 'insufficient data'} — identify seasonal trends.
+19. MEDICATION TIMING: Analyze when meds are taken and if timing affects effectiveness.
+20. DANGEROUS TRIGGER RANKING: Rank triggers by average severity, not just frequency.
 
 ═══ CHART DATA GUIDE ═══
 - "flares over 30 days" → dailyFlares30d → bar_chart [{label:"Jan 1",value:2}, ...]
@@ -768,17 +997,23 @@ ${condKnowledge ? `═══ CONDITION KNOWLEDGE ═══\n${condKnowledge}` : 
 - "time patterns" → hourBuckets → bar_chart [{label:"morning",value:12}]
 - "symptom frequency" → topSymptoms → bar_chart [{label:"headache",value:15}]
 - "trigger frequency" → topTriggers → bar_chart [{label:"stress",value:20}]
-- "health score" → health_score [{label:"Health Score",value:${data.flares.healthScore},extra:"${data.flares.healthScore >= 75 ? 'Good' : data.flares.healthScore >= 50 ? 'Fair' : 'Needs attention'}"}]
+- "trigger danger" → dangerousTriggers → horizontal_bar [{label:"stress",value:2.8,extra:"avg severity"}]
+- "health score" → gauge [{label:"Health Score",value:${data.flares.healthScore},extra:"${data.flares.healthScore >= 75 ? 'Good' : data.flares.healthScore >= 50 ? 'Fair' : 'Needs attention'}"}]
 - "risk gauge" → gauge [{label:"Flare Risk",value:${compoundRisk},extra:"${compoundRisk > 60 ? 'High' : compoundRisk > 30 ? 'Moderate' : 'Low'}"}]
 - "week comparison" → comparison [{label:"This Week",value:${data.flares.thisWeek}},{label:"Last Week",value:${data.flares.lastWeek}}]
 - "hourly heatmap" → bar_chart using hourlyHeatmap data
 - "food vs flares" → horizontal_bar using suspiciousFoods
+- "exercise impact" → bar_chart using exerciseAnalysis
+- "macros" → bar_chart using macros7d
+- "severity by day" → bar_chart using dayCounts with severity overlay
 - "weather chart" → bar_chart using weatherCorr parsed data
 - "body metrics comparison" → comparison using flare vs baseline metrics
+- "seasonal" → bar_chart using monthCounts
+- "med timing" → bar_chart using medTimingPatterns
 
 ═══ ANTI-DEFLECTION PROTOCOL ═══
 If you are about to say "I can't", "I don't have", "I'm unable", "I don't track" — STOP.
-✓ 30-day daily data ✓ 8-week data ✓ Medication effectiveness ✓ Food logs (${data.food.totalLogs} entries) ✓ Body metrics (${data.body.dataPoints} entries) ✓ Weather ✓ Severity trajectory ✓ Health score ✓ Suspicious foods ✓ Adherence ✓ Streaks ✓ Trigger→symptom map ✓ Symptom pairs ✓ Hourly heatmap ✓ City data ✓ Energy levels ✓ Pressure/humidity/temp/AQI ✓ Flare clustering ✓ Notes ✓ Memories
+✓ 30-day daily data ✓ 8-week data ✓ Medication effectiveness ✓ Food logs (${data.food.totalLogs} entries) ✓ Body metrics (${data.body.dataPoints} entries) ✓ Weather ✓ Severity trajectory ✓ Health score ✓ Suspicious foods ✓ Protective foods ✓ Adherence ✓ Streaks ✓ Trigger→symptom map ✓ Symptom pairs ✓ Hourly heatmap ✓ City data ✓ Energy levels ✓ Pressure/humidity/temp/AQI/pollen ✓ Flare clustering ✓ Notes ✓ Memories ✓ Sleep-flare lag ✓ Exercise analysis ✓ Macronutrients ✓ Seasonal patterns ✓ Dangerous triggers ✓ Med timing ✓ Flare velocity ✓ Duration by severity
 You have EVERYTHING. Use it.
 
 ═══ MEMORY EXTRACTION ═══
@@ -793,12 +1028,14 @@ importance: 0.9=critical health insight, 0.7=useful pattern, 0.5=context, 0.3=mi
 
 ═══ CONTEXT-ENFORCEMENT ═══
 When discussing a specific discovery or trigger, NEVER pivot to a different topic. If asked about "stress", analyze stress. Don't switch to "weather."
+When the user says "compare X and Y" — compare EXACTLY X and Y with numbers.
 
 ═══ DYNAMIC FOLLOW-UPS ═══
 Always generate 2-4 follow-ups that are:
 - Specific to data (not generic "tell me more")
 - Based on patterns the user might not know about
 - Progressively deeper: surface→mechanism→action
+- At least one should reference a surprising pattern in the data
 
 CONVERSATION CONTEXT:
 ${history.slice(-8).map((m: any, i: number) => `${i + 1}. [${m.role}] ${m.content?.slice(0, 100)}`).join("\n") || "First message."}`;
@@ -848,10 +1085,11 @@ serve(async (req) => {
     const safeMemories = Array.isArray(aiMemories) ? aiMemories : [];
     const safeFoodLogs = Array.isArray(foodLogs) ? foodLogs : [];
     const safeDiscoveries = Array.isArray(discoveries) ? discoveries : [];
+    const safeActivities = Array.isArray(activityLogs) ? activityLogs : [];
 
     const userTz = clientTimezone || (profile?.timezone && profile.timezone !== "UTC" ? profile.timezone : null) || "UTC";
 
-    const data = analyzeAllData(safeEntries, safeMeds, safeCorr, safeDiscoveries, safeFoodLogs, profile, userTz);
+    const data = analyzeAllData(safeEntries, safeMeds, safeCorr, safeDiscoveries, safeFoodLogs, profile, userTz, safeActivities);
     const systemPrompt = buildSystemPrompt(profile, data, safeMemories, history, userTz);
 
     // Build tool schema
@@ -866,7 +1104,7 @@ serve(async (req) => {
             additionalProperties: false,
             required: ["response", "shouldLog", "entryData", "visualization", "emotionalTone"],
             properties: {
-              response: { type: "string", description: "Your response. Use **bold** for key stats. Raw asterisks, NOT escaped." },
+              response: { type: "string", description: "Your response. Use **bold** for key stats. Use markdown lists for structure. Raw asterisks, NOT escaped." },
               shouldLog: { type: "boolean", description: "True if user mentioned ANY health symptom/complaint." },
               entryData: {
                 anyOf: [{ type: "null" }, {
@@ -901,12 +1139,12 @@ serve(async (req) => {
                 type: "array",
                 items: { type: "object", required: ["factor", "confidence", "occurrences", "total", "category"], properties: { factor: { type: "string" }, confidence: { type: "number" }, lift: { type: "number" }, occurrences: { type: "number" }, total: { type: "number" }, category: { type: "string", enum: ["trigger", "protective", "investigating"] }, summary: { type: "string" } } },
               },
-              dynamicFollowUps: { type: "array", items: { type: "string" }, description: "2-4 specific follow-up questions based on this conversation and user's data patterns." },
+              dynamicFollowUps: { type: "array", items: { type: "string" }, description: "2-4 specific follow-up questions based on this conversation and user's data patterns. Make at least one surprising." },
               newMemories: {
                 type: "array",
                 items: { type: "object", additionalProperties: false, required: ["memory_type", "category", "content", "importance"], properties: { memory_type: { type: "string", enum: ["pattern", "preference", "insight", "context", "behavior", "emotional", "medical", "dietary"] }, category: { type: "string", enum: ["triggers", "symptoms", "medications", "lifestyle", "emotional", "environmental", "general", "mood", "food", "sleep", "exercise", "social", "work"] }, content: { type: "string" }, importance: { type: "number" } } },
               },
-              proactiveInsight: { type: "string", description: "Pattern user didn't ask about but should know — escalation, new trigger, missed meds, food correlation." },
+              proactiveInsight: { type: "string", description: "Pattern user didn't ask about but should know — escalation, new trigger, missed meds, food correlation, sleep impact." },
               protocolSteps: { type: "array", items: { type: "string" }, description: "Action plan steps when creating a protocol." },
               riskAssessment: { type: "string", description: "Brief risk assessment when relevant: 'LOW|MODERATE|HIGH: reason'" },
             },
@@ -917,7 +1155,7 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "research_and_respond",
-          description: "Search the web for specific medical/supplement/product questions.",
+          description: "Search the web for specific medical/supplement/product questions that go beyond the user's personal data.",
           parameters: {
             type: "object", required: ["searchQuery", "userQuestion"],
             properties: { searchQuery: { type: "string" }, userQuestion: { type: "string" } },
@@ -945,8 +1183,8 @@ serve(async (req) => {
       { role: "user", content: clamp(message, 8000) },
     ];
 
-    // Model selection: Pro for deep analytics, Flash for conversational
-    const isAnalytical = /\b(analyz|predict|forecast|correlat|pattern|trend|compar|chart|show me|medication effect|what.*help|risk|trigger|why do|breakdown|deep dive|health score|inflammat|trajectory|escalat|improv|briefing|report|30.day|monthly|weekly|suspicious|adherence|body metric|sleep.*impact|circadian|heatmap|cluster|recover|worst|best|location|city|food.*flare|calori|protein|fiber|nutriti|weight|exercise|activity)\b/i.test(message);
+    // Model selection
+    const isAnalytical = /\b(analyz|predict|forecast|correlat|pattern|trend|compar|chart|show me|medication effect|what.*help|risk|trigger|why do|breakdown|deep dive|health score|inflammat|trajectory|escalat|improv|briefing|report|30.day|monthly|weekly|suspicious|adherence|body metric|sleep.*impact|circadian|heatmap|cluster|recover|worst|best|location|city|food.*flare|calori|protein|fiber|nutriti|weight|exercise|activity|danger|seasonal|macro|velocity)\b/i.test(message);
     const model = isAnalytical ? "google/gemini-2.5-pro" : "google/gemini-2.5-flash";
 
     console.log("🤖 [chat] Model:", model, "Messages:", messages.length, "Entries:", safeEntries.length, "Foods:", safeFoodLogs.length);
@@ -980,7 +1218,7 @@ serve(async (req) => {
         throw new Error(`AI gateway error: ${aiResp.status}`);
       }
 
-      // Accumulate full response then return JSON (tool calls can't be streamed token-by-token)
+      // Accumulate full response then return JSON
       const reader = aiResp.body!.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
@@ -1127,7 +1365,6 @@ function saveMemories(supabase: any, userId: string, newMemories: any[]) {
             importance: Math.min(1, Math.max(existing.importance || 0, mem.importance) + 0.03) 
           }).eq("id", existing.id);
         } else {
-          // Check memory count, prune lowest importance if > 100
           const { count } = await supabase.from("ai_memories").select("id", { count: "exact", head: true }).eq("user_id", userId);
           if ((count || 0) >= 100) {
             const { data: lowest } = await supabase.from("ai_memories").select("id").eq("user_id", userId).order("importance", { ascending: true }).limit(1).single();

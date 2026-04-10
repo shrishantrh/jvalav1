@@ -6,12 +6,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Brain, Send, Sparkles, Loader2, X, Bell, CheckCircle2, Calendar,
-  TrendingUp, Shield, Search, ArrowRight, Mic, MicOff, Zap, MessageCircle
+  TrendingUp, Shield, Search, ArrowRight, Zap, Copy, Check,
+  AlertTriangle, Heart, Flame, ExternalLink
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AIVisualization, AIVisualizationRenderer } from "@/components/chat/AIVisualization";
 import { AIChatPrompts, generateFollowUps } from "@/components/chat/AIChatPrompts";
 import { useToast } from "@/hooks/use-toast";
+import ReactMarkdown from "react-markdown";
 
 interface StructuredDiscovery {
   factor: string;
@@ -21,6 +23,12 @@ interface StructuredDiscovery {
   total: number;
   category: 'trigger' | 'protective' | 'investigating';
   summary?: string;
+}
+
+interface Citation {
+  index: number;
+  title: string;
+  url: string;
 }
 
 interface Message {
@@ -33,6 +41,10 @@ interface Message {
   protocolSteps?: string[];
   proactiveInsight?: string;
   loggedEntry?: { type: string; severity?: string; symptoms?: string[] };
+  riskAssessment?: string;
+  emotionalTone?: string;
+  citations?: Citation[];
+  wasResearched?: boolean;
   isStreaming?: boolean;
 }
 
@@ -83,40 +95,75 @@ const DiscoveryCard = ({ discovery, onViewTrends }: { discovery: StructuredDisco
   );
 };
 
-function cleanDiscoveryText(text: string): string {
-  return text
-    .replace(/(?:💡\s*)?(?:\*{1,2})?Discovery:\s*[^\n]+\*{0,2}\n[\s\S]*?(?=(?:💡\s*)?(?:\*{1,2})?Discovery:|$)/gi, '')
-    .replace(/_[A-Za-z]+\s*•\s*\d+%?\s*confidence\s*•\s*\d+\s*occurrences?_/gi, '')
-    .replace(/^\d+\s*out\s*of\s*\d+\s*times?\s*\(\d+%\).*$/gm, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
-const RichTextLine = ({ text }: { text: string }) => {
-  const parts = text.split(/\*\*(.*?)\*\*/g);
-  if (parts.length === 1) return <>{text}</>;
+// ─── Risk Badge ───
+const RiskBadge = ({ assessment }: { assessment: string }) => {
+  const level = assessment.split(":")[0]?.trim().toUpperCase();
+  const reason = assessment.split(":").slice(1).join(":").trim();
+  const config = level === "HIGH" 
+    ? { bg: "bg-red-500/10", border: "border-red-500/30", text: "text-red-600 dark:text-red-400", icon: AlertTriangle }
+    : level === "MODERATE"
+    ? { bg: "bg-amber-500/10", border: "border-amber-500/30", text: "text-amber-600 dark:text-amber-400", icon: Flame }
+    : { bg: "bg-emerald-500/10", border: "border-emerald-500/30", text: "text-emerald-600 dark:text-emerald-400", icon: Shield };
+  const RIcon = config.icon;
   return (
-    <>
-      {parts.map((part, i) =>
-        i % 2 === 1 ? <strong key={i} style={{ fontWeight: 700 }}>{part}</strong> : <span key={i}>{part}</span>
-      )}
-    </>
+    <div className={cn("mt-2 px-2.5 py-1.5 rounded-lg border flex items-center gap-2", config.bg, config.border)}>
+      <RIcon className={cn("w-3.5 h-3.5 shrink-0", config.text)} />
+      <div>
+        <span className={cn("text-[10px] font-bold uppercase", config.text)}>{level} RISK</span>
+        {reason && <span className="text-[10px] text-muted-foreground ml-1.5">— {reason}</span>}
+      </div>
+    </div>
   );
 };
 
-const MessageContent = ({ content, role, discoveries, onNavigateToTrends }: { content: string; role: string; discoveries?: StructuredDiscovery[]; onNavigateToTrends?: () => void }) => {
-  let cleanText = cleanDiscoveryText(content).replace(/\\\*/g, '*');
-  const paragraphs = cleanText.split('\n').filter(Boolean);
+// ─── Tone indicator ───
+const toneConfig: Record<string, { emoji: string; label: string }> = {
+  supportive: { emoji: "💜", label: "Supportive" },
+  celebratory: { emoji: "🎉", label: "Celebrating" },
+  concerned: { emoji: "⚠️", label: "Heads up" },
+  encouraging: { emoji: "💪", label: "Encouraging" },
+  empathetic: { emoji: "🫂", label: "Understanding" },
+  analytical: { emoji: "📊", label: "Analysis" },
+  urgent: { emoji: "🚨", label: "Important" },
+  playful: { emoji: "✨", label: "Playful" },
+};
 
+// ─── Copy button ───
+const CopyButton = ({ text }: { text: string }) => {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <button onClick={handleCopy} className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-muted">
+      {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3 text-muted-foreground" />}
+    </button>
+  );
+};
+
+// ─── Citations ───
+const CitationList = ({ citations }: { citations: Citation[] }) => (
+  <div className="mt-2 pt-2 border-t border-border/30 space-y-1">
+    <p className="text-[10px] font-medium text-muted-foreground">Sources:</p>
+    {citations.map(c => (
+      <a key={c.index} href={c.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-[10px] text-primary hover:underline">
+        <span className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center text-[8px] font-bold shrink-0">{c.index}</span>
+        {c.title}
+        <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+      </a>
+    ))}
+  </div>
+);
+
+// ─── Markdown Message Content ───
+const MessageContent = ({ content, role, discoveries, onNavigateToTrends }: { content: string; role: string; discoveries?: StructuredDiscovery[]; onNavigateToTrends?: () => void }) => {
   return (
     <div className="text-sm">
-      {cleanText && (
-        <div className="space-y-1.5">
-          {paragraphs.map((p, i) => (
-            <p key={i} className="m-0 leading-relaxed">
-              <RichTextLine text={p} />
-            </p>
-          ))}
+      {content && (
+        <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-strong:text-foreground">
+          <ReactMarkdown>{content}</ReactMarkdown>
         </div>
       )}
       {discoveries && discoveries.length > 0 && discoveries.map((d, i) => (
@@ -139,17 +186,9 @@ const GoogleCalendarIcon = () => (
 
 // ─── Streaming SSE helper ───
 async function streamChatSSE({
-  message,
-  userId,
-  history,
-  isProtocolMode,
-  onDelta,
-  onComplete,
-  onError,
+  message, userId, history, isProtocolMode, onDelta, onComplete, onError,
 }: {
-  message: string;
-  userId: string;
-  history: { role: string; content: string }[];
+  message: string; userId: string; history: { role: string; content: string }[];
   isProtocolMode: boolean;
   onDelta: (chunk: string) => void;
   onComplete: (fullResponse: any) => void;
@@ -168,12 +207,9 @@ async function streamChatSSE({
         apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
       },
       body: JSON.stringify({
-        message,
-        userId,
-        history,
+        message, userId, history,
         clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        isProtocolMode,
-        stream: true,
+        isProtocolMode, stream: true,
       }),
     });
 
@@ -183,14 +219,12 @@ async function streamChatSSE({
       try { parsed = JSON.parse(errText); } catch { parsed = { response: errText }; }
       if (resp.status === 429) { onError(new Error("Rate limited — try again in a moment")); return; }
       if (resp.status === 402) { onError(new Error("AI credits exhausted")); return; }
-      // Non-streaming response (JSON)
       onComplete(parsed);
       return;
     }
 
     const contentType = resp.headers.get("content-type") || "";
     
-    // If server returned JSON (non-streaming fallback)
     if (contentType.includes("application/json")) {
       const data = await resp.json();
       onComplete(data);
@@ -230,7 +264,6 @@ async function streamChatSSE({
       }
     }
 
-    // Parse tool call result
     if (toolName === "respond" && toolArgs) {
       try {
         const parsed = JSON.parse(toolArgs);
@@ -244,12 +277,14 @@ async function streamChatSSE({
           dynamicFollowUps: parsed.dynamicFollowUps ?? [],
           proactiveInsight: parsed.proactiveInsight ?? null,
           protocolSteps: parsed.protocolSteps ?? [],
+          riskAssessment: parsed.riskAssessment ?? null,
+          citations: parsed.citations ?? [],
+          wasResearched: parsed.wasResearched ?? false,
         });
         return;
       } catch { /* fall through */ }
     }
 
-    // Fallback
     onComplete({
       response: contentAccum || "Tell me more about how you're feeling.",
       shouldLog: false, entryData: null, visualization: null, emotionalTone: "neutral",
@@ -268,20 +303,29 @@ export const LimitlessAIChat = ({ userId, initialPrompt, onClose, onNavigateToTr
   const [protocolCreated, setProtocolCreated] = useState(false);
   const [showCapabilities, setShowCapabilities] = useState(true);
   const [memoryCount, setMemoryCount] = useState<number | null>(null);
+  const [healthScore, setHealthScore] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const hasProcessedInitialPrompt = useRef(false);
-  const hasFetchedBriefing = useRef(false);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Fetch memory count on mount
+  // Fetch memory count & recent health score on mount
   useEffect(() => {
     (async () => {
-      const { count } = await supabase.from("ai_memories").select("id", { count: "exact", head: true }).eq("user_id", userId);
+      const [{ count }, { data: recentFlares }] = await Promise.all([
+        supabase.from("ai_memories").select("id", { count: "exact", head: true }).eq("user_id", userId),
+        supabase.from("flare_entries").select("severity").eq("user_id", userId).eq("entry_type", "flare").order("timestamp", { ascending: false }).limit(20),
+      ]);
       setMemoryCount(count);
+      // Simple client-side health score approximation
+      if (recentFlares && recentFlares.length > 0) {
+        const severeCount = recentFlares.filter(f => f.severity === "severe").length;
+        const score = Math.max(0, Math.min(100, 80 - severeCount * 8 - recentFlares.length * 2));
+        setHealthScore(score);
+      }
     })();
   }, [userId]);
 
@@ -352,7 +396,6 @@ Make it practical and personalized to my data.`;
         history: historyForAI,
         isProtocolMode,
         onDelta: (chunk) => {
-          // Token-by-token update to last assistant message
           setMessages(prev => {
             const updated = [...prev];
             const lastMsg = updated[updated.length - 1];
@@ -373,6 +416,10 @@ Make it practical and personalized to my data.`;
             protocolSteps: data.protocolSteps,
             proactiveInsight: data.proactiveInsight,
             loggedEntry: data.shouldLog ? data.entryData : undefined,
+            riskAssessment: data.riskAssessment,
+            emotionalTone: data.emotionalTone,
+            citations: data.citations,
+            wasResearched: data.wasResearched,
             isStreaming: false,
           };
 
@@ -382,7 +429,6 @@ Make it practical and personalized to my data.`;
             return updated;
           });
 
-          // Auto-log if AI detected a health complaint
           if (data.shouldLog && data.entryData) {
             autoLogEntry(data.entryData);
           }
@@ -448,14 +494,17 @@ Make it practical and personalized to my data.`;
     { label: "Trigger avoidance", query: "Help me create a plan to avoid my top triggers" },
   ] : [
     { label: "Daily briefing", query: "Give me my daily health briefing — how am I doing, what's my risk, and what should I focus on today?" },
-    { label: "My patterns", query: "What patterns do you see in my data?" },
-    { label: "This week", query: "How am I doing this week compared to last?" },
-    { label: "Predict", query: "What's my flare risk today?" },
+    { label: "My patterns", query: "What patterns do you see in my data? Surprise me with something I don't know." },
+    { label: "This week", query: "How am I doing this week compared to last? Show me the numbers." },
+    { label: "Predict", query: "What's my flare risk right now? Include all factors." },
   ];
 
-  // Get the last assistant message for dynamic follow-ups
   const lastAssistantMsg = [...messages].reverse().find(m => m.role === "assistant" && !m.isStreaming);
   const dynamicFollowUps = lastAssistantMsg?.dynamicFollowUps || [];
+
+  // Tone for last message
+  const lastTone = lastAssistantMsg?.emotionalTone;
+  const toneInfo = lastTone && lastTone !== "neutral" ? toneConfig[lastTone] : null;
 
   return (
     <Card className={cn(
@@ -472,8 +521,18 @@ Make it practical and personalized to my data.`;
             <Brain className="w-4 h-4 text-primary-foreground" />
           </div>
           <div>
-            <h3 className="text-sm font-medium">
+            <h3 className="text-sm font-medium flex items-center gap-1.5">
               {isProtocolMode ? "Protocol Builder" : "Jvala AI"}
+              {healthScore !== null && !isProtocolMode && (
+                <span className={cn(
+                  "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
+                  healthScore >= 75 ? "bg-emerald-500/10 text-emerald-600" :
+                  healthScore >= 50 ? "bg-amber-500/10 text-amber-600" :
+                  "bg-red-500/10 text-red-600"
+                )}>
+                  {healthScore}
+                </span>
+              )}
             </h3>
             <p className="text-[10px] text-muted-foreground">
               {memoryCount !== null && memoryCount > 0
@@ -506,7 +565,7 @@ Make it practical and personalized to my data.`;
               <p className="text-xs text-muted-foreground mt-1">
                 {isProtocolMode
                   ? "I'll help you create actionable steps with reminders"
-                  : "I analyze patterns, generate charts, predict risks, and auto-log from our conversation."}
+                  : "Charts, predictions, food analysis, medication tracking, web research — ask anything."}
               </p>
             </div>
             <div className="flex flex-wrap gap-2 justify-center">
@@ -516,7 +575,6 @@ Make it practical and personalized to my data.`;
                 </Button>
               ))}
             </div>
-            {/* Capability chips */}
             {!isProtocolMode && (
               <div className="w-full mt-2">
                 <AIChatPrompts onSendPrompt={(prompt) => { setInput(prompt); setTimeout(() => handleSend(prompt), 100); }} />
@@ -526,21 +584,43 @@ Make it practical and personalized to my data.`;
         ) : (
           <div className="space-y-4">
             {messages.map((msg, i) => (
-              <div key={i} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
+              <div key={i} className={cn("flex group", msg.role === "user" ? "justify-end" : "justify-start")}>
                 <div className={cn(
-                  "max-w-[85%] rounded-2xl px-4 py-2",
+                  "max-w-[85%] rounded-2xl px-4 py-2 relative",
                   msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
                 )}>
                   {msg.isStreaming && !msg.content ? (
                     <div className="flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                      <div className="flex gap-1">
+                        <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: "0ms" }} />
+                        <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: "150ms" }} />
+                        <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: "300ms" }} />
+                      </div>
                       <span className="text-xs text-muted-foreground">Thinking...</span>
                     </div>
                   ) : (
-                    <MessageContent content={msg.content} role={msg.role} discoveries={msg.discoveries} onNavigateToTrends={onClose} />
+                    <>
+                      <MessageContent content={msg.content} role={msg.role} discoveries={msg.discoveries} onNavigateToTrends={onClose} />
+                      {msg.role === "assistant" && !msg.isStreaming && msg.content && (
+                        <div className="absolute -top-2 -right-2">
+                          <CopyButton text={msg.content} />
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Researched badge */}
+                  {msg.wasResearched && !msg.isStreaming && (
+                    <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20">
+                      <Search className="w-2.5 h-2.5 text-blue-500" />
+                      <span className="text-[9px] font-medium text-blue-600 dark:text-blue-400">Researched</span>
+                    </div>
                   )}
 
                   {msg.visualization && !msg.isStreaming && <AIVisualizationRenderer viz={msg.visualization} autoExpand={true} />}
+
+                  {/* Risk assessment badge */}
+                  {msg.riskAssessment && !msg.isStreaming && <RiskBadge assessment={msg.riskAssessment} />}
 
                   {msg.proactiveInsight && !msg.isStreaming && (
                     <div className="mt-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
@@ -548,7 +628,6 @@ Make it practical and personalized to my data.`;
                     </div>
                   )}
 
-                  {/* Logged entry badge */}
                   {msg.loggedEntry && !msg.isStreaming && (
                     <div className="mt-2 flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
                       <CheckCircle2 className="w-3 h-3 text-emerald-600" />
@@ -557,6 +636,11 @@ Make it practical and personalized to my data.`;
                         {msg.loggedEntry.symptoms?.length ? ` — ${msg.loggedEntry.symptoms.slice(0, 2).join(", ")}` : ""}
                       </span>
                     </div>
+                  )}
+
+                  {/* Citations */}
+                  {msg.citations && msg.citations.length > 0 && !msg.isStreaming && (
+                    <CitationList citations={msg.citations} />
                   )}
 
                   {/* Protocol Steps */}
@@ -596,23 +680,33 @@ Make it practical and personalized to my data.`;
               </div>
             ))}
 
-            {/* Dynamic follow-up chips after last assistant message */}
-            {dynamicFollowUps.length > 0 && !loading && (
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
-                {dynamicFollowUps.slice(0, 4).map((fu, i) => (
-                  <button
-                    key={i}
-                    onClick={() => { setInput(fu); setTimeout(() => handleSend(fu), 100); }}
-                    className={cn(
-                      "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full",
-                      "bg-primary/10 hover:bg-primary/20 border border-primary/20",
-                      "text-xs font-medium text-primary transition-all"
-                    )}
-                  >
-                    <Zap className="w-3 h-3" />
-                    {fu.length > 40 ? fu.slice(0, 40) + '...' : fu}
-                  </button>
-                ))}
+            {/* Tone indicator + dynamic follow-up chips */}
+            {!loading && lastAssistantMsg && !lastAssistantMsg.isStreaming && (
+              <div className="space-y-2">
+                {toneInfo && (
+                  <div className="flex items-center gap-1.5 px-2">
+                    <span className="text-xs">{toneInfo.emoji}</span>
+                    <span className="text-[10px] text-muted-foreground">{toneInfo.label}</span>
+                  </div>
+                )}
+                {dynamicFollowUps.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
+                    {dynamicFollowUps.slice(0, 4).map((fu, i) => (
+                      <button
+                        key={i}
+                        onClick={() => { setInput(fu); setTimeout(() => handleSend(fu), 100); }}
+                        className={cn(
+                          "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full",
+                          "bg-primary/10 hover:bg-primary/20 border border-primary/20",
+                          "text-xs font-medium text-primary transition-all"
+                        )}
+                      >
+                        <Zap className="w-3 h-3" />
+                        {fu.length > 40 ? fu.slice(0, 40) + '...' : fu}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -642,12 +736,12 @@ Make it practical and personalized to my data.`;
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder={isProtocolMode ? "Describe your protocol needs..." : "Tell me anything — I'll log it if it's health-related"}
+            placeholder={isProtocolMode ? "Describe your protocol needs..." : "Ask anything — I'll analyze your data"}
             className="flex-1"
             disabled={loading}
           />
           <Button onClick={() => handleSend()} disabled={loading || !input.trim()}>
-            <Send className="w-4 h-4" />
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </Button>
         </div>
       </div>
