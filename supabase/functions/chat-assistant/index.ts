@@ -482,9 +482,28 @@ serve(async (req) => {
       { role: "user", content: clamp(message, 6000) },
     ];
 
-    console.log("🤖 [chat] Calling AI with", messages.length, "messages");
+    // Fetch prediction history for AI context
+    const { data: predLogs } = await supabase.from("prediction_logs").select("risk_score, risk_level, outcome_logged, was_correct, brier_score, predicted_at").eq("user_id", userId).order("predicted_at", { ascending: false }).limit(10);
+    const predContext = (predLogs || []).length > 0 
+      ? `\n═══ PREDICTION HISTORY ═══\n${(predLogs || []).map((p: any) => `${new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: userTz }).format(new Date(p.predicted_at))}: ${p.risk_score}% ${p.risk_level} → ${p.outcome_logged ? (p.was_correct ? '✅ correct' : '❌ wrong') : '⏳ pending'}`).join('\n')}\nBrier Score: ${(predLogs || []).filter((p: any) => p.brier_score != null).length >= 3 ? ((predLogs || []).filter((p: any) => p.brier_score != null).reduce((a: number, p: any) => a + p.brier_score, 0) / (predLogs || []).filter((p: any) => p.brier_score != null).length).toFixed(3) : 'calibrating'}`
+      : '';
 
-    const resp = await callAI({ model: "google/gemini-2.5-flash", messages, tools, temperature: 0.7 });
+    // Also fetch activity logs
+    const { data: activityLogs } = await supabase.from("activity_logs").select("activity_type, activity_value, intensity, duration_minutes, timestamp").eq("user_id", userId).order("timestamp", { ascending: false }).limit(20);
+    const activityContext = (activityLogs || []).length > 0
+      ? `\n═══ ACTIVITY LOGS ═══\n${(activityLogs || []).map((a: any) => `${a.activity_type}: ${a.activity_value || ''} ${a.intensity ? `(${a.intensity})` : ''} ${a.duration_minutes ? `${a.duration_minutes}min` : ''}`).join(', ')}`
+      : '';
+
+    // Inject extra context into system prompt
+    messages[0].content += predContext + activityContext;
+
+    // Determine complexity: use pro model for analytical questions
+    const isAnalytical = /\b(analyz|predict|forecast|correlat|pattern|trend|compar|chart|show me|medication effect|what.*help|risk|trigger|why do|breakdown|deep dive)\b/i.test(message);
+    const model = isAnalytical ? "google/gemini-2.5-pro" : "google/gemini-2.5-flash";
+
+    console.log("🤖 [chat] Calling AI with", messages.length, "messages, model:", model);
+
+    const resp = await callAI({ model, messages, tools, temperature: 0.5 });
 
     if (!resp.ok) {
       const text = await resp.text();
