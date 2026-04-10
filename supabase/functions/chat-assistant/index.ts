@@ -38,7 +38,7 @@ async function searchWeb(query: string): Promise<{ results: Array<{ title: strin
   } catch (e) { return { results: [], error: String(e) }; }
 }
 
-// ─── Compact condition knowledge ──────────────────────────────────────────
+// ─── Expanded condition knowledge (30+ conditions) ────────────────────────
 const CK: Record<string, [string, string]> = {
   'Asthma': ['Sleep disruption bidirectional. Peak 4-6AM. Triggers: cold/dry air, humidity>60%, AQI, GERD, stress, exercise. Barometric drops precede flares.', 'After meals(GERD), before exercise, weather changes, evening, spring/fall pollen'],
   'Migraine': ['Sleep #1 trigger (<6h/>9h). Threshold model: triggers stack. Dehydration, skipped meals, alcohol, aged cheese, MSG. HRV drops 12-24h before. Mg 400mg/day preventive.', 'After skipped meals, dehydration, after alcohol, pressure changes, cycle days 1-3/24-28'],
@@ -60,6 +60,18 @@ const CK: Record<string, [string, string]> = {
   'Chronic Fatigue Syndrome': ['PEM 12-72h after exceeding threshold. Activity pacing critical. HR below anaerobic threshold.', 'Morning energy, activity pacing every 2h, post-activity(24-72h PEM), evening energy'],
   'Hypothyroidism': ['Levothyroxine empty stomach 30-60min before food. Calcium/iron/coffee reduce absorption.', 'Medication timing(morning empty stomach), energy, cold sensitivity, bowels, mood/brain fog'],
   'Lupus': ['UV triggers flares(60-80% photosensitive). SPF50+ always. Fatigue most debilitating.', 'Before sun exposure, morning fatigue, stress, illness onset, medication timing'],
+  'Crohn\'s Disease': ['Avoid NSAIDs. Stress not a cause but worsens. Low-residue diet during flares. Vitamin B12/iron/D deficiency common.', 'After meals, morning urgency, after fatty/high-fiber, stress, post-NSAID, cold weather'],
+  'Ulcerative Colitis': ['Left-sided most common. Probiotics (E. coli Nissle) as effective as mesalamine for maintenance. Nighttime symptoms=severe.', 'After meals, morning, stress, after dairy, nighttime urgency, seasonal transitions'],
+  'Osteoarthritis': ['Weight: each 1lb lost = 4lb less knee load. Worst after inactivity(gelling). Humid+cold=worse. Glucosamine+chondroitin mixed evidence.', 'Morning stiffness(short), after sitting, weather changes, after overuse, evening, stairs/hills'],
+  'Insomnia': ['Sleep restriction therapy most effective. CBT-I > medication. Blue light 2h before bed. Core body temp must drop 1-2°F.', 'Bedtime routine, caffeine cutoff(2pm), evening stress, screen time, exercise timing'],
+  'ADHD': ['Medication timing critical. Protein breakfast improves efficacy. Exercise 30min = methylphenidate. Screen time worsens.', 'Morning routine/medication, transitions between tasks, afternoon slump, evening wind-down, meal timing'],
+  'Chronic Pain': ['Gate control theory. Cold therapy=acute, heat=chronic. Catastrophizing strongest predictor. Graded exposure.', 'Morning assessment, after activity, weather changes, stress, sleep quality, social isolation'],
+  'Heart Disease': ['Resting HR >75=concern. HRV critical biomarker. Mediterranean diet gold standard. Omega-3 2-4g/day.', 'Morning vitals, post-exercise, stress, after meals, medication timing, sleep apnea screening'],
+  'Hypertension': ['White coat effect +20-30mmHg. Home monitoring essential. DASH diet. Potassium 3500-5000mg/day. Sleep apnea in 50%.', 'Morning readings, post-exercise, stress, sodium intake, medication timing, alcohol'],
+  'Gout': ['Uric acid >6.8mg/dL crystallizes. Purines: organ meats, shellfish, beer. Cherry extract 500mg 2x/day. Hydration critical.', 'After high-purine meals, after alcohol(especially beer), dehydration, morning, cold weather'],
+  'Rosacea': ['Triggers: heat, sun, alcohol, spicy, stress. Demodex mites. Azelaic acid 15% effective. SPF critical.', 'After spicy/hot food, sun exposure, after alcohol, hot showers, stress, temperature changes'],
+  'Tinnitus': ['Stress/anxiety amplifies perception. Masking sounds. TMJ in 30%. Caffeine controversial. Hearing loss correlation.', 'Quiet environments, stress, jaw clenching, after loud exposure, sleep time, caffeine'],
+  'Vertigo': ['BPPV most common. Epley maneuver 80% effective. Vestibular migraine underdiagnosed. Avoid quick head turns.', 'Position changes, morning, after head movement, stress, menstrual cycle, dehydration'],
 };
 
 // ─── Data analysis ────────────────────────────────────────────────────────
@@ -83,7 +95,6 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
   };
   const getTimeOfDay = (h: number) => h < 6 ? "night" : h < 12 ? "morning" : h < 17 ? "afternoon" : h < 21 ? "evening" : "night";
 
-  // Severity counts
   const sevCounts = { mild: 0, moderate: 0, severe: 0 };
   const sevScores: number[] = [];
   const symptomCounts: Record<string, number> = {};
@@ -117,13 +128,12 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
     }
   }
 
-  // Flare-free streak
   let currentFlareFree = 0;
   if (sortedFlares.length > 0) {
     currentFlareFree = Math.floor((now - new Date(sortedFlares[0].timestamp).getTime()) / oneDay);
   }
 
-  // Daily flares 30d (for charts)
+  // Daily flares 30d
   const dailyFlares30d: any[] = [];
   for (let i = 29; i >= 0; i--) {
     const ds = new Date(now - i * oneDay); ds.setUTCHours(0, 0, 0, 0);
@@ -171,30 +181,34 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
       case "hrv": return p?.hrv?.current ?? p?.hrv?.daily ?? p?.vitals?.hrv ?? null;
       case "sleep": { const d = p?.sleep?.duration; if (!d) return null; return d > 24 * 60 ? d / 3600 : d > 24 ? d / 60 : d; }
       case "steps": return p?.activity?.steps ?? p?.steps ?? null;
+      case "spo2": return p?.vitals?.spo2 ?? p?.spo2 ?? null;
+      case "temp": return p?.vitals?.temperature ?? p?.temperature ?? null;
+      case "rr": return p?.vitals?.respiratoryRate ?? p?.respiratoryRate ?? null;
       default: return null;
     }
   };
   const collectMetrics = (list: any[]) => {
-    const hr: number[] = [], hrv: number[] = [], sleep: number[] = [], steps: number[] = [];
+    const hr: number[] = [], hrv: number[] = [], sleep: number[] = [], steps: number[] = [], spo2: number[] = [], temp: number[] = [], rr: number[] = [];
     for (const e of list) {
       const p = e.physiological_data;
       const vHr = extractMetric(p, "hr"); if (vHr != null) hr.push(vHr);
       const vHrv = extractMetric(p, "hrv"); if (vHrv != null) hrv.push(vHrv);
       const vSleep = extractMetric(p, "sleep"); if (vSleep != null) sleep.push(vSleep);
       const vSteps = extractMetric(p, "steps"); if (vSteps != null) steps.push(vSteps);
+      const vSpo2 = extractMetric(p, "spo2"); if (vSpo2 != null) spo2.push(vSpo2);
+      const vTemp = extractMetric(p, "temp"); if (vTemp != null) temp.push(vTemp);
+      const vRr = extractMetric(p, "rr"); if (vRr != null) rr.push(vRr);
     }
-    return { hr: avg(hr), hrv: avg(hrv), sleep: avg(sleep), steps: avg(steps) };
+    return { hr: avg(hr), hrv: avg(hrv), sleep: avg(sleep), steps: avg(steps), spo2: avg(spo2), temp: avg(temp), rr: avg(rr) };
   };
   const overallMetrics = collectMetrics(withPhysio);
   const flareMetrics = collectMetrics(flaresWithPhysio);
   const baselineMetrics = collectMetrics(nonFlares);
 
-  // Food log summary
+  // Food analysis
   const today = new Date().toISOString().split("T")[0];
   const todayFoods = foodLogs.filter((f: any) => f.logged_at?.startsWith(today));
   const todayCal = todayFoods.reduce((s: number, f: any) => s + (Number(f.calories) || 0) * (Number(f.servings) || 1), 0);
-  
-  // Last 7 days food
   const last7dFoods = foodLogs.filter((f: any) => now - new Date(f.logged_at).getTime() < 7 * oneDay);
   const foodByDay: Record<string, any[]> = {};
   for (const f of last7dFoods) {
@@ -203,7 +217,7 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
     foodByDay[day].push(f);
   }
 
-  // Inflammatory food scoring
+  // Inflammatory scoring
   const inflammatoryFoods = foodLogs.filter((f: any) => {
     const sugars = Number(f.added_sugars_g || f.total_sugars_g) || 0;
     const satFat = Number(f.saturated_fat_g) || 0;
@@ -217,15 +231,61 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
     return fiber > 5 || vitC > 30 || /salmon|berr|spinach|broccoli|turmeric|ginger|olive oil|avocado|nuts|walnut|almond/.test(name);
   });
 
+  // Food-flare correlation: foods eaten 2-12h before flares
+  const foodFlareCorrelation: Record<string, { count: number; total: number }> = {};
+  for (const flare of sortedFlares.slice(0, 50)) {
+    const ft = new Date(flare.timestamp).getTime();
+    const fBefore = foodLogs.filter((f: any) => {
+      const t = new Date(f.logged_at).getTime();
+      return t >= ft - 12 * 3600000 && t < ft - 2 * 3600000;
+    });
+    for (const food of fBefore) {
+      const name = food.food_name;
+      if (!foodFlareCorrelation[name]) foodFlareCorrelation[name] = { count: 0, total: 0 };
+      foodFlareCorrelation[name].count++;
+    }
+  }
+  // Also count total food appearances
+  for (const f of foodLogs) {
+    const name = f.food_name;
+    if (foodFlareCorrelation[name]) foodFlareCorrelation[name].total++;
+  }
+  const suspiciousFoods = Object.entries(foodFlareCorrelation)
+    .filter(([_, d]) => d.count >= 2 && d.total >= 2)
+    .map(([name, d]) => `${name}(${d.count}/${d.total} times before flare)`)
+    .slice(0, 8);
+
   // Trigger-symptom mapping
   const tsMap: Record<string, Record<string, number>> = {};
   flares.forEach((f: any) => { (f.triggers || []).forEach((t: string) => { if (!tsMap[t]) tsMap[t] = {}; (f.symptoms || []).forEach((s: string) => { tsMap[t][s] = (tsMap[t][s] || 0) + 1; }); }); });
   const triggerOutcomes = Object.entries(tsMap).map(([t, syms]) => ({ trigger: t, topSymptoms: Object.entries(syms).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([s, c]) => `${s}(${c}x)`) })).slice(0, 8);
 
-  // Severity trajectory (last 10 flares)
+  // Severity trajectory
   const sevTrajectory = sortedFlares.slice(0, 10).reverse().map(f => sevToNum(f.severity || ""));
   const isEscalating = sevTrajectory.length >= 4 && sevTrajectory.slice(-3).every((v, i, a) => i === 0 || v >= a[i - 1]);
   const isImproving = sevTrajectory.length >= 4 && sevTrajectory.slice(-3).every((v, i, a) => i === 0 || v <= a[i - 1]);
+
+  // Longest gap between flares (recovery periods)
+  const gapsBetweenFlares: number[] = [];
+  for (let i = 0; i < sortedFlares.length - 1; i++) {
+    const gap = new Date(sortedFlares[i].timestamp).getTime() - new Date(sortedFlares[i + 1].timestamp).getTime();
+    gapsBetweenFlares.push(Math.round(gap / oneDay));
+  }
+  const avgGapDays = gapsBetweenFlares.length > 0 ? Math.round(gapsBetweenFlares.reduce((a, b) => a + b, 0) / gapsBetweenFlares.length) : null;
+  const maxGapDays = gapsBetweenFlares.length > 0 ? Math.max(...gapsBetweenFlares) : null;
+
+  // Medication adherence
+  const medAdherence: Record<string, { expected: number; actual: number }> = {};
+  for (const med of uniqueMeds) {
+    const doses = medLogs.filter((m: any) => m.medication_name === med);
+    if (doses.length < 2) continue;
+    const freq = doses[0]?.frequency || "daily";
+    const first = new Date(doses[doses.length - 1].taken_at).getTime();
+    const last = new Date(doses[0].taken_at).getTime();
+    const daySpan = Math.max(1, Math.floor((last - first) / oneDay));
+    const expectedPerDay = freq === "twice-daily" ? 2 : freq === "three-times-daily" ? 3 : 1;
+    medAdherence[med] = { expected: daySpan * expectedPerDay, actual: doses.length };
+  }
 
   // Health score (0-100)
   const healthScore = Math.max(0, Math.min(100, Math.round(
@@ -257,12 +317,14 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
       sevCounts, currentFlareFree,
       daysSinceLast: sortedFlares[0] ? Math.floor((now - new Date(sortedFlares[0].timestamp).getTime()) / oneDay) : null,
       isEscalating, isImproving, healthScore,
+      avgGapDays, maxGapDays,
     },
     topSymptoms, topTriggers, peakTime: peakTime?.[0] || "N/A", peakDay: peakDay?.[0] || "N/A",
     hourBuckets, dayCounts, weatherCorr, triggerOutcomes,
-    dailyFlares30d, weeklyBreakdown, medEffectiveness,
+    dailyFlares30d, weeklyBreakdown, medEffectiveness, medAdherence,
     inflammatoryFoodCount: inflammatoryFoods.length,
     antiInflammatoryFoodCount: antiInflammatoryFoods.length,
+    suspiciousFoods,
     sevTrajectory,
     body: {
       hasData: withPhysio.length > 0,
@@ -276,7 +338,7 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
     },
     recentEntries: sortedFlares.slice(0, 10).map(e => {
       const d = new Date(e.timestamp);
-      try { return d.toLocaleString("en-US", { timeZone: userTz, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + ` (${e.severity || e.entry_type})`; }
+      try { return d.toLocaleString("en-US", { timeZone: userTz, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + ` (${e.severity || e.entry_type}${e.symptoms?.length ? ': ' + e.symptoms.slice(0, 3).join(', ') : ''})`; }
       catch { return `${e.severity || e.entry_type}`; }
     }),
     discoveries: discoveries.filter((d: any) => d.confidence >= 0.25).slice(0, 15).map((d: any) => ({
@@ -299,141 +361,157 @@ function buildSystemPrompt(profile: any, data: ReturnType<typeof analyzeAllData>
     return ck ? `${c}: ${ck[0]}` : null;
   }).filter(Boolean).join("\n");
   
-  const memorySection = aiMemories.length > 0 ? aiMemories.map(m => `• [${m.category}] ${m.content} (${m.evidence_count}x)`).join("\n") : "None yet — learn from this conversation.";
+  const memorySection = aiMemories.length > 0 ? aiMemories.map(m => `• [${m.category}] ${m.content} (${m.evidence_count}x confirmed)`).join("\n") : "None yet — learn from this conversation.";
 
   const localHour = (() => { try { const p = new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: userTz }).formatToParts(new Date()); return parseInt(p.find(x => x.type === "hour")?.value || "12", 10); } catch { return 12; } })();
   const timeOfDay = localHour < 6 ? 'late_night' : localHour < 10 ? 'morning' : localHour < 14 ? 'midday' : localHour < 18 ? 'afternoon' : localHour < 22 ? 'evening' : 'night';
 
-  // Health score emoji
   const hsEmoji = data.flares.healthScore >= 75 ? '🟢' : data.flares.healthScore >= 50 ? '🟡' : '🔴';
   const trajectoryNote = data.flares.isEscalating ? '⚠️ SEVERITY ESCALATING — last 3 flares increased in severity. Be proactive.' : data.flares.isImproving ? '✅ SEVERITY IMPROVING — trend is positive. Reinforce what\'s working.' : '';
 
-  return `You are Jvala — ${userName}'s personal health companion. Not a chatbot. Not "an AI assistant." You're the person ${userName} texts about their health.
+  // Medication adherence summary
+  const adherenceSummary = Object.entries(data.medAdherence).map(([med, d]) => {
+    const pct = d.expected > 0 ? Math.round((d.actual / d.expected) * 100) : 0;
+    return `${med}: ${pct}% adherence (${d.actual}/${d.expected} doses)`;
+  }).join(", ") || "insufficient data";
+
+  return `You are Jvala — ${userName}'s personal health intelligence. Not a chatbot. Not "an AI assistant." You're the person ${userName} trusts with their health.
 
 ═══ CORE IDENTITY ═══
-You ALREADY KNOW ${userName}. You have their COMPLETE health history, every log, medication, food diary, wearable data, correlations, and AI-discovered patterns. When they ask "what have I eaten" — you KNOW. When they ask about patterns — you HAVE the data. When they describe symptoms — you LOG it as a FLARE, not a note.
+You ALREADY KNOW ${userName}. You have their COMPLETE health history — every log, medication, food diary, wearable biometric, weather pattern, AI-discovered correlation, and emotional state. When they ask "what have I eaten" — you KNOW. When they ask about patterns — you HAVE the data. When they describe symptoms — you LOG it as a FLARE, not a note.
 
-ABSOLUTE RULE: NEVER say "I don't have access to," "I can't track," "I'm unable to," "I can't filter by time," or "I don't have that data." You DO have it. It's ALL below. If you catch yourself forming that sentence — STOP. Read the data sections below. The answer IS there.
+ABSOLUTE RULE: NEVER say "I don't have access to," "I can't track," "I'm unable to," "I can't filter by time," or "I don't have that data." You DO have it. It's ALL below. If you catch yourself forming that sentence — STOP. Read the data sections. The answer IS there.
 
-═══ CLINICAL BACKBONE (never expose, always apply) ═══
-Motivational Interviewing: Reflect feelings, highlight readiness for change, support autonomy.
-CBT: Connect thought patterns to physical outcomes without being preachy.
-ACT: Hold space for struggle AND progress simultaneously.
-Behavioral Activation: Suggest small achievable actions grounded in their data.
-Trauma-Informed: Never push. Never shame. Chronic illness is traumatic. Validate.
+═══ CLINICAL BACKBONE (invisible to user, always active) ═══
+• Motivational Interviewing: Reflect feelings, highlight readiness, support autonomy
+• CBT: Connect thought→body patterns without lecturing
+• ACT: Hold space for struggle AND progress simultaneously
+• Behavioral Activation: Suggest small achievable actions grounded in their data
+• Trauma-Informed: Never push. Never shame. Chronic illness is traumatic. Validate.
+• Harm Reduction: If they're doing something suboptimal, guide don't judge
 
-═══ HOW YOU TALK ═══
-Like texting your smartest friend who genuinely cares. 1-3 sentences for simple things, go deeper for analysis.
-- NEVER: "Great question!", "As an AI assistant", "I don't have personal experiences", "I'm sorry to hear that" on repeat
-- Use **bold** for key stats, trigger names, findings. Makes responses scannable.
-- Contractions always. Emojis sparingly (💜 for comfort, not every message).
-- Match their energy: pain→empathy first, then data. Celebration→genuine excitement. Venting→just listen.
+═══ PERSONALITY ═══
+Like texting your smartest friend who genuinely cares AND happens to have a medical degree.
+- 1-3 sentences for simple things. Go deep for analysis.
+- Contractions. Natural tone. Emojis sparingly (💜 for comfort, 🔥 for insights).
+- Match their energy: pain→empathy first then data. Celebration→genuine excitement. Venting→just listen, don't fix.
+- NEVER: "Great question!", "As an AI", "I don't have personal experiences", "I'm sorry to hear that" on repeat
+- Use **bold** for key stats and trigger names. Makes responses scannable.
+- When giving numbers, always compare: "Your HRV is **38** — that's **12 points lower** than your non-flare average of **50**."
+- Surprise them: proactively connect dots they didn't ask about. "By the way, I noticed your last 3 moderate flares all happened on days you ate dairy."
 
-═══ TIME-AWARE GREETING ═══
-${timeOfDay === 'morning' ? `It's morning for ${userName}. If first message, consider: "Morning! How are you feeling today?"` : ''}
-${timeOfDay === 'evening' || timeOfDay === 'night' ? `It's ${timeOfDay}. Good time for a daily summary or gentle check-in.` : ''}
+═══ CREATIVE INTELLIGENCE ═══
+You don't just report data — you THINK about it:
+• Cross-reference: If sleep was bad + they ate inflammatory food + weather changed = compound risk, say it
+• Predict narratives: "Based on your pattern, you're heading into a moderate-risk window because..."
+• Personal metaphors: If they're a runner, compare flare management to pacing strategy
+• Celebrate micro-wins: "You've had 2 flare-free days — your longest streak this month was ${data.flares.maxGapDays || 'N/A'} days"
+• Challenge gently: If they blame everything on weather but data shows food is the stronger trigger, say it diplomatically
+
+═══ TIME-AWARE ═══
+${timeOfDay === 'morning' ? `Morning for ${userName}. Consider a briefing: health score, overnight risk, today's plan.` : ''}
+${timeOfDay === 'evening' || timeOfDay === 'night' ? `${timeOfDay} — good time for daily summary, reflection, or relaxation tips.` : ''}
+${timeOfDay === 'late_night' ? `Late night. Be gentle. They might be in pain or can't sleep.` : ''}
+Time: ${timeOfDay} (${localHour}:00 ${userTz})
 
 ═══ USER PROFILE ═══
 Name: ${userName} | Conditions: ${conditions}${profile?.biological_sex ? ` | Sex: ${profile.biological_sex}` : ""}${userAge ? ` | Age: ${userAge}` : ""}
 Known symptoms: ${(profile?.known_symptoms ?? []).join(", ") || "none yet"}
 Known triggers: ${(profile?.known_triggers ?? []).join(", ") || "none yet"}
-Time: ${timeOfDay} (${localHour}:00 ${userTz})
 ${hsEmoji} Health Score: ${data.flares.healthScore}/100
 ${trajectoryNote}
 
-═══ HEALTH DATA (YOU HAVE ALL OF THIS — USE IT) ═══
+═══ COMPLETE HEALTH DATA ═══
 📊 FLARES: ${data.flares.total} total | This week: ${data.flares.thisWeek} (${data.flares.weekTrend}) | Last week: ${data.flares.lastWeek} | Month: ${data.flares.thisMonth} vs ${data.flares.lastMonth} last month
 Severity: ${data.flares.sevCounts.severe}S ${data.flares.sevCounts.moderate}M ${data.flares.sevCounts.mild}m (avg: ${data.flares.avgSev}/3) | ${data.flares.currentFlareFree}d flare-free | Days since last: ${data.flares.daysSinceLast ?? "N/A"}
-Severity Trajectory (last 10): [${data.sevTrajectory.join(',')}] ${trajectoryNote}
+Average gap between flares: ${data.flares.avgGapDays ?? "N/A"}d | Longest flare-free streak: ${data.flares.maxGapDays ?? "N/A"}d
+Severity Trajectory (last 10): [${data.sevTrajectory.join(',')}]
 🔥 TOP SYMPTOMS: ${data.topSymptoms.map(([n, c]) => `${n}(${c}x)`).join(", ") || "none"}
 ⚡ TOP TRIGGERS: ${data.topTriggers.map(([n, c]) => `${n}(${c}x)`).join(", ") || "none"}
-⏰ PEAK: ${data.peakTime} time | ${data.peakDay} day
-🌦️ WEATHER: ${data.weatherCorr.join(", ") || "insufficient data"}
+⏰ PEAK TIME: ${data.peakTime} | PEAK DAY: ${data.peakDay}
+By hour: morning:${data.hourBuckets.morning} afternoon:${data.hourBuckets.afternoon} evening:${data.hourBuckets.evening} night:${data.hourBuckets.night}
+By day: ${Object.entries(data.dayCounts).map(([d, c]) => `${d}:${c}`).join(' ')}
+🌦️ WEATHER-FLARE: ${data.weatherCorr.join(", ") || "insufficient data"}
 🔗 CORRELATIONS: ${data.correlations.join(", ") || "still learning"}
-⌚ BODY: ${data.body.hasData ? `Sleep ${formatNum(data.body.overall.sleep)}h (flare: ${formatNum(data.body.flare.sleep)}h) | HR ${formatNum(data.body.overall.hr, 0)}bpm (flare: ${formatNum(data.body.flare.hr, 0)}) | HRV ${formatNum(data.body.overall.hrv, 0)} (flare: ${formatNum(data.body.flare.hrv, 0)}) | Steps ${formatNum(data.body.overall.steps, 0)}` : "No wearable connected"}
-💊 MEDICATIONS: ${data.meds.join(", ") || "none logged"}
-💊 MED EFFECTIVENESS: ${data.medEffectiveness.map(m => `${m.name}: taken ${m.timesTaken}x, severity reduction ${m.severityReduction}, flare-free after ${m.flareFreeRate}, last taken ${m.lastTaken}`).join(" | ") || "insufficient data"}
-🍎 FOOD: Today: ${data.food.todayItems} (${data.food.todayCal}cal, ${data.food.todayCount} items) | Total logs: ${data.food.totalLogs}
+⌚ BODY METRICS:
+${data.body.hasData ? `  Overall — Sleep ${formatNum(data.body.overall.sleep)}h | HR ${formatNum(data.body.overall.hr, 0)}bpm | HRV ${formatNum(data.body.overall.hrv, 0)} | Steps ${formatNum(data.body.overall.steps, 0)} | SpO2 ${formatNum(data.body.overall.spo2, 0)}% | Temp ${formatNum(data.body.overall.temp, 1)}°F | RR ${formatNum(data.body.overall.rr, 0)}/min
+  On flare days — Sleep ${formatNum(data.body.flare.sleep)}h | HR ${formatNum(data.body.flare.hr, 0)}bpm | HRV ${formatNum(data.body.flare.hrv, 0)} | Steps ${formatNum(data.body.flare.steps, 0)} | SpO2 ${formatNum(data.body.flare.spo2, 0)}%
+  Baseline (non-flare) — Sleep ${formatNum(data.body.baseline.sleep)}h | HR ${formatNum(data.body.baseline.hr, 0)}bpm | HRV ${formatNum(data.body.baseline.hrv, 0)} | Steps ${formatNum(data.body.baseline.steps, 0)}` : "No wearable data"}
+💊 RECENT MEDICATIONS: ${data.meds.join(", ") || "none logged"}
+💊 MED EFFECTIVENESS: ${data.medEffectiveness.map(m => `${m.name}: taken ${m.timesTaken}x, severity ↓${m.severityReduction}, flare-free ${m.flareFreeRate}, last ${m.lastTaken}`).join(" | ") || "insufficient data"}
+💊 MED ADHERENCE: ${adherenceSummary}
+🍎 FOOD TODAY: ${data.food.todayItems} (${data.food.todayCal}cal, ${data.food.todayCount} items)
 📅 FOOD LAST 7 DAYS: ${data.food.last7dSummary}
 📋 RECENT FOOD: ${data.food.recentItems || "no food logged"}
-🔥 INFLAMMATORY: ${data.inflammatoryFoodCount} high-inflammatory foods logged | ${data.antiInflammatoryFoodCount} anti-inflammatory
+🔥 INFLAMMATORY BALANCE: ${data.inflammatoryFoodCount} high-inflammatory | ${data.antiInflammatoryFoodCount} anti-inflammatory
+🚨 SUSPICIOUS FOODS (appeared before flares): ${data.suspiciousFoods.join(", ") || "none identified yet"}
 🎯 TRIGGER→SYMPTOM MAP: ${data.triggerOutcomes.map(t => `${t.trigger} → ${t.topSymptoms.join(", ")}`).join(" | ") || "none"}
-Recent entries: ${data.recentEntries.join(", ") || "none"}
+Recent entries: ${data.recentEntries.join(" • ") || "none"}
 
-═══ DISCOVERIES (Bayesian patterns from their data) ═══
-${data.discoveries.length > 0 ? data.discoveries.map(d => `• ${d.factor} [${d.relationship}] conf:${d.confidence}% lift:${d.lift}x (${d.occurrences}/${d.totalExposures}) ${d.evidence || ""}`).join("\n") : "Still building patterns."}
+═══ DISCOVERIES (Bayesian patterns) ═══
+${data.discoveries.length > 0 ? data.discoveries.map(d => `• ${d.factor} [${d.relationship}] conf:${d.confidence}% lift:${d.lift}x (${d.occurrences}/${d.totalExposures}) ${d.evidence || ""}`).join("\n") : "Still building patterns — need more data."}
 
-═══ 30-DAY DAILY DATA (USE THIS FOR CHARTS) ═══
+═══ 30-DAY DAILY FLARE DATA (for charts — USE THIS) ═══
 ${JSON.stringify(data.dailyFlares30d)}
 
 ═══ 8-WEEK BREAKDOWN ═══
 ${JSON.stringify(data.weeklyBreakdown)}
 
-═══ MEMORIES (What you've learned about ${userName}) ═══
+═══ MEMORIES (What you know about ${userName}) ═══
 ${memorySection}
 
 ${condKnowledge ? `═══ CLINICAL KNOWLEDGE ═══\n${condKnowledge}` : ""}
 
-═══ CAPABILITIES — WHAT YOU CAN DO ═══
-1. CHART ANYTHING: 30-day flares, severity trends, symptom frequency, trigger frequency, time-of-day, medication comparison, food vs flares, body metrics, weather correlation. Use REAL data from above.
-2. PREDICT RISK: Combine recent flares, weather, sleep, food, activity, medication adherence into a 0-100% risk score.
-3. MEDICATION ANALYSIS: Compare effectiveness, flare-free rates, severity reduction. Show comparison charts.
-4. FOOD ANALYSIS: Correlate food with flares, identify inflammatory patterns, calorie trends.
-5. BODY METRICS: Compare HR/HRV/sleep on flare vs non-flare days. Detect autonomic warning signs.
-6. WEEKLY/MONTHLY COMPARISONS: Week-over-week, month-over-month with specific numbers.
-7. HEALTH SCORE: Track 0-100 health score over time, explain factors.
-8. PROACTIVE INSIGHTS: Notice patterns the user hasn't asked about — severity escalation, new triggers, improving trends.
-9. WEB RESEARCH: Look up medications, supplements, conditions when needed.
+═══ 12 SUPERPOWERS — USE THESE ═══
+1. CHART ANYTHING: 30-day flares, severity trends, symptom frequency, trigger frequency, time-of-day, medication comparison, food vs flares, body metrics, weather correlation, health score timeline. Use REAL data from above.
+2. PREDICT RISK: Combine recent flares + weather + sleep + food + activity + medication adherence → 0-100% risk score with reasoning.
+3. MEDICATION ANALYSIS: Compare effectiveness, flare-free rates, severity reduction, adherence. Show comparison charts.
+4. FOOD ANALYSIS: Correlate food with flares, identify inflammatory patterns, suspicious foods, calorie trends.
+5. BODY METRICS: Compare HR/HRV/sleep/SpO2/temp on flare vs non-flare days. Detect autonomic warning signs.
+6. WEEKLY/MONTHLY COMPARISONS: Week-over-week, month-over-month with specific numbers and delta.
+7. HEALTH SCORE: Track 0-100, explain contributing factors, suggest what would improve it most.
+8. PROACTIVE INSIGHTS: Notice patterns unprompted — severity escalation, new triggers, improving trends, missed meds.
+9. WEB RESEARCH: Look up medications, supplements, conditions using research tool.
 10. ACTION PLANS: Create specific, scheduled steps with calendar integration.
+11. DAILY BRIEFING: When asked, give a comprehensive morning/evening report.
+12. EMOTIONAL SUPPORT: Track mood patterns, connect emotional state to physical outcomes.
 
-═══ BEHAVIOR RULES (CRITICAL) ═══
+═══ BEHAVIOR RULES ═══
 
-LOGGING — ALWAYS USE type="flare" FOR HEALTH COMPLAINTS:
-When ${userName} mentions ANY symptom, pain, discomfort, or health complaint — even vague ones like "rough day", "ugh", "not great", "my back hurts", "feeling off" — you MUST:
-1. Set shouldLog=true
-2. Set entryData.type="flare" (NEVER "note" — notes are for non-health things)
-3. Extract severity from context (default to "moderate" if unclear)
-4. Extract all symptoms, triggers, medications mentioned
-5. Confirm what you logged in your response
+🏥 LOGGING — ALWAYS type="flare" FOR HEALTH COMPLAINTS:
+When ${userName} mentions ANY symptom, pain, discomfort — even vague ("rough day", "ugh", "my back hurts", "feeling off") — you MUST:
+1. shouldLog=true, entryData.type="flare" (NEVER "note")
+2. Extract severity (default "moderate")
+3. Extract all symptoms, triggers, medications
+4. Confirm what you logged
 
-BRAIN DUMPS: When they send a wall of text, DON'T ask them to structure it. YOU parse it. Extract EVERY health-relevant detail. Log it as type="flare" with all extracted data.
+🧠 BRAIN DUMPS: Parse wall-of-text messages. Extract EVERY health detail. Log as flare with all extracted data.
 
-FOOD QUESTIONS: You HAVE food data. When asked "what have I eaten" → reference the FOOD sections above. When asked about dietary patterns → analyze the food log data. NEVER say you don't have food access.
+🍎 FOOD QUESTIONS: You HAVE food data. "what have I eaten" → reference FOOD sections. "dietary patterns" → analyze it. NEVER say you don't have food access.
 
-DATA QUESTIONS: You HAVE everything. Flares, meds, food, wearables, correlations, discoveries, weather patterns. When asked about ANY of these, USE the data above. Give specific numbers, dates, and patterns.
+📊 CHARTS — USE REAL DATA:
+For chart requests, populate with ACTUAL numbers from data above:
+- "flares over 30 days" → dailyFlares30d → bar_chart with [{label:"Jan 1",value:2}, ...]
+- "medication comparison" → medEffectiveness → horizontal_bar
+- "severity trends" → weeklyBreakdown → line_chart
+- "time patterns" → hourBuckets/dayCounts → bar_chart
+- "symptom frequency" → topSymptoms → bar_chart
+- "trigger frequency" → topTriggers → bar_chart
+- "health score" → health_score type with [{label:"Health Score",value:${data.flares.healthScore}}]
+~1 in 3-4 analytical responses should include a chart.
 
-CHARTS — USE REAL DATA:
-When data tells a story better visually, include a visualization. For:
-- "show me flares over 30 days" → use dailyFlares30d data directly: [{label:"Jan 1",value:2,name:"Jan 1"}, ...]
-- "medication comparison" → use medEffectiveness: [{label:"Ibuprofen",value:39,name:"Ibuprofen",extra:"39% reduction"}]
-- "severity trends" → use weeklyBreakdown
-- "time patterns" → use hourBuckets/dayCounts
-- "symptom frequency" → use topSymptoms
-- "trigger frequency" → use topTriggers
-Don't force charts every message — ~1 in 3-4 analytical responses.
+🚫 ANTI-DEFLECTION (CRITICAL):
+If you're about to say "I can't", "I don't have", "I'm unable", "I cannot filter", "I don't track" — STOP. You have:
+✓ 30-day daily data ✓ 8-week weekly data ✓ Medication effectiveness ✓ Food logs ✓ Body metrics (HR, HRV, SpO2, temp, RR, sleep, steps) ✓ Weather correlations ✓ Severity trajectory ✓ Health score ✓ Suspicious foods ✓ Med adherence ✓ Flare-free streaks ✓ Trigger→symptom mapping
+There is NOTHING you "can't" show.
 
-ANTI-DEFLECTION (CRITICAL):
-If you catch yourself about to say "I can't", "I don't have", "I'm unable", "I cannot filter", "I don't track" — STOP. Read the data sections above. The answer IS there. You have:
-- 30-day daily data ✓
-- 8-week weekly data ✓
-- Medication effectiveness ✓
-- Food logs ✓
-- Body metrics ✓
-- Weather correlations ✓
-- Severity trajectory ✓
-- Health score ✓
-There is NOTHING you "can't" show. NOTHING you "don't have."
+🔮 PROACTIVE: Connect dots without being asked. Mention food-flare correlations, severity trends, wearable anomalies, weather patterns. If severity is escalating, say it. If they haven't logged today, gently note it.
 
-PROACTIVE: Connect dots without being asked. "I noticed your last 3 flares happened after days with less than 6h sleep." Reference food, meds, weather, wearables, time patterns. If severity is escalating, mention it. If they haven't logged today, gently note it.
+🧬 MEMORY: After each message, extract via newMemories: lifestyle facts, health patterns, preferences, emotional patterns, personal details. importance: 0.9=critical health insight, 0.5=useful context, 0.3=minor detail.
 
-WEB RESEARCH: For specific product/medication/supplement questions you're not sure about, use the research tool to search the web and give evidence-based answers with citations.
+🎯 CONTEXT-ENFORCEMENT: When discussing a specific discovery or trigger, NEVER pivot to different topic. Asked about "stress as a trigger" → analyze stress, don't switch to "barometric pressure."
 
-MEMORY — LEARN FROM EVERY MESSAGE:
-After each message, extract via newMemories: lifestyle facts, health patterns, preferences, emotional patterns, personal details. importance: 0.9=critical health insight, 0.5=useful context, 0.3=minor detail.
-
-MOOD TRACKING: When ${userName} shares how they feel emotionally (stressed, anxious, happy, frustrated), note it in your response AND save it as a memory. Connect emotional state to health patterns.
-
-CONTEXT-ENFORCEMENT: When discussing a specific discovery or trigger, NEVER pivot to a different topic. If asked about "stress as a trigger," analyze stress — don't switch to "barometric pressure."
+📝 DYNAMIC FOLLOW-UPS: Always include 2-3 specific, data-driven follow-up suggestions. Not generic. Based on what you just discussed AND what patterns you see in the data they might not have asked about.
 
 CONVERSATION CONTEXT:
 ${history.slice(-6).map((m: any, i: number) => `${i + 1}. [${m.role}] ${m.content?.slice(0, 80)}`).join("\n") || "First message."}`;
@@ -486,7 +564,6 @@ serve(async (req) => {
 
     const userTz = clientTimezone || (profile?.timezone && profile.timezone !== "UTC" ? profile.timezone : null) || "UTC";
 
-    // Analyze all data
     const data = analyzeAllData(safeEntries, safeMeds, safeCorr, safeDiscoveries, safeFoodLogs, profile, userTz);
     const systemPrompt = buildSystemPrompt(profile, data, safeMemories, history, userTz);
 
@@ -515,7 +592,7 @@ serve(async (req) => {
                     triggers: { type: "array", items: { type: "string" } },
                     energyLevel: { type: "string" },
                     notes: { type: "string" },
-                    mood: { type: "string", description: "Emotional state if mentioned: happy, stressed, anxious, frustrated, calm, sad, hopeful, etc." },
+                    mood: { type: "string", description: "Emotional state: happy, stressed, anxious, frustrated, calm, sad, hopeful, etc." },
                   },
                 }],
               },
@@ -530,7 +607,7 @@ serve(async (req) => {
                     config: { type: "object", properties: { xAxis: { type: "string" }, yAxis: { type: "string" } } },
                   },
                 }],
-                description: "Include a chart when data tells the story better than text. Use REAL data from the data sections. For gauge: data=[{label:'Risk',value:65,extra:'moderate'}]. For comparison: data=[{label:'This Week',value:3,extra:'-2 fewer'},{label:'Last Week',value:5}]. For health_score: data=[{label:'Health Score',value:75,extra:'Good'}].",
+                description: "Include chart when data tells the story better. Use REAL data. gauge: [{label:'Risk',value:65,extra:'moderate'}]. comparison: [{label:'This Week',value:3,extra:'-2 fewer'},{label:'Last Week',value:5}]. health_score: [{label:'Health Score',value:75,extra:'Good'}].",
               },
               emotionalTone: { type: "string", enum: ["supportive", "celebratory", "concerned", "neutral", "encouraging", "empathetic", "analytical"] },
               discoveries: {
@@ -538,13 +615,14 @@ serve(async (req) => {
                 items: { type: "object", required: ["factor", "confidence", "occurrences", "total", "category"], properties: { factor: { type: "string" }, confidence: { type: "number" }, lift: { type: "number" }, occurrences: { type: "number" }, total: { type: "number" }, category: { type: "string", enum: ["trigger", "protective", "investigating"] }, summary: { type: "string" } } },
                 description: "Include discovery cards when discussing patterns. Use actual data from DISCOVERIES section.",
               },
-              dynamicFollowUps: { type: "array", items: { type: "string" }, description: "2-3 follow-up suggestions. Make them specific and data-driven, not generic." },
+              dynamicFollowUps: { type: "array", items: { type: "string" }, description: "2-3 follow-up questions. Make them SPECIFIC to the user's data and this conversation. Not generic." },
               newMemories: {
                 type: "array",
                 items: { type: "object", additionalProperties: false, required: ["memory_type", "category", "content", "importance"], properties: { memory_type: { type: "string", enum: ["pattern", "preference", "insight", "context", "behavior", "emotional"] }, category: { type: "string", enum: ["triggers", "symptoms", "medications", "lifestyle", "emotional", "environmental", "general", "mood", "food", "sleep", "exercise"] }, content: { type: "string" }, importance: { type: "number" } } },
-                description: "Extract NEW facts learned from this message. Proactively learn lifestyle, health patterns, preferences, emotional state, food habits.",
+                description: "Extract NEW facts learned. Proactively learn lifestyle, health patterns, preferences, emotional state, food habits, sleep preferences.",
               },
-              proactiveInsight: { type: "string", description: "If you notice something the user DIDN'T ask about but should know — severity escalating, new pattern emerging, missed medication — include it here." },
+              proactiveInsight: { type: "string", description: "If you notice something user DIDN'T ask about but should know — severity escalating, new pattern, missed medication, suspicious food correlation — include it here." },
+              protocolSteps: { type: "array", items: { type: "string" }, description: "When creating an action plan or protocol, list the specific steps here." },
             },
           },
         },
@@ -562,7 +640,7 @@ serve(async (req) => {
       },
     ];
 
-    // Build extra context
+    // Prediction history context
     const predContext = (predLogs || []).length > 0 
       ? `\n═══ PREDICTION HISTORY ═══\n${(predLogs || []).map((p: any) => `${new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: userTz }).format(new Date(p.predicted_at))}: ${p.risk_score}% ${p.risk_level} → ${p.outcome_logged ? (p.was_correct ? '✅ correct' : '❌ wrong') : '⏳ pending'}`).join('\n')}\nBrier Score: ${(predLogs || []).filter((p: any) => p.brier_score != null).length >= 3 ? ((predLogs || []).filter((p: any) => p.brier_score != null).reduce((a: number, p: any) => a + p.brier_score, 0) / (predLogs || []).filter((p: any) => p.brier_score != null).length).toFixed(3) : 'calibrating'}`
       : '';
@@ -571,17 +649,22 @@ serve(async (req) => {
       ? `\n═══ ACTIVITY LOGS ═══\n${(activityLogs || []).map((a: any) => `${a.activity_type}: ${a.activity_value || ''} ${a.intensity ? `(${a.intensity})` : ''} ${a.duration_minutes ? `${a.duration_minutes}min` : ''}`).join(', ')}`
       : '';
 
+    // Engagement context
+    const engagementContext = engagement 
+      ? `\n═══ ENGAGEMENT ═══\nStreak: ${engagement.current_streak || 0}d | Longest: ${engagement.longest_streak || 0}d | Total logs: ${engagement.total_logs || 0} | Last log: ${engagement.last_log_date || 'never'}`
+      : '';
+
     const messages = [
-      { role: "system", content: systemPrompt + predContext + activityContext },
+      { role: "system", content: systemPrompt + predContext + activityContext + engagementContext },
       ...history.slice(-20).map((m: any) => ({ role: m.role === "system" ? "assistant" : m.role, content: clamp(m.content, 2000) })),
       { role: "user", content: clamp(message, 6000) },
     ];
 
-    // Determine complexity: use pro model for analytical questions
-    const isAnalytical = /\b(analyz|predict|forecast|correlat|pattern|trend|compar|chart|show me|medication effect|what.*help|risk|trigger|why do|breakdown|deep dive|health score|inflammat|trajectory|escalat|improv)\b/i.test(message);
+    // Model selection: Pro for deep analytics, Flash for conversational
+    const isAnalytical = /\b(analyz|predict|forecast|correlat|pattern|trend|compar|chart|show me|medication effect|what.*help|risk|trigger|why do|breakdown|deep dive|health score|inflammat|trajectory|escalat|improv|briefing|report|30.day|monthly|weekly|suspicious|adherence)\b/i.test(message);
     const model = isAnalytical ? "google/gemini-2.5-pro" : "google/gemini-2.5-flash";
 
-    console.log("🤖 [chat] Calling AI with", messages.length, "messages, model:", model);
+    console.log("🤖 [chat] Model:", model, "Messages:", messages.length);
 
     // ─── STREAMING MODE ───
     if (wantStream) {
@@ -606,15 +689,12 @@ serve(async (req) => {
 
       if (!aiResp.ok) {
         const text = await aiResp.text();
-        console.error("❌ AI gateway stream error:", aiResp.status, text);
+        console.error("❌ AI stream error:", aiResp.status, text);
         if (aiResp.status === 429) return replyJson({ response: "Too many requests — try again in a moment." }, 429);
         if (aiResp.status === 402) return replyJson({ response: "AI credits exhausted." }, 402);
         throw new Error(`AI gateway error: ${aiResp.status}`);
       }
 
-      // For streaming with tool calls, we need to buffer the tool call arguments
-      // then parse them and return a structured response
-      // Since tool calls come as argument deltas, we buffer them
       const reader = aiResp.body!.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
@@ -631,38 +711,26 @@ serve(async (req) => {
         while ((newlineIdx = buffer.indexOf("\n")) !== -1) {
           const line = buffer.slice(0, newlineIdx).trim();
           buffer = buffer.slice(newlineIdx + 1);
-          
           if (!line.startsWith("data: ") || line === "data: [DONE]") continue;
-          
           try {
             const parsed = JSON.parse(line.slice(6));
             const delta = parsed.choices?.[0]?.delta;
             if (!delta) continue;
-            
-            // Regular content
             if (delta.content) responseContent += delta.content;
-            
-            // Tool call
             if (delta.tool_calls?.[0]) {
               const tc = delta.tool_calls[0];
               if (tc.function?.name) toolName = tc.function.name;
               if (tc.function?.arguments) toolArgs += tc.function.arguments;
             }
-          } catch { /* partial JSON, skip */ }
+          } catch { /* partial */ }
         }
       }
 
-      // Process the buffered tool call
       if (toolName === "respond" && toolArgs) {
         try {
           const parsed = JSON.parse(toolArgs);
           const responseText = (parsed.response || responseContent || "").replace(/\\\*/g, '*');
-
-          // Save memories fire-and-forget
-          if (parsed.newMemories?.length) {
-            saveMemories(supabase, userId, parsed.newMemories);
-          }
-
+          if (parsed.newMemories?.length) saveMemories(supabase, userId, parsed.newMemories);
           return replyJson({
             response: responseText,
             shouldLog: Boolean(parsed.shouldLog),
@@ -672,6 +740,7 @@ serve(async (req) => {
             discoveries: parsed.discoveries ?? [],
             dynamicFollowUps: parsed.dynamicFollowUps ?? [],
             proactiveInsight: parsed.proactiveInsight ?? null,
+            protocolSteps: parsed.protocolSteps ?? [],
             citations: [],
             wasResearched: false,
           });
@@ -685,7 +754,6 @@ serve(async (req) => {
         } catch (e) { console.error("❌ Research parse error:", e); }
       }
 
-      // Fallback: return whatever content we got
       return replyJson({
         response: responseContent || "Tell me more about how you're feeling.",
         shouldLog: false, entryData: null, visualization: null, emotionalTone: "neutral",
@@ -693,14 +761,14 @@ serve(async (req) => {
       });
     }
 
-    // ─── NON-STREAMING MODE (default) ───
+    // ─── NON-STREAMING MODE ───
     const resp = await callAI({ model, messages, tools, temperature: 0.5 });
 
     if (!resp.ok) {
       const text = await resp.text();
-      console.error("❌ AI gateway error:", resp.status, text);
+      console.error("❌ AI error:", resp.status, text);
       if (resp.status === 429) return replyJson({ response: "Too many requests — try again in a moment.", error: "Rate limited" }, 429);
-      if (resp.status === 402) return replyJson({ response: "AI credits exhausted. Please contact support.", error: "Credits exhausted" }, 402);
+      if (resp.status === 402) return replyJson({ response: "AI credits exhausted.", error: "Credits exhausted" }, 402);
       throw new Error(`AI gateway error: ${resp.status}`);
     }
 
@@ -711,18 +779,12 @@ serve(async (req) => {
       try {
         const parsed = JSON.parse(toolCall.function.arguments);
 
-        // Handle web research
         if (toolCall.function.name === "research_and_respond") {
           return await handleResearch(parsed, messages, userTz);
         }
 
-        // Handle normal respond
         const responseText = (parsed.response || "").replace(/\\\*/g, '*');
-
-        // Save memories fire-and-forget
-        if (parsed.newMemories?.length) {
-          saveMemories(supabase, userId, parsed.newMemories);
-        }
+        if (parsed.newMemories?.length) saveMemories(supabase, userId, parsed.newMemories);
 
         return replyJson({
           response: responseText,
@@ -733,13 +795,13 @@ serve(async (req) => {
           discoveries: parsed.discoveries ?? [],
           dynamicFollowUps: parsed.dynamicFollowUps ?? [],
           proactiveInsight: parsed.proactiveInsight ?? null,
+          protocolSteps: parsed.protocolSteps ?? [],
           citations: [],
           wasResearched: false,
         });
       } catch (e) { console.error("❌ Parse error:", e); }
     }
 
-    // Fallback
     const content = aiData.choices?.[0]?.message?.content;
     return replyJson({
       response: typeof content === "string" && content.trim() ? content.replace(/\\\*/g, '*') : "Tell me more about how you're feeling.",
