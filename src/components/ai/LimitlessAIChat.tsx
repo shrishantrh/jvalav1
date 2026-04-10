@@ -27,6 +27,7 @@ interface Message {
   discoveries?: StructuredDiscovery[];
   followUp?: string;
   protocolSteps?: string[];
+  proactiveInsight?: string;
 }
 
 interface LimitlessAIChatProps {
@@ -222,6 +223,7 @@ Make it practical and personalized to my data.`;
         discoveries: data.discoveries,
         followUp: data.dynamicFollowUps?.[0] || data.followUp,
         protocolSteps: data.protocolSteps,
+        proactiveInsight: data.proactiveInsight,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -369,6 +371,12 @@ Make it practical and personalized to my data.`;
                   <MessageContent content={msg.content} role={msg.role} discoveries={msg.discoveries} onNavigateToTrends={onClose} />
 
                   {msg.visualization && <AIVisualizationRenderer viz={msg.visualization} autoExpand={true} />}
+
+                  {msg.proactiveInsight && (
+                    <div className="mt-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                      <p className="text-[11px] font-medium text-amber-700 dark:text-amber-400">💡 {msg.proactiveInsight}</p>
+                    </div>
+                  )}
 
                   {/* Protocol Steps with Reminder & Calendar Buttons */}
                   {msg.protocolSteps && msg.protocolSteps.length > 0 && (
