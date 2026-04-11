@@ -903,7 +903,7 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
   const topTriggerPairs = Object.entries(triggerPairs).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const peakTime = Object.entries(hourBuckets).sort((a, b) => b[1] - a[1])[0];
   const peakDay = Object.entries(dayCounts).sort((a, b) => b[1] - a[1])[0];
-  const totalFlares = flares.length;
+  // totalFlares already declared at top of function
   const weatherCorr = Object.entries(weatherData).map(([c, d]) => `${c}(${d.count}x,avgSev:${(d.severities.reduce((a, b) => a + b, 0) / d.severities.length).toFixed(1)})`).sort((a,b) => b.length - a.length).slice(0, 6);
   const topCities = Object.entries(cityCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
