@@ -1186,6 +1186,351 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
     }
   }
 
+  // #173 — Flare autocorrelation (does today's flare predict tomorrow's?)
+  const dailyFlareBinary30d = dailyFlares30d.map(d => d.flares > 0 ? 1 : 0);
+  const flareAutocorr1 = autocorrelation(dailyFlareBinary30d, 1);
+  const flareAutocorr2 = autocorrelation(dailyFlareBinary30d, 2);
+
+  // #174 — Change-point detection in severity
+  const sevChangePoint = cusum(dailySevAvgs);
+  const sevChangeDay = sevChangePoint.changePoint != null ? dailyFlares30d[sevChangePoint.changePoint]?.date : null;
+
+  // #175 — Runs test on flare pattern (random vs clustered)
+  const flareRunsTest = runsTest(dailyFlareBinary30d.map(v => v > 0));
+
+  // #176 — Severity acceleration (2nd derivative)
+  const sevAcceleration = (() => {
+    const velocities: number[] = [];
+    for (let i = 1; i < dailySevAvgs.length; i++) velocities.push(dailySevAvgs[i] - dailySevAvgs[i-1]);
+    return linSlope(velocities);
+  })();
+
+  // #177 — Trigger latency analysis (hours between trigger exposure and flare)
+  const triggerLatency: Record<string, number[]> = {};
+  for (const flare of sortedFlares.slice(0, 40)) {
+    const ft = new Date(flare.timestamp).getTime();
+    for (const t of (flare.triggers || [])) {
+      // Look for same trigger in earlier non-flare entries
+      const priorTrigger = entries.find((e: any) => e.entry_type === 'trigger' && (e.triggers || []).includes(t) && new Date(e.timestamp).getTime() < ft && ft - new Date(e.timestamp).getTime() < 2 * oneDay);
+      if (priorTrigger) {
+        if (!triggerLatency[t]) triggerLatency[t] = [];
+        triggerLatency[t].push(Math.round((ft - new Date(priorTrigger.timestamp).getTime()) / 3600000));
+      }
+    }
+  }
+  const triggerLatencySummary = Object.entries(triggerLatency)
+    .filter(([_, times]) => times.length >= 2)
+    .map(([trigger, times]) => `${trigger}: avg ${Math.round(avg(times)!)}h delay`)
+    .slice(0, 5);
+
+  // #178 — Symptom novelty detector (new symptoms that appeared recently)
+  const recent7dSymptoms = new Set(thisWeek.flatMap((f: any) => f.symptoms || []));
+  const older30dSymptoms = new Set(flares.filter((e: any) => now - new Date(e.timestamp).getTime() >= oneWeek).flatMap((f: any) => f.symptoms || []));
+  const novelSymptoms = [...recent7dSymptoms].filter(s => !older30dSymptoms.has(s));
+
+  // #179 — Recovery quality after each severity level
+  const recoveryQualityBySev: Record<string, number[]> = { mild: [], moderate: [], severe: [] };
+  for (let i = 0; i < sortedFlares.length - 1; i++) {
+    const sev = sortedFlares[i].severity;
+    if (sev && recoveryQualityBySev[sev]) {
+      const gapHours = (new Date(sortedFlares[i].timestamp).getTime() - new Date(sortedFlares[i+1].timestamp).getTime()) / 3600000;
+      if (gapHours > 0 && gapHours < 720) recoveryQualityBySev[sev].push(gapHours);
+    }
+  }
+
+  // #180 — Medication combination effectiveness
+  const medCombos: Record<string, { count: number; sevAfter: number[] }> = {};
+  for (const flare of sortedFlares.slice(0, 50)) {
+    const meds = flare.medications || [];
+    if (meds.length >= 2) {
+      const combo = meds.sort().join(" + ");
+      if (!medCombos[combo]) medCombos[combo] = { count: 0, sevAfter: [] };
+      medCombos[combo].count++;
+      medCombos[combo].sevAfter.push(sevToNum(flare.severity || ""));
+    }
+  }
+  const medComboEffectiveness = Object.entries(medCombos)
+    .filter(([_, d]) => d.count >= 2)
+    .map(([combo, d]) => ({ combo, count: d.count, avgSev: d.sevAfter.length ? (d.sevAfter.reduce((a,b)=>a+b,0)/d.sevAfter.length).toFixed(1) : "?" }))
+    .sort((a, b) => parseFloat(a.avgSev) - parseFloat(b.avgSev))
+    .slice(0, 5);
+
+  // #181 — Day-of-month bias (some conditions correlate with hormonal cycles)
+  const dayOfMonthCounts: number[] = Array(31).fill(0);
+  for (const f of flares) { const d = new Date(f.timestamp).getDate(); dayOfMonthCounts[d - 1]++; }
+  const dayOfMonthPeak = dayOfMonthCounts.indexOf(Math.max(...dayOfMonthCounts)) + 1;
+  const dayOfMonthTrough = dayOfMonthCounts.indexOf(Math.min(...dayOfMonthCounts.filter(c => c >= 0))) + 1;
+
+  // #182 — Time-between-meals and flare risk
+  const mealGaps: number[] = [];
+  const sortedMeals = [...foodLogs].sort((a: any, b: any) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime());
+  for (let i = 0; i < sortedMeals.length - 1; i++) {
+    const gap = (new Date(sortedMeals[i].logged_at).getTime() - new Date(sortedMeals[i+1].logged_at).getTime()) / 3600000;
+    if (gap > 0 && gap < 24) mealGaps.push(gap);
+  }
+  const avgMealGap = mealGaps.length > 0 ? avg(mealGaps) : null;
+  const longestMealGap = mealGaps.length > 0 ? Math.max(...mealGaps) : null;
+
+  // #183 — Voice note utilization rate
+  const voiceNoteCount = entries.filter(e => e.voice_transcript?.trim()).length;
+
+  // #184 — Photo-to-flare analysis (do photo-documented flares differ?)
+  const photoFlares = flares.filter(f => f.photos?.length > 0);
+  const photoFlareSevs = photoFlares.map(f => sevToNum(f.severity || "")).filter(v => v > 0);
+  const nonPhotoFlareSevs = flares.filter(f => !f.photos?.length).map(f => sevToNum(f.severity || "")).filter(v => v > 0);
+  const photoFlareAvgSev = avg(photoFlareSevs);
+  const nonPhotoFlareAvgSev = avg(nonPhotoFlareSevs);
+
+  // #185 — Sleep debt accumulator (rolling 7d sleep deficit)
+  const sleepDebt7d = (() => {
+    let debt = 0;
+    for (let i = 6; i >= 0; i--) {
+      const ds = new Date(now - i * oneDay); ds.setUTCHours(0, 0, 0, 0);
+      const de = new Date(ds.getTime() + oneDay);
+      const dayEntries = entries.filter((e: any) => { const t = new Date(e.timestamp).getTime(); return t >= ds.getTime() && t < de.getTime() && e.physiological_data; });
+      const sleepVals = dayEntries.map(e => extractMetric(e.physiological_data, "sleep")).filter((v): v is number => v != null && v > 0);
+      if (sleepVals.length > 0) debt += Math.max(0, 7.5 - avg(sleepVals)!);
+    }
+    return Math.round(debt * 10) / 10;
+  })();
+
+  // #186 — Flare-free day activities (what happens on good days)
+  const flareDayDates = new Set(flares.map(f => new Date(f.timestamp).toISOString().split('T')[0]));
+  const flareFreeActivities: Record<string, number> = {};
+  for (const act of (activityLogs || [])) {
+    const actDay = new Date(act.timestamp).toISOString().split('T')[0];
+    if (!flareDayDates.has(actDay)) {
+      const key = act.activity_type + (act.activity_value ? `:${act.activity_value}` : '');
+      flareFreeActivities[key] = (flareFreeActivities[key] || 0) + 1;
+    }
+  }
+  const topFlareFreeActivities = Object.entries(flareFreeActivities).sort((a,b) => b[1]-a[1]).slice(0, 5);
+
+  // #187 — Severity momentum (is recent trend accelerating?)
+  const sevMomentum = (() => {
+    const w1 = avg(dailySevAvgs.slice(-7)) || 0;
+    const w2 = avg(dailySevAvgs.slice(-14, -7)) || 0;
+    const w3 = avg(dailySevAvgs.slice(-21, -14)) || 0;
+    const v1 = w1 - w2, v2 = w2 - w3;
+    return v1 > v2 + 0.1 ? "accelerating" : v1 < v2 - 0.1 ? "decelerating" : "steady";
+  })();
+
+  // #188 — Trigger-free days analysis
+  const triggerFreeDays = (() => {
+    let count = 0;
+    for (let i = 0; i < 30; i++) {
+      const ds = new Date(now - i * oneDay); ds.setUTCHours(0, 0, 0, 0);
+      const de = new Date(ds.getTime() + oneDay);
+      const dayFlares = flares.filter((f: any) => { const t = new Date(f.timestamp).getTime(); return t >= ds.getTime() && t < de.getTime(); });
+      const hasTriggers = dayFlares.some(f => (f.triggers || []).length > 0);
+      if (!hasTriggers) count++;
+    }
+    return count;
+  })();
+
+  // #189 — Multi-condition interaction (if user has multiple conditions)
+  const conditionCount = (profile?.conditions || []).length;
+
+  // #190 — Dosage variation tracking
+  const dosageVariation: Record<string, string[]> = {};
+  for (const med of medLogs) {
+    const name = med.medication_name;
+    if (!dosageVariation[name]) dosageVariation[name] = [];
+    if (med.dosage && !dosageVariation[name].includes(med.dosage)) dosageVariation[name].push(med.dosage);
+  }
+  const medsWithDosageChanges = Object.entries(dosageVariation).filter(([_, dosages]) => dosages.length > 1).map(([name, dosages]) => `${name}(${dosages.join(',')})`);
+
+  // #191 — Weekly consistency score (how similar are weeks to each other)
+  const weeklyConsistency = (() => {
+    if (weeklyBreakdown.length < 3) return null;
+    const totals = weeklyBreakdown.map(w => w.total);
+    return cv(totals);
+  })();
+
+  // #192 — Symptom velocity (new symptoms appearing faster?)
+  const symptomFirstSeen: Record<string, Date> = {};
+  for (const f of [...sortedFlares].reverse()) {
+    for (const s of (f.symptoms || [])) {
+      if (!symptomFirstSeen[s]) symptomFirstSeen[s] = new Date(f.timestamp);
+    }
+  }
+  const recentNewSymptoms = Object.entries(symptomFirstSeen)
+    .filter(([_, date]) => now - date.getTime() < 14 * oneDay)
+    .map(([s]) => s);
+
+  // #193 — Environmental exposure diversity
+  const weatherConditions = new Set(flares.map(f => f?.environmental_data?.weather?.condition).filter(Boolean));
+  const envDiversity = weatherConditions.size;
+
+  // #194 — Overnight flare analysis (flares between 10pm-6am)
+  const overnightFlares = flares.filter(f => {
+    const h = getLocalHour(new Date(f.timestamp));
+    return h >= 22 || h < 6;
+  });
+  const overnightSevAvg = avg(overnightFlares.map(f => sevToNum(f.severity || "")).filter(v => v > 0));
+
+  // #195 — Trigger decay analysis (do certain triggers become less potent over time?)
+  const triggerPotencyTrend: Record<string, string> = {};
+  for (const [trigger] of topTriggers.slice(0, 5)) {
+    const triggerFlares = sortedFlares.filter(f => (f.triggers || []).includes(trigger)).slice(0, 10);
+    if (triggerFlares.length >= 4) {
+      const sevs = triggerFlares.reverse().map(f => sevToNum(f.severity || "")).filter(v => v > 0);
+      const slope = linSlope(sevs);
+      triggerPotencyTrend[trigger] = slope != null ? (slope > 0.05 ? "increasing" : slope < -0.05 ? "decreasing" : "stable") : "unknown";
+    }
+  }
+
+  // #196 — Food timing vs flare timing correlation
+  const mealBeforeFlareHours: number[] = [];
+  for (const flare of sortedFlares.slice(0, 30)) {
+    const ft = new Date(flare.timestamp).getTime();
+    const lastMeal = foodLogs.find((f: any) => new Date(f.logged_at).getTime() < ft && ft - new Date(f.logged_at).getTime() < 12 * 3600000);
+    if (lastMeal) mealBeforeFlareHours.push(new Date(lastMeal.logged_at).getHours());
+  }
+  const riskiestMealTime = mealBeforeFlareHours.length >= 3 ? Math.round(avg(mealBeforeFlareHours)!) : null;
+
+  // #197 — Medication lag effectiveness (does a med work better on day 1 vs day 3+?)
+  const medLagEffect: Record<string, { early: number[]; late: number[] }> = {};
+  for (const medName of uniqueMeds.slice(0, 5)) {
+    const doses = medLogs.filter((m: any) => m.medication_name === medName).sort((a: any, b: any) => new Date(a.taken_at).getTime() - new Date(b.taken_at).getTime());
+    if (doses.length < 3) continue;
+    medLagEffect[medName] = { early: [], late: [] };
+    for (let i = 0; i < doses.length; i++) {
+      const dt = new Date(doses[i].taken_at).getTime();
+      const flaresAfter = flares.filter((f: any) => { const t = new Date(f.timestamp).getTime(); return t > dt && t <= dt + oneDay; });
+      const sevs = flaresAfter.map(f => sevToNum(f.severity || "")).filter(v => v > 0);
+      const avgS = sevs.length ? avg(sevs)! : 0;
+      if (i < doses.length / 2) medLagEffect[medName].early.push(avgS);
+      else medLagEffect[medName].late.push(avgS);
+    }
+  }
+
+  // #198 — Emotional trigger detection from notes
+  const emotionalTriggerWords: Record<string, number> = {};
+  const emotionalPatterns = /stress|anxious|anxiety|worried|angry|frustrated|sad|depressed|lonely|overwhelmed|panic|scared|nervous|irritable|exhausted/gi;
+  for (const note of notesWithContent) {
+    const matches = note.match(emotionalPatterns) || [];
+    for (const m of matches) emotionalTriggerWords[m.toLowerCase()] = (emotionalTriggerWords[m.toLowerCase()] || 0) + 1;
+  }
+  const topEmotionalTriggers = Object.entries(emotionalTriggerWords).sort((a,b) => b[1]-a[1]).slice(0, 5);
+
+  // #199 — Body metric anomaly detection (z-scores of recent readings)
+  const bodyAnomalies: string[] = [];
+  if (overallMetrics.hr != null && overallMetrics.hrP90 != null && flareMetrics.hr != null) {
+    const hrZ = zScore(flareMetrics.hr, overallMetrics.hr, stddev([overallMetrics.hr, flareMetrics.hr].filter(v => v != null) as number[]) || 1);
+    if (hrZ != null && Math.abs(hrZ) > 1.5) bodyAnomalies.push(`HR during flares is ${hrZ > 0 ? 'elevated' : 'depressed'} (z=${hrZ.toFixed(1)})`);
+  }
+  if (overallMetrics.hrv != null && flareMetrics.hrv != null && overallMetrics.hrvStddev != null) {
+    const hrvZ = zScore(flareMetrics.hrv, overallMetrics.hrv, overallMetrics.hrvStddev);
+    if (hrvZ != null && Math.abs(hrvZ) > 1.5) bodyAnomalies.push(`HRV during flares is ${hrvZ < 0 ? 'suppressed' : 'elevated'} (z=${hrvZ.toFixed(1)})`);
+  }
+
+  // #200 — Two-week forecast inputs (structured risk signals)
+  const forecastInputs = {
+    sevTrend: trendDirection,
+    sevSlope: sevSlope != null ? parseFloat(sevSlope.toFixed(3)) : 0,
+    recentBursts: flareBursts,
+    sleepDebt: sleepDebt7d,
+    autocorr: flareAutocorr1,
+    momentum: sevMomentum,
+    novelSymptoms: novelSymptoms.length,
+    escalationWindows,
+    weeklyConsistency,
+  };
+
+  // #201 — Flare severity distribution shape
+  const sevDistShape = (() => {
+    if (sevScores.length < 5) return "insufficient";
+    const skewness = (() => {
+      const m = avg(sevScores)!, s = stddev(sevScores)!;
+      if (s === 0) return 0;
+      return sevScores.reduce((sum, v) => sum + ((v - m) / s) ** 3, 0) / sevScores.length;
+    })();
+    return skewness > 0.5 ? "right-skewed (mostly mild)" : skewness < -0.5 ? "left-skewed (mostly severe)" : "symmetric";
+  })();
+
+  // #202 — Hour-of-day severity heatmap
+  const hourlySevMap: { hour: number; avgSev: number; count: number }[] = [];
+  const hourSevBuckets: number[][] = Array.from({ length: 24 }, () => []);
+  for (const f of flares) {
+    const h = getLocalHour(new Date(f.timestamp));
+    const s = sevToNum(f.severity || "");
+    if (s > 0) hourSevBuckets[h].push(s);
+  }
+  for (let h = 0; h < 24; h++) {
+    hourlySevMap.push({ hour: h, avgSev: hourSevBuckets[h].length ? Math.round(avg(hourSevBuckets[h])! * 10) / 10 : 0, count: hourSevBuckets[h].length });
+  }
+
+  // #203 — Kendall correlation for weather (more robust for ordinal severity)
+  const pressureKendall = pressureData.length >= 5 ? kendallTau(pressureData.map(d => d.pressure), pressureData.map(d => d.severity)) : null;
+  const humidityKendall = humidityData.length >= 5 ? kendallTau(humidityData.map(d => d.humidity), humidityData.map(d => d.severity)) : null;
+
+  // #204 — Consecutive severe-free days (how long since last severe?)
+  const daysSinceLastSevere = (() => {
+    const lastSevere = sortedFlares.find(f => f.severity === "severe");
+    return lastSevere ? Math.floor((now - new Date(lastSevere.timestamp).getTime()) / oneDay) : null;
+  })();
+
+  // #205 — Medication response heterogeneity (does same med work differently at different times?)
+  const medResponseVariability: Record<string, number | null> = {};
+  for (const me of medEffectiveness.slice(0, 5)) {
+    const afterScores = medLogs.filter((m: any) => m.medication_name === me.name).map((dose: any) => {
+      const dt = new Date(dose.taken_at).getTime();
+      const after = flares.filter((f: any) => { const t = new Date(f.timestamp).getTime(); return t > dt && t <= dt + oneDay; });
+      return after.length > 0 ? avg(after.map(f => sevToNum(f.severity || "")))! : 0;
+    });
+    medResponseVariability[me.name] = cv(afterScores);
+  }
+
+  // #206 — Trigger co-occurrence with weather
+  const triggerWeatherMatrix: Record<string, Record<string, number>> = {};
+  for (const f of flares) {
+    const weather = f?.environmental_data?.weather?.condition;
+    if (!weather) continue;
+    for (const t of (f.triggers || [])) {
+      if (!triggerWeatherMatrix[t]) triggerWeatherMatrix[t] = {};
+      triggerWeatherMatrix[t][weather] = (triggerWeatherMatrix[t][weather] || 0) + 1;
+    }
+  }
+  const triggerWeatherPairs = Object.entries(triggerWeatherMatrix)
+    .flatMap(([trigger, weathers]) => Object.entries(weathers).map(([w, count]) => ({ trigger, weather: w, count })))
+    .filter(p => p.count >= 2)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  // #207 — Logging behavior analysis (does logging more = better outcomes?)
+  const loggingIntensity7d: number[] = [];
+  for (let i = 0; i < 4; i++) {
+    const ws = new Date(now - (i + 1) * oneWeek);
+    const we = new Date(now - i * oneWeek);
+    const logs = entries.filter((e: any) => { const t = new Date(e.timestamp).getTime(); return t >= ws.getTime() && t < we.getTime(); });
+    loggingIntensity7d.push(logs.length);
+  }
+  const loggingTrend = linSlope(loggingIntensity7d.reverse());
+
+  // #208 — Symptom resolution tracking (do symptoms clear in follow-ups?)
+  const followUpResolutions = entries.filter(e => e.follow_ups && Array.isArray(e.follow_ups) && e.follow_ups.length > 0).length;
+
+  // #209 — Energy trajectory
+  const energyTrajectory = (() => {
+    const recentEnergy = entries.filter(e => e.energy_level && now - new Date(e.timestamp).getTime() < 14 * oneDay);
+    if (recentEnergy.length < 3) return "insufficient";
+    const eVals = recentEnergy.map(e => e.energy_level === "high" ? 5 : e.energy_level === "good" ? 4 : e.energy_level === "moderate" ? 3 : e.energy_level === "low" ? 2 : 1);
+    const slope = linSlope(eVals);
+    return slope != null ? (slope > 0.05 ? "improving" : slope < -0.05 ? "declining" : "stable") : "unknown";
+  })();
+
+  // #210 — Flare complexity score (avg symptoms per flare)
+  const avgSymptomsPerFlare = flares.length > 0 ? flares.reduce((s, f) => s + (f.symptoms || []).length, 0) / flares.length : 0;
+  const avgTriggersPerFlare = flares.length > 0 ? flares.reduce((s, f) => s + (f.triggers || []).length, 0) / flares.length : 0;
+
+  // #211 — Prediction accuracy trend
+  const predAccuracy = (() => {
+    const verified = (predLogs || []).filter((p: any) => p.was_correct != null);
+    if (verified.length < 3) return null;
+    return Math.round(verified.filter((p: any) => p.was_correct).length / verified.length * 100);
+  })();
+
   // Compile
   const topSymptoms = Object.entries(symptomCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
   const topTriggers = Object.entries(triggerCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
