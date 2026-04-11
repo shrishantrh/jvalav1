@@ -2026,6 +2026,41 @@ ${Object.keys(data.symptomTrends).length > 0 ? `📈 SYMPTOM TRENDS: ${Object.en
 ${data.seasonalTriggers.length > 0 ? `🌸 SEASONAL TRIGGERS: ${data.seasonalTriggers.join(', ')}` : ''}
 ${data.weekdayRhythm.length > 0 ? `📅 WEEKLY RHYTHM: ${data.weekdayRhythm.map(d => `${d.day}:${d.count}(${d.normalized}x)`).join(' ')}` : ''}
 
+═══ DEEP INTELLIGENCE (#173-211) ═══
+🔁 Autocorrelation: lag1=${data.flareAutocorr1} lag2=${data.flareAutocorr2} ${parseFloat(data.flareAutocorr1) > 0.3 ? '⚠️ flares cluster — today predicts tomorrow' : ''}
+📉 Severity acceleration: ${data.sevAcceleration} (2nd derivative: ${parseFloat(data.sevAcceleration) > 0 ? 'worsening faster' : parseFloat(data.sevAcceleration) < 0 ? 'improving faster' : 'steady'})
+🔄 Severity momentum: ${data.sevMomentum}
+${data.sevChangeDay ? `⚡ Change-point detected around ${data.sevChangeDay} (magnitude: ${data.sevChangeMagnitude})` : ''}
+🎯 Flare pattern: ${data.flarePatternRandom ? 'random (no clustering pattern)' : `non-random — ${data.flareRunsCount} runs detected (patterned/clustered)`}
+${data.triggerLatencySummary.length > 0 ? `⏱️ TRIGGER LATENCY: ${data.triggerLatencySummary.join(', ')}` : ''}
+${data.novelSymptoms.length > 0 ? `🆕 NEW SYMPTOMS (last 7d): ${data.novelSymptoms.join(', ')} ⚠️ flagged for attention` : ''}
+${data.recentNewSymptoms.length > 0 ? `🆕 RECENTLY APPEARED: ${data.recentNewSymptoms.join(', ')}` : ''}
+💊 RECOVERY BY SEV: ${data.recoveryQualityBySev}
+${data.medComboEffectiveness.length > 0 ? `💊 MED COMBOS: ${data.medComboEffectiveness.map(c => `${c.combo}(${c.count}x, avg sev ${c.avgSev})`).join(', ')}` : ''}
+${data.medsWithDosageChanges.length > 0 ? `💊 DOSAGE CHANGES: ${data.medsWithDosageChanges.join(', ')}` : ''}
+💊 MED RESPONSE VARIABILITY: ${data.medResponseVariability}
+🗓️ Day-of-month: peaks day ${data.dayOfMonthPeak}, lowest day ${data.dayOfMonthTrough}
+🍽️ Meal gaps: avg ${data.avgMealGap}, longest ${data.longestMealGap}
+📸 Photo flares avg sev ${data.photoFlareAvgSev} vs non-photo ${data.nonPhotoFlareAvgSev} | Voice notes: ${data.voiceNoteCount}
+😴 Sleep debt (7d): ${data.sleepDebt7d}h | Days since last severe: ${data.daysSinceLastSevere ?? 'N/A'}
+${data.topFlareFreeActivities !== 'none' ? `🏃 FLARE-FREE DAY ACTIVITIES: ${data.topFlareFreeActivities}` : ''}
+📊 Trigger-free days (30d): ${data.triggerFreeDays}/30
+📊 Weekly consistency: ${data.weeklyConsistency} (lower=more variable)
+🌤️ Environmental diversity: ${data.envDiversity} weather conditions
+🌙 Overnight flares avg sev: ${data.overnightSevAvg}
+${Object.keys(data.triggerPotencyTrend).length > 0 ? `📈 TRIGGER POTENCY TRENDS: ${Object.entries(data.triggerPotencyTrend).map(([t, d]) => `${t}: ${d}`).join(', ')}` : ''}
+${data.riskiestMealTime ? `⚠️ Riskiest pre-flare meal time: ${data.riskiestMealTime}:00` : ''}
+${data.topEmotionalTriggers !== 'none' ? `💭 EMOTIONAL TRIGGERS IN NOTES: ${data.topEmotionalTriggers}` : ''}
+${data.bodyAnomalies.length > 0 ? `⚠️ BODY ANOMALIES: ${data.bodyAnomalies.join(', ')}` : ''}
+${data.triggerWeatherPairs.length > 0 ? `🌧️ TRIGGER-WEATHER PAIRS: ${data.triggerWeatherPairs.map(p => `${p.trigger}+${p.weather}(${p.count}x)`).join(', ')}` : ''}
+📊 Logging trend: ${data.loggingTrend}/week | Follow-ups: ${data.followUpResolutions}
+⚡ Energy trajectory: ${data.energyTrajectory}
+📊 Complexity: avg ${data.avgSymptomsPerFlare} symptoms/flare, ${data.avgTriggersPerFlare} triggers/flare
+📊 Sev distribution: ${data.sevDistShape}
+${data.predAccuracy != null ? `🎯 Prediction accuracy: ${data.predAccuracy}%` : ''}
+🔬 Pressure Kendall τ=${data.pressureKendall} | Humidity Kendall τ=${data.humidityKendall}
+📊 HOURLY SEVERITY MAP: ${data.hourlySevMap.filter(h => h.count > 0).map(h => `${h.hour}:00(${h.avgSev}avg,${h.count}x)`).join(' ')}
+
 ═══ RECENT TIMELINE ═══
 ${data.recentEntries.join("\n") || "No recent entries"}
 
