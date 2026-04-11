@@ -115,6 +115,7 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
   const oneWeek = 7 * oneDay;
   const oneMonth = 30 * oneDay;
   const flares = entries.filter((e: any) => e?.entry_type === "flare" || e?.severity);
+  const totalFlares = flares.length;
   const sortedFlares = [...flares].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
   const getLocalHour = (d: Date): number => {
