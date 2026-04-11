@@ -40,12 +40,21 @@ const ewma = (arr: number[], alpha = 0.3): number[] => {
 };
 const cv = (arr: number[]): number | null => { const m = avg(arr); const s = stddev(arr); return m && s ? s / m : null; };
 const percentile = (arr: number[], p: number): number | null => { if (!arr.length) return null; const s = [...arr].sort((a,b)=>a-b); const i = (p/100)*(s.length-1); const f = Math.floor(i); return f === i ? s[f] : s[f] + (s[f+1]-s[f])*(i-f); };
-// #102 — Linear regression slope
 const linSlope = (ys: number[]): number | null => { if (ys.length < 3) return null; const n=ys.length; let sx=0,sy=0,sxy=0,sxx=0; for(let i=0;i<n;i++){sx+=i;sy+=ys[i];sxy+=i*ys[i];sxx+=i*i;} return (n*sxy-sx*sy)/(n*sxx-sx*sx); };
-// #103 — Rate of change (velocity)
 const roc = (arr: number[], window = 3): number | null => { if (arr.length < window + 1) return null; const recent = avg(arr.slice(-window))!; const prior = avg(arr.slice(-2*window, -window))!; return recent - prior; };
-// #104 — Entropy (diversity measure)
 const entropy = (counts: number[]): number => { const total = counts.reduce((a,b)=>a+b,0); if (total === 0) return 0; return -counts.filter(c=>c>0).reduce((s,c)=>{const p=c/total;return s+p*Math.log2(p);},0); };
+// #135 — Weighted moving average
+const wma = (arr: number[]): number | null => { if (arr.length < 2) return null; const n = arr.length; let num = 0, den = 0; for (let i = 0; i < n; i++) { const w = i + 1; num += arr[i] * w; den += w; } return num / den; };
+// #136 — Interquartile range
+const iqr = (arr: number[]): number | null => { const q1 = percentile(arr, 25); const q3 = percentile(arr, 75); return q1 != null && q3 != null ? q3 - q1 : null; };
+// #137 — Streak calculator (consecutive days meeting condition)
+const calcStreak = (boolArr: boolean[]): number => { let max = 0, cur = 0; for (const v of boolArr) { if (v) { cur++; max = Math.max(max, cur); } else cur = 0; } return max; };
+// #138 — Z-score calculation
+const zScore = (val: number, mean: number, sd: number): number | null => sd === 0 ? null : (val - mean) / sd;
+// #139 — Exponential decay weighting (recent entries matter more)
+const decayWeight = (dayAge: number, halfLife = 7): number => Math.exp(-0.693 * dayAge / halfLife);
+// #140 — Simple moving average
+const sma = (arr: number[], window: number): number[] => { const result: number[] = []; for (let i = window - 1; i < arr.length; i++) { result.push(avg(arr.slice(i - window + 1, i + 1))!); } return result; };
 
 // ─── Web search via Firecrawl ─────────────────────────────────────────────
 async function searchWeb(query: string): Promise<{ results: Array<{ title: string; url: string; snippet: string }>; error?: string }> {
