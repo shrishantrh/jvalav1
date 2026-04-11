@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 const replyJson = (body: any, status = 200) =>
-  new Response(JSON.stringify(body), {
+  new Response(JSON.stringify({ ok: body?.ok ?? status < 400, ...body }), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
@@ -171,7 +171,7 @@ const CK: Record<string, [string, string]> = {
 };
 
 // ─── Advanced data analysis ──────────────────────────────────────────────
-function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], discoveries: any[], foodLogs: any[], profile: any, userTz: string, activityLogs: any[]) {
+function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], discoveries: any[], foodLogs: any[], profile: any, userTz: string, activityLogs: any[], predLogs: any[] = []) {
   const now = Date.now();
   const oneDay = 86400000;
   const oneWeek = 7 * oneDay;
@@ -359,6 +359,12 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
       if (/better|improving|relieved|grateful|hopeful|manageable|progress/.test(lower)) posNotes++;
     }
   }
+
+  const topSymptoms = Object.entries(symptomCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const topTriggers = Object.entries(triggerCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const energyEntries = entries.filter((e: any) => e?.energy_level);
+  const energyMap: Record<string, number> = {};
+  energyEntries.forEach((e: any) => { energyMap[e.energy_level] = (energyMap[e.energy_level] || 0) + 1; });
 
   // Escalation windows
   for (let i = 0; i < sortedFlares.length - 1; i++) {
@@ -1533,8 +1539,6 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
   })();
 
   // Compile
-  const topSymptoms = Object.entries(symptomCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
-  const topTriggers = Object.entries(triggerCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
   const topSymptomPairs = Object.entries(symptomPairs).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const topTriggerPairs = Object.entries(triggerPairs).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const peakTime = Object.entries(hourBuckets).sort((a, b) => b[1] - a[1])[0];
@@ -1554,10 +1558,6 @@ function analyzeAllData(entries: any[], medLogs: any[], correlations: any[], dis
   const firstEntry = entries.length ? new Date(entries[entries.length - 1].timestamp) : new Date();
   const totalDaysSinceStart = Math.max(1, Math.floor((now - firstEntry.getTime()) / oneDay));
   const loggingConsistency = pct(uniqueLogDays, totalDaysSinceStart);
-
-  const energyEntries = entries.filter((e: any) => e?.energy_level);
-  const energyMap: Record<string, number> = {};
-  energyEntries.forEach((e: any) => { energyMap[e.energy_level] = (energyMap[e.energy_level] || 0) + 1; });
 
   const seasonalPattern = Object.entries(monthCounts).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([m, c]) => `${m}(${c})`).join(", ");
 
@@ -2215,10 +2215,11 @@ serve(async (req) => {
     const safeFoodLogs = Array.isArray(foodLogs) ? foodLogs : [];
     const safeDiscoveries = Array.isArray(discoveries) ? discoveries : [];
     const safeActivities = Array.isArray(activityLogs) ? activityLogs : [];
+    const safePredLogs = Array.isArray(predLogs) ? predLogs : [];
 
     const userTz = clientTimezone || (profile?.timezone && profile.timezone !== "UTC" ? profile.timezone : null) || "UTC";
 
-    const data = analyzeAllData(safeEntries, safeMeds, safeCorr, safeDiscoveries, safeFoodLogs, profile, userTz, safeActivities);
+    const data = analyzeAllData(safeEntries, safeMeds, safeCorr, safeDiscoveries, safeFoodLogs, profile, userTz, safeActivities, safePredLogs);
     const systemPrompt = buildSystemPrompt(profile, data, safeMemories, history, userTz);
 
     const tools = [
@@ -2340,8 +2341,8 @@ serve(async (req) => {
       if (!aiResp.ok) {
         const text = await aiResp.text();
         console.error("❌ AI stream error:", aiResp.status, text);
-        if (aiResp.status === 429) return replyJson({ response: "Too many requests — try again in a moment." }, 429);
-        if (aiResp.status === 402) return replyJson({ response: "AI credits exhausted." }, 402);
+        if (aiResp.status === 429) return replyJson({ ok: false, error: "Rate limited", statusCode: 429, response: "Too many requests — try again in a moment." });
+        if (aiResp.status === 402) return replyJson({ ok: false, error: "Credits exhausted", statusCode: 402, response: "AI credits exhausted." });
         throw new Error(`AI gateway error: ${aiResp.status}`);
       }
 
@@ -2417,8 +2418,8 @@ serve(async (req) => {
     if (!resp.ok) {
       const text = await resp.text();
       console.error("❌ AI error:", resp.status, text);
-      if (resp.status === 429) return replyJson({ response: "Too many requests — try again in a moment.", error: "Rate limited" }, 429);
-      if (resp.status === 402) return replyJson({ response: "AI credits exhausted.", error: "Credits exhausted" }, 402);
+      if (resp.status === 429) return replyJson({ ok: false, response: "Too many requests — try again in a moment.", error: "Rate limited", statusCode: 429 });
+      if (resp.status === 402) return replyJson({ ok: false, response: "AI credits exhausted.", error: "Credits exhausted", statusCode: 402 });
       throw new Error(`AI gateway error: ${resp.status}`);
     }
 
@@ -2462,7 +2463,12 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("❌ Chat error:", error);
-    return replyJson({ error: error instanceof Error ? error.message : "Unknown error", response: "Something went wrong. Try again?" }, 500);
+    return replyJson({
+      ok: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+      response: "I hit an internal analysis error, but basic logging still works. Please try again.",
+      diagnostics: { source: "chat-assistant" },
+    });
   }
 });
 
