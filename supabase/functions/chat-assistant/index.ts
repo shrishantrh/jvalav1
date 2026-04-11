@@ -1535,16 +1535,20 @@ ${data.body.hasData ? `  Overall — HR ${formatNum(data.body.overall.hr, 0)}bpm
   ${data.body.hasData && data.body.flare.hrv != null && data.body.baseline.hrv != null ? `HRV DELTA: flare ${formatNum(data.body.flare.hrv, 0)} vs baseline ${formatNum(data.body.baseline.hrv, 0)} (${data.body.flare.hrv < data.body.baseline.hrv ? `↓${Math.round(data.body.baseline.hrv - data.body.flare.hrv)}ms drop` : 'no diff'})` : ''}
   ${data.body.hrvTrend14d.length > 0 ? `HRV 14D: ${data.body.hrvTrend14d.map(d => `${d.date}:${d.hrv}`).join(', ')}` : ''}
   HR↔Severity: r=${data.hrSevCorr}
-😴 SLEEP→FLARE LAG: r=${data.sleepFlareCorrelation}
+😴 SLEEP→FLARE LAG: r=${data.sleepFlareCorrelation} | Architecture: deep ${data.sleepArchitecture.avgDeepPct ?? '?'}%, REM ${data.sleepArchitecture.avgRemPct ?? '?'}%
 👣 STEPS→FLARE: r=${data.stepsFlareCorr}
+🧠 STRESS PROXY: overall ${data.stressProxy ?? 'N/A'} | during flares ${data.flareStressProxy ?? 'N/A'} (HR/HRV ratio, higher=more stress)
+💚 RECOVERY SCORE: ${data.recoveryScore}/100 | HRV recovery: ${data.hrvRecoveryRate}
 
 💊 RECENT: ${data.meds.join(", ") || "none"}
 💊 EFFECTIVENESS: ${data.medEffectiveness.map(m => `**${m.name}**: ${m.timesTaken}x, sev ↓${m.severityReduction} (${m.avgBefore}→${m.avgAfter}), flare-free ${m.flareFreeRate}${m.avgHoursToRelief ? `, relief ~${m.avgHoursToRelief}h` : ''}, freq ${m.weeklyFreq}/wk, timing ${m.timingConsistency}`).join(" | ") || "insufficient data"}
 💊 ADHERENCE: ${adherenceSummary}
 💊 TIMING: ${Object.entries(data.medTimingPatterns).map(([m, t]) => `${m}: ${Object.entries(t).filter(([_,c]) => c > 0).map(([tod,c]) => `${tod}(${c})`).join(',')}`).join(' | ') || 'N/A'}
 💊 GAP DAYS: ${data.medGapDays} | Polypharmacy days: ${data.polypharmacyDays}
+💊 WASHOUTS: ${data.medWashouts.length > 0 ? data.medWashouts.map(w => `${w.med}(${w.gapDays}d gap)`).join(', ') : 'none'}
 
 🏃 EXERCISE: ${data.exerciseAnalysis.length > 0 ? data.exerciseAnalysis.map(e => `${e.type}(${e.totalSessions}x, ${e.flaresAfter} flares after = ${e.totalSessions > 0 ? pct(e.flaresAfter, e.totalSessions) : 0}%)`).join(', ') : 'no data'}
+🏃 EXERCISE→FLARE DELAY: ${data.activityFlareDelay}
 
 🍎 TODAY: ${data.food.todayItems} (${data.food.todayCal}cal, ${data.food.todayProtein}g protein, ${data.food.todayFiber}g fiber, ${data.food.todaySugar}g sugar)
 📅 7-DAY FOOD: ${data.food.last7dSummary}
@@ -1556,8 +1560,27 @@ ${data.body.hasData ? `  Overall — HR ${formatNum(data.body.overall.hr, 0)}bpm
 🍽️ MEALS: ${Object.entries(data.mealTypeCounts).map(([t,c]) => `${t}:${c}`).join(", ")} | Late-night: ${data.lateNightEatingRate}% | Regularity: ${data.mealRegularity != null ? `${Math.round(data.mealRegularity * 100)}%` : 'N/A'}
 🥣 Breakfast skip rate: ${data.breakfastSkipRate ?? 'N/A'}% | Water items/day: ${data.avgWaterPerDay}
 ☕ CAFFEINE: ${data.caffeineItems} total, ${data.caffeineLateCount} after 2pm | 🍷 ALCOHOL: ${data.alcoholItems}
+⚠️ MICRO-NUTRIENTS: ${data.microNutrientFlags.length > 0 ? data.microNutrientFlags.join(', ') : 'no deficiencies detected'}
+🍽️ MEAL→FLARE DELAY: ${data.avgMealToFlareDelay}
+🍎 FLARE-DAY NUTRITION: cal ${data.flareDayNutrition.avgCal}, sugar ${data.flareDayNutrition.avgSugar}g, protein ${data.flareDayNutrition.avgProtein}g
+🟢 NON-FLARE NUTRITION: cal ${data.nonFlareDayNutrition.avgCal}, sugar ${data.nonFlareDayNutrition.avgSugar}g, protein ${data.nonFlareDayNutrition.avgProtein}g
+${data.flareFreefoods.length > 0 ? `🏆 FLARE-FREE PERIOD FOODS: ${data.flareFreefoods.join(', ')}` : ''}
 
 📝 NOTES: ${data.noteSample || "none"} | Sentiment: ${data.posNotes} positive, ${data.negNotes} negative
+📝 NOTE KEYWORDS: ${data.topNoteKeywords}
+
+═══ ADVANCED METRICS ═══
+😴 Fatigue Index: ${data.fatigueIndex}/100
+🔄 Circadian: peak flare ${data.circadianProfile.peakFlareWindow}:00, morning ${data.circadianProfile.morningLoad}%, evening ${data.circadianProfile.eveningLoad}%, night ${data.circadianProfile.nightLoad}%
+🌡️ Pressure change avg: ${data.avgPressureChange}hPa
+🎲 Flare regularity: ${data.flareRegularity} | Recent weighted sev: ${data.recentWeightedSev}/3
+📊 Sev IQR: P25=${data.sevP25} P75=${data.sevP75} IQR=${data.sevIqr} | Bands: ${data.sevLowerBand}–${data.sevUpperBand}
+🔀 Symptom entropy: ${data.symptomEntropy} bits | Trigger entropy: ${data.triggerEntropy} bits
+⏱️ Duration trend: ${data.durationTrend}/flare slope
+📅 Monthly trend: ${data.monthlyTrend.map(m => `${m.month}(${m.flares}f, sev ${m.avgSev})`).join(' → ')}
+${Object.keys(data.symptomTrends).length > 0 ? `📈 SYMPTOM TRENDS: ${Object.entries(data.symptomTrends).map(([s, t]) => `${s}: ${t}`).join(', ')}` : ''}
+${data.seasonalTriggers.length > 0 ? `🌸 SEASONAL TRIGGERS: ${data.seasonalTriggers.join(', ')}` : ''}
+${data.weekdayRhythm.length > 0 ? `📅 WEEKLY RHYTHM: ${data.weekdayRhythm.map(d => `${d.day}:${d.count}(${d.normalized}x)`).join(' ')}` : ''}
 
 ═══ RECENT TIMELINE ═══
 ${data.recentEntries.join("\n") || "No recent entries"}
