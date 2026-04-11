@@ -55,6 +55,59 @@ const zScore = (val: number, mean: number, sd: number): number | null => sd === 
 const decayWeight = (dayAge: number, halfLife = 7): number => Math.exp(-0.693 * dayAge / halfLife);
 // #140 — Simple moving average
 const sma = (arr: number[], window: number): number[] => { const result: number[] = []; for (let i = window - 1; i < arr.length; i++) { result.push(avg(arr.slice(i - window + 1, i + 1))!); } return result; };
+// #167 — Kendall's tau rank correlation (more robust than Pearson for ordinal data)
+const kendallTau = (xs: number[], ys: number[]): number | null => {
+  if (xs.length < 4 || xs.length !== ys.length) return null;
+  let conc = 0, disc = 0; const n = xs.length;
+  for (let i = 0; i < n - 1; i++) for (let j = i + 1; j < n; j++) {
+    const dx = xs[i] - xs[j], dy = ys[i] - ys[j];
+    if (dx * dy > 0) conc++; else if (dx * dy < 0) disc++;
+  }
+  return (conc - disc) / (n * (n - 1) / 2);
+};
+// #168 — Autocorrelation (does flare today predict flare tomorrow?)
+const autocorrelation = (arr: number[], lag = 1): number | null => {
+  if (arr.length < lag + 3) return null;
+  const m = avg(arr)!;
+  let num = 0, den = 0;
+  for (let i = 0; i < arr.length - lag; i++) { num += (arr[i] - m) * (arr[i + lag] - m); den += (arr[i] - m) ** 2; }
+  return den === 0 ? 0 : num / den;
+};
+// #169 — Exponential growth/decay detector
+const growthRate = (arr: number[]): number | null => {
+  if (arr.length < 3) return null;
+  const pos = arr.filter(v => v > 0);
+  if (pos.length < 3) return null;
+  const logVals = pos.map(v => Math.log(v));
+  return linSlope(logVals);
+};
+// #170 — Moving variance (detect volatility spikes)
+const movingVariance = (arr: number[], w = 5): number[] => {
+  const result: number[] = [];
+  for (let i = w - 1; i < arr.length; i++) {
+    const slice = arr.slice(i - w + 1, i + 1);
+    const m = avg(slice)!;
+    result.push(slice.reduce((s, v) => s + (v - m) ** 2, 0) / w);
+  }
+  return result;
+};
+// #171 — Cumulative sum for change-point detection
+const cusum = (arr: number[]): { changePoint: number | null; magnitude: number } => {
+  if (arr.length < 6) return { changePoint: null, magnitude: 0 };
+  const m = avg(arr)!;
+  let s = 0, maxS = 0, minS = 0, cpMax = 0, cpMin = 0;
+  for (let i = 0; i < arr.length; i++) { s += arr[i] - m; if (s > maxS) { maxS = s; cpMax = i; } if (s < minS) { minS = s; cpMin = i; } }
+  return maxS - minS > 0 ? { changePoint: maxS > -minS ? cpMax : cpMin, magnitude: Math.abs(maxS - minS) / arr.length } : { changePoint: null, magnitude: 0 };
+};
+// #172 — Runs test (are flare sequences random or patterned?)
+const runsTest = (boolArr: boolean[]): { runs: number; expected: number; isRandom: boolean } => {
+  if (boolArr.length < 5) return { runs: 0, expected: 0, isRandom: true };
+  let runs = 1;
+  for (let i = 1; i < boolArr.length; i++) if (boolArr[i] !== boolArr[i - 1]) runs++;
+  const n1 = boolArr.filter(v => v).length, n0 = boolArr.length - n1;
+  const expected = n1 > 0 && n0 > 0 ? 1 + (2 * n1 * n0) / (n1 + n0) : boolArr.length;
+  return { runs, expected: Math.round(expected * 10) / 10, isRandom: Math.abs(runs - expected) < 2 };
+};
 
 // ─── Web search via Firecrawl ─────────────────────────────────────────────
 async function searchWeb(query: string): Promise<{ results: Array<{ title: string; url: string; snippet: string }>; error?: string }> {
