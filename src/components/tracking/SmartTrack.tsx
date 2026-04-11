@@ -1195,12 +1195,12 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         await onSave(entry);
         scheduleAnalysis();
       }
-    } catch (error) {
-      console.error('Error:', error);
+    } catch (error: any) {
+      console.error('Chat error details:', error?.message || error, JSON.stringify(error));
       const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: "Something went wrong. Basic logging still works!",
+        content: `Something went wrong: ${error?.message || 'Unknown error'}. Basic logging still works!`,
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, errorMessage]);
