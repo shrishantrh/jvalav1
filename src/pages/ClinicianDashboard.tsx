@@ -2,703 +2,715 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   ArrowLeft, User, Activity, FileText, Download, Share2,
-  AlertTriangle, Heart, Moon, Pill, ChevronRight, 
-  Search, Bell, Settings, TrendingUp, TrendingDown, 
-  Thermometer, Droplets, Wind, Zap, Clock, Calendar,
-  ShieldAlert, Stethoscope, TestTube, Syringe, Brain,
-  Dna, Eye, Ear, Bone, Flame, Gauge, Scale, Ruler,
-  Microscope, Beaker, FlaskConical, Radiation, Waves,
-  Timer, Target, BarChart3, PieChart, CircleDot, Fingerprint
+  AlertTriangle, Heart, Moon, Pill, TrendingUp, TrendingDown, 
+  Thermometer, Droplets, Wind, Clock, Calendar,
+  ShieldAlert, Stethoscope, Brain, Flame, Gauge,
+  BarChart3, Zap, Sun, MapPin, Utensils,
+  Shield, ClipboardList, Timer, Target, CheckCircle2, XCircle,
+  Printer, ChevronRight, Info, Sparkles, Scale, Ruler
 } from "lucide-react";
 import { 
-  generateMockWearableData, 
-  generateMockEHRData,
-  DEMO_PATIENT
-} from "@/services/mockWearableData";
-import { 
-  LineChart, Line, XAxis, YAxis, ResponsiveContainer,
-  AreaChart, Area, BarChart, Bar, RadialBarChart, RadialBar,
-  PieChart as RechartsPie, Pie, Cell
+  LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip,
+  AreaChart, Area, BarChart, Bar, Cell, CartesianGrid,
+  RadialBarChart, RadialBar, PieChart as RechartsPie, Pie, Legend
 } from "recharts";
-import { format, subDays, subHours } from "date-fns";
+import { format, formatDistanceToNow, parseISO, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useClinicianData } from "@/hooks/useClinicianData";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// Frosted glass card component
-const GlassCard = ({ 
-  children, 
-  className = "", 
-  onClick,
-  gradient,
-  size = 'default'
-}: { 
-  children: React.ReactNode; 
-  className?: string;
-  onClick?: () => void;
-  gradient?: string;
-  size?: 'default' | 'compact';
+// Glass card component
+const GlassCard = ({ children, className = "", gradient, onClick }: { 
+  children: React.ReactNode; className?: string; gradient?: string; onClick?: () => void;
 }) => (
-  <div 
-    onClick={onClick}
-    className={cn(
-      "relative rounded-3xl overflow-hidden transition-all duration-300",
-      size === 'compact' ? 'p-4' : 'p-5',
-      "bg-white/70 dark:bg-slate-900/70",
-      "backdrop-blur-xl",
-      "border border-white/50 dark:border-slate-700/50",
-      "before:absolute before:inset-0 before:rounded-3xl",
-      "before:bg-gradient-to-br before:from-white/30 before:to-transparent before:pointer-events-none",
-      "shadow-[0_8px_32px_rgba(0,0,0,0.06)]",
-      onClick && "cursor-pointer hover:scale-[1.02] active:scale-[0.98]",
-      gradient,
-      className
-    )}
-  >
+  <div onClick={onClick} className={cn(
+    "relative rounded-2xl overflow-hidden p-5",
+    "bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl",
+    "border border-slate-200/60 dark:border-slate-700/50",
+    "shadow-[0_4px_24px_rgba(0,0,0,0.04)]",
+    onClick && "cursor-pointer hover:shadow-lg transition-shadow",
+    gradient, className
+  )}>
     <div className="relative z-10">{children}</div>
   </div>
 );
 
-// Stat card for vitals
-const StatCard = ({ 
-  label, 
-  value, 
-  unit, 
-  icon: Icon, 
-  status,
-  trend,
-  compact = false
-}: { 
-  label: string; 
-  value: string | number; 
-  unit?: string;
-  icon: any;
-  status?: 'normal' | 'warning' | 'critical';
-  trend?: 'up' | 'down' | 'stable';
-  compact?: boolean;
+// Metric card
+const MetricCard = ({ label, value, unit, icon: Icon, status, trend, subtitle }: {
+  label: string; value: string | number; unit?: string; icon: any;
+  status?: 'normal' | 'warning' | 'critical'; trend?: 'up' | 'down' | 'stable'; subtitle?: string;
 }) => (
   <div className={cn(
-    "relative rounded-2xl overflow-hidden",
-    compact ? "p-3" : "p-4",
-    "bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm",
-    "border border-white/40 dark:border-slate-700/40",
-    status === 'critical' && "border-red-500/30 bg-red-50/50 dark:bg-red-950/20",
-    status === 'warning' && "border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20"
+    "rounded-xl p-3.5 border",
+    status === 'critical' ? "bg-red-50/80 dark:bg-red-950/30 border-red-200/60" :
+    status === 'warning' ? "bg-amber-50/80 dark:bg-amber-950/30 border-amber-200/60" :
+    "bg-white/60 dark:bg-slate-800/60 border-slate-200/40"
   )}>
     <div className="flex items-center justify-between mb-1">
-      <Icon className={cn(
-        compact ? "w-4 h-4" : "w-5 h-5",
-        status === 'critical' ? "text-red-500" :
-        status === 'warning' ? "text-amber-500" :
-        "text-muted-foreground"
+      <Icon className={cn("w-4 h-4",
+        status === 'critical' ? "text-red-500" : status === 'warning' ? "text-amber-500" : "text-muted-foreground"
       )} />
-      {trend && (
-        trend === 'up' ? <TrendingUp className="w-3 h-3 text-red-500" /> :
-        trend === 'down' ? <TrendingDown className="w-3 h-3 text-emerald-500" /> :
-        null
-      )}
+      {trend === 'up' ? <TrendingUp className="w-3 h-3 text-red-500" /> :
+       trend === 'down' ? <TrendingDown className="w-3 h-3 text-emerald-500" /> : null}
     </div>
-    <p className={cn(compact ? "text-xl" : "text-2xl", "font-bold")}>
-      {value}<span className="text-xs text-muted-foreground ml-1">{unit}</span>
-    </p>
-    <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+    <p className="text-xl font-bold">{value}<span className="text-xs text-muted-foreground ml-1">{unit}</span></p>
+    <p className="text-[11px] text-muted-foreground">{label}</p>
+    {subtitle && <p className="text-[10px] text-muted-foreground/70 mt-0.5">{subtitle}</p>}
   </div>
 );
 
-// Mini sparkline component
-const Sparkline = ({ data, color = "hsl(var(--primary))", height = 40 }: { data: number[]; color?: string; height?: number }) => (
-  <ResponsiveContainer width="100%" height={height}>
-    <AreaChart data={data.map((v, i) => ({ value: v, idx: i }))}>
-      <defs>
-        <linearGradient id={`spark-${color.replace(/[^a-z]/gi, '')}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="5%" stopColor={color} stopOpacity={0.3}/>
-          <stop offset="95%" stopColor={color} stopOpacity={0}/>
-        </linearGradient>
-      </defs>
-      <Area 
-        type="monotone" 
-        dataKey="value" 
-        stroke={color}
-        strokeWidth={1.5}
-        fill={`url(#spark-${color.replace(/[^a-z]/gi, '')})`}
-      />
-    </AreaChart>
-  </ResponsiveContainer>
+// Section header
+const SectionHeader = ({ icon: Icon, title, badge, action }: {
+  icon: any; title: string; badge?: React.ReactNode; action?: React.ReactNode;
+}) => (
+  <div className="flex items-center justify-between mb-4">
+    <div className="flex items-center gap-2">
+      <Icon className="w-5 h-5 text-primary" />
+      <h3 className="font-semibold">{title}</h3>
+      {badge}
+    </div>
+    {action}
+  </div>
+);
+
+// Severity bar
+const SeverityBar = ({ value, max = 3 }: { value: number; max?: number }) => (
+  <div className="h-1.5 bg-muted/30 rounded-full overflow-hidden w-full">
+    <div className={cn("h-full rounded-full transition-all",
+      value >= 2.5 ? "bg-red-500" : value >= 1.5 ? "bg-amber-500" : "bg-emerald-500"
+    )} style={{ width: `${(value / max) * 100}%` }} />
+  </div>
+);
+
+// Loading skeleton
+const DashboardSkeleton = () => (
+  <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+    <Skeleton className="h-40 rounded-2xl" />
+    <div className="grid grid-cols-4 gap-4">
+      {[1,2,3,4].map(i => <Skeleton key={i} className="h-24 rounded-xl" />)}
+    </div>
+    <div className="grid grid-cols-2 gap-4">
+      <Skeleton className="h-64 rounded-2xl" />
+      <Skeleton className="h-64 rounded-2xl" />
+    </div>
+  </div>
 );
 
 const ClinicianDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { profile, entries, medications, foodLogs, analytics, loading, error, accessInfo } = useClinicianData();
+  const [activeTab, setActiveTab] = useState('overview');
+
+  if (loading) return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      <DashboardSkeleton />
+    </div>
+  );
+
+  if (error || !profile) return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      <GlassCard className="max-w-md text-center">
+        <ShieldAlert className="w-12 h-12 text-red-500 mx-auto mb-4" />
+        <h2 className="text-xl font-bold mb-2">Access Denied</h2>
+        <p className="text-sm text-muted-foreground mb-4">{error || 'Unable to load patient data. The access link may be invalid or expired.'}</p>
+        <Button onClick={() => navigate('/')} className="rounded-xl">Return Home</Button>
+      </GlassCard>
+    </div>
+  );
+
+  const a = analytics;
+  const patientAge = profile.date_of_birth 
+    ? Math.floor(differenceInDays(new Date(), parseISO(profile.date_of_birth)) / 365.25)
+    : null;
+
+  const sevLabel = (s: number) => s >= 2.5 ? 'Severe' : s >= 1.5 ? 'Moderate' : s > 0 ? 'Mild' : 'None';
+  const sevColor = (s: number) => s >= 2.5 ? 'text-red-600' : s >= 1.5 ? 'text-amber-600' : 'text-emerald-600';
+
+  // Flare entries for the timeline
+  const recentFlares = entries.filter(e => e.entry_type === 'flare').slice(0, 20);
+
+  // Physiological data from most recent entry with wearable data
+  const latestPhysio = entries.find(e => e.physiological_data)?.physiological_data;
+  const latestEnv = entries.find(e => e.environmental_data)?.environmental_data;
+
+  const handlePrint = () => window.print();
   
-  const wearableData = generateMockWearableData('flare-warning');
-  const ehrData = generateMockEHRData();
-  const patient = DEMO_PATIENT;
-
-  // Generate comprehensive trend data
-  const hrvTrend = Array.from({ length: 14 }, (_, i) => ({
-    date: format(subDays(new Date(), 13 - i), 'MMM d'),
-    value: 35 + Math.sin(i * 0.4) * 12 + Math.random() * 8,
-  }));
-
-  const sleepTrend = Array.from({ length: 7 }, (_, i) => ({
-    date: format(subDays(new Date(), 6 - i), 'EEE'),
-    deep: 1.5 + Math.random() * 1.5,
-    light: 2 + Math.random() * 2,
-    rem: 0.8 + Math.random() * 1.2,
-  }));
-
-  const flareHistory = Array.from({ length: 30 }, (_, i) => ({
-    date: format(subDays(new Date(), 29 - i), 'MMM d'),
-    count: Math.floor(Math.random() * 3),
-    severity: Math.random() * 3,
-  }));
-
-  const hourlyHR = Array.from({ length: 24 }, (_, i) => ({
-    hour: format(subHours(new Date(), 23 - i), 'ha'),
-    hr: 60 + Math.sin(i * 0.3) * 15 + Math.random() * 10,
-    hrv: 40 + Math.sin(i * 0.2) * 10 + Math.random() * 8,
-  }));
-
-  const bodySystemsData = [
-    { name: 'Cardiovascular', score: 78, color: '#ef4444' },
-    { name: 'Respiratory', score: 92, color: '#3b82f6' },
-    { name: 'Nervous', score: 65, color: '#8b5cf6' },
-    { name: 'Immune', score: 54, color: '#f59e0b' },
-    { name: 'Musculoskeletal', score: 71, color: '#10b981' },
-  ];
-
-  const inflammationMarkers = [
-    { name: 'CRP', value: 8.2, normal: '<3.0', unit: 'mg/L', status: 'high' },
-    { name: 'ESR', value: 28, normal: '0-20', unit: 'mm/hr', status: 'high' },
-    { name: 'IL-6', value: 4.1, normal: '<1.8', unit: 'pg/mL', status: 'high' },
-    { name: 'TNF-α', value: 12, normal: '<8.1', unit: 'pg/mL', status: 'high' },
-    { name: 'Ferritin', value: 185, normal: '12-150', unit: 'ng/mL', status: 'warning' },
-  ];
-
-  const vitaminLevels = [
-    { name: 'Vitamin D', value: 22, optimal: '30-100', unit: 'ng/mL', percent: 44, status: 'low' },
-    { name: 'B12', value: 450, optimal: '200-900', unit: 'pg/mL', percent: 64, status: 'normal' },
-    { name: 'Iron', value: 55, optimal: '60-170', unit: 'μg/dL', percent: 32, status: 'low' },
-    { name: 'Folate', value: 12, optimal: '3-17', unit: 'ng/mL', percent: 70, status: 'normal' },
-  ];
-
-  const medicationAdherence = [
-    { name: 'Adalimumab', adherence: 95, lastTaken: '2h ago', nextDue: '12 days' },
-    { name: 'Methotrexate', adherence: 88, lastTaken: '3 days ago', nextDue: '4 days' },
-    { name: 'Folic Acid', adherence: 100, lastTaken: 'Today', nextDue: 'Tomorrow' },
-    { name: 'Prednisone', adherence: 75, lastTaken: 'Yesterday', nextDue: 'Overdue' },
-  ];
-
-  const recentSymptoms = [
-    { symptom: 'Joint Pain', frequency: 8, severity: 2.4, trend: 'up' },
-    { symptom: 'Fatigue', frequency: 12, severity: 2.1, trend: 'stable' },
-    { symptom: 'Morning Stiffness', frequency: 6, severity: 1.8, trend: 'down' },
-    { symptom: 'Swelling', frequency: 4, severity: 2.6, trend: 'up' },
-  ];
-
-  const handleShare = () => {
-    navigator.clipboard.writeText(`https://jvala.health/shared/${Date.now().toString(36)}`);
-    toast({ title: "Link Copied", description: "Secure access link copied to clipboard" });
-  };
-
   const handleExport = () => {
-    toast({ title: "Export Started", description: "Generating clinical PDF report..." });
+    toast({ title: "Generating Clinical Report", description: "PDF export will download shortly" });
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 print:bg-white">
       {/* Header */}
-      <header className="sticky top-0 z-50 px-4 py-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-white/50">
+      <header className="sticky top-0 z-50 px-4 py-3 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/60 print:hidden">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => navigate('/')}
-              className="rounded-xl"
-            >
+            <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="rounded-xl">
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>
               <h1 className="text-lg font-bold">Clinical Dashboard</h1>
-              <p className="text-xs text-muted-foreground">Provider Portal • Real-time Monitoring</p>
+              <p className="text-xs text-muted-foreground">
+                {accessInfo?.physician_name ? `Dr. ${accessInfo.physician_name}` : 'Provider Portal'} • 
+                Expires {accessInfo?.expires_at ? format(parseISO(accessInfo.expires_at), 'MMM d, yyyy') : 'N/A'}
+              </p>
             </div>
           </div>
-          
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleShare} className="rounded-xl gap-2">
-              <Share2 className="w-4 h-4" />
-              Share
+            <Button variant="outline" size="sm" onClick={handlePrint} className="rounded-xl gap-2">
+              <Printer className="w-4 h-4" />
+              Print
             </Button>
             <Button size="sm" onClick={handleExport} className="rounded-xl gap-2">
               <Download className="w-4 h-4" />
-              Export
+              Export PDF
             </Button>
           </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-        {/* Patient Header with Health Score */}
+        {/* Patient Header */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           <GlassCard className="lg:col-span-3 !p-6">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-                  <User className="w-10 h-10 text-primary" />
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                  <User className="w-8 h-8 text-primary" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold">{patient.name}</h2>
-                  <p className="text-sm text-muted-foreground">{patient.age} years old • {patient.gender} • DOB: 03/15/1989</p>
+                  <h2 className="text-2xl font-bold">{profile.full_name || 'Patient'}</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {patientAge ? `${patientAge} yrs` : ''} 
+                    {profile.biological_sex ? ` • ${profile.biological_sex}` : ''}
+                    {profile.date_of_birth ? ` • DOB: ${format(parseISO(profile.date_of_birth), 'MM/dd/yyyy')}` : ''}
+                  </p>
                   <div className="flex gap-2 mt-2 flex-wrap">
-                    {patient.conditions.map(c => (
+                    {profile.conditions?.map(c => (
                       <Badge key={c} variant="secondary" className="text-xs">{c}</Badge>
                     ))}
-                    <Badge variant="outline" className="text-xs">BMI: 24.2</Badge>
-                    <Badge variant="outline" className="text-xs">Blood: A+</Badge>
+                    {profile.blood_type && <Badge variant="outline" className="text-xs">Blood: {profile.blood_type}</Badge>}
+                    {profile.weight_kg && <Badge variant="outline" className="text-xs">{profile.weight_kg}kg</Badge>}
+                    {profile.height_cm && <Badge variant="outline" className="text-xs">{profile.height_cm}cm</Badge>}
                   </div>
                   <div className="flex gap-4 mt-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1"><Fingerprint className="w-3 h-3" /> MRN: 847293</span>
-                    <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> Dx: 2019</span>
-                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Last visit: 2w ago</span>
+                    {profile.physician_name && (
+                      <span className="flex items-center gap-1"><Stethoscope className="w-3 h-3" /> {profile.physician_name}</span>
+                    )}
+                    {profile.emergency_contact_name && (
+                      <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> EC: {profile.emergency_contact_name}</span>
+                    )}
                   </div>
                 </div>
               </div>
-              
               <div className="text-right space-y-2">
-                <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
-                  <AlertTriangle className="w-3 h-3 mr-1" />
-                  Flare Risk Elevated
+                <Badge variant="outline" className={cn(
+                  a.riskLevel === 'critical' ? "bg-red-500/10 text-red-600 border-red-500/30" :
+                  a.riskLevel === 'high' ? "bg-amber-500/10 text-amber-600 border-amber-500/30" :
+                  a.riskLevel === 'moderate' ? "bg-yellow-500/10 text-yellow-600 border-yellow-500/30" :
+                  "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                )}>
+                  {a.riskLevel === 'critical' || a.riskLevel === 'high' ? <AlertTriangle className="w-3 h-3 mr-1" /> : <CheckCircle2 className="w-3 h-3 mr-1" />}
+                  {a.riskLevel.charAt(0).toUpperCase() + a.riskLevel.slice(1)} Risk
                 </Badge>
-                <p className="text-xs text-muted-foreground">Sync: 2 hours ago</p>
+                <p className="text-xs text-muted-foreground">{a.totalEntries} total entries</p>
               </div>
             </div>
           </GlassCard>
 
-          {/* Overall Health Score */}
-          <GlassCard gradient="before:bg-gradient-to-br before:from-primary/10 before:to-transparent">
+          {/* Health Score */}
+          <GlassCard>
             <div className="text-center">
               <p className="text-xs text-muted-foreground mb-2">Health Score</p>
               <div className="relative w-24 h-24 mx-auto">
                 <svg className="w-full h-full -rotate-90">
                   <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="none" className="text-muted/20" />
-                  <circle 
-                    cx="48" cy="48" r="40" 
-                    stroke="url(#healthGradient)" 
-                    strokeWidth="8" 
-                    fill="none" 
-                    strokeDasharray={`${68 * 2.51} 251`}
-                    strokeLinecap="round"
-                  />
-                  <defs>
-                    <linearGradient id="healthGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor="#f59e0b" />
-                      <stop offset="100%" stopColor="#ef4444" />
-                    </linearGradient>
-                  </defs>
+                  <circle cx="48" cy="48" r="40" stroke={
+                    a.healthScore >= 75 ? "#10b981" : a.healthScore >= 50 ? "#f59e0b" : "#ef4444"
+                  } strokeWidth="8" fill="none" strokeDasharray={`${a.healthScore * 2.51} 251`} strokeLinecap="round" />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-3xl font-bold">68</span>
+                  <span className="text-3xl font-bold">{a.healthScore}</span>
                 </div>
               </div>
-              <p className="text-sm font-medium text-amber-600 mt-2">Needs Attention</p>
-              <p className="text-xs text-muted-foreground">↓ 12 from last month</p>
+              <p className={cn("text-sm font-medium mt-2", sevColor(3 - a.healthScore / 33))}>
+                {a.healthScore >= 75 ? 'Good' : a.healthScore >= 50 ? 'Needs Attention' : a.healthScore >= 25 ? 'Poor' : 'Critical'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {a.severityTrend === 'improving' ? '↑ Improving' : a.severityTrend === 'worsening' ? '↓ Declining' : '→ Stable'}
+              </p>
             </div>
           </GlassCard>
         </div>
 
-        {/* Critical Alerts Banner */}
-        <GlassCard gradient="before:bg-gradient-to-br before:from-red-500/10 before:to-amber-500/5" className="!p-4">
-          <div className="flex items-center gap-4 overflow-x-auto">
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-sm font-semibold text-red-600">3 Active Alerts</span>
-            </div>
-            <div className="h-6 w-px bg-border shrink-0" />
-            <div className="flex gap-3 overflow-x-auto">
-              <Badge variant="outline" className="shrink-0 bg-red-50 text-red-600 border-red-200">
-                CRP ↑ 174% above normal
-              </Badge>
-              <Badge variant="outline" className="shrink-0 bg-amber-50 text-amber-600 border-amber-200">
-                HRV ↓ 23% decline
-              </Badge>
-              <Badge variant="outline" className="shrink-0 bg-amber-50 text-amber-600 border-amber-200">
-                Prednisone dose overdue
-              </Badge>
-            </div>
-          </div>
-        </GlassCard>
-
-        {/* Main Grid - 4 columns on desktop */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Real-time Vitals */}
-          <GlassCard className="lg:col-span-2">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Activity className="w-5 h-5 text-primary" />
-                <h3 className="font-semibold">Real-Time Vitals</h3>
+        {/* Alert Banner */}
+        {(a.riskLevel === 'high' || a.riskLevel === 'critical') && (
+          <GlassCard className="!p-4 border-red-200/60">
+            <div className="flex items-center gap-4 overflow-x-auto">
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-sm font-semibold text-red-600">Clinical Alerts</span>
               </div>
-              <Badge variant="outline" className="text-xs">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse" />
-                Live
-              </Badge>
-            </div>
-            
-            <div className="grid grid-cols-3 gap-2">
-              <StatCard label="Heart Rate" value={wearableData.heartRate} unit="bpm" icon={Heart} status="warning" trend="up" compact />
-              <StatCard label="HRV" value={wearableData.heartRateVariability} unit="ms" icon={Activity} status="warning" trend="down" compact />
-              <StatCard label="SpO2" value={wearableData.spo2} unit="%" icon={Droplets} compact />
-              <StatCard label="Skin Temp" value={`+${wearableData.skinTemperature}`} unit="°C" icon={Thermometer} status="warning" compact />
-              <StatCard label="Resp Rate" value={18} unit="/min" icon={Wind} compact />
-              <StatCard label="BP" value="128/82" unit="mmHg" icon={Gauge} status="warning" compact />
-            </div>
-          </GlassCard>
-
-          {/* Body Systems Radar */}
-          <GlassCard>
-            <div className="flex items-center gap-2 mb-3">
-              <Dna className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold text-sm">Body Systems</h3>
-            </div>
-            <div className="space-y-2">
-              {bodySystemsData.map((sys) => (
-                <div key={sys.name} className="flex items-center gap-2">
-                  <span className="text-xs w-24 truncate">{sys.name}</span>
-                  <div className="flex-1 h-2 bg-muted/30 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full rounded-full transition-all"
-                      style={{ width: `${sys.score}%`, backgroundColor: sys.color }}
-                    />
-                  </div>
-                  <span className="text-xs font-bold w-8 text-right">{sys.score}</span>
-                </div>
-              ))}
-            </div>
-          </GlassCard>
-
-          {/* Sleep Analysis */}
-          <GlassCard>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Moon className="w-5 h-5 text-primary" />
-                <h3 className="font-semibold text-sm">Sleep Quality</h3>
-              </div>
-              <Badge variant={wearableData.sleepHours < 6 ? "destructive" : "secondary"} className="text-xs">
-                {wearableData.sleepHours}h
-              </Badge>
-            </div>
-            <div className="h-24">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={sleepTrend} barCategoryGap="20%">
-                  <XAxis dataKey="date" tick={{ fontSize: 9 }} stroke="hsl(var(--muted-foreground))" />
-                  <Bar dataKey="deep" stackId="a" fill="#6366f1" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="light" stackId="a" fill="#a5b4fc" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="rem" stackId="a" fill="#c4b5fd" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex justify-center gap-4 mt-2">
-              <span className="flex items-center gap-1 text-[10px]"><span className="w-2 h-2 rounded bg-indigo-500" />Deep</span>
-              <span className="flex items-center gap-1 text-[10px]"><span className="w-2 h-2 rounded bg-indigo-300" />Light</span>
-              <span className="flex items-center gap-1 text-[10px]"><span className="w-2 h-2 rounded bg-violet-300" />REM</span>
-            </div>
-          </GlassCard>
-        </div>
-
-        {/* Second Row - Charts & Medical Data */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* 24hr Heart Rate & HRV */}
-          <GlassCard className="lg:col-span-2">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Heart className="w-5 h-5 text-red-500" />
-                <h3 className="font-semibold">24-Hour Cardiac Profile</h3>
-              </div>
-              <div className="flex gap-4 text-xs">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-red-500" />HR</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-violet-500" />HRV</span>
-              </div>
-            </div>
-            <div className="h-40">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={hourlyHR}>
-                  <defs>
-                    <linearGradient id="hrGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="hrvGrad2" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="hour" tick={{ fontSize: 9 }} stroke="hsl(var(--muted-foreground))" interval={3} />
-                  <YAxis tick={{ fontSize: 9 }} stroke="hsl(var(--muted-foreground))" />
-                  <Area type="monotone" dataKey="hr" stroke="#ef4444" strokeWidth={2} fill="url(#hrGrad)" />
-                  <Area type="monotone" dataKey="hrv" stroke="#8b5cf6" strokeWidth={2} fill="url(#hrvGrad2)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </GlassCard>
-
-          {/* Inflammation Markers */}
-          <GlassCard gradient="before:bg-gradient-to-br before:from-orange-500/10 before:to-transparent">
-            <div className="flex items-center gap-2 mb-3">
-              <Flame className="w-5 h-5 text-orange-500" />
-              <h3 className="font-semibold text-sm">Inflammation Panel</h3>
-            </div>
-            <div className="space-y-2">
-              {inflammationMarkers.map((marker) => (
-                <div 
-                  key={marker.name}
-                  className={cn(
-                    "flex items-center justify-between p-2 rounded-xl text-xs",
-                    marker.status === 'high' ? "bg-red-50/70 dark:bg-red-950/30 border border-red-200/50" :
-                    marker.status === 'warning' ? "bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/50" :
-                    "bg-white/50 dark:bg-slate-800/50"
-                  )}
-                >
-                  <div>
-                    <span className="font-semibold">{marker.name}</span>
-                    <span className="text-muted-foreground ml-1">({marker.normal})</span>
-                  </div>
-                  <span className={cn(
-                    "font-bold",
-                    marker.status === 'high' && "text-red-600",
-                    marker.status === 'warning' && "text-amber-600"
-                  )}>
-                    {marker.value} {marker.unit}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </GlassCard>
-        </div>
-
-        {/* Third Row - Medical Records & Symptoms */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Diagnoses */}
-          <GlassCard>
-            <div className="flex items-center gap-2 mb-3">
-              <Stethoscope className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold text-sm">Diagnoses</h3>
-            </div>
-            <div className="space-y-2">
-              {ehrData.diagnoses.filter(d => d.status === 'active').map((diagnosis, i) => (
-                <div key={i} className="p-2 rounded-xl bg-white/50 dark:bg-slate-800/50">
-                  <p className="font-medium text-sm">{diagnosis.name}</p>
-                  <p className="text-xs text-muted-foreground">ICD-10: {diagnosis.code}</p>
-                </div>
-              ))}
-            </div>
-          </GlassCard>
-
-          {/* Medications with Adherence */}
-          <GlassCard>
-            <div className="flex items-center gap-2 mb-3">
-              <Pill className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold text-sm">Medications</h3>
-            </div>
-            <div className="space-y-2">
-              {medicationAdherence.map((med, i) => (
-                <div key={i} className="p-2 rounded-xl bg-white/50 dark:bg-slate-800/50">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm">{med.name}</span>
-                    <span className={cn(
-                      "text-xs font-bold",
-                      med.adherence >= 90 ? "text-emerald-600" :
-                      med.adherence >= 75 ? "text-amber-600" : "text-red-600"
-                    )}>{med.adherence}%</span>
-                  </div>
-                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                    <span>Last: {med.lastTaken}</span>
-                    <span className={med.nextDue === 'Overdue' ? 'text-red-500 font-medium' : ''}>
-                      Next: {med.nextDue}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </GlassCard>
-
-          {/* Symptom Frequency */}
-          <GlassCard>
-            <div className="flex items-center gap-2 mb-3">
-              <BarChart3 className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold text-sm">Recent Symptoms</h3>
-            </div>
-            <div className="space-y-2">
-              {recentSymptoms.map((sym, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium">{sym.symptom}</span>
-                      <span className="text-xs text-muted-foreground">{sym.frequency}×</span>
-                    </div>
-                    <div className="h-1.5 bg-muted/30 rounded-full mt-1 overflow-hidden">
-                      <div 
-                        className={cn(
-                          "h-full rounded-full",
-                          sym.severity >= 2.5 ? "bg-red-500" :
-                          sym.severity >= 1.5 ? "bg-amber-500" : "bg-emerald-500"
-                        )}
-                        style={{ width: `${(sym.severity / 3) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                  {sym.trend === 'up' ? <TrendingUp className="w-3 h-3 text-red-500" /> :
-                   sym.trend === 'down' ? <TrendingDown className="w-3 h-3 text-emerald-500" /> :
-                   <div className="w-3 h-3" />}
-                </div>
-              ))}
-            </div>
-          </GlassCard>
-
-          {/* Vitamin & Nutrient Levels */}
-          <GlassCard>
-            <div className="flex items-center gap-2 mb-3">
-              <FlaskConical className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold text-sm">Nutrient Levels</h3>
-            </div>
-            <div className="space-y-2">
-              {vitaminLevels.map((vit) => (
-                <div key={vit.name} className="p-2 rounded-xl bg-white/50 dark:bg-slate-800/50">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium">{vit.name}</span>
-                    <span className={cn(
-                      "font-bold",
-                      vit.status === 'low' && "text-amber-600"
-                    )}>{vit.value} {vit.unit}</span>
-                  </div>
-                  <div className="h-1.5 bg-muted/30 rounded-full mt-1.5 overflow-hidden">
-                    <div 
-                      className={cn(
-                        "h-full rounded-full transition-all",
-                        vit.status === 'low' ? "bg-amber-500" : "bg-emerald-500"
-                      )}
-                      style={{ width: `${vit.percent}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </GlassCard>
-        </div>
-
-        {/* Fourth Row - Lab Results & Allergies */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Comprehensive Lab Results */}
-          <GlassCard className="lg:col-span-2">
-            <div className="flex items-center gap-2 mb-4">
-              <TestTube className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold">Lab Results</h3>
-              <Badge variant="outline" className="text-xs ml-auto">Last: 3 days ago</Badge>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {ehrData.labResults.map((lab, i) => (
-                <div 
-                  key={i}
-                  className={cn(
-                    "flex items-center justify-between p-3 rounded-xl",
-                    lab.status === 'high' ? "bg-red-50/50 dark:bg-red-950/20 border border-red-500/20" :
-                    lab.status === 'low' ? "bg-amber-50/50 dark:bg-amber-950/20 border border-amber-500/20" :
-                    "bg-white/50 dark:bg-slate-800/50"
-                  )}
-                >
-                  <div>
-                    <p className="font-medium text-sm">{lab.name}</p>
-                    <p className="text-xs text-muted-foreground">{lab.date}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className={cn(
-                      "font-bold",
-                      lab.status === 'high' && "text-red-600",
-                      lab.status === 'low' && "text-amber-600"
-                    )}>
-                      {lab.value} <span className="text-xs font-normal text-muted-foreground">{lab.unit}</span>
-                    </p>
-                    {lab.status !== 'normal' && (
-                      <Badge variant="outline" className={cn("text-[10px]", lab.status === 'high' && "text-red-600", lab.status === 'low' && "text-amber-600")}>
-                        {lab.status === 'high' ? '↑ High' : '↓ Low'}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </GlassCard>
-
-          {/* Allergies & Sensitivities */}
-          <GlassCard gradient="before:bg-gradient-to-br before:from-red-500/10 before:to-transparent">
-            <div className="flex items-center gap-2 mb-4">
-              <ShieldAlert className="w-5 h-5 text-red-500" />
-              <h3 className="font-semibold">Allergies</h3>
-            </div>
-            <div className="space-y-2">
-              {ehrData.allergies.map((allergy, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-red-50/50 dark:bg-red-950/20 border border-red-500/20">
-                  <div>
-                    <p className="font-medium text-sm">{allergy.allergen}</p>
-                    <p className="text-xs text-muted-foreground">{allergy.reaction}</p>
-                  </div>
-                  <Badge variant="outline" className={cn("text-xs", allergy.severity === 'severe' && "bg-red-500/10 text-red-600 border-red-500/30", allergy.severity === 'moderate' && "bg-amber-500/10 text-amber-600 border-amber-500/30")}>
-                    {allergy.severity}
+              <div className="h-6 w-px bg-border shrink-0" />
+              <div className="flex gap-2 overflow-x-auto">
+                {a.flaresLast7d > 3 && (
+                  <Badge variant="outline" className="shrink-0 bg-red-50 text-red-600 border-red-200">
+                    {a.flaresLast7d} flares this week (↑)
                   </Badge>
+                )}
+                {a.avgSeverity7d >= 2.5 && (
+                  <Badge variant="outline" className="shrink-0 bg-red-50 text-red-600 border-red-200">
+                    Average severity: Severe
+                  </Badge>
+                )}
+                {a.severityTrend === 'worsening' && (
+                  <Badge variant="outline" className="shrink-0 bg-amber-50 text-amber-600 border-amber-200">
+                    Severity trend worsening
+                  </Badge>
+                )}
+                {a.symptomFrequency.filter(s => s.trend === 'up').length > 0 && (
+                  <Badge variant="outline" className="shrink-0 bg-amber-50 text-amber-600 border-amber-200">
+                    {a.symptomFrequency.filter(s => s.trend === 'up').length} symptoms escalating
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </GlassCard>
+        )}
+
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid grid-cols-5 w-full lg:w-auto lg:inline-grid print:hidden">
+            <TabsTrigger value="overview" className="text-xs gap-1"><BarChart3 className="w-3 h-3" />Overview</TabsTrigger>
+            <TabsTrigger value="symptoms" className="text-xs gap-1"><Activity className="w-3 h-3" />Symptoms</TabsTrigger>
+            <TabsTrigger value="medications" className="text-xs gap-1"><Pill className="w-3 h-3" />Medications</TabsTrigger>
+            <TabsTrigger value="timeline" className="text-xs gap-1"><Clock className="w-3 h-3" />Timeline</TabsTrigger>
+            <TabsTrigger value="vitals" className="text-xs gap-1"><Heart className="w-3 h-3" />Vitals</TabsTrigger>
+          </TabsList>
+
+          {/* OVERVIEW TAB */}
+          <TabsContent value="overview" className="mt-6 space-y-6">
+            {/* Key Metrics */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              <MetricCard label="Flares (7d)" value={a.flaresLast7d} icon={Flame} 
+                status={a.flaresLast7d > 5 ? 'critical' : a.flaresLast7d > 3 ? 'warning' : 'normal'}
+                trend={a.severityTrend === 'worsening' ? 'up' : a.severityTrend === 'improving' ? 'down' : 'stable'} />
+              <MetricCard label="Flares (30d)" value={a.flaresLast30d} icon={BarChart3} />
+              <MetricCard label="Avg Severity" value={sevLabel(a.avgSeverity7d)} icon={Gauge}
+                status={a.avgSeverity7d >= 2.5 ? 'critical' : a.avgSeverity7d >= 1.5 ? 'warning' : 'normal'}
+                subtitle={`${a.avgSeverity7d.toFixed(1)}/3.0`} />
+              <MetricCard label="Flare-Free Streak" value={a.currentFlareFreeStreak} unit="days" icon={CheckCircle2} />
+              <MetricCard label="Avg Duration" value={a.avgFlareDuration > 0 ? Math.round(a.avgFlareDuration) : 'N/A'} unit={a.avgFlareDuration > 0 ? 'min' : ''} icon={Timer} />
+              <MetricCard label="Wellness Days" value={a.totalWellnessDays} icon={Sun} />
+            </div>
+
+            {/* Severity Timeline + Top Symptoms/Triggers */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <GlassCard className="lg:col-span-2">
+                <SectionHeader icon={TrendingUp} title="30-Day Severity Timeline" 
+                  badge={<Badge variant="outline" className="text-[10px]">Last 30 days</Badge>} />
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={a.dailySeverity}>
+                      <defs>
+                        <linearGradient id="sevGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                      <XAxis dataKey="date" tick={{ fontSize: 9 }} stroke="hsl(var(--muted-foreground))" interval={4} />
+                      <YAxis tick={{ fontSize: 9 }} stroke="hsl(var(--muted-foreground))" domain={[0, 3]} 
+                        tickFormatter={(v) => v === 3 ? 'Sev' : v === 2 ? 'Mod' : v === 1 ? 'Mild' : ''} />
+                      <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                      <Area type="monotone" dataKey="avgSeverity" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#sevGrad)" name="Avg Severity" />
+                      <Bar dataKey="count" fill="hsl(var(--primary))" opacity={0.3} name="Flare Count" />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </div>
-              ))}
-            </div>
-          </GlassCard>
-        </div>
+              </GlassCard>
 
-        {/* Provider & Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <GlassCard>
-            <div className="flex items-center gap-2 mb-3">
-              <Brain className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold">Primary Provider</h3>
+              <GlassCard>
+                <SectionHeader icon={Target} title="Peak Patterns" />
+                <div className="space-y-3">
+                  <div className="p-3 rounded-xl bg-muted/30">
+                    <p className="text-xs text-muted-foreground mb-1">Peak Time</p>
+                    <p className="text-sm font-semibold capitalize">{a.peakFlareTime}s</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {a.timeOfDayDistribution[a.peakFlareTime as keyof typeof a.timeOfDayDistribution]} of {a.flaresLast30d} flares
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-muted/30">
+                    <p className="text-xs text-muted-foreground mb-1">Flare-Free Record</p>
+                    <p className="text-sm font-semibold">{a.longestFlareFreeStreak} days</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-muted/30">
+                    <p className="text-xs text-muted-foreground mb-1">Severity Trend</p>
+                    <p className={cn("text-sm font-semibold", 
+                      a.severityTrend === 'improving' ? 'text-emerald-600' : 
+                      a.severityTrend === 'worsening' ? 'text-red-600' : 'text-muted-foreground'
+                    )}>
+                      {a.severityTrend === 'improving' ? '↓ Improving' : a.severityTrend === 'worsening' ? '↑ Worsening' : '→ Stable'}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">vs previous 30 days</p>
+                  </div>
+                </div>
+              </GlassCard>
             </div>
-            <div className="p-3 rounded-xl bg-white/50 dark:bg-slate-800/50">
-              <p className="font-medium">{patient.primaryPhysician.name}</p>
-              <p className="text-xs text-muted-foreground">{patient.primaryPhysician.practice}</p>
-              <p className="text-xs text-muted-foreground mt-1">{patient.primaryPhysician.phone}</p>
-            </div>
-          </GlassCard>
 
-          <GlassCard>
-            <div className="flex items-center gap-2 mb-3">
-              <Calendar className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold">Upcoming</h3>
+            {/* Top Symptoms + Triggers side by side */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <GlassCard>
+                <SectionHeader icon={Activity} title="Top Symptoms (30d)" />
+                {a.symptomFrequency.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">No symptom data</p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {a.symptomFrequency.slice(0, 8).map((s, i) => (
+                      <div key={s.name} className="flex items-center gap-3">
+                        <span className="text-xs text-muted-foreground w-4">{i + 1}</span>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-0.5">
+                            <span className="text-sm font-medium">{s.name}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">{s.count}×</span>
+                              {s.trend === 'up' ? <TrendingUp className="w-3 h-3 text-red-500" /> :
+                               s.trend === 'down' ? <TrendingDown className="w-3 h-3 text-emerald-500" /> : null}
+                            </div>
+                          </div>
+                          <SeverityBar value={s.avgSeverity} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </GlassCard>
+
+              <GlassCard>
+                <SectionHeader icon={Zap} title="Top Triggers (30d)" />
+                {a.triggerFrequency.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">No trigger data</p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {a.triggerFrequency.slice(0, 8).map((t, i) => (
+                      <div key={t.name} className="flex items-center gap-3">
+                        <span className="text-xs text-muted-foreground w-4">{i + 1}</span>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-0.5">
+                            <span className="text-sm font-medium">{t.name}</span>
+                            <span className="text-xs text-muted-foreground">{t.count}×</span>
+                          </div>
+                          <SeverityBar value={t.avgSeverity} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </GlassCard>
             </div>
-            <div className="space-y-2">
-              <div className="p-2 rounded-xl bg-white/50 dark:bg-slate-800/50">
-                <p className="text-sm font-medium">Rheumatology Follow-up</p>
-                <p className="text-xs text-muted-foreground">Feb 15, 2025 • 2:30 PM</p>
+          </TabsContent>
+
+          {/* SYMPTOMS TAB */}
+          <TabsContent value="symptoms" className="mt-6 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Symptom Frequency Chart */}
+              <GlassCard>
+                <SectionHeader icon={BarChart3} title="Symptom Frequency" />
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={a.symptomFrequency.slice(0, 10)} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                      <XAxis type="number" tick={{ fontSize: 10 }} />
+                      <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={100} />
+                      <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                      <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} name="Occurrences" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </GlassCard>
+
+              {/* Time of Day Distribution */}
+              <GlassCard>
+                <SectionHeader icon={Clock} title="Time of Day Distribution" />
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPie>
+                      <Pie
+                        data={[
+                          { name: 'Morning', value: a.timeOfDayDistribution.morning, fill: '#f59e0b' },
+                          { name: 'Afternoon', value: a.timeOfDayDistribution.afternoon, fill: '#ef4444' },
+                          { name: 'Evening', value: a.timeOfDayDistribution.evening, fill: '#8b5cf6' },
+                          { name: 'Night', value: a.timeOfDayDistribution.night, fill: '#3b82f6' },
+                        ]}
+                        cx="50%" cy="50%" outerRadius={80} innerRadius={50}
+                        dataKey="value" label={({ name, value }) => value > 0 ? `${name}: ${value}` : ''}
+                      >
+                        {[
+                          { fill: '#f59e0b' }, { fill: '#ef4444' }, { fill: '#8b5cf6' }, { fill: '#3b82f6' }
+                        ].map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                      </Pie>
+                      <Legend />
+                      <Tooltip />
+                    </RechartsPie>
+                  </ResponsiveContainer>
+                </div>
+              </GlassCard>
+
+              {/* Symptom-Severity Detail Table */}
+              <GlassCard className="lg:col-span-2">
+                <SectionHeader icon={ClipboardList} title="Symptom Detail Report" 
+                  badge={<Badge variant="outline" className="text-[10px]">{a.symptomFrequency.length} symptoms tracked</Badge>} />
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-xs text-muted-foreground">
+                        <th className="pb-2 font-medium">Symptom</th>
+                        <th className="pb-2 font-medium text-center">Frequency</th>
+                        <th className="pb-2 font-medium text-center">Avg Severity</th>
+                        <th className="pb-2 font-medium text-center">7d Trend</th>
+                        <th className="pb-2 font-medium">Severity Bar</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {a.symptomFrequency.map(s => (
+                        <tr key={s.name} className="border-b border-muted/20">
+                          <td className="py-2 font-medium">{s.name}</td>
+                          <td className="py-2 text-center">{s.count}</td>
+                          <td className={cn("py-2 text-center font-semibold", sevColor(s.avgSeverity))}>
+                            {s.avgSeverity.toFixed(1)}
+                          </td>
+                          <td className="py-2 text-center">
+                            {s.trend === 'up' ? <TrendingUp className="w-4 h-4 text-red-500 mx-auto" /> :
+                             s.trend === 'down' ? <TrendingDown className="w-4 h-4 text-emerald-500 mx-auto" /> :
+                             <span className="text-muted-foreground">—</span>}
+                          </td>
+                          <td className="py-2 w-32"><SeverityBar value={s.avgSeverity} /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </GlassCard>
+            </div>
+          </TabsContent>
+
+          {/* MEDICATIONS TAB */}
+          <TabsContent value="medications" className="mt-6 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <GlassCard>
+                <SectionHeader icon={Pill} title="Current Medications" 
+                  badge={<Badge variant="outline" className="text-[10px]">{a.medicationAdherence.length} active</Badge>} />
+                {a.medicationAdherence.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">No medication data logged</p>
+                ) : (
+                  <div className="space-y-3">
+                    {a.medicationAdherence.map(med => (
+                      <div key={med.name} className="p-3 rounded-xl bg-muted/20 border border-muted/30">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">{med.name}</span>
+                          <Badge variant="outline" className="text-[10px]">{med.frequency}</Badge>
+                        </div>
+                        <div className="flex justify-between text-xs text-muted-foreground mt-1.5">
+                          <span>{med.dosesTaken} doses logged</span>
+                          <span>Last: {formatDistanceToNow(parseISO(med.lastTaken), { addSuffix: true })}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </GlassCard>
+
+              <GlassCard>
+                <SectionHeader icon={Sparkles} title="Medication-Flare Correlation" />
+                {a.medicationEffectiveness.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">Insufficient data for analysis</p>
+                ) : (
+                  <div className="space-y-3">
+                    {a.medicationEffectiveness.map(med => {
+                      const flareRate = med.totalDoses > 0 ? (med.flaresWithin24h / med.totalDoses * 100) : 0;
+                      return (
+                        <div key={med.name} className="p-3 rounded-xl bg-muted/20 border border-muted/30">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-medium text-sm">{med.name}</span>
+                            <span className={cn("text-xs font-bold",
+                              flareRate > 50 ? "text-red-600" : flareRate > 25 ? "text-amber-600" : "text-emerald-600"
+                            )}>
+                              {flareRate.toFixed(0)}% flare rate
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            {med.flaresWithin24h} flares within 24h of {med.totalDoses} doses
+                          </p>
+                          <div className="h-1.5 bg-muted/30 rounded-full mt-2 overflow-hidden">
+                            <div className={cn("h-full rounded-full",
+                              flareRate > 50 ? "bg-red-500" : flareRate > 25 ? "bg-amber-500" : "bg-emerald-500"
+                            )} style={{ width: `${Math.max(5, flareRate)}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div className="p-2 rounded-lg bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/40">
+                      <p className="text-[11px] text-blue-700 dark:text-blue-300 flex items-start gap-1.5">
+                        <Info className="w-3 h-3 mt-0.5 shrink-0" />
+                        Flare rate shows % of doses followed by a flare within 24 hours. Lower is better. 
+                        This is correlational, not causal.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </GlassCard>
+            </div>
+          </TabsContent>
+
+          {/* TIMELINE TAB */}
+          <TabsContent value="timeline" className="mt-6 space-y-4">
+            <GlassCard>
+              <SectionHeader icon={Clock} title="Clinical Event Timeline" 
+                badge={<Badge variant="outline" className="text-[10px]">Most recent 20 events</Badge>} />
+              {recentFlares.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">No flare events recorded</p>
+              ) : (
+                <div className="space-y-1">
+                  {recentFlares.map((entry, i) => (
+                    <div key={entry.id} className="flex gap-4 relative">
+                      {/* Timeline line */}
+                      <div className="flex flex-col items-center w-6 shrink-0">
+                        <div className={cn("w-3 h-3 rounded-full border-2 z-10",
+                          entry.severity === 'severe' ? "bg-red-500 border-red-300" :
+                          entry.severity === 'moderate' ? "bg-amber-500 border-amber-300" :
+                          "bg-emerald-500 border-emerald-300"
+                        )} />
+                        {i < recentFlares.length - 1 && <div className="w-px flex-1 bg-muted/40 mt-1" />}
+                      </div>
+                      
+                      <div className="flex-1 pb-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className={cn("text-[10px]",
+                              entry.severity === 'severe' ? "bg-red-50 text-red-600 border-red-200" :
+                              entry.severity === 'moderate' ? "bg-amber-50 text-amber-600 border-amber-200" :
+                              "bg-emerald-50 text-emerald-600 border-emerald-200"
+                            )}>
+                              {entry.severity || 'mild'}
+                            </Badge>
+                            {entry.city && <span className="text-[10px] text-muted-foreground flex items-center gap-0.5"><MapPin className="w-2.5 h-2.5" />{entry.city}</span>}
+                          </div>
+                          <span className="text-[10px] text-muted-foreground">
+                            {format(parseISO(entry.timestamp), 'MMM d, h:mm a')}
+                          </span>
+                        </div>
+                        
+                        {entry.symptoms && entry.symptoms.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {entry.symptoms.map(s => (
+                              <Badge key={s} variant="secondary" className="text-[10px] py-0">{s}</Badge>
+                            ))}
+                          </div>
+                        )}
+                        {entry.triggers && entry.triggers.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {entry.triggers.map(t => (
+                              <Badge key={t} variant="outline" className="text-[10px] py-0 border-amber-300/50">{t}</Badge>
+                            ))}
+                          </div>
+                        )}
+                        {entry.note && (
+                          <p className="text-xs text-muted-foreground mt-1 italic">"{entry.note}"</p>
+                        )}
+                        {entry.duration_minutes && (
+                          <p className="text-[10px] text-muted-foreground mt-0.5">Duration: {entry.duration_minutes} min</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </GlassCard>
+          </TabsContent>
+
+          {/* VITALS TAB */}
+          <TabsContent value="vitals" className="mt-6 space-y-6">
+            {latestPhysio ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                {latestPhysio.heartRate && <MetricCard label="Heart Rate" value={latestPhysio.heartRate} unit="bpm" icon={Heart} />}
+                {latestPhysio.heartRateVariability && <MetricCard label="HRV" value={latestPhysio.heartRateVariability} unit="ms" icon={Activity} />}
+                {latestPhysio.spo2 && <MetricCard label="SpO2" value={latestPhysio.spo2} unit="%" icon={Droplets} />}
+                {latestPhysio.skinTemperature && <MetricCard label="Skin Temp" value={`+${latestPhysio.skinTemperature}`} unit="°C" icon={Thermometer} />}
+                {latestPhysio.sleepHours && <MetricCard label="Sleep" value={latestPhysio.sleepHours} unit="hrs" icon={Moon} />}
+                {latestPhysio.steps && <MetricCard label="Steps" value={latestPhysio.steps.toLocaleString()} icon={Zap} />}
               </div>
-              <div className="p-2 rounded-xl bg-white/50 dark:bg-slate-800/50">
-                <p className="text-sm font-medium">Labs: CBC + CMP</p>
-                <p className="text-xs text-muted-foreground">Feb 10, 2025 • Fasting</p>
-              </div>
-            </div>
-          </GlassCard>
+            ) : (
+              <GlassCard>
+                <div className="text-center py-8">
+                  <Heart className="w-10 h-10 mx-auto mb-3 text-muted-foreground/40" />
+                  <p className="text-sm text-muted-foreground">No wearable data available</p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">Patient has not connected a wearable device</p>
+                </div>
+              </GlassCard>
+            )}
 
-          <GlassCard gradient="before:bg-gradient-to-br before:from-primary/10 before:to-transparent">
-            <div className="flex items-center gap-2 mb-3">
-              <Bell className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold">Quick Actions</h3>
-            </div>
-            <div className="space-y-2">
-              <Button variant="outline" size="sm" className="w-full justify-start gap-2 rounded-xl">
-                <FileText className="w-4 h-4" /> Send to EHR
-              </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start gap-2 rounded-xl">
-                <Syringe className="w-4 h-4" /> Order Labs
-              </Button>
-              <Button size="sm" className="w-full justify-start gap-2 rounded-xl">
-                <AlertTriangle className="w-4 h-4" /> Adjust Treatment
-              </Button>
-            </div>
-          </GlassCard>
+            {latestEnv && (
+              <GlassCard>
+                <SectionHeader icon={Thermometer} title="Last Environmental Context" />
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {latestEnv.temperature && <MetricCard label="Temperature" value={Math.round(latestEnv.temperature)} unit="°F" icon={Thermometer} />}
+                  {latestEnv.humidity && <MetricCard label="Humidity" value={latestEnv.humidity} unit="%" icon={Droplets} />}
+                  {latestEnv.pressure && <MetricCard label="Pressure" value={latestEnv.pressure} unit="hPa" icon={Gauge} />}
+                  {latestEnv.aqi && <MetricCard label="AQI" value={latestEnv.aqi} icon={Wind} 
+                    status={latestEnv.aqi > 100 ? 'warning' : 'normal'} />}
+                </div>
+              </GlassCard>
+            )}
+
+            {/* Nutrition Summary */}
+            {foodLogs.length > 0 && (
+              <GlassCard>
+                <SectionHeader icon={Utensils} title="Recent Nutrition" 
+                  badge={<Badge variant="outline" className="text-[10px]">{foodLogs.length} entries</Badge>} />
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-xs text-muted-foreground">
+                        <th className="pb-2 font-medium">Food</th>
+                        <th className="pb-2 font-medium">Meal</th>
+                        <th className="pb-2 font-medium text-center">Cal</th>
+                        <th className="pb-2 font-medium text-center">P/C/F</th>
+                        <th className="pb-2 font-medium">When</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {foodLogs.slice(0, 10).map(f => (
+                        <tr key={f.id} className="border-b border-muted/20">
+                          <td className="py-2 font-medium">{f.food_name}</td>
+                          <td className="py-2 capitalize text-muted-foreground">{f.meal_type || '—'}</td>
+                          <td className="py-2 text-center">{f.calories ? Math.round(f.calories) : '—'}</td>
+                          <td className="py-2 text-center text-xs text-muted-foreground">
+                            {f.protein_g ? `${Math.round(f.protein_g)}` : '—'}/
+                            {f.total_carbs_g ? `${Math.round(f.total_carbs_g)}` : '—'}/
+                            {f.total_fat_g ? `${Math.round(f.total_fat_g)}` : '—'}
+                          </td>
+                          <td className="py-2 text-xs text-muted-foreground">
+                            {formatDistanceToNow(parseISO(f.logged_at), { addSuffix: true })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </GlassCard>
+            )}
+          </TabsContent>
+        </Tabs>
+
+        {/* Footer Disclaimer */}
+        <div className="text-center py-6 text-xs text-muted-foreground/60 print:hidden">
+          <p>Clinical data provided by Jvala Health • Patient-reported outcomes • Not a substitute for clinical examination</p>
+          <p className="mt-1">Access expires {accessInfo?.expires_at ? format(parseISO(accessInfo.expires_at), 'MMMM d, yyyy') : 'N/A'} • HIPAA-compliant viewer</p>
         </div>
       </div>
     </div>
