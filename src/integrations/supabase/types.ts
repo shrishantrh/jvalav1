@@ -98,6 +98,150 @@ export type Database = {
         }
         Relationships: []
       }
+      clinical_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          alert_type: string
+          created_at: string
+          description: string
+          dismissed: boolean
+          dismissed_at: string | null
+          dismissed_reason: string | null
+          evidence: Json
+          expires_at: string | null
+          id: string
+          patient_id: string
+          recommendation: string | null
+          severity: string
+          title: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type: string
+          created_at?: string
+          description: string
+          dismissed?: boolean
+          dismissed_at?: string | null
+          dismissed_reason?: string | null
+          evidence?: Json
+          expires_at?: string | null
+          id?: string
+          patient_id: string
+          recommendation?: string | null
+          severity: string
+          title: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type?: string
+          created_at?: string
+          description?: string
+          dismissed?: boolean
+          dismissed_at?: string | null
+          dismissed_reason?: string | null
+          evidence?: Json
+          expires_at?: string | null
+          id?: string
+          patient_id?: string
+          recommendation?: string | null
+          severity?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      clinician_audit_log: {
+        Row: {
+          action: string
+          clinician_id: string
+          created_at: string
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          patient_id: string | null
+          resource_id: string | null
+          resource_type: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          clinician_id: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          patient_id?: string | null
+          resource_id?: string | null
+          resource_type?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          clinician_id?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          patient_id?: string | null
+          resource_id?: string | null
+          resource_type?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
+      clinician_profiles: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          license_number: string | null
+          license_state: string | null
+          npi: string | null
+          practice_address: string | null
+          practice_name: string | null
+          practice_phone: string | null
+          specialty: string | null
+          updated_at: string
+          verified: boolean
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name: string
+          id: string
+          license_number?: string | null
+          license_state?: string | null
+          npi?: string | null
+          practice_address?: string | null
+          practice_name?: string | null
+          practice_phone?: string | null
+          specialty?: string | null
+          updated_at?: string
+          verified?: boolean
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          license_number?: string | null
+          license_state?: string | null
+          npi?: string | null
+          practice_address?: string | null
+          practice_name?: string | null
+          practice_phone?: string | null
+          specialty?: string | null
+          updated_at?: string
+          verified?: boolean
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       correlations: {
         Row: {
           avg_delay_minutes: number | null
@@ -616,6 +760,57 @@ export type Database = {
         }
         Relationships: []
       }
+      patient_clinician_links: {
+        Row: {
+          accepted_at: string | null
+          access_level: string
+          clinician_id: string | null
+          created_at: string
+          id: string
+          invitation_expires_at: string | null
+          invitation_token: string | null
+          invited_at: string
+          invited_email: string | null
+          notes: string | null
+          patient_id: string
+          revoked_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          access_level?: string
+          clinician_id?: string | null
+          created_at?: string
+          id?: string
+          invitation_expires_at?: string | null
+          invitation_token?: string | null
+          invited_at?: string
+          invited_email?: string | null
+          notes?: string | null
+          patient_id: string
+          revoked_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          access_level?: string
+          clinician_id?: string | null
+          created_at?: string
+          id?: string
+          invitation_expires_at?: string | null
+          invitation_token?: string | null
+          invited_at?: string
+          invited_email?: string | null
+          notes?: string | null
+          patient_id?: string
+          revoked_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       physician_access: {
         Row: {
           access_count: number | null
@@ -916,6 +1111,86 @@ export type Database = {
         }
         Relationships: []
       }
+      soap_notes: {
+        Row: {
+          ai_evidence_entry_ids: string[] | null
+          ai_generated: boolean
+          ai_model: string | null
+          amendment_of: string | null
+          assessment: string | null
+          chief_complaint: string | null
+          clinician_id: string
+          created_at: string
+          finalized_at: string | null
+          id: string
+          objective: string | null
+          patient_id: string
+          pdf_path: string | null
+          plan: string | null
+          signed_by: string | null
+          signed_clinician_name: string | null
+          signed_clinician_npi: string | null
+          status: string
+          subjective: string | null
+          updated_at: string
+          visit_date: string
+        }
+        Insert: {
+          ai_evidence_entry_ids?: string[] | null
+          ai_generated?: boolean
+          ai_model?: string | null
+          amendment_of?: string | null
+          assessment?: string | null
+          chief_complaint?: string | null
+          clinician_id: string
+          created_at?: string
+          finalized_at?: string | null
+          id?: string
+          objective?: string | null
+          patient_id: string
+          pdf_path?: string | null
+          plan?: string | null
+          signed_by?: string | null
+          signed_clinician_name?: string | null
+          signed_clinician_npi?: string | null
+          status?: string
+          subjective?: string | null
+          updated_at?: string
+          visit_date?: string
+        }
+        Update: {
+          ai_evidence_entry_ids?: string[] | null
+          ai_generated?: boolean
+          ai_model?: string | null
+          amendment_of?: string | null
+          assessment?: string | null
+          chief_complaint?: string | null
+          clinician_id?: string
+          created_at?: string
+          finalized_at?: string | null
+          id?: string
+          objective?: string | null
+          patient_id?: string
+          pdf_path?: string | null
+          plan?: string | null
+          signed_by?: string | null
+          signed_clinician_name?: string | null
+          signed_clinician_npi?: string | null
+          status?: string
+          subjective?: string | null
+          updated_at?: string
+          visit_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "soap_notes_amendment_of_fkey"
+            columns: ["amendment_of"]
+            isOneToOne: false
+            referencedRelation: "soap_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       temp_auth_relay: {
         Row: {
           created_at: string | null
@@ -933,6 +1208,74 @@ export type Database = {
           tokens?: Json
         }
         Relationships: []
+      }
+      user_roles: {
+        Row: {
+          granted_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          granted_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          granted_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      visit_summaries: {
+        Row: {
+          clinician_id: string
+          created_at: string
+          id: string
+          patient_id: string
+          pdf_path: string | null
+          shared_at: string | null
+          shared_with_patient: boolean
+          soap_note_id: string | null
+          summary_md: string
+          visit_date: string
+        }
+        Insert: {
+          clinician_id: string
+          created_at?: string
+          id?: string
+          patient_id: string
+          pdf_path?: string | null
+          shared_at?: string | null
+          shared_with_patient?: boolean
+          soap_note_id?: string | null
+          summary_md: string
+          visit_date: string
+        }
+        Update: {
+          clinician_id?: string
+          created_at?: string
+          id?: string
+          patient_id?: string
+          pdf_path?: string | null
+          shared_at?: string | null
+          shared_with_patient?: boolean
+          soap_note_id?: string | null
+          summary_md?: string
+          visit_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visit_summaries_soap_note_id_fkey"
+            columns: ["soap_note_id"]
+            isOneToOne: false
+            referencedRelation: "soap_notes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       weekly_reports: {
         Row: {
@@ -1014,9 +1357,20 @@ export type Database = {
           trigger: string
         }[]
       }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_clinician_for_patient: {
+        Args: { _clinician_id: string; _patient_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "patient" | "clinician" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1143,6 +1497,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["patient", "clinician", "admin"],
+    },
   },
 } as const
