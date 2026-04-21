@@ -13,7 +13,7 @@ export async function logClinicianAction(args: {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    await supabase.from('clinician_audit_log').insert({
+    await (supabase.from as any)('clinician_audit_log').insert({
       clinician_id: user.id,
       patient_id: args.patient_id || null,
       action: args.action,
