@@ -29,9 +29,10 @@ export function useClinicianAuth() {
   const [loading, setLoading] = useState(true);
 
   const loadClinician = useCallback(async (uid: string) => {
+    const sb = supabase as any;
     const [profileRes, roleRes] = await Promise.all([
-      supabase.from('clinician_profiles').select('*').eq('id', uid).maybeSingle(),
-      supabase.from('user_roles').select('role').eq('user_id', uid).eq('role', 'clinician').maybeSingle(),
+      sb.from('clinician_profiles').select('*').eq('id', uid).maybeSingle(),
+      sb.from('user_roles').select('role').eq('user_id', uid).eq('role', 'clinician').maybeSingle(),
     ]);
     if (profileRes.data) setProfile(profileRes.data as ClinicianProfile);
     setIsClinician(!!roleRes.data);

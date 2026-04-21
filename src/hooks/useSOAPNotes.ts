@@ -32,7 +32,7 @@ export function useSOAPNotes(patientId: string | undefined) {
   const load = useCallback(async () => {
     if (!patientId) { setLoading(false); return; }
     setLoading(true);
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from('soap_notes')
       .select('*')
       .eq('patient_id', patientId)
@@ -50,11 +50,11 @@ export function useSOAPNotes(patientId: string | undefined) {
     });
     if (error) throw error;
     await load();
-    return data?.note ?? null;
+    return (data?.note ?? null) as SOAPNote | null;
   }, [patientId, load]);
 
   const updateNote = useCallback(async (id: string, patch: Partial<SOAPNote>) => {
-    const { error } = await supabase.from('soap_notes').update(patch).eq('id', id);
+    const { error } = await (supabase as any).from('soap_notes').update(patch).eq('id', id);
     if (error) throw error;
     await load();
   }, [load]);
@@ -62,7 +62,7 @@ export function useSOAPNotes(patientId: string | undefined) {
   const finalize = useCallback(async (id: string, clinicianName: string, npi?: string | null) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { error } = await supabase.from('soap_notes').update({
+    const { error } = await (supabase as any).from('soap_notes').update({
       status: 'finalized',
       finalized_at: new Date().toISOString(),
       signed_by: user.id,
@@ -74,7 +74,7 @@ export function useSOAPNotes(patientId: string | undefined) {
   }, [load]);
 
   const remove = useCallback(async (id: string) => {
-    await supabase.from('soap_notes').delete().eq('id', id);
+    await (supabase as any).from('soap_notes').delete().eq('id', id);
     await load();
   }, [load]);
 

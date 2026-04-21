@@ -26,7 +26,7 @@ export function useClinicalAlerts(patientId: string | undefined) {
     if (!patientId) { setLoading(false); return; }
     setLoading(true);
     try {
-      const { data, error: err } = await supabase
+      const { data, error: err } = await (supabase as any)
         .from('clinical_alerts')
         .select('*')
         .eq('patient_id', patientId)
@@ -46,7 +46,7 @@ export function useClinicalAlerts(patientId: string | undefined) {
   const acknowledge = useCallback(async (alertId: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    await supabase.from('clinical_alerts').update({
+    await (supabase as any).from('clinical_alerts').update({
       acknowledged_by: user.id,
       acknowledged_at: new Date().toISOString(),
     }).eq('id', alertId);
@@ -54,7 +54,7 @@ export function useClinicalAlerts(patientId: string | undefined) {
   }, [load]);
 
   const dismiss = useCallback(async (alertId: string, reason?: string) => {
-    await supabase.from('clinical_alerts').update({
+    await (supabase as any).from('clinical_alerts').update({
       dismissed: true,
       dismissed_at: new Date().toISOString(),
       dismissed_reason: reason,
