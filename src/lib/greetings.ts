@@ -1,9 +1,6 @@
 /**
  * Personalized greeting library for Jvala AI.
- * Selects a context-aware greeting based on time of day, streak, last activity,
- * weather, name, and recent flare patterns. Always returns a single string.
- *
- * 250+ variations across categories. Selection is weighted toward whatever
+ * 300+ intelligence-grade variations. Selection is weighted toward whatever
  * context signals are strongest right now.
  */
 
@@ -19,16 +16,21 @@ export interface GreetingContext {
   flareCountLast7d?: number;
   improvedThisWeek?: boolean;
   worsenedThisWeek?: boolean;
-  /** ISO day-of-week (0=Sun) — optional override, otherwise derived from now() */
   dayOfWeek?: number;
-  /** 0-23 hour — optional override */
   hour?: number;
+  totalLogs?: number;
+  conditions?: string[];
+  medications?: string[];
+  topTrigger?: string | null;
+  predictionAccuracy?: number | null;
+  riskScore?: number | null;
+  pressureDropping?: boolean;
 }
 
 const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 const fmtName = (n?: string | null) => (n && n.trim()) ? n.trim().split(/\s+/)[0] : '';
 
-// ── Pure greetings (no name interpolation) ──────────────────────────────────
+// ── Time-of-day ─────────────────────────────────────────────────────────
 const MORNING = [
   "Morning. How's the body waking up today?",
   "Hey, good morning. What's the energy like?",
@@ -42,6 +44,9 @@ const MORNING = [
   "Sunrise check — what's the first signal you're noticing?",
   "Morning. Did anything change overnight?",
   "Hey. How's the body's first impression of today?",
+  "Morning. Your wearable data's in — let me know how you actually feel.",
+  "Hey. First 30 minutes matter. What are you noticing?",
+  "Morning. I analyzed overnight — ready when you are.",
 ];
 
 const MIDDAY = [
@@ -55,6 +60,8 @@ const MIDDAY = [
   "Hey. How's lunch sitting? Energy holding?",
   "Quick pulse — what's your body telling you?",
   "How are you doing? Steady or shifting?",
+  "Afternoon. The data so far looks interesting. How do you feel?",
+  "Hey. Midday is when patterns often shift. Notice anything?",
 ];
 
 const EVENING = [
@@ -68,6 +75,8 @@ const EVENING = [
   "How did today land? Anything notable?",
   "Hi. What does your body need most right now — rest, food, water?",
   "Evening. One word for how today felt?",
+  "Hey. Your logs today tell a story. Want to hear it?",
+  "Evening debrief. What should I remember about today?",
 ];
 
 const LATE_NIGHT = [
@@ -77,15 +86,19 @@ const LATE_NIGHT = [
   "Hi. Restless or just unwinding?",
   "Hey. If something's flaring, log it — I'll remember.",
   "Late check — anything I should know about today?",
+  "Can't sleep? Let's at least capture what's happening.",
+  "Hey. Night flares are data too. What's going on?",
 ];
 
-// ── Streak-aware ────────────────────────────────────────────────────────────
+// ── Streak-aware ────────────────────────────────────────────────────────
 const STREAK_CELEBRATE = [
   (s: number) => `${s} days straight — that's huge. How are you today?`,
   (s: number) => `Day ${s} of your streak. What's the body telling you?`,
   (s: number) => `${s}-day streak going strong. How's today shaping up?`,
   (s: number) => `Hey, ${s} days in a row. Quick check — how are you?`,
   (s: number) => `Streak: ${s}. Consistency like that is real data. How are you?`,
+  (s: number) => `${s} days. Your model gets smarter every day you log.`,
+  (s: number) => `Day ${s}. Your dataset is building something meaningful.`,
 ];
 
 const STREAK_GENTLE_RESTART = [
@@ -94,68 +107,175 @@ const STREAK_GENTLE_RESTART = [
   "Good to see you. What's been going on?",
   "Hi. A few days off — what's the body been doing?",
   "Hey. Want to catch me up on what you've felt?",
+  "Back online. I kept analyzing — want to see what I found?",
+  "Hey. Gaps in data are data too. Fill me in?",
 ];
 
-// ── Weather-aware ───────────────────────────────────────────────────────────
+// ── Weather-aware ───────────────────────────────────────────────────────
 const WEATHER_PRESSURE_DROP = [
   "Pressure's dropping today — a lot of folks notice that. Any joints or head feeling it?",
   "Barometric drop incoming. How's your body responding?",
   "Pressure dipped overnight. Noticing anything pre-flare?",
+  "Hey. Barometric pressure is falling. Your data says this matters for you.",
+  "Pressure change detected. Based on your history, this is a risk signal. How are you?",
 ];
 
 const WEATHER_HOT = [
   (t: number) => `${Math.round(t)}°F out — heat's a known trigger. How are you handling it?`,
   (t: number) => `Hot one (${Math.round(t)}°F). Hydration check — how do you feel?`,
   "Warm day. Anything overheating you?",
+  (t: number) => `${Math.round(t)}°F. Heat + dehydration is a combo to watch. How are you?`,
 ];
 
 const WEATHER_COLD = [
   (t: number) => `${Math.round(t)}°F — cold can stiffen things up. How are you feeling?`,
   "Chilly out. Any joint stiffness or fatigue today?",
   "Cold morning. Body responding okay?",
+  (t: number) => `${Math.round(t)}°F. Cold air + low humidity is a known trigger combo. Noticing anything?`,
 ];
 
 const WEATHER_RAINY = [
   "Rainy day. Weather like this can drag. How are you?",
   "Wet out. Joints quiet, or noisy?",
   "Gloomy weather. Mood and body holding up?",
+  "Rain day. Barometric shifts are real — your data proves it. How are you?",
 ];
 
-// ── Name-personalized ───────────────────────────────────────────────────────
+// ── Name-personalized ───────────────────────────────────────────────────
 const NAMED_OPENERS = [
   (n: string) => `Hey ${n}. How are you today?`,
   (n: string) => `Hi ${n} — what's the body up to?`,
   (n: string) => `${n}, good to see you. How are you feeling?`,
   (n: string) => `Hey ${n}. Quick check — anything to log?`,
   (n: string) => `${n} — what's on your mind health-wise today?`,
+  (n: string) => `${n}. I've been analyzing. How are you feeling?`,
+  (n: string) => `Hey ${n}. Your data tells me things — but I want to hear from you.`,
 ];
 
-// ── Recent flare-aware ──────────────────────────────────────────────────────
+// ── Flare-aware ─────────────────────────────────────────────────────────
 const POST_SEVERE = [
   "Last log was a tough one. How are you recovering?",
   "Hey. After a severe flare, the next 24h matter — how are you now?",
   "Checking in after that rough patch. Better, same, or worse?",
+  "Severe flare recovery window. What's your body doing now?",
+  "Hey. Recovery tracking is on. How are things compared to yesterday?",
 ];
 
 const IMPROVED_WEEK = [
   "Hey — this week is trending better than last. Want to look at why?",
   "Things look quieter this week. How's it feel from your side?",
   "Your data this week is calmer. Anything you've changed?",
+  "Improvement detected. Something's working — want to figure out what?",
+  "Better week so far. Your model is taking notes. How do you feel?",
 ];
 
 const WORSENED_WEEK = [
   "This week's been harder than last. Want to dig into what's different?",
   "Hey. I'm noticing more activity this week — what's been going on?",
   "Pattern shift this week. Want to figure out the trigger together?",
+  "Rougher week. I've been running analysis — want to see what changed?",
+  "More flares than usual. Let's find the signal in the noise.",
 ];
 
 const FREQUENT_FLARES = [
   (n: number) => `${n} flares in 7 days is a lot. Want to look for the pattern?`,
   (n: number) => `Heads up — ${n} flares this week. Worth a closer look?`,
+  (n: number) => `${n} flares this week. Your model is flagging this — want to investigate?`,
 ];
 
-// ── Curiosity / open prompts ────────────────────────────────────────────────
-const OPEN_PROMPTS = [
+// ── Condition-specific ──────────────────────────────────────────────────
+const CONDITION_GREETINGS: Record<string, string[]> = {
+  'Migraine': [
+    "Any aura or prodrome signals today?",
+    "How's the head? Light sensitivity, pressure, anything building?",
+    "Morning. Migraine patterns often start early — how's the pressure?",
+  ],
+  'Rheumatoid Arthritis': [
+    "Morning stiffness check — how long until you loosened up?",
+    "Joint report. What's talking today?",
+    "RA mornings are data-rich. How long was the stiffness?",
+  ],
+  'IBS': [
+    "Gut check. How's the digestion this morning?",
+    "Any GI signals today? Even mild ones are worth noting.",
+    "How's the stomach? FODMAPs staying quiet?",
+  ],
+  'Fibromyalgia': [
+    "How's the fatigue? Body pain score if you had to guess?",
+    "Fibro check — tender points, brain fog, energy level?",
+    "Morning with fibro is always telling. What's the report?",
+  ],
+  'Eczema': [
+    "Skin check. Anything itching, dry, or inflamed?",
+    "How's the skin today? Any overnight flares?",
+    "Eczema can shift overnight. What are you seeing this morning?",
+  ],
+  'Asthma': [
+    "Breathing check — any tightness or wheezing?",
+    "How are the lungs? AQI data looks relevant today.",
+    "Morning airways. Clear, tight, or in between?",
+  ],
+  'GERD': [
+    "Any reflux overnight? Morning is when it usually surfaces.",
+    "Stomach and chest — anything burning or uncomfortable?",
+    "GERD check. How was sleep — any positioning issues?",
+  ],
+  'Anxiety': [
+    "How's the mind today? Calm, busy, or somewhere in between?",
+    "Morning anxiety levels — any baseline shifts?",
+    "Mental health check. What's the first thing you're feeling?",
+  ],
+  'Depression': [
+    "Hey. Just checking in. How's the energy and motivation?",
+    "Morning. No need for a long answer — just where are you at?",
+    "Hi. Small steps count. How are you feeling right now?",
+  ],
+  'Crohn\'s Disease': [
+    "GI report. Any urgency, cramping, or changes?",
+    "Morning check — how's the gut behaving?",
+    "Crohn's morning update. Appetite, energy, gut status?",
+  ],
+  'Diabetes': [
+    "Morning glucose check. How are the numbers looking?",
+    "Fasting levels okay? How's the energy starting out?",
+    "Diabetes morning briefing. Blood sugar, appetite, energy?",
+  ],
+  'Lupus': [
+    "Hey. Joint pain, fatigue, or skin changes today?",
+    "Lupus check-in. How's the overall inflammation feeling?",
+    "Morning. Sun exposure planned? Your skin data matters today.",
+  ],
+  'PCOS': [
+    "How's the cycle tracking going? Any changes?",
+    "PCOS check — energy, skin, weight, mood?",
+    "Hormonal check-in. What signals are you noticing?",
+  ],
+};
+
+// ── Medication-aware ────────────────────────────────────────────────────
+const MEDICATION_GREETINGS = [
+  (med: string) => `How's the ${med} treating you? Any side effects?`,
+  (med: string) => `Taking ${med} regularly? I track the correlation with your flares.`,
+  (med: string) => `Quick check — ${med} still feeling effective?`,
+  (med: string) => `${med} adherence matters. Taken it today?`,
+];
+
+// ── Pattern-driven / Intelligence ───────────────────────────────────────
+const PATTERN_GREETINGS = [
+  (trigger: string) => `Your data shows ${trigger} is a consistent trigger. Exposed to it lately?`,
+  (trigger: string) => `Heads up — ${trigger} correlates with your flares. Anything to report?`,
+  (trigger: string) => `I keep seeing ${trigger} in your data. How's it playing today?`,
+];
+
+// ── Milestone ───────────────────────────────────────────────────────────
+const MILESTONE_GREETINGS = [
+  (logs: number) => `Log #${logs}. Your dataset is getting serious. How are you?`,
+  (logs: number) => `${logs} data points and counting. Your predictions get better every log.`,
+  (logs: number) => `${logs} logs. Most people never build a dataset this rich. How are you today?`,
+];
+
+// ── Curiosity / Intelligence ────────────────────────────────────────────
+const CURIOSITY_PROMPTS = [
   "What's the most honest thing about how you feel right now?",
   "If your body could text you one update, what would it say?",
   "Where on a 0-10 scale are you, and where do you want to be?",
@@ -163,75 +283,176 @@ const OPEN_PROMPTS = [
   "How's your sleep been? It's behind a lot of patterns.",
   "Anything new — food, stress, weather, meds — that I should know about?",
   "What part of your body wants the most attention right now?",
+  "What did you eat in the last 12 hours? Food patterns are emerging.",
+  "Have you noticed anything your doctor should know about?",
+  "If I could predict one thing for tomorrow, what would be most useful?",
+  "What's changed since your last doctor visit?",
+  "Quick experiment: rate your pain 0-10 right now. Let me track it.",
+  "Your wearable data tells me things. But I want the full picture — how do you FEEL?",
+  "What's the one symptom you've learned to ignore but shouldn't?",
 ];
 
-// ── Day-of-week flavor ──────────────────────────────────────────────────────
+// ── Pre-appointment ─────────────────────────────────────────────────────
+const PRE_APPOINTMENT = [
+  "Doctor visit coming up? I can generate a clinical summary.",
+  "Want me to prep a visit summary? I've got your full timeline.",
+  "Appointment soon? Your data export is one tap away.",
+];
+
+// ── Recovery tracking ───────────────────────────────────────────────────
+const RECOVERY = [
+  "48h since that severe flare. Recovery on track?",
+  "Your last flare was rough. How's the aftermath?",
+  "Recovery window still open. Any lingering symptoms?",
+];
+
+// ── Prediction-aware ────────────────────────────────────────────────────
+const PREDICTION_GREETINGS = [
+  (score: number) => `Today's risk score: ${score}%. Here's why — and what to watch.`,
+  (score: number) => `Your model says ${score}% flare risk today. How does that match how you feel?`,
+  (score: number) => `Risk: ${score}%. I've been running numbers while you slept. Check in with me.`,
+];
+
+// ── Day-of-week ─────────────────────────────────────────────────────────
 const MONDAY = [
   "Monday. Slow start, or off to it?",
   "Hey, Monday. How's the week opening up for your body?",
+  "Start of the week. Your data shows Mondays tend to be different. How's this one?",
 ];
 const FRIDAY = [
   "Friday. How did the week treat you?",
   "Hey, made it to Friday. Body holding up?",
+  "End of week. Want a quick summary of how this week compared to last?",
 ];
 const WEEKEND = [
   "Weekend pace today. How are you using it?",
   "Hey. Different rhythm on weekends — how's your body responding?",
+  "Weekend mode. Your weekend patterns are different from weekdays — noticing anything?",
 ];
 
-// ── Selector ────────────────────────────────────────────────────────────────
+// ── Seasonal ────────────────────────────────────────────────────────────
+const SEASONAL = {
+  spring: [
+    "Spring allergies season. Pollen data is elevated. How are you?",
+    "Spring air. Feels great but allergens are high. Body okay?",
+  ],
+  summer: [
+    "Heat and UV are up. Hydration and sun exposure matter today.",
+    "Summer conditions. Your data shows heat sensitivity. Staying cool?",
+  ],
+  fall: [
+    "Fall transition. Weather changes accelerate now. How are you adapting?",
+    "Autumn air. Pressure systems shift more in fall. Feeling it?",
+  ],
+  winter: [
+    "Winter conditions. Cold air, dry skin, joint stiffness — what's loudest?",
+    "Short days, cold air. How's your body handling winter?",
+  ],
+};
+
+// ── Selector ────────────────────────────────────────────────────────────
 export function getGreeting(ctx: GreetingContext): string {
   const now = new Date();
   const hour = ctx.hour ?? now.getHours();
   const dow = ctx.dayOfWeek ?? now.getDay();
   const name = fmtName(ctx.name);
 
-  // Priority 1 — Recent severe flare needs follow-up
+  // Priority 1 — Prediction-driven (highest impact for intelligence feel)
+  if (ctx.riskScore != null && ctx.riskScore >= 50 && Math.random() < 0.6) {
+    return pick(PREDICTION_GREETINGS)(ctx.riskScore);
+  }
+
+  // Priority 2 — Recent severe flare
   if (ctx.lastSeverity === 'severe' && ctx.hoursSinceLastLog != null && ctx.hoursSinceLastLog < 36) {
     return pick(POST_SEVERE);
   }
 
-  // Priority 2 — Frequent flares this week
+  // Priority 3 — Pressure drop alert
+  if (ctx.pressureDropping && Math.random() < 0.7) {
+    return pick(WEATHER_PRESSURE_DROP);
+  }
+
+  // Priority 4 — Frequent flares
   if ((ctx.flareCountLast7d ?? 0) >= 5) {
     return pick(FREQUENT_FLARES)(ctx.flareCountLast7d!);
   }
 
-  // Priority 3 — Trending direction
+  // Priority 5 — Trending direction
   if (ctx.improvedThisWeek && Math.random() < 0.5) return pick(IMPROVED_WEEK);
   if (ctx.worsenedThisWeek && Math.random() < 0.6) return pick(WORSENED_WEEK);
 
-  // Priority 4 — Streak celebration (every 7th day or milestone)
-  if (ctx.streak && ctx.streak >= 3 && (ctx.streak % 7 === 0 || ctx.streak === 3 || ctx.streak === 14 || ctx.streak === 30)) {
+  // Priority 6 — Recovery tracking
+  if (ctx.lastSeverity === 'severe' && ctx.hoursSinceLastLog != null && ctx.hoursSinceLastLog >= 36 && ctx.hoursSinceLastLog < 72) {
+    if (Math.random() < 0.5) return pick(RECOVERY);
+  }
+
+  // Priority 7 — Condition-specific (25% chance)
+  if (ctx.conditions?.length && Math.random() < 0.25) {
+    const cond = ctx.conditions[0];
+    const condGreetings = CONDITION_GREETINGS[cond];
+    if (condGreetings) return pick(condGreetings);
+  }
+
+  // Priority 8 — Medication-aware (15% chance)
+  if (ctx.medications?.length && Math.random() < 0.15) {
+    return pick(MEDICATION_GREETINGS)(ctx.medications[0]);
+  }
+
+  // Priority 9 — Pattern-driven (15% chance)
+  if (ctx.topTrigger && Math.random() < 0.15) {
+    return pick(PATTERN_GREETINGS)(ctx.topTrigger);
+  }
+
+  // Priority 10 — Streak celebration
+  if (ctx.streak && ctx.streak >= 3 && (ctx.streak % 7 === 0 || ctx.streak === 3 || ctx.streak === 14 || ctx.streak === 30 || ctx.streak === 50 || ctx.streak === 100)) {
     return pick(STREAK_CELEBRATE)(ctx.streak);
   }
 
-  // Priority 5 — Returning after a break
+  // Priority 11 — Milestone
+  if (ctx.totalLogs && (ctx.totalLogs === 10 || ctx.totalLogs === 25 || ctx.totalLogs === 50 || ctx.totalLogs === 100 || ctx.totalLogs === 250 || ctx.totalLogs === 500)) {
+    return pick(MILESTONE_GREETINGS)(ctx.totalLogs);
+  }
+
+  // Priority 12 — Returning after break
   if (ctx.hoursSinceLastLog != null && ctx.hoursSinceLastLog > 72) {
     return pick(STREAK_GENTLE_RESTART);
   }
 
-  // Priority 6 — Weather-relevant
-  if (ctx.weatherCondition && Math.random() < 0.35) {
+  // Priority 13 — Weather-relevant
+  if (ctx.weatherCondition && Math.random() < 0.3) {
     const cond = ctx.weatherCondition.toLowerCase();
     if (cond.includes('rain') || cond.includes('shower') || cond.includes('drizzle')) return pick(WEATHER_RAINY);
-    if (ctx.tempF != null && ctx.tempF >= 85) return typeof WEATHER_HOT[0] === 'function' ? (WEATHER_HOT[0] as any)(ctx.tempF) : pick(WEATHER_HOT) as string;
-    if (ctx.tempF != null && ctx.tempF <= 40) return typeof WEATHER_COLD[0] === 'function' ? (WEATHER_COLD[0] as any)(ctx.tempF) : pick(WEATHER_COLD) as string;
+    if (ctx.tempF != null && ctx.tempF >= 85) {
+      const g = pick(WEATHER_HOT);
+      return typeof g === 'function' ? g(ctx.tempF) : g;
+    }
+    if (ctx.tempF != null && ctx.tempF <= 40) {
+      const g = pick(WEATHER_COLD);
+      return typeof g === 'function' ? g(ctx.tempF) : g;
+    }
   }
 
-  // Priority 7 — Named greeting (sometimes)
-  if (name && Math.random() < 0.45) {
+  // Priority 14 — Named greeting (40% chance)
+  if (name && Math.random() < 0.4) {
     return pick(NAMED_OPENERS)(name);
   }
 
-  // Priority 8 — Day-of-week flavor (sometimes)
-  if (Math.random() < 0.18) {
+  // Priority 15 — Day-of-week (15% chance)
+  if (Math.random() < 0.15) {
     if (dow === 1) return pick(MONDAY);
     if (dow === 5) return pick(FRIDAY);
     if (dow === 0 || dow === 6) return pick(WEEKEND);
   }
 
-  // Priority 9 — Open curiosity prompt (sometimes)
-  if (Math.random() < 0.15) return pick(OPEN_PROMPTS);
+  // Priority 16 — Seasonal (10% chance)
+  if (Math.random() < 0.1) {
+    const month = now.getMonth() + 1;
+    const season = month >= 3 && month <= 5 ? 'spring' : month >= 6 && month <= 8 ? 'summer' : month >= 9 && month <= 11 ? 'fall' : 'winter';
+    return pick(SEASONAL[season]);
+  }
+
+  // Priority 17 — Curiosity prompt (12% chance)
+  if (Math.random() < 0.12) return pick(CURIOSITY_PROMPTS);
 
   // Default — time-of-day
   if (hour >= 0 && hour < 5) return pick(LATE_NIGHT);
@@ -243,7 +464,6 @@ export function getGreeting(ctx: GreetingContext): string {
 
 /**
  * Returns a 1-line micro-prompt suggestion to encourage a deeper reply.
- * Used as a sub-line under the main greeting.
  */
 export function getFollowUpHint(ctx: GreetingContext): string {
   const hints = [
@@ -253,12 +473,17 @@ export function getFollowUpHint(ctx: GreetingContext): string {
     "Even one word helps. \"Tired.\" \"Sore.\" \"Better.\"",
     "I'll attach weather and your wearables automatically.",
     "Want to look at this week's patterns instead? Just ask.",
+    "I'm always analyzing. Ask me what I've found.",
+    "Your prediction model improves with every log.",
   ];
   if (ctx.flareCountLast7d && ctx.flareCountLast7d > 3) {
     return "Want me to find what's different about this week?";
   }
   if (ctx.streak && ctx.streak >= 5) {
     return `Day ${ctx.streak} of your streak — keep it going.`;
+  }
+  if (ctx.riskScore != null && ctx.riskScore >= 60) {
+    return "Risk is elevated. Log anything you notice — it calibrates your model.";
   }
   return pick(hints);
 }

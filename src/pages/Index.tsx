@@ -43,6 +43,7 @@ import type { SmartTrackable } from "@/components/tracking/FluidLogSelector";
 import { useDeepLinkHandler } from "@/hooks/useDeepLinkHandler";
 import { FoodLogger } from "@/components/food/FoodLogger";
 import { VoiceConversation } from "@/components/voice/VoiceConversation";
+import { useIntelligenceBriefing } from "@/hooks/useIntelligenceBriefing";
 
 interface MedicationDetails {
   name: string;
@@ -103,6 +104,7 @@ const Index = () => {
   useNativePush(); // Register native iOS/Android push tokens
   const { hasConsented: aiConsented, grantConsent: grantAIConsent } = useAIConsent();
   const [showAIConsentDialog, setShowAIConsentDialog] = useState(false);
+  const { briefing } = useIntelligenceBriefing(user?.id ?? null);
 
   // Deep link handler for Siri Shortcuts / Action Button integration
   useDeepLinkHandler({
@@ -687,6 +689,8 @@ const Index = () => {
             streak={currentStreak}
             onStreakClick={() => setShowProgress(true)}
             onProfileClick={() => setShowProfile(true)}
+            riskScore={briefing?.riskScore ?? null}
+            riskLevel={briefing?.riskLevel ?? null}
           />
         }
       >
