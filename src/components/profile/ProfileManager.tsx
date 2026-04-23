@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, User, Share2, Pill, AlertTriangle, Heart, Settings2 } from 'lucide-react';
+import { Loader2, User, Share2, Pill, AlertTriangle, Heart, Settings2, Search, Plus, X } from 'lucide-react';
 import { haptics } from "@/lib/haptics";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -41,12 +41,23 @@ interface ProfileData {
 
 interface ProfileManagerProps {
   onRequireOnboarding?: () => void;
+  onProfileUpdated?: (profile: {
+    conditions: string[];
+    known_symptoms: string[];
+    known_triggers: string[];
+    medications: MedicationDetails[];
+    aiLogCategories: any[];
+  }) => void;
 }
 
-export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => {
+export const ProfileManager = ({ onRequireOnboarding, onProfileUpdated }: ProfileManagerProps) => {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [currentMedications, setCurrentMedications] = useState<MedicationDetails[]>([]);
+  const [profileMetadata, setProfileMetadata] = useState<Record<string, any>>({});
+  const [conditionQuery, setConditionQuery] = useState('');
+  const [symptomQuery, setSymptomQuery] = useState('');
+  const [triggerQuery, setTriggerQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
@@ -60,6 +71,7 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
       setUserId(user.id);
       const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
       if (data) {
+        const metadata = ((data as any).metadata as Record<string, any> | null) || {};
         setProfile({
           full_name: data.full_name, email: data.email, date_of_birth: data.date_of_birth,
           gender: data.gender, biological_sex: data.biological_sex, height_cm: data.height_cm,
@@ -71,8 +83,8 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
           emergency_contact_phone: data.emergency_contact_phone, share_enabled: data.share_enabled || false,
           share_token: data.share_token, onboarding_completed: data.onboarding_completed || false,
         });
-        const profileData = data as any;
-        setCurrentMedications(profileData.metadata?.medications || []);
+        setProfileMetadata(metadata);
+        setCurrentMedications(metadata.medications || []);
         if (!data.onboarding_completed && onRequireOnboarding) onRequireOnboarding();
       }
     } catch (error) {
@@ -84,10 +96,150 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
 
   // Track initial conditions for comparison
   useEffect(() => {
-    if (profile && previousConditions.length === 0 && profile.conditions.length > 0) {
+    if (profile && previousConditions.length === 0) {
       setPreviousConditions(profile.conditions);
     }
   }, [profile]);
+
+  const filteredConditions = useMemo(() => {
+    const selected = new Set(profile?.conditions || []);
+    const query = conditionQuery.trim().toLowerCase();
+    return CONDITIONS.filter((condition) => {
+      if (selected.has(condition.id)) return false;
+      if (!query) return true;
+      return condition.name.toLowerCase().includes(query) || condition.category.toLowerCase().includes(query);
+    }).slice(0, 8);
+  }, [conditionQuery, profile?.conditions]);
+
+  const notifyProfileUpdated = (
+    nextProfile: ProfileData,
+    nextMedications: MedicationDetails[] = currentMedications,
+    nextMetadata: Record<string, any> = profileMetadata,
+  ) => {
+    onProfileUpdated?.({
+      conditions: nextProfile.conditions,
+      known_symptoms: nextProfile.known_symptoms,
+      known_triggers: nextProfile.known_triggers,
+      medications: nextMedications,
+      aiLogCategories: nextMetadata.aiLogCategories || [],
+    });
+  };
+
+  const persistHealthState = async (
+    nextProfile: ProfileData,
+    nextMedications: MedicationDetails[] = currentMedications,
+    nextMetadata: Record<string, any> = profileMetadata,
+  ) => {
+    if (!userId) return;
+    await supabase.from('profiles').update({
+      conditions: nextProfile.conditions,
+      known_symptoms: nextProfile.known_symptoms,
+      known_triggers: nextProfile.known_triggers,
+      metadata: {
+        ...nextMetadata,
+        medications: nextMedications,
+      } as any,
+    }).eq('id', userId);
+  };
+
+  const refreshConditionSuggestions = async (nextConditions: string[]) => {
+    if (!profile) return;
+
+    let nextSymptoms = profile.known_symptoms;
+    let nextTriggers = profile.known_triggers;
+    let nextMetadata: Record<string, any> = {
+      ...profileMetadata,
+      medications: currentMedications,
+    };
+
+    if (nextConditions.length > 0) {
+      try {
+        const conditionNames = nextConditions.map((value) => CONDITIONS.find((c) => c.id === value)?.name || value);
+        const { data, error } = await supabase.functions.invoke('generate-suggestions', {
+          body: {
+            conditions: conditionNames,
+            biologicalSex: profile.biological_sex,
+            age: null,
+          },
+        });
+
+        if (error) throw error;
+
+        nextSymptoms = [...new Set([...(profile.known_symptoms || []), ...((data?.symptoms || []) as string[])])];
+        nextTriggers = [...new Set([...(profile.known_triggers || []), ...((data?.triggers || []) as string[])])];
+        nextMetadata = {
+          ...nextMetadata,
+          aiLogCategories: data?.logCategories || [],
+        };
+      } catch (error) {
+        console.error('Failed to regenerate suggestions:', error);
+      }
+    } else {
+      nextMetadata = {
+        ...nextMetadata,
+        aiLogCategories: [],
+      };
+    }
+
+    const nextProfile: ProfileData = {
+      ...profile,
+      conditions: nextConditions,
+      known_symptoms: nextSymptoms,
+      known_triggers: nextTriggers,
+    };
+
+    setProfile(nextProfile);
+    setProfileMetadata(nextMetadata);
+    setPreviousConditions(nextConditions);
+    notifyProfileUpdated(nextProfile, currentMedications, nextMetadata);
+    void persistHealthState(nextProfile, currentMedications, nextMetadata);
+  };
+
+  const addCondition = async (value: string) => {
+    if (!profile) return;
+    const trimmed = value.trim();
+    if (!trimmed) return;
+
+    const matched = CONDITIONS.find((condition) => condition.name.toLowerCase() === trimmed.toLowerCase());
+    const normalized = matched?.id || trimmed;
+    const exists = profile.conditions.some((condition) => condition.toLowerCase() === normalized.toLowerCase());
+    if (exists) {
+      setConditionQuery('');
+      return;
+    }
+
+    haptics.selection();
+    setConditionQuery('');
+    await refreshConditionSuggestions([...profile.conditions, normalized]);
+  };
+
+  const removeCondition = async (value: string) => {
+    if (!profile) return;
+    haptics.selection();
+    await refreshConditionSuggestions(profile.conditions.filter((condition) => condition !== value));
+  };
+
+  const updateListField = (field: 'known_symptoms' | 'known_triggers', values: string[]) => {
+    if (!profile) return;
+    const nextProfile = { ...profile, [field]: values };
+    setProfile(nextProfile);
+    notifyProfileUpdated(nextProfile);
+    void persistHealthState(nextProfile);
+  };
+
+  const addListValue = (field: 'known_symptoms' | 'known_triggers', value: string, reset: () => void) => {
+    if (!profile) return;
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    const currentValues = profile[field];
+    if (currentValues.some((item) => item.toLowerCase() === trimmed.toLowerCase())) {
+      reset();
+      return;
+    }
+    haptics.selection();
+    reset();
+    updateListField(field, [...currentValues, trimmed]);
+  };
 
   const handleSave = async () => {
     if (!profile) return;
@@ -96,49 +248,28 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Check if conditions changed — re-run AI suggestions
-      const conditionsChanged = JSON.stringify([...profile.conditions].sort()) !== JSON.stringify([...previousConditions].sort());
-      let updatedSymptoms = profile.known_symptoms;
-      let updatedTriggers = profile.known_triggers;
-      let updatedMeta: any = { medications: currentMedications };
-
-      if (conditionsChanged && profile.conditions.length > 0) {
-        try {
-          const conditionNames = profile.conditions.map(id => CONDITIONS.find(c => c.id === id)?.name || id);
-          const { data, error } = await supabase.functions.invoke('generate-suggestions', {
-            body: { conditions: conditionNames, biologicalSex: profile.biological_sex, age: null },
-          });
-          if (!error && data) {
-            // Merge new suggestions with existing (don't lose user's custom ones)
-            const newSymptoms = data.symptoms || [];
-            const newTriggers = data.triggers || [];
-            updatedSymptoms = [...new Set([...profile.known_symptoms, ...newSymptoms])];
-            updatedTriggers = [...new Set([...profile.known_triggers, ...newTriggers])];
-            updatedMeta.aiLogCategories = data.logCategories || [];
-            toast({ title: "Updated tracking profile", description: "New symptoms and triggers added based on your conditions." });
-          }
-        } catch (e) {
-          console.error('Failed to regenerate suggestions:', e);
-        }
-      }
-
       const { error } = await supabase.from('profiles').update({
         full_name: profile.full_name, date_of_birth: profile.date_of_birth,
         gender: profile.gender, biological_sex: profile.biological_sex,
         height_cm: profile.height_cm, weight_kg: profile.weight_kg,
         blood_type: profile.blood_type, timezone: profile.timezone,
-        conditions: profile.conditions, known_symptoms: updatedSymptoms,
-        known_triggers: updatedTriggers, physician_name: profile.physician_name,
+        conditions: profile.conditions, known_symptoms: profile.known_symptoms,
+        known_triggers: profile.known_triggers, physician_name: profile.physician_name,
         physician_email: profile.physician_email, physician_phone: profile.physician_phone,
         physician_practice: profile.physician_practice, emergency_contact_name: profile.emergency_contact_name,
         emergency_contact_phone: profile.emergency_contact_phone,
-        metadata: updatedMeta as any,
+        metadata: {
+          ...profileMetadata,
+          medications: currentMedications,
+        } as any,
       }).eq('id', user.id);
       if (error) throw error;
 
-      // Update local state
-      setProfile(prev => prev ? { ...prev, known_symptoms: updatedSymptoms, known_triggers: updatedTriggers } : null);
       setPreviousConditions(profile.conditions);
+      notifyProfileUpdated(profile, currentMedications, {
+        ...profileMetadata,
+        medications: currentMedications,
+      });
       toast({ title: "Profile saved" });
     } catch (error: any) {
       toast({ title: "Failed to save", description: error.message, variant: "destructive" });
@@ -284,37 +415,76 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
             <CardHeader className="p-5 pb-3">
               <CardTitle className="text-base font-bold">Your Conditions</CardTitle>
               <CardDescription className="text-xs text-muted-foreground">
-                Tap to toggle conditions you're tracking
+                Type one, add it, and remove it with X — just like onboarding.
               </CardDescription>
             </CardHeader>
-            <CardContent className="px-5 pb-5">
-              <div className="flex flex-wrap gap-2">
-                {profile.conditions
-                  .filter(id => !CONDITIONS.find(c => c.id === id))
-                  .map(customCondition => (
-                    <Badge
-                      key={customCondition}
-                      className="cursor-pointer text-xs py-1.5 px-3 bg-primary/15 text-primary border-0 press-effect rounded-full"
-                      onClick={() => updateField('conditions', profile.conditions.filter(c => c !== customCondition))}
+            <CardContent className="px-5 pb-5 space-y-4">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={conditionQuery}
+                  onChange={(e) => setConditionQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      void addCondition(conditionQuery);
+                    }
+                  }}
+                  placeholder="Type and press Enter to add"
+                  className="h-14 rounded-2xl border-border bg-card pl-11 pr-14 text-sm"
+                />
+                <Button
+                  type="button"
+                  size="icon"
+                  className="absolute right-2 top-1/2 h-10 w-10 -translate-y-1/2 rounded-xl"
+                  onClick={() => void addCondition(conditionQuery)}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {profile.conditions.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {profile.conditions.map((value) => {
+                    const label = CONDITIONS.find((condition) => condition.id === value)?.name || value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => void removeCondition(value)}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/15"
+                      >
+                        {label}
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Suggestions</p>
+                <div className="grid gap-1.5 max-h-52 overflow-y-auto">
+                  {filteredConditions.map((condition) => (
+                    <button
+                      key={condition.id}
+                      type="button"
+                      onClick={() => void addCondition(condition.id)}
+                      className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-primary/40"
                     >
-                      {customCondition} ×
-                    </Badge>
+                      <div>
+                        <div className="text-sm font-medium text-foreground">{condition.name}</div>
+                        <div className="text-xs text-muted-foreground">{condition.category}</div>
+                      </div>
+                      <Plus className="h-4 w-4 text-muted-foreground" />
+                    </button>
                   ))}
-                {CONDITIONS.map(condition => (
-                  <Badge 
-                    key={condition.id}
-                    variant={profile.conditions.includes(condition.id) ? "default" : "outline"}
-                    className="cursor-pointer text-xs py-1.5 px-3 press-effect rounded-full"
-                    onClick={() => {
-                      const newConditions = profile.conditions.includes(condition.id)
-                        ? profile.conditions.filter(c => c !== condition.id)
-                        : [...profile.conditions, condition.id];
-                      updateField('conditions', newConditions);
-                    }}
-                  >
-                    {condition.name}
-                  </Badge>
-                ))}
+                  {filteredConditions.length === 0 && (
+                    <div className="rounded-2xl border border-dashed border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+                      No matching suggestions.
+                    </div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -325,7 +495,7 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
               <CardTitle className="text-base font-bold">Known Symptoms</CardTitle>
               <CardDescription className="text-xs">Symptoms you commonly experience</CardDescription>
             </CardHeader>
-            <CardContent className="px-5 pb-5 space-y-3">
+             <CardContent className="px-5 pb-5 space-y-3">
               <div className="flex flex-wrap gap-1.5">
                 {profile.known_symptoms.map(symptom => (
                   <Badge 
@@ -338,15 +508,14 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
                 ))}
               </div>
               <Input
-                placeholder="Add symptom and press Enter"
+                 value={symptomQuery}
+                 placeholder="Type and press Enter to add"
                 className="text-sm h-11 rounded-xl glass-card border-0"
+                 onChange={(e) => setSymptomQuery(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                    const newSymptom = e.currentTarget.value.trim();
-                    if (!profile.known_symptoms.includes(newSymptom)) {
-                      updateField('known_symptoms', [...profile.known_symptoms, newSymptom]);
-                    }
-                    e.currentTarget.value = '';
+                   if (e.key === 'Enter') {
+                     e.preventDefault();
+                     addListValue('known_symptoms', symptomQuery, () => setSymptomQuery(''));
                   }
                 }}
               />
@@ -359,7 +528,7 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
               <CardTitle className="text-base font-bold">Known Triggers</CardTitle>
               <CardDescription className="text-xs">Things that trigger your symptoms</CardDescription>
             </CardHeader>
-            <CardContent className="px-5 pb-5 space-y-3">
+             <CardContent className="px-5 pb-5 space-y-3">
               <div className="flex flex-wrap gap-1.5">
                 {profile.known_triggers.map(trigger => (
                   <Badge 
@@ -373,15 +542,14 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
                 ))}
               </div>
               <Input
-                placeholder="Add trigger and press Enter"
+                 value={triggerQuery}
+                 placeholder="Type and press Enter to add"
                 className="text-sm h-11 rounded-xl glass-card border-0"
+                 onChange={(e) => setTriggerQuery(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                    const newTrigger = e.currentTarget.value.trim();
-                    if (!profile.known_triggers.includes(newTrigger)) {
-                      updateField('known_triggers', [...profile.known_triggers, newTrigger]);
-                    }
-                    e.currentTarget.value = '';
+                   if (e.key === 'Enter') {
+                     e.preventDefault();
+                     addListValue('known_triggers', triggerQuery, () => setTriggerQuery(''));
                   }
                 }}
               />
