@@ -39,6 +39,7 @@ interface ShortcutDefinition {
   siriPhrase: string;
   howItWorks: string;
   category: 'essential' | 'siri-voice' | 'smart' | 'automations';
+  icloudLink?: string;
 }
 
 /**
