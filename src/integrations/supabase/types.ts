@@ -1084,6 +1084,39 @@ export type Database = {
         }
         Relationships: []
       }
+      rpm_time_entries: {
+        Row: {
+          activity_type: string
+          clinician_id: string
+          created_at: string
+          duration_seconds: number | null
+          ended_at: string | null
+          id: string
+          patient_id: string
+          started_at: string
+        }
+        Insert: {
+          activity_type?: string
+          clinician_id: string
+          created_at?: string
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          patient_id: string
+          started_at?: string
+        }
+        Update: {
+          activity_type?: string
+          clinician_id?: string
+          created_at?: string
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          patient_id?: string
+          started_at?: string
+        }
+        Relationships: []
+      }
       sms_conversations: {
         Row: {
           content: string
