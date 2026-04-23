@@ -17,42 +17,7 @@ import { DynamicChart, DynamicChartRenderer } from "@/components/chat/DynamicCha
 import { AIChatPrompts, generateFollowUps } from "@/components/chat/AIChatPrompts";
 import { ToolActivityChips, predictToolActivities, completeActivities, ToolActivity } from "@/components/chat/ToolActivityChips";
 
-// ─── Split long AI messages into multiple bubbles for a human feel ───
-function splitLongMessage(text: string): string[] {
-  if (text.length < 600) return [text];
-  
-  // Split on double newlines first (paragraph boundaries)
-  const paragraphs = text.split(/\n\n+/);
-  if (paragraphs.length >= 2) {
-    const chunks: string[] = [];
-    let current = '';
-    for (const p of paragraphs) {
-      if (current && (current.length + p.length) > 800) {
-        chunks.push(current.trim());
-        current = p;
-      } else {
-        current = current ? `${current}\n\n${p}` : p;
-      }
-    }
-    if (current.trim()) chunks.push(current.trim());
-    return chunks.length > 1 ? chunks : [text];
-  }
-  
-  // Fallback: split on sentence boundaries near the midpoint
-  const mid = Math.floor(text.length / 2);
-  const sentenceEnd = /[.!?]\s/g;
-  let bestSplit = -1;
-  let match;
-  while ((match = sentenceEnd.exec(text)) !== null) {
-    if (Math.abs(match.index - mid) < Math.abs(bestSplit - mid)) {
-      bestSplit = match.index + 1;
-    }
-  }
-  if (bestSplit > 100 && bestSplit < text.length - 100) {
-    return [text.slice(0, bestSplit).trim(), text.slice(bestSplit).trim()];
-  }
-  return [text];
-}
+// No message splitting — AI controls its own length via system prompt
 
 
 interface ProactiveFormField {
