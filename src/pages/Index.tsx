@@ -300,10 +300,14 @@ const Index = () => {
       const knownSymptoms = data.knownSymptoms || [];
       const knownTriggers = data.knownTriggers || [];
       const aiLogCategories = data.aiLogCategories || [];
-      const medicationDetails = userProfile?.medications || [];
       const customTrackables = userProfile?.customTrackables || [];
       const reminderTimes = data.reminderTimes || [];
 
+      const medicationDetails = (data.medications || []).map((m: any) => ({
+        name: m.name,
+        dosage: m.dosage || 'standard',
+        frequency: 'as-needed',
+      }));
       const metadata = {
         medications: medicationDetails,
         aiLogCategories,
