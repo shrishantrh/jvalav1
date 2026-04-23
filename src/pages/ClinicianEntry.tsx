@@ -31,22 +31,9 @@ export default function ClinicianEntry() {
     );
   }
 
-  if (user && isClinician) {
-    // Will be replaced with the triage dashboard in the next round
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-6">
-        <div className="max-w-md text-center space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-            <Stethoscope className="w-7 h-7 text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold">Welcome, Dr.</h1>
-          <p className="text-muted-foreground">
-            Your provider account is active. The patient triage dashboard ships in the next update — your linked patients will appear here.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (user && isClinician) navigate('/clinician', { replace: true });
+  }, [user, isClinician, navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-primary/5 px-6 py-12">
@@ -83,14 +70,15 @@ export default function ClinicianEntry() {
           </p>
         </div>
 
-        <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
-          <h2 className="font-semibold">Provider accounts (coming this week)</h2>
+        <div className="rounded-2xl border border-primary/30 bg-primary/5 p-6 space-y-4">
+          <h2 className="font-semibold">Sign in or create a provider account</h2>
           <p className="text-sm text-muted-foreground">
-            Full provider sign-up with NPI verification, patient invitations, SOAP editor, and continuous CDS monitoring is rolling out in the next update. The backend is already live — frontend onboarding ships next.
+            Get instant access to all patients who have invited you. Free during clinical pilot.
           </p>
-          <Button variant="outline" onClick={() => navigate("/")} className="w-full">
-            Back to Jvala
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => navigate("/clinician/auth")} className="flex-1">Provider sign in / sign up</Button>
+            <Button variant="outline" onClick={() => navigate("/")}>Back</Button>
+          </div>
         </div>
       </div>
     </div>
