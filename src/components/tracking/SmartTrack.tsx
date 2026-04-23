@@ -1269,8 +1269,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsProcessing(false);
-      // Clear tool activities after a delay
-      setTimeout(() => setToolActivities([]), 3000);
+      // Tool activities persist until the next user message (cleared in handleSend above)
     }
   };
 
