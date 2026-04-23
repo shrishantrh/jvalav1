@@ -12,7 +12,7 @@ import { WeekCalendarHistory } from "@/components/history/WeekCalendarHistory";
 import { ClinicalRecordGenerator } from "@/components/history/ClinicalRecordGenerator";
 import { ProfileManager } from "@/components/profile/ProfileManager";
 import { TimelineProgress } from "@/components/engagement/TimelineProgress";
-import { RevolutionaryOnboarding } from "@/components/onboarding/RevolutionaryOnboarding";
+import { SmartOnboarding } from "@/components/onboarding/SmartOnboarding";
 import { AppTour } from "@/components/onboarding/AppTour";
 import { HealthForecast } from "@/components/forecast/HealthForecast";
 import { CycleTracker } from "@/components/tracking/CycleTracker";
@@ -672,7 +672,7 @@ const Index = () => {
 
   // Show onboarding if needed
   if (showOnboarding && !isLoadingProfile) {
-    return <RevolutionaryOnboarding onComplete={(onboardingData) => {
+    return <SmartOnboarding onComplete={(onboardingData) => {
       handleOnboardingComplete(onboardingData);
     }} />;
   }
