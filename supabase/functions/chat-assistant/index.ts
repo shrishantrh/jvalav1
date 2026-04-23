@@ -2418,6 +2418,7 @@ serve(async (req) => {
             riskAssessment: parsed.riskAssessment ?? null,
             citations: [],
             wasResearched: false,
+            toolsUsed: ['logs', 'memories', 'patterns'],
           });
         } catch (e) { console.error("❌ Stream parse error:", e); }
       }
@@ -2425,14 +2426,24 @@ serve(async (req) => {
       if (toolName === "research_and_respond" && toolArgs) {
         try {
           const parsed = JSON.parse(toolArgs);
-          return await handleResearch(parsed, messages_arr, userTz);
+          const result = await handleResearch(parsed, messages_arr, userTz);
+          return result;
         } catch (e) { console.error("❌ Research parse error:", e); }
+      }
+
+      if (toolName === "get_weather_and_respond" && toolArgs) {
+        try {
+          const parsed = JSON.parse(toolArgs);
+          const result = await handleWeather(parsed, messages_arr, userTz, latitude, longitude);
+          return result;
+        } catch (e) { console.error("❌ Weather parse error:", e); }
       }
 
       return replyJson({
         response: responseContent || "Tell me more about how you're feeling.",
         shouldLog: false, entryData: null, visualization: null, emotionalTone: "neutral",
         discoveries: [], dynamicFollowUps: [], citations: [], wasResearched: false,
+        toolsUsed: [],
       });
     }
 
