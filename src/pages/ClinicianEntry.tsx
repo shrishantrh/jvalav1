@@ -36,10 +36,10 @@ export default function ClinicianEntry() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-primary/5 px-6 py-12">
-      <div className="max-w-2xl mx-auto space-y-10">
+    <div className="clinical-shell clinical-scroll min-h-screen px-6 py-12">
+      <div className="max-w-3xl mx-auto space-y-8">
         <div className="text-center space-y-3">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+          <div className="w-16 h-16 rounded-lg border border-border bg-card flex items-center justify-center mx-auto shadow-sm">
             <Stethoscope className="w-8 h-8 text-primary" />
           </div>
           <h1 className="text-3xl font-bold tracking-tight">Jvala for Clinicians</h1>
@@ -55,7 +55,7 @@ export default function ClinicianEntry() {
             { icon: FileText, title: "AI SOAP notes", desc: "Subjective/Objective/Assessment/Plan auto-drafted from 30 days of patient data." },
             { icon: Shield, title: "HIPAA-style audit", desc: "Every chart access logged. Patients can see who viewed their data." },
           ].map((f) => (
-            <div key={f.title} className="rounded-xl border border-border bg-card p-4">
+            <div key={f.title} className="rounded-lg border border-border bg-card p-4 shadow-sm">
               <f.icon className="w-5 h-5 text-primary mb-2" />
               <div className="font-semibold text-sm">{f.title}</div>
               <div className="text-xs text-muted-foreground mt-1">{f.desc}</div>
@@ -63,14 +63,14 @@ export default function ClinicianEntry() {
           ))}
         </div>
 
-        <div className="rounded-2xl border border-primary/30 bg-primary/5 p-6 space-y-4">
+        <div className="rounded-lg border border-border bg-card p-6 space-y-4 shadow-sm">
           <h2 className="font-semibold">Have a patient access link?</h2>
           <p className="text-sm text-muted-foreground">
             If your patient sent you a tokenized share link, open it directly — no account needed for one-off views.
           </p>
         </div>
 
-        <div className="rounded-2xl border border-primary/30 bg-primary/5 p-6 space-y-4">
+        <div className="rounded-lg border border-border bg-card p-6 space-y-4 shadow-sm">
           <h2 className="font-semibold">Sign in or create a provider account</h2>
           <p className="text-sm text-muted-foreground">
             Get instant access to all patients who have invited you. Free during clinical pilot.

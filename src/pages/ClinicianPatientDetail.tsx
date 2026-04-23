@@ -74,8 +74,8 @@ export default function ClinicianPatientDetail() {
   const flares = recentEntries.filter(e => e.entry_type === 'flare');
 
   return (
-    <div className="min-h-screen bg-background pb-12">
-      <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur-md">
+    <div className="clinical-shell clinical-scroll min-h-screen pb-12">
+      <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={() => navigate('/clinician/dashboard')}>
             <ArrowLeft className="w-4 h-4 mr-1.5" /> All patients
@@ -86,7 +86,7 @@ export default function ClinicianPatientDetail() {
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-5">
         {/* Patient header */}
-        <Card className="p-5">
+        <Card className="p-5 border border-border bg-card shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold">{patient.full_name || patient.email || 'Patient'}</h1>
@@ -124,7 +124,7 @@ export default function ClinicianPatientDetail() {
               <SummaryStat label="Open Alerts" value={alerts.length} icon={AlertTriangle} accent={alerts.length > 0 ? 'warn' : undefined} />
             </div>
 
-            <Card className="p-4">
+            <Card className="p-4 border border-border bg-card shadow-sm">
               <h3 className="font-semibold text-sm mb-2">Active Medications</h3>
               {activeMeds.length === 0 ? (
                 <p className="text-xs text-muted-foreground">No medications logged in the last 30 days.</p>
@@ -135,7 +135,7 @@ export default function ClinicianPatientDetail() {
               )}
             </Card>
 
-            <Card className="p-4">
+            <Card className="p-4 border border-border bg-card shadow-sm">
               <h3 className="font-semibold text-sm mb-2">Top alerts (preview)</h3>
               {alerts.slice(0, 3).map(a => (
                 <div key={a.id} className="border-l-2 border-amber-500 pl-3 py-1.5 mb-2">
@@ -156,7 +156,7 @@ export default function ClinicianPatientDetail() {
               <Loader2 className="w-5 h-5 animate-spin text-primary mx-auto my-8" />
             ) : alerts.length === 0 ? (
               <Card className="p-8 text-center">
-                <Check className="w-6 h-6 text-emerald-500 mx-auto mb-2" />
+                <Check className="w-6 h-6 text-primary mx-auto mb-2" />
                 <p className="text-sm font-medium">No active alerts</p>
                 <p className="text-xs text-muted-foreground">CDS engine has reviewed this patient and found no safety-critical issues.</p>
               </Card>
@@ -164,7 +164,7 @@ export default function ClinicianPatientDetail() {
               alerts.map(a => (
                 <Card key={a.id} className={cn("p-4 border-l-4",
                   a.severity === 'critical' ? 'border-l-destructive' :
-                  a.severity === 'warning' ? 'border-l-amber-500' : 'border-l-blue-500'
+                  a.severity === 'warning' ? 'border-l-primary' : 'border-l-foreground/30'
                 )}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
@@ -198,14 +198,14 @@ export default function ClinicianPatientDetail() {
             {notesLoading ? (
               <Loader2 className="w-5 h-5 animate-spin text-primary mx-auto my-8" />
             ) : notes.length === 0 ? (
-              <Card className="p-8 text-center">
+              <Card className="p-8 text-center border border-border bg-card shadow-sm">
                 <FileText className="w-6 h-6 text-muted-foreground mx-auto mb-2" />
                 <p className="text-sm font-medium">No SOAP notes yet</p>
                 <p className="text-xs text-muted-foreground mb-4">Click "Draft SOAP with AI" above to generate one from the patient's last 30 days.</p>
               </Card>
             ) : (
               notes.map(n => (
-                <Card key={n.id} className="p-4 hover:bg-muted/30 cursor-pointer" onClick={() => setOpenNote(n)}>
+              <Card key={n.id} className="p-4 border border-border bg-card shadow-sm hover:bg-accent/40 cursor-pointer" onClick={() => setOpenNote(n)}>
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="font-semibold text-sm">{n.chief_complaint || 'SOAP Note'}</div>
@@ -226,7 +226,7 @@ export default function ClinicianPatientDetail() {
             {flares.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">No flares in the last 30 days.</p>
             ) : flares.map((e: any) => (
-              <Card key={e.id} className="p-3">
+              <Card key={e.id} className="p-3 border border-border bg-card shadow-sm">
                 <div className="flex items-start gap-3">
                   <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0",
                     e.severity === 'severe' ? 'bg-destructive' :
