@@ -14,6 +14,19 @@ export type ToolKind =
   | 'medication_check'
   | 'thinking';
 
+export const TOOL_LABELS: Record<ToolKind, string> = {
+  weather: 'Weather checked',
+  reading_logs: 'Your logs used',
+  reading_memories: 'Your memories used',
+  analyzing_patterns: 'Patterns analyzed',
+  researching_web: 'Web research used',
+  wearable_data: 'Wearable data used',
+  location: 'Location used',
+  symptom_history: 'Symptom history used',
+  medication_check: 'Medication data used',
+  thinking: 'Reasoning used',
+};
+
 export interface ToolActivity {
   id: string;
   kind: ToolKind;
@@ -150,4 +163,25 @@ function defaultSummary(a: ToolActivity): string {
     case 'medication_check':   return 'Meds reviewed';
     case 'thinking':           return 'Done thinking';
   }
+}
+
+export function buildActivitiesFromKinds(
+  kinds: ToolKind[],
+  status: ToolActivity['status'] = 'done',
+  summaries?: Partial<Record<ToolKind, string>>
+): ToolActivity[] {
+  const seen = new Set<ToolKind>();
+  return kinds
+    .filter((kind) => {
+      if (seen.has(kind)) return false;
+      seen.add(kind);
+      return true;
+    })
+    .map((kind) => ({
+      id: `${kind}-${Math.random().toString(36).slice(2, 9)}`,
+      kind,
+      label: TOOL_LABELS[kind],
+      status,
+      resultSummary: status === 'done' ? (summaries?.[kind] ?? TOOL_LABELS[kind]) : undefined,
+    }));
 }
