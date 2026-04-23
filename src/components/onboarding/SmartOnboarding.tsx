@@ -11,7 +11,9 @@ import { haptics } from "@/lib/haptics";
 import { Input } from "@/components/ui/input";
 
 interface SmartOnboardingData {
+  firstName: string;
   conditions: string[];
+  biologicalSex: string | null;
   enableReminders: boolean;
   reminderTime: string;
   connectWearables: boolean;
