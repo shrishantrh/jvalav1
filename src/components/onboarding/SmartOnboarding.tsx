@@ -123,8 +123,12 @@ export const SmartOnboarding = ({ onComplete }: SmartOnboardingProps) => {
   const handleNext = useCallback(() => {
     haptics.selection();
     if (step === 10) return; // preparing handles itself
+    // Sync local state into data before preparing step
+    if (step === 9) {
+      setData(prev => ({ ...prev, firstName: name, biologicalSex: selectedGender }));
+    }
     setStep(prev => prev + 1);
-  }, [step]);
+  }, [step, name, selectedGender]);
 
   const handleBack = useCallback(() => {
     haptics.selection();
