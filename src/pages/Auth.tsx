@@ -564,11 +564,11 @@ const Auth = () => {
           <form onSubmit={handleAuth} className="p-5 pt-5 space-y-4">
             {/* Email */}
             <div className="space-y-1.5">
-              <label htmlFor="email" className="text-[13px] pl-0.5 text-foreground" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 600, opacity: 0.9 }}>
+              <label htmlFor="email" className="text-[13px] pl-0.5 text-white/80 font-semibold">
                 Email
               </label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                 <Input
                   id="email"
                   type="email"
@@ -582,14 +582,13 @@ const Auth = () => {
                   required
                   disabled={loading}
                   className={cn(
-                    "h-12 pl-11 rounded-xl transition-all bg-background border-border/60 text-foreground",
-                    emailError && "border-destructive/50"
+                    "h-12 pl-11 rounded-xl transition-all bg-white/10 border-white/15 text-white placeholder:text-white/30 focus-visible:ring-white/30",
+                    emailError && "border-red-400/50"
                   )}
-                  style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 400 }}
                 />
               </div>
               {emailError && (
-                <p className="text-[11px] text-destructive flex items-center gap-1 pl-0.5" style={{ fontFamily: "'Satoshi', sans-serif" }}>
+                <p className="text-[11px] text-red-300 flex items-center gap-1 pl-0.5">
                   <AlertCircle className="w-3 h-3" />
                   {emailError}
                 </p>
