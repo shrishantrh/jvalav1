@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeColorPicker } from "@/components/settings/ThemeColorPicker";
+import { CareTeamPanel } from "@/components/settings/CareTeamPanel";
 import { haptics } from "@/lib/haptics";
 import { useEngagement } from "@/hooks/useEngagement";
 
@@ -108,6 +109,9 @@ export default function Settings() {
 
           {/* Theme */}
           <ThemeColorPicker />
+
+          {/* Care Team */}
+          <CareTeamPanel />
 
           {/* Siri & Shortcuts */}
           <Card 
