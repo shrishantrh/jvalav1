@@ -83,6 +83,13 @@ const Index = () => {
   const [showDetailedEntry, setShowDetailedEntry] = useState(false);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [currentLocation, setCurrentLocation] = useState<{ city?: string } | null>(null);
+  const [envData, setEnvData] = useState<{
+    temp?: number | null;
+    aqi?: number | null;
+    humidity?: number | null;
+    pressure?: number | null;
+    pressureTrend?: 'rising' | 'falling' | 'stable' | null;
+  } | null>(null);
   const [insightViewCount, setInsightViewCount] = useState(0);
   const [clinicalRecordEntry, setClinicalRecordEntry] = useState<FlareEntry | null>(null);
   const [showClinicalRecord, setShowClinicalRecord] = useState(false);
@@ -158,7 +165,7 @@ const Index = () => {
     }
   }, [user, loading, navigate]);
 
-  // Get location — only after onboarding is complete to avoid premature permission prompts
+  // Get location + environmental data — only after onboarding is complete
   useEffect(() => {
     if (showOnboarding || isLoadingProfile) return;
     const getLocation = async () => {
@@ -169,6 +176,16 @@ const Index = () => {
           const weatherData = await fetchWeatherData(loc.latitude, loc.longitude);
           if (weatherData?.location?.city) {
             setCurrentLocation({ city: weatherData.location.city });
+          }
+          // Populate environmental context bar
+          if (weatherData?.weather || weatherData?.airQuality) {
+            setEnvData({
+              temp: weatherData.weather?.temperature ?? null,
+              aqi: weatherData.airQuality?.aqi ?? null,
+              humidity: weatherData.weather?.humidity ?? null,
+              pressure: weatherData.weather?.pressure ?? null,
+              pressureTrend: null, // Would need historical data to compute
+            });
           }
         }
       } catch (e) {
@@ -691,6 +708,7 @@ const Index = () => {
             onProfileClick={() => setShowProfile(true)}
             riskScore={briefing?.riskScore ?? null}
             riskLevel={briefing?.riskLevel ?? null}
+            envData={envData}
           />
         }
       >
