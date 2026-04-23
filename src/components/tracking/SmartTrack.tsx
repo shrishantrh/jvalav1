@@ -1760,6 +1760,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             onReorderTrackables={onReorderTrackables}
             onAddMedication={onAddMedication}
             onRemoveMedication={onRemoveMedication}
+            onAddSymptom={onAddSymptom}
+            onRemoveSymptom={onRemoveSymptom}
             onOpenDetails={onOpenDetails}
             onOpenFood={onOpenFood}
           />

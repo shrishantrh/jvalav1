@@ -832,17 +832,31 @@ const Index = () => {
                 };
                 await supabase.from('profiles').update({ metadata: currentMeta as any }).eq('id', user.id);
               }}
-              userName={userProfile?.full_name}
-              userDOB={userProfile?.date_of_birth}
-              userBiologicalSex={userProfile?.biological_sex}
-              recentEntries={entries}
-              userId={user.id}
-              onOpenDetails={() => setShowDetailedEntry(true)}
-               onOpenFood={() => setShowFoodLogger(true)}
-               onOpenVoiceCall={() => setShowVoiceCall(true)}
-               onNavigateToTrends={() => setCurrentView('insights')}
-               aiConsented={aiConsented === true}
-               onRequestAIConsent={() => setShowAIConsentDialog(true)}
+               onAddSymptom={async (symptom) => {
+                 if (!user || !userProfile) return;
+                 const current = userProfile.known_symptoms || [];
+                 if (current.some(s => s.toLowerCase() === symptom.toLowerCase())) return;
+                 const updated = [...current, symptom];
+                 setUserProfile(prev => prev ? { ...prev, known_symptoms: updated } : prev);
+                 await supabase.from('profiles').update({ known_symptoms: updated }).eq('id', user.id);
+               }}
+               onRemoveSymptom={async (symptom) => {
+                 if (!user || !userProfile) return;
+                 const updated = (userProfile.known_symptoms || []).filter(s => s !== symptom);
+                 setUserProfile(prev => prev ? { ...prev, known_symptoms: updated } : prev);
+                 await supabase.from('profiles').update({ known_symptoms: updated }).eq('id', user.id);
+               }}
+               userName={userProfile?.full_name}
+               userDOB={userProfile?.date_of_birth}
+               userBiologicalSex={userProfile?.biological_sex}
+               recentEntries={entries}
+               userId={user.id}
+               onOpenDetails={() => setShowDetailedEntry(true)}
+                onOpenFood={() => setShowFoodLogger(true)}
+                onOpenVoiceCall={() => setShowVoiceCall(true)}
+                onNavigateToTrends={() => setCurrentView('insights')}
+                aiConsented={aiConsented === true}
+                onRequestAIConsent={() => setShowAIConsentDialog(true)}
             />
             
             {/* Detailed Entry Dialog */}
