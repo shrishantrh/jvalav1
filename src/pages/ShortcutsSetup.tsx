@@ -39,6 +39,7 @@ interface ShortcutDefinition {
   siriPhrase: string;
   howItWorks: string;
   category: 'essential' | 'siri-voice' | 'smart' | 'automations';
+  icloudLink?: string;
 }
 
 /**
@@ -76,8 +77,9 @@ const shortcuts: ShortcutDefinition[] = [
     color: 'from-primary to-primary/70',
     urlScheme: 'jvala://quick-log?severity=moderate&note=',
     siriPhrase: '"Hey Siri, tell Jvala" → then speak freely',
-    howItWorks: 'In Shortcuts app: (1) "Dictate Text" action → (2) "Open URL" action with jvala://quick-log?severity=moderate&note=[Dictated Text]. Drag the blue Dictated Text variable into the URL. Name it "Tell Jvala".',
+    howItWorks: 'Tap "Get Shortcut" below to install it instantly from iCloud.',
     category: 'essential',
+    icloudLink: 'https://www.icloud.com/shortcuts/5c636548418c41768b0a2489a2d921d2',
   },
   {
     id: 'quick-log',
@@ -263,6 +265,13 @@ export default function ShortcutsSetup() {
 
   const addToShortcuts = (shortcut: ShortcutDefinition) => {
     haptics.light();
+    
+    // If there's a signed iCloud link, open it directly
+    if (shortcut.icloudLink) {
+      window.open(shortcut.icloudLink, '_blank');
+      return;
+    }
+    
     if (isNative && platform === 'ios') {
       window.open(`shortcuts://create-shortcut`, '_system');
       toast({
@@ -459,24 +468,37 @@ function ShortcutCard({ shortcut, isExpanded, isCopied, onToggle, onCopy, onAddT
           </div>
 
           <Button className="w-full gap-2 rounded-xl" onClick={(e) => { e.stopPropagation(); onAddToShortcuts(); }}>
-            <Plus className="w-4 h-4" />
-            Add to Shortcuts
+            {shortcut.icloudLink ? (
+              <>
+                <ExternalLink className="w-4 h-4" />
+                Get Shortcut
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4" />
+                Add to Shortcuts
+              </>
+            )}
           </Button>
 
-          <div className="flex items-center gap-2">
-            <code className="flex-1 text-xs bg-muted/60 px-3 py-2 rounded-lg font-mono text-foreground/80 truncate">
-              {shortcut.urlScheme}
-            </code>
-            <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={(e) => { e.stopPropagation(); onCopy(); }}>
-              {isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              {isCopied ? 'Copied' : 'Copy'}
-            </Button>
-          </div>
+          {!shortcut.icloudLink && (
+            <>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 text-xs bg-muted/60 px-3 py-2 rounded-lg font-mono text-foreground/80 truncate">
+                  {shortcut.urlScheme}
+                </code>
+                <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={(e) => { e.stopPropagation(); onCopy(); }}>
+                  {isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  {isCopied ? 'Copied' : 'Copy'}
+                </Button>
+              </div>
 
-          <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
-            <p className="text-xs font-semibold text-foreground mb-1.5">How to set up:</p>
-            <p className="text-xs text-muted-foreground leading-relaxed">{shortcut.howItWorks}</p>
-          </div>
+              <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                <p className="text-xs font-semibold text-foreground mb-1.5">How to set up:</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{shortcut.howItWorks}</p>
+              </div>
+            </>
+          )}
         </div>
       )}
     </Card>
