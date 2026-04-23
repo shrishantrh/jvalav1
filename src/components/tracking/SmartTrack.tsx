@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { FlareEntry } from "@/types/flare";
 import { Send, Mic, MicOff, Check, Sparkles, Thermometer, Droplets, Calendar, AlertTriangle, BarChart3, Activity, TrendingUp, Search, ExternalLink, Phone } from "lucide-react";
@@ -494,12 +495,14 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   };
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [keyboardInset, setKeyboardInset] = useState(0);
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number; city?: string } | null>(null);
   const [lastLoggedEntryId, setLastLoggedEntryId] = useState<string | null>(null);
   const [pendingFollowUp, setPendingFollowUp] = useState<{ activityType: string; activityId: string; followUpTime: Date } | null>(null);
   const { isRecording, transcript, startRecording, stopRecording, clearRecording } = useVoiceRecording();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
   const hasLoadedMessages = useRef(false);
   
   // Use correlations hook
@@ -721,6 +724,33 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
   }, [messages]);
+
+  useEffect(() => {
+    if (!window.visualViewport) return;
+
+    const updateKeyboardInset = () => {
+      const viewport = window.visualViewport;
+      const nextInset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      setKeyboardInset(nextInset > 80 ? nextInset : 0);
+
+      if (messagesContainerRef.current) {
+        requestAnimationFrame(() => {
+          if (messagesContainerRef.current) {
+            messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+          }
+        });
+      }
+    };
+
+    updateKeyboardInset();
+    window.visualViewport.addEventListener('resize', updateKeyboardInset);
+    window.visualViewport.addEventListener('scroll', updateKeyboardInset);
+
+    return () => {
+      window.visualViewport?.removeEventListener('resize', updateKeyboardInset);
+      window.visualViewport?.removeEventListener('scroll', updateKeyboardInset);
+    };
+  }, []);
 
   useEffect(() => {
     if (transcript) setInput(transcript);
