@@ -627,11 +627,11 @@ const Auth = () => {
             {/* Confirm Password */}
             {isSignUp && (
               <div className="space-y-1.5 animate-in fade-in-0 slide-in-from-top-2 duration-200">
-                <label htmlFor="confirmPassword" className="text-[13px] pl-0.5 text-foreground" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 600, opacity: 0.9 }}>
+                <label htmlFor="confirmPassword" className="text-[13px] pl-0.5 text-white/80 font-semibold">
                   Confirm Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                   <Input
                     id="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
@@ -641,21 +641,20 @@ const Auth = () => {
                     required
                     disabled={loading}
                     className={cn(
-                      "h-12 pl-11 pr-11 rounded-xl transition-all bg-background border-border/60 text-foreground",
-                       confirmPassword && password !== confirmPassword && "border-destructive/50"
+                      "h-12 pl-11 pr-11 rounded-xl transition-all bg-white/10 border-white/15 text-white placeholder:text-white/30 focus-visible:ring-white/30",
+                       confirmPassword && password !== confirmPassword && "border-red-400/50"
                      )}
-                    style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 400 }}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors text-muted-foreground/50"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors text-white/30"
                   >
                     {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
                 {confirmPassword && password !== confirmPassword && (
-                  <p className="text-[11px] text-destructive flex items-center gap-1 pl-0.5" style={{ fontFamily: "'Satoshi', sans-serif" }}>
+                  <p className="text-[11px] text-red-300 flex items-center gap-1 pl-0.5">
                     <AlertCircle className="w-3 h-3" />
                     Passwords don't match
                   </p>
@@ -669,7 +668,7 @@ const Auth = () => {
                 <button
                   type="button"
                   onClick={() => setShowForgotPassword(true)}
-                  className="text-[13px] transition-colors text-primary" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}
+                  className="text-[13px] transition-colors text-white/60 hover:text-white/80 font-medium"
                 >
                   Forgot password?
                 </button>
@@ -678,16 +677,16 @@ const Auth = () => {
 
             {/* Age confirmation */}
             {isSignUp && (
-              <div className="space-y-2.5 p-3.5 !rounded-xl animate-in fade-in-0 duration-200 bg-muted/40 border border-border/30">
+              <div className="space-y-2.5 p-3.5 !rounded-xl animate-in fade-in-0 duration-200 bg-white/8 border border-white/10">
                 <div className="flex items-center gap-2.5">
                   <Checkbox
                     id="age"
                     checked={ageConfirmed}
                     onCheckedChange={(checked) => setAgeConfirmed(checked === true)}
                   />
-                  <label htmlFor="age" className="text-[13px] cursor-pointer flex-1 text-foreground" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 500, opacity: 0.9 }}>
+                  <label htmlFor="age" className="text-[13px] cursor-pointer flex-1 text-white/80 font-medium">
                     I am at least 13 years old
-                    <span className="text-destructive"> *</span>
+                    <span className="text-red-300"> *</span>
                   </label>
                 </div>
               </div>
@@ -696,13 +695,10 @@ const Auth = () => {
             {/* Submit */}
             <button
               type="submit"
-              className="w-full h-12 rounded-xl text-sm text-white disabled:opacity-50 active:scale-[0.97] transition-all duration-200 mt-1"
+              className="w-full h-12 rounded-xl text-sm text-white font-bold disabled:opacity-40 active:scale-[0.97] transition-all duration-200 mt-1 bg-white/90 text-gray-900 hover:bg-white shadow-lg"
               disabled={loading || !canSubmit}
               style={{
-                background: '#EE599F',
-                boxShadow: '0 4px 16px hsl(340 82% 52% / 0.25)',
-                fontFamily: "'Satoshi', sans-serif",
-                fontWeight: 700,
+                color: '#1a1a1a',
               }}
             >
               {loading ? (
@@ -718,10 +714,10 @@ const Auth = () => {
             {/* Divider */}
             <div className="relative py-1">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border/40" />
+                <div className="w-full border-t border-white/15" />
               </div>
               <div className="relative flex justify-center">
-                <span className="px-3 text-[11px] uppercase tracking-widest text-muted-foreground bg-card" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}>or</span>
+                <span className="px-3 text-[11px] uppercase tracking-widest text-white/30 bg-transparent">or</span>
               </div>
             </div>
 
@@ -731,8 +727,7 @@ const Auth = () => {
                 type="button"
                 disabled={loading}
                 onClick={handleGoogleLogin}
-                className="w-full h-12 flex items-center justify-center gap-2.5 !rounded-xl text-sm active:scale-[0.97] transition-all duration-200 disabled:opacity-50 bg-background border border-border/60 text-foreground"
-                style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}
+                className="w-full h-12 flex items-center justify-center gap-2.5 !rounded-xl text-sm font-medium active:scale-[0.97] transition-all duration-200 disabled:opacity-50 bg-white/90 text-gray-900 hover:bg-white shadow-md"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -747,8 +742,7 @@ const Auth = () => {
                 type="button"
                 disabled={loading}
                 onClick={handleAppleLogin}
-                className="w-full h-12 flex items-center justify-center gap-2.5 !rounded-xl text-sm active:scale-[0.97] transition-all duration-200 disabled:opacity-50 border border-border/60 text-white"
-                style={{ background: 'hsl(0 0% 10%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}
+                className="w-full h-12 flex items-center justify-center gap-2.5 !rounded-xl text-sm font-medium active:scale-[0.97] transition-all duration-200 disabled:opacity-50 bg-gray-900 text-white hover:bg-gray-800 shadow-md"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
@@ -760,7 +754,7 @@ const Auth = () => {
         </div>
 
         {/* Footer */}
-        <p className="text-[13px] mt-6 text-center text-muted-foreground" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 600 }}>
+        <p className="text-[13px] mt-6 text-center text-white/40 font-medium">
           Your health data is encrypted and never shared.
         </p>
       </div>
