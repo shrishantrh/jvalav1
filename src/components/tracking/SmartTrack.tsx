@@ -1200,43 +1200,30 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       if (aiData?.weatherCard) summaries.weather = `${aiData.weatherCard?.current?.temp_f}°F`;
       setToolActivities(prev => completeActivities(prev, summaries));
       
-      // Split long messages into multiple bubbles
-      const contentParts = splitLongMessage(responseContent);
-      
-      const newMessages: ChatMessage[] = contentParts.map((part, i) => ({
-        id: (Date.now() + 1 + i).toString(),
-        role: 'assistant' as const,
-        content: part,
-        timestamp: new Date(Date.now() + i * 100),
+      // Single message — AI controls its own length via system prompt
+      const assistantMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: responseContent,
+        timestamp: new Date(),
         isAIGenerated: true,
-        // Only attach metadata to first message
-        ...(i === 0 ? {
-          entryData: aiData?.entryData ?? undefined,
-          visualization: aiData?.visualization ?? undefined,
-          weatherCard: aiData?.weatherCard ?? undefined,
-          citations: aiData?.citations ?? [],
-          wasResearched: aiData?.wasResearched ?? false,
-          discoveryCards: (aiData?.discoveries || []).map((d: any) => ({
-            factor: d.factor,
-            confidence: d.confidence,
-            lift: d.lift || 1,
-            occurrences: d.occurrences,
-            total: d.total,
-            category: d.category || 'trigger',
-            summary: d.summary,
-          })).filter((d: any) => d.factor),
-        } : {}),
-        // Attach follow-ups to last message
-        ...(i === contentParts.length - 1 ? {
-          dynamicFollowUps: aiData?.dynamicFollowUps ?? [],
-        } : {}),
-      }));
-      
-      // Add messages with slight delays for natural feel
-      for (let i = 0; i < newMessages.length; i++) {
-        if (i > 0) await new Promise(r => setTimeout(r, 400));
-        setMessages(prev => [...prev, newMessages[i]]);
-      }
+        entryData: aiData?.entryData ?? undefined,
+        visualization: aiData?.visualization ?? undefined,
+        weatherCard: aiData?.weatherCard ?? undefined,
+        citations: aiData?.citations ?? [],
+        wasResearched: aiData?.wasResearched ?? false,
+        discoveryCards: (aiData?.discoveries || []).map((d: any) => ({
+          factor: d.factor,
+          confidence: d.confidence,
+          lift: d.lift || 1,
+          occurrences: d.occurrences,
+          total: d.total,
+          category: d.category || 'trigger',
+          summary: d.summary,
+        })).filter((d: any) => d.factor),
+        dynamicFollowUps: aiData?.dynamicFollowUps ?? [],
+      };
+      setMessages(prev => [...prev, assistantMsg]);
 
       // Log entry if AI detected health data
       if (aiData?.shouldLog && aiData?.entryData) {
