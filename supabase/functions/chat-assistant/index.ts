@@ -2488,23 +2488,108 @@ async function handleResearch(parsed: any, messages: any[], userTz: string) {
 function saveMemories(supabase: any, userId: string, newMemories: any[]) {
   (async () => {
     try {
+      // ─── Phase 1: Temporal Decay ───
+      // Reduce importance of old, unreinforced memories (spaced repetition decay)
+      // Memories not reinforced in 30d lose importance; 60d+ get pruned if low importance
+      const decayThreshold = new Date(Date.now() - 30 * 86400000).toISOString();
+      const pruneThreshold = new Date(Date.now() - 60 * 86400000).toISOString();
+      
+      // Decay unreinforced memories
+      await supabase.from("ai_memories")
+        .update({ importance: 0.1 })
+        .eq("user_id", userId)
+        .lt("last_reinforced_at", decayThreshold)
+        .lte("importance", 0.4)
+        .lte("evidence_count", 1);
+      
+      // Prune stale low-value memories (free up slots for new ones)
+      await supabase.from("ai_memories")
+        .delete()
+        .eq("user_id", userId)
+        .lt("last_reinforced_at", pruneThreshold)
+        .lte("importance", 0.2)
+        .lte("evidence_count", 1);
+
+      // ─── Phase 2: Process each new memory ───
       for (const mem of newMemories.slice(0, 5)) {
-        const { data: existing } = await supabase.from("ai_memories")
-          .select("id, evidence_count, importance, content")
+        if (!mem.content || mem.content.length < 5) continue;
+        
+        // Semantic duplicate detection — check ALL memories for this user 
+        // using multi-token matching (more robust than 4-word prefix)
+        const contentTokens = mem.content.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3);
+        const searchTerms = contentTokens.slice(0, 3);
+        
+        // Check for existing similar memories using broader matching
+        const { data: candidates } = await supabase.from("ai_memories")
+          .select("id, evidence_count, importance, content, category, memory_type, created_at")
           .eq("user_id", userId)
-          .ilike("content", `%${mem.content.split(' ').slice(0, 4).join('%')}%`)
-          .limit(1)
-          .maybeSingle();
+          .eq("category", mem.category);
+        
+        // Cosine-like token overlap similarity
+        const findBestMatch = (candidates: any[]) => {
+          if (!candidates?.length) return null;
+          const memTokens = new Set(mem.content.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3));
+          let bestMatch: any = null;
+          let bestScore = 0;
+          
+          for (const c of candidates) {
+            const cTokens = new Set(c.content.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3));
+            const intersection = [...memTokens].filter(t => cTokens.has(t)).length;
+            const union = new Set([...memTokens, ...cTokens]).size;
+            const jaccard = union > 0 ? intersection / union : 0;
+            
+            if (jaccard > bestScore && jaccard > 0.4) {
+              bestScore = jaccard;
+              bestMatch = { ...c, similarity: jaccard };
+            }
+          }
+          return bestMatch;
+        };
+        
+        const existing = findBestMatch(candidates || []);
+        
         if (existing) {
-          await supabase.from("ai_memories").update({ 
-            evidence_count: (existing.evidence_count || 1) + 1, 
-            last_reinforced_at: new Date().toISOString(), 
-            importance: Math.min(1, Math.max(existing.importance || 0, mem.importance) + 0.03),
-            content: mem.content.length > existing.content.length ? mem.content : existing.content,
-          }).eq("id", existing.id);
+          // ─── Contradiction Detection ───
+          // If new memory contradicts existing (opposite sentiment/fact), update rather than reinforce
+          const isContradiction = detectContradiction(existing.content, mem.content);
+          
+          if (isContradiction) {
+            // Replace old memory with new (more recent = more accurate)
+            await supabase.from("ai_memories").update({
+              content: mem.content,
+              importance: Math.max(existing.importance, mem.importance),
+              evidence_count: 1, // Reset — this is a correction
+              last_reinforced_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              metadata: { superseded: existing.content, superseded_at: new Date().toISOString() },
+            }).eq("id", existing.id);
+          } else if (existing.similarity > 0.7) {
+            // High overlap: reinforce with evidence count bump
+            await supabase.from("ai_memories").update({ 
+              evidence_count: (existing.evidence_count || 1) + 1, 
+              last_reinforced_at: new Date().toISOString(), 
+              importance: Math.min(1, Math.max(existing.importance || 0, mem.importance) + 0.05),
+              // Consolidate: keep the longer/more detailed version
+              content: mem.content.length > existing.content.length ? mem.content : existing.content,
+            }).eq("id", existing.id);
+          } else {
+            // Moderate overlap: consolidate into a richer memory
+            const consolidated = mem.content.length > existing.content.length 
+              ? `${mem.content}. Previously: ${existing.content.substring(0, 100)}`
+              : `${existing.content}. Also: ${mem.content.substring(0, 100)}`;
+            
+            await supabase.from("ai_memories").update({
+              content: consolidated.substring(0, 500),
+              evidence_count: (existing.evidence_count || 1) + 1,
+              last_reinforced_at: new Date().toISOString(),
+              importance: Math.min(1, Math.max(existing.importance, mem.importance) + 0.03),
+            }).eq("id", existing.id);
+          }
         } else {
+          // ─── New memory — check capacity and insert ───
           const { count } = await supabase.from("ai_memories").select("id", { count: "exact", head: true }).eq("user_id", userId);
-          if ((count || 0) >= 100) {
+          if ((count || 0) >= 150) {
+            // Evict lowest-value memory (importance × recency score)
             const { data: lowest } = await supabase.from("ai_memories")
               .select("id")
               .eq("user_id", userId)
@@ -2514,9 +2599,56 @@ function saveMemories(supabase: any, userId: string, newMemories: any[]) {
               .single();
             if (lowest) await supabase.from("ai_memories").delete().eq("id", lowest.id);
           }
-          await supabase.from("ai_memories").insert({ user_id: userId, memory_type: mem.memory_type, category: mem.category, content: mem.content, importance: mem.importance });
+          await supabase.from("ai_memories").insert({ 
+            user_id: userId, 
+            memory_type: mem.memory_type, 
+            category: mem.category, 
+            content: mem.content, 
+            importance: mem.importance,
+            metadata: { source: 'conversation', extracted_at: new Date().toISOString() },
+          });
         }
       }
     } catch (e) { console.warn("Memory save error:", e); }
   })();
+}
+
+// ─── Contradiction Detection ──────────────────────────────────────────────
+function detectContradiction(oldContent: string, newContent: string): boolean {
+  const old = oldContent.toLowerCase();
+  const neo = newContent.toLowerCase();
+  
+  // Negation patterns: "doesn't like X" vs "likes X", "not a morning person" vs "morning person"
+  const negationPairs = [
+    [/\bdoesn'?t\s+(\w+)/g, /\b(does|is)\s+\1/g],
+    [/\bnot\s+a?\s*(\w+)/g, /\ba?\s*\1/g],
+    [/\bnever\s+(\w+)/g, /\balways\s+\1/g],
+    [/\bhates?\s+(\w+)/g, /\bloves?\s+\1/g],
+    [/\bavoids?\s+(\w+)/g, /\beats?\s+\1/g],
+    [/\bstopped\s+(\w+)/g, /\bstarted\s+\1/g],
+    [/\bquit\s+(\w+)/g, /\bstarted\s+\1/g],
+  ];
+  
+  // Check if they discuss the same topic but with opposite sentiment
+  const oldTokens = new Set(old.split(/\s+/).filter(w => w.length > 3));
+  const newTokens = new Set(neo.split(/\s+/).filter(w => w.length > 3));
+  const overlap = [...oldTokens].filter(t => newTokens.has(t));
+  
+  if (overlap.length < 2) return false; // Different topics
+  
+  // Same topic — check for negation markers
+  const hasNegation = (text: string) => /\b(not|never|doesn'?t|don'?t|no longer|stopped|quit|avoid|hate)\b/.test(text);
+  
+  // If one has negation and the other doesn't (on the same topic), it's a contradiction
+  if (hasNegation(old) !== hasNegation(neo) && overlap.length >= 3) return true;
+  
+  // Numeric contradictions: "sleeps 5 hours" vs "sleeps 8 hours" 
+  const oldNums = old.match(/(\d+\.?\d*)\s*(hours?|h|mg|pm|am)/g);
+  const newNums = neo.match(/(\d+\.?\d*)\s*(hours?|h|mg|pm|am)/g);
+  if (oldNums && newNums && overlap.length >= 2) {
+    // Same context but different numbers — likely an update
+    return true;
+  }
+  
+  return false;
 }

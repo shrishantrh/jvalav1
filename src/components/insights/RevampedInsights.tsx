@@ -7,6 +7,7 @@ import { CleanInsights } from "@/components/insights/CleanInsights";
 import { CommunityHotspots } from "@/components/insights/CommunityHotspots";
 import { UserFlareMap } from "@/components/insights/UserFlareMap";
 import { PharmacovigilanceDashboard } from "@/components/pharmacovigilance/PharmacovigilanceDashboard";
+import { NearbyClinicFinder } from "@/components/insights/NearbyClinicFinder";
 import {
   BarChart3,
   Brain,
@@ -117,6 +118,7 @@ export const RevampedInsights = ({
 
           <TabsContent value="local" className="mt-0">
             <div className="space-y-4">
+              <NearbyClinicFinder userConditions={userConditions} />
               <UserFlareMap entries={entries} />
               <CommunityHotspots entries={entries} userConditions={userConditions} />
             </div>

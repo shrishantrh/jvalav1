@@ -1,9 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { CONDITIONS, CONDITION_CATEGORIES, Condition } from "@/data/conditions";
 import { 
@@ -16,7 +14,8 @@ import {
   Sparkles,
   Zap,
   Watch,
-  Brain
+  Brain,
+  ChevronLeft
 } from "lucide-react";
 import jvalaLogo from "@/assets/jvala-logo.png";
 import { cn } from "@/lib/utils";
@@ -33,12 +32,6 @@ interface SmartOnboardingProps {
   onComplete: (data: SmartOnboardingData) => void;
 }
 
-const AI_BENEFITS = [
-  { icon: Brain, title: "Auto-Learn", desc: "AI discovers YOUR patterns" },
-  { icon: Zap, title: "Predict", desc: "Know flares before they hit" },
-  { icon: Watch, title: "No Logging", desc: "We pull data for you" },
-];
-
 export const SmartOnboarding = ({ onComplete }: SmartOnboardingProps) => {
   const [step, setStep] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
@@ -50,17 +43,12 @@ export const SmartOnboarding = ({ onComplete }: SmartOnboardingProps) => {
   });
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  const steps = [
-    { title: "Welcome", icon: Heart },
-    { title: "Condition", icon: Activity },
-    { title: "Setup", icon: Bell },
-  ];
-
-  const progress = ((step + 1) / steps.length) * 100;
+  const totalSteps = 3;
+  const progress = ((step + 1) / totalSteps) * 100;
 
   const handleNext = () => {
     haptics.selection();
-    if (step === steps.length - 1) {
+    if (step === totalSteps - 1) {
       handleComplete();
     } else {
       setStep(prev => prev + 1);
@@ -75,10 +63,7 @@ export const SmartOnboarding = ({ onComplete }: SmartOnboardingProps) => {
   const handleComplete = async () => {
     setIsAnalyzing(true);
     haptics.success();
-    
-    // Brief animation for "AI setup"
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
+    await new Promise(resolve => setTimeout(resolve, 1800));
     onComplete(data);
   };
 
@@ -104,123 +89,170 @@ export const SmartOnboarding = ({ onComplete }: SmartOnboardingProps) => {
     return acc;
   }, {} as Record<string, Condition[]>);
 
-  // Analyzing screen
+  const canProceed = () => {
+    if (step === 1 && data.conditions.length === 0) return false;
+    return true;
+  };
+
+  // ─── Analyzing overlay ─────────────────────────────────────
   if (isAnalyzing) {
     return (
-      <div className="min-h-screen bg-gradient-subtle flex flex-col items-center justify-center px-4">
-        <div className="text-center space-y-6 animate-in fade-in-0 zoom-in-95 duration-500">
-          <div className="relative w-24 h-24 mx-auto">
-            <div className="absolute inset-0 bg-gradient-primary rounded-3xl animate-pulse" />
-            <div className="absolute inset-2 bg-background rounded-2xl flex items-center justify-center">
-              <Brain className="w-10 h-10 text-primary animate-pulse" />
+      <div className="fixed inset-0 flex flex-col items-center justify-center px-6" 
+        style={{ background: 'hsl(var(--background))' }}>
+        <div className="text-center space-y-8 animate-in fade-in-0 zoom-in-95 duration-700">
+          {/* Pulsing logo */}
+          <div className="relative w-28 h-28 mx-auto">
+            <div className="absolute inset-0 rounded-[2rem] bg-primary/20 animate-ping" style={{ animationDuration: '2s' }} />
+            <div className="absolute -inset-3 rounded-[2.5rem] bg-primary/10 animate-ping" style={{ animationDuration: '3s' }} />
+            <div className="relative w-28 h-28 rounded-[2rem] bg-card/80 backdrop-blur-xl border border-border/50 shadow-lg flex items-center justify-center">
+              <Brain className="w-12 h-12 text-primary" />
             </div>
           </div>
           
-          <div className="space-y-2">
-            <h2 className="text-xl font-bold">Setting up your AI...</h2>
-            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+          <div className="space-y-3">
+            <h2 className="text-2xl font-bold tracking-tight">Personalizing your AI</h2>
+            <p className="text-sm text-muted-foreground max-w-[280px] mx-auto leading-relaxed">
               Learning patterns for {data.conditions.map(id => 
                 CONDITIONS.find(c => c.id === id)?.name
-              ).join(", ")}
+              ).filter(Boolean).join(", ")}
             </p>
           </div>
           
-          <div className="flex items-center justify-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
-            <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
-            <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
+          <div className="flex items-center justify-center gap-1.5">
+            {[0,1,2].map(i => (
+              <div key={i} className="w-2 h-2 rounded-full bg-primary animate-bounce" 
+                style={{ animationDelay: `${i * 150}ms` }} />
+            ))}
           </div>
         </div>
       </div>
     );
   }
 
-  const renderStep = () => {
-    switch (step) {
-      case 0: // Welcome - Super streamlined
-        return (
-          <div className="text-center space-y-8 py-8 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
-            <div className="relative w-32 h-32 mx-auto">
-              <div className="absolute inset-0 bg-gradient-primary rounded-3xl rotate-6 opacity-20" />
-              <div className="absolute inset-0 bg-gradient-primary rounded-3xl -rotate-3 opacity-40" />
-              <div className="relative bg-white rounded-3xl p-5 shadow-lg">
-                <img src={jvalaLogo} alt="Jvala" className="w-full h-full" />
+  return (
+    <div className="fixed inset-0 flex flex-col" style={{ background: 'hsl(var(--background))' }}>
+      {/* Safe area top */}
+      <div style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }} />
+
+      {/* Progress bar */}
+      {step > 0 && (
+        <div className="px-6 pt-4 pb-2 flex items-center gap-3">
+          <button onClick={handleBack} className="h-9 w-9 rounded-2xl flex items-center justify-center bg-card/60 backdrop-blur-xl border border-border/30 active:scale-90 transition-transform">
+            <ChevronLeft className="w-4 h-4 text-muted-foreground" />
+          </button>
+          <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+            <div className="h-full bg-primary rounded-full transition-all duration-500 ease-out" 
+              style={{ width: `${progress}%` }} />
+          </div>
+          <span className="text-xs text-muted-foreground tabular-nums w-8 text-right">{step + 1}/{totalSteps}</span>
+        </div>
+      )}
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto px-6 py-4">
+        {step === 0 && (
+          <div className="flex flex-col items-center justify-center min-h-full py-8 animate-in fade-in-0 slide-in-from-bottom-4 duration-700">
+            {/* Logo */}
+            <div className="relative mb-10">
+              <div className="absolute -inset-4 bg-primary/8 rounded-[2.5rem] blur-xl" />
+              <div className="relative w-24 h-24 rounded-[1.75rem] overflow-hidden shadow-lg">
+                <img src={jvalaLogo} alt="Jvala" className="w-full h-full object-cover" />
               </div>
             </div>
             
-            <div className="space-y-3">
-              <h1 className="text-3xl font-bold text-gradient-primary">Know Tomorrow Today</h1>
-              <p className="text-sm text-muted-foreground max-w-xs mx-auto leading-relaxed">
-                Jvala predicts your flares before they happen using AI that learns YOUR unique patterns.
-              </p>
-            </div>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground mb-3">
+              Know Tomorrow Today
+            </h1>
+            <p className="text-base text-muted-foreground max-w-[300px] text-center leading-relaxed mb-10">
+              AI that learns your unique patterns and predicts flares before they happen.
+            </p>
 
-            <div className="grid grid-cols-3 gap-3 pt-2">
-              {AI_BENEFITS.map((benefit, idx) => (
-                <div 
-                  key={idx}
-                  className={cn(
-                    "p-4 rounded-xl bg-muted/50 space-y-3 animate-in fade-in-0",
-                    "hover:bg-muted/70 transition-colors"
-                  )}
-                  style={{ animationDelay: `${200 + idx * 100}ms` }}
-                >
-                  <div className="w-10 h-10 mx-auto rounded-xl bg-gradient-primary flex items-center justify-center">
-                    <benefit.icon className="w-5 h-5 text-primary-foreground" />
+            {/* Feature cards — frosted glass */}
+            <div className="w-full max-w-sm space-y-3">
+              {[
+                { icon: Brain, title: "Auto-Learn", desc: "Discovers YOUR patterns from every data point" },
+                { icon: Zap, title: "Predict", desc: "24-72h risk forecasting with compound signals" },
+                { icon: Watch, title: "Passive Capture", desc: "Wearables + environment — no manual entry" },
+              ].map((item, idx) => (
+                <div key={idx} className={cn(
+                  "flex items-center gap-4 p-4 rounded-2xl transition-all",
+                  "bg-card/60 backdrop-blur-xl",
+                  "border border-border/30",
+                  "animate-in fade-in-0 slide-in-from-bottom-2",
+                )} style={{ animationDelay: `${300 + idx * 100}ms` }}>
+                  <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <item.icon className="w-5 h-5 text-primary" />
                   </div>
-                  <p className="text-xs font-medium">{benefit.title}</p>
-                  <p className="text-[10px] text-muted-foreground leading-tight">{benefit.desc}</p>
+                  <div>
+                    <p className="text-sm font-semibold">{item.title}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p>
+                  </div>
                 </div>
               ))}
             </div>
 
-            <p className="text-xs text-muted-foreground pt-4">
-              Setup takes 30 seconds. AI learns the rest.
+            <p className="text-xs text-muted-foreground mt-8">
+              30 seconds to set up. AI handles the rest.
             </p>
           </div>
-        );
+        )}
 
-      case 1: // Conditions - The ONLY required step
-        return (
+        {step === 1 && (
           <div className="space-y-4 animate-in fade-in-0 slide-in-from-right-4 duration-300">
-            <div className="text-center space-y-2">
-              <h2 className="text-2xl font-bold">What are you managing?</h2>
-              <p className="text-xs text-muted-foreground">
-                Select one or more. Our AI will learn YOUR specific patterns.
-              </p>
+            <div className="text-center space-y-2 mb-2">
+              <h2 className="text-2xl font-bold tracking-tight">What are you tracking?</h2>
+              <p className="text-sm text-muted-foreground">Select your conditions. AI will specialize for you.</p>
             </div>
             
+            {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Search conditions..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-12"
+                className="pl-10 h-12 rounded-2xl bg-card/60 backdrop-blur-xl border-border/30"
               />
             </div>
 
-            <div className="max-h-[360px] overflow-y-auto space-y-4 pr-1">
+            {/* Selected badges */}
+            {data.conditions.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {data.conditions.map(id => {
+                  const condition = CONDITIONS.find(c => c.id === id);
+                  return (
+                    <Badge key={id} variant="default" className="text-xs px-3 py-1 rounded-xl">
+                      {condition?.name}
+                    </Badge>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Condition list */}
+            <div className="space-y-5 pb-4">
               {Object.entries(groupedConditions).map(([category, conditions]) => (
                 conditions.length > 0 && (
                   <div key={category} className="space-y-2">
-                    <h3 className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-1">{category}</h3>
-                    <div className="grid grid-cols-1 gap-2">
+                    <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-1">{category}</h3>
+                    <div className="space-y-1.5">
                       {conditions.map((condition) => (
                         <button
                           key={condition.id}
                           onClick={() => toggleCondition(condition.id)}
                           className={cn(
-                            "w-full py-3 px-4 rounded-xl border text-left transition-all press-effect",
+                            "w-full py-3.5 px-4 rounded-2xl text-left transition-all active:scale-[0.98]",
                             "flex items-center justify-between",
                             data.conditions.includes(condition.id)
-                              ? 'bg-primary/10 border-primary shadow-primary'
-                              : 'bg-card hover:bg-muted/50'
+                              ? 'bg-primary/10 border border-primary/30'
+                              : 'bg-card/50 backdrop-blur-xl border border-border/20 hover:border-border/40'
                           )}
                         >
                           <span className="text-sm font-medium">{condition.name}</span>
                           {data.conditions.includes(condition.id) && (
-                            <Check className="w-5 h-5 text-primary" />
+                            <div className="w-6 h-6 rounded-lg bg-primary flex items-center justify-center">
+                              <Check className="w-3.5 h-3.5 text-primary-foreground" />
+                            </div>
                           )}
                         </button>
                       ))}
@@ -229,42 +261,29 @@ export const SmartOnboarding = ({ onComplete }: SmartOnboardingProps) => {
                 )
               ))}
             </div>
-
-            {data.conditions.length > 0 && (
-              <div className="flex flex-wrap gap-2 pt-2 border-t">
-                {data.conditions.map(id => {
-                  const condition = CONDITIONS.find(c => c.id === id);
-                  return (
-                    <Badge key={id} variant="default" className="text-xs">
-                      {condition?.name}
-                    </Badge>
-                  );
-                })}
-              </div>
-            )}
           </div>
-        );
+        )}
 
-      case 2: // Quick Setup - Wearables + Reminders combined
-        return (
-          <div className="space-y-6 animate-in fade-in-0 slide-in-from-right-4 duration-300">
-            <div className="text-center space-y-2">
-              <h2 className="text-2xl font-bold">Quick Setup</h2>
-              <p className="text-xs text-muted-foreground">
-                Let our AI do the heavy lifting
-              </p>
+        {step === 2 && (
+          <div className="space-y-5 animate-in fade-in-0 slide-in-from-right-4 duration-300">
+            <div className="text-center space-y-2 mb-2">
+              <h2 className="text-2xl font-bold tracking-tight">Quick Setup</h2>
+              <p className="text-sm text-muted-foreground">Configure your experience</p>
             </div>
 
-            {/* Wearables Card */}
-            <Card className="p-4 space-y-3 bg-gradient-card border-0 shadow-soft">
+            {/* Wearables */}
+            <div className={cn(
+              "p-5 rounded-2xl space-y-3",
+              "bg-card/60 backdrop-blur-xl border border-border/30"
+            )}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-gradient-primary">
-                    <Watch className="w-5 h-5 text-primary-foreground" />
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Watch className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Auto-Capture Data</p>
-                    <p className="text-[10px] text-muted-foreground">Sleep, heart rate, activity - no logging needed</p>
+                    <p className="text-sm font-semibold">Auto-Capture Data</p>
+                    <p className="text-xs text-muted-foreground">Sleep, HR, steps — no logging</p>
                   </div>
                 </div>
                 <Switch
@@ -275,27 +294,28 @@ export const SmartOnboarding = ({ onComplete }: SmartOnboardingProps) => {
                   }}
                 />
               </div>
-              
               {data.connectWearables && (
-                <div className="flex flex-wrap gap-2 pt-2 border-t animate-in fade-in-0 duration-200">
-                  <Badge variant="secondary" className="text-[10px]">Apple Health</Badge>
-                  <Badge variant="secondary" className="text-[10px]">Fitbit</Badge>
-                  <Badge variant="secondary" className="text-[10px]">Google Fit</Badge>
-                  <Badge variant="secondary" className="text-[10px]">Oura</Badge>
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-border/20 animate-in fade-in-0 duration-200">
+                  {['Apple Health', 'Fitbit', 'Oura'].map(d => (
+                    <span key={d} className="text-[10px] px-2.5 py-1 rounded-lg bg-muted/60 text-muted-foreground font-medium">{d}</span>
+                  ))}
                 </div>
               )}
-            </Card>
+            </div>
 
-            {/* Reminders Card */}
-            <Card className="p-4 space-y-3 bg-gradient-card border-0 shadow-soft">
+            {/* Reminders */}
+            <div className={cn(
+              "p-5 rounded-2xl space-y-3",
+              "bg-card/60 backdrop-blur-xl border border-border/30"
+            )}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-muted">
+                  <div className="w-10 h-10 rounded-xl bg-muted/60 flex items-center justify-center">
                     <Bell className="w-5 h-5 text-foreground" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Daily Check-ins</p>
-                    <p className="text-[10px] text-muted-foreground">Quick daily log builds better predictions</p>
+                    <p className="text-sm font-semibold">Daily Check-ins</p>
+                    <p className="text-xs text-muted-foreground">Quick logs build better predictions</p>
                   </div>
                 </div>
                 <Switch
@@ -306,91 +326,59 @@ export const SmartOnboarding = ({ onComplete }: SmartOnboardingProps) => {
                   }}
                 />
               </div>
-              
               {data.enableReminders && (
-                <div className="pt-2 border-t animate-in fade-in-0 duration-200">
+                <div className="pt-2 border-t border-border/20 animate-in fade-in-0 duration-200">
                   <Input
                     type="time"
                     value={data.reminderTime}
                     onChange={(e) => setData(prev => ({ ...prev, reminderTime: e.target.value }))}
-                    className="h-10"
+                    className="h-10 rounded-xl bg-muted/30 border-border/20"
                   />
                 </div>
               )}
-            </Card>
+            </div>
 
-            {/* AI Info */}
-            <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
+            {/* AI info */}
+            <div className={cn(
+              "p-4 rounded-2xl",
+              "bg-primary/5 border border-primary/15"
+            )}>
               <div className="flex items-start gap-3">
-                <Sparkles className="w-5 h-5 text-primary mt-0.5" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">AI Will Auto-Learn</p>
-                  <ul className="text-[11px] text-muted-foreground space-y-0.5">
-                    <li>• Your symptoms & triggers (from logs)</li>
-                    <li>• Sleep + flare correlations</li>
-                    <li>• Weather sensitivity patterns</li>
-                    <li>• Time-of-day vulnerabilities</li>
-                    <li>• Stress → symptom delays</li>
-                  </ul>
+                <Sparkles className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold">AI Will Auto-Learn</p>
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    {[
+                      "Your symptom & trigger patterns",
+                      "Sleep → flare correlations", 
+                      "Weather sensitivity windows",
+                      "Time-of-day vulnerabilities",
+                      "Compound risk factors"
+                    ].map((item, i) => (
+                      <p key={i} className="flex items-center gap-2">
+                        <span className="w-1 h-1 rounded-full bg-primary/60 shrink-0" />
+                        {item}
+                      </p>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  const canProceed = () => {
-    if (step === 1 && data.conditions.length === 0) return false;
-    return true;
-  };
-
-  return (
-    <div className="min-h-screen bg-gradient-subtle flex flex-col">
-      {/* Progress bar */}
-      {step > 0 && (
-        <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm border-b">
-          <div className="container max-w-md mx-auto px-4 py-3">
-            <div className="flex items-center gap-3">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={handleBack}
-                className="h-8 w-8 rounded-full"
-              >
-                <ChevronRight className="w-4 h-4 rotate-180" />
-              </Button>
-              <div className="flex-1">
-                <Progress value={progress} className="h-1.5" />
-              </div>
-              <span className="text-[10px] text-muted-foreground w-12 text-right">
-                {step + 1}/{steps.length}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Content */}
-      <div className="flex-1 container max-w-md mx-auto px-4 py-4">
-        {renderStep()}
+        )}
       </div>
 
-      {/* Navigation */}
-      <div className="sticky bottom-0 bg-background/80 backdrop-blur-sm border-t">
-        <div className="container max-w-md mx-auto px-4 py-4">
-          <Button 
-            onClick={handleNext}
-            disabled={!canProceed()}
-            className="w-full h-12 text-base shadow-primary"
-          >
-            {step === 0 ? "Get Started" : step === steps.length - 1 ? "Launch Jvala" : "Continue"}
-            <ChevronRight className="w-5 h-5 ml-1" />
-          </Button>
-        </div>
+      {/* Bottom CTA */}
+      <div className="px-6 pb-6" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.5rem)' }}>
+        <Button 
+          onClick={handleNext}
+          disabled={!canProceed()}
+          className="w-full h-13 text-base font-semibold rounded-2xl shadow-lg"
+          style={{ height: '52px' }}
+        >
+          {step === 0 ? "Get Started" : step === totalSteps - 1 ? "Launch Jvala" : "Continue"}
+          <ChevronRight className="w-5 h-5 ml-1" />
+        </Button>
       </div>
     </div>
   );
