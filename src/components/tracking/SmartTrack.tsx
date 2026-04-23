@@ -633,16 +633,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     const cached = chatCache.get(userId);
     if (cached && cached.length > 0) return;
     
-    // If user hasn't consented to AI, show a simple greeting without calling AI
-    if (!aiConsented) {
-      setMessages([{
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: getPersonalizedGreeting(userConditions, recentEntries, userName),
-        timestamp: new Date(),
-      }]);
-      return;
-    }
+    // AI consent implied by terms acceptance
     
     // Show typing indicator while AI loads
     setMessages([{
