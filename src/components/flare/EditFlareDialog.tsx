@@ -19,20 +19,37 @@ interface EditFlareDialogProps {
 export const EditFlareDialog = ({ entry, open, onOpenChange, onSave }: EditFlareDialogProps) => {
   const [severity, setSeverity] = useState<FlareSeverity | undefined>(entry.severity);
   const [energyLevel, setEnergyLevel] = useState<EnergyLevel | undefined>(entry.energyLevel);
-  const [symptoms, setSymptoms] = useState<string>(entry.symptoms?.join(', ') || '');
-  const [medications, setMedications] = useState<string>(entry.medications?.join(', ') || '');
-  const [triggers, setTriggers] = useState<string>(entry.triggers?.join(', ') || '');
+  const [symptoms, setSymptoms] = useState<string[]>(entry.symptoms || []);
+  const [symptomInput, setSymptomInput] = useState<string>('');
+  const [medications, setMedications] = useState<string[]>(entry.medications || []);
+  const [medicationInput, setMedicationInput] = useState<string>('');
+  const [triggers, setTriggers] = useState<string[]>(entry.triggers || []);
+  const [triggerInput, setTriggerInput] = useState<string>('');
   const [note, setNote] = useState<string>(entry.note || '');
   const [timestamp, setTimestamp] = useState<string>(format(entry.timestamp, "yyyy-MM-dd'T'HH:mm"));
+
+  const addItem = (value: string, items: string[], setter: (items: string[]) => void, reset: () => void) => {
+    const trimmed = value.trim();
+    if (!trimmed || items.some((item) => item.toLowerCase() === trimmed.toLowerCase())) {
+      reset();
+      return;
+    }
+    setter([...items, trimmed]);
+    reset();
+  };
+
+  const removeItem = (value: string, items: string[], setter: (items: string[]) => void) => {
+    setter(items.filter((item) => item !== value));
+  };
 
   const handleSave = () => {
     const updates: Partial<FlareEntry> = {
       timestamp: new Date(timestamp),
       severity: entry.type === 'flare' ? severity : undefined,
       energyLevel: entry.type === 'energy' ? energyLevel : undefined,
-      symptoms: symptoms ? symptoms.split(',').map(s => s.trim()).filter(Boolean) : undefined,
-      medications: medications ? medications.split(',').map(m => m.trim()).filter(Boolean) : undefined,
-      triggers: triggers ? triggers.split(',').map(t => t.trim()).filter(Boolean) : undefined,
+      symptoms: symptoms.length > 0 ? symptoms : undefined,
+      medications: medications.length > 0 ? medications : undefined,
+      triggers: triggers.length > 0 ? triggers : undefined,
       note: note || undefined,
     };
     onSave(updates);
@@ -93,32 +110,95 @@ export const EditFlareDialog = ({ entry, open, onOpenChange, onSave }: EditFlare
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="symptoms">Symptoms (comma-separated)</Label>
+            <Label htmlFor="symptoms">Symptoms</Label>
+            {symptoms.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {symptoms.map((symptom) => (
+                  <button
+                    key={symptom}
+                    type="button"
+                    onClick={() => removeItem(symptom, symptoms, setSymptoms)}
+                    className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary"
+                  >
+                    {symptom}
+                    <X className="h-3 w-3" />
+                  </button>
+                ))}
+              </div>
+            )}
             <Input
               id="symptoms"
-              value={symptoms}
-              onChange={(e) => setSymptoms(e.target.value)}
-              placeholder="e.g. headache, fatigue, joint pain"
+              value={symptomInput}
+              onChange={(e) => setSymptomInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addItem(symptomInput, symptoms, setSymptoms, () => setSymptomInput(''));
+                }
+              }}
+              placeholder="Type and press Enter to add"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="medications">Medications (comma-separated)</Label>
+            <Label htmlFor="medications">Medications</Label>
+            {medications.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {medications.map((medication) => (
+                  <button
+                    key={medication}
+                    type="button"
+                    onClick={() => removeItem(medication, medications, setMedications)}
+                    className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground"
+                  >
+                    {medication}
+                    <X className="h-3 w-3" />
+                  </button>
+                ))}
+              </div>
+            )}
             <Input
               id="medications"
-              value={medications}
-              onChange={(e) => setMedications(e.target.value)}
-              placeholder="e.g. ibuprofen, vitamins"
+              value={medicationInput}
+              onChange={(e) => setMedicationInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addItem(medicationInput, medications, setMedications, () => setMedicationInput(''));
+                }
+              }}
+              placeholder="Type and press Enter to add"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="triggers">Triggers (comma-separated)</Label>
+            <Label htmlFor="triggers">Triggers</Label>
+            {triggers.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {triggers.map((trigger) => (
+                  <button
+                    key={trigger}
+                    type="button"
+                    onClick={() => removeItem(trigger, triggers, setTriggers)}
+                    className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary"
+                  >
+                    {trigger}
+                    <X className="h-3 w-3" />
+                  </button>
+                ))}
+              </div>
+            )}
             <Input
               id="triggers"
-              value={triggers}
-              onChange={(e) => setTriggers(e.target.value)}
-              placeholder="e.g. stress, weather, food"
+              value={triggerInput}
+              onChange={(e) => setTriggerInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addItem(triggerInput, triggers, setTriggers, () => setTriggerInput(''));
+                }
+              }}
+              placeholder="Type and press Enter to add"
             />
           </div>
 
