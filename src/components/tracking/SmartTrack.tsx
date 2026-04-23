@@ -1203,11 +1203,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     const text = messageText || input.trim();
     if (!text || isProcessing) return;
 
-    // Gate AI chat behind consent
-    if (!aiConsented) {
-      onRequestAIConsent?.();
-      return;
-    }
+    // AI consent is implied by accepting terms of service
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
