@@ -43,6 +43,7 @@ import type { SmartTrackable } from "@/components/tracking/FluidLogSelector";
 import { useDeepLinkHandler } from "@/hooks/useDeepLinkHandler";
 import { FoodLogger } from "@/components/food/FoodLogger";
 import { VoiceConversation } from "@/components/voice/VoiceConversation";
+import { useIntelligenceBriefing } from "@/hooks/useIntelligenceBriefing";
 
 interface MedicationDetails {
   name: string;
