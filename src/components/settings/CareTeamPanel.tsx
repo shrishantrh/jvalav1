@@ -63,15 +63,16 @@ export function CareTeamPanel() {
         setInviting(false);
         return;
       }
+      const normalizedEmail = inviteEmail.trim().toLowerCase();
       const { error } = await sb.from('patient_clinician_links').insert({
         patient_id: user.id,
-        invited_email: inviteEmail.trim().toLowerCase(),
+        invited_email: normalizedEmail,
         status: 'pending',
         access_level: 'full',
         invitation_expires_at: new Date(Date.now() + 30 * 86400000).toISOString(),
       });
       if (error) throw error;
-      toast({ title: 'Invitation sent', description: 'Your provider will see your record once they create their Jvala account with this email.' });
+      toast({ title: 'Invitation saved', description: 'Your clinician can now create a provider account with this exact email and will be linked automatically.' });
       setInviteEmail('');
       load();
     } catch (e: any) {
