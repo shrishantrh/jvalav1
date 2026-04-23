@@ -966,6 +966,16 @@ const Index = () => {
                   setShowProfile(false);
                   setShowOnboarding(true);
                 }}
+                onProfileUpdated={(updatedProfile) => {
+                  setUserProfile((prev) => prev ? {
+                    ...prev,
+                    conditions: updatedProfile.conditions,
+                    known_symptoms: updatedProfile.known_symptoms,
+                    known_triggers: updatedProfile.known_triggers,
+                    medications: updatedProfile.medications,
+                    aiLogCategories: updatedProfile.aiLogCategories,
+                  } : prev);
+                }}
               />
             </div>
           </div>
