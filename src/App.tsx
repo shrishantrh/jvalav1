@@ -57,7 +57,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/demo" element={<Demo />} />
-            <Route path="/clinician" element={<ClinicianDashboard />} />
+            <Route path="/clinician" element={<ClinicianEntry />} />
+            <Route path="/clinician/shared" element={<ClinicianSharedView />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/shared-report" element={<SharedReport />} />
             <Route path="/shared-profile" element={<SharedProfile />} />
