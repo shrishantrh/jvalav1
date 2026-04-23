@@ -501,7 +501,7 @@ export const ProfileManager = ({ onRequireOnboarding, onProfileUpdated }: Profil
                   <Badge 
                     key={symptom}
                     className="cursor-pointer text-xs py-1 px-2.5 bg-primary/10 text-primary border-0 press-effect rounded-full"
-                    onClick={() => updateField('known_symptoms', profile.known_symptoms.filter(s => s !== symptom))}
+                     onClick={() => updateListField('known_symptoms', profile.known_symptoms.filter(s => s !== symptom))}
                   >
                     {symptom} ×
                   </Badge>
@@ -535,7 +535,7 @@ export const ProfileManager = ({ onRequireOnboarding, onProfileUpdated }: Profil
                     key={trigger}
                     variant="outline"
                     className="cursor-pointer text-xs py-1 px-2.5 border-primary/20 press-effect rounded-full"
-                    onClick={() => updateField('known_triggers', profile.known_triggers.filter(t => t !== trigger))}
+                     onClick={() => updateListField('known_triggers', profile.known_triggers.filter(t => t !== trigger))}
                   >
                     {trigger} ×
                   </Badge>
