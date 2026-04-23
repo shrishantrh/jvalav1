@@ -1700,7 +1700,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         )}
         
         {isProcessing && (
-          <div className="flex items-start">
+          <div className="flex items-start gap-2">
             <div className="bg-muted/50 rounded-2xl rounded-bl-md px-4 py-3">
               <div className="flex items-center gap-2">
                 <div className="flex gap-1">
@@ -1708,6 +1708,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                   <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                   <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
+                <span className="text-[10px] text-muted-foreground ml-1 animate-pulse">Analyzing your data...</span>
               </div>
             </div>
           </div>
