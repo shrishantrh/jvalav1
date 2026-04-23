@@ -537,6 +537,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   };
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [toolActivities, setToolActivities] = useState<ToolActivity[]>([]);
   const [keyboardInset, setKeyboardInset] = useState(0);
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number; city?: string } | null>(null);
   const [lastLoggedEntryId, setLastLoggedEntryId] = useState<string | null>(null);
