@@ -7,6 +7,7 @@ import { CleanInsights } from "@/components/insights/CleanInsights";
 import { CommunityHotspots } from "@/components/insights/CommunityHotspots";
 import { UserFlareMap } from "@/components/insights/UserFlareMap";
 import { PharmacovigilanceDashboard } from "@/components/pharmacovigilance/PharmacovigilanceDashboard";
+import { NearbyClinicFinder } from "@/components/insights/NearbyClinicFinder";
 import {
   BarChart3,
   Brain,
