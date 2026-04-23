@@ -11,7 +11,9 @@ import { haptics } from "@/lib/haptics";
 import { Input } from "@/components/ui/input";
 
 interface SmartOnboardingData {
+  firstName: string;
   conditions: string[];
+  biologicalSex: string | null;
   enableReminders: boolean;
   reminderTime: string;
   connectWearables: boolean;
@@ -82,7 +84,9 @@ export const SmartOnboarding = ({ onComplete }: SmartOnboardingProps) => {
   const [valuePropIndex, setValuePropIndex] = useState(0);
   const [preparingStep, setPreparingStep] = useState(0);
   const [data, setData] = useState<SmartOnboardingData>({
+    firstName: "",
     conditions: [],
+    biologicalSex: null,
     enableReminders: true,
     reminderTime: "09:00",
     connectWearables: true,
@@ -119,8 +123,12 @@ export const SmartOnboarding = ({ onComplete }: SmartOnboardingProps) => {
   const handleNext = useCallback(() => {
     haptics.selection();
     if (step === 10) return; // preparing handles itself
+    // Sync local state into data before preparing step
+    if (step === 9) {
+      setData(prev => ({ ...prev, firstName: name, biologicalSex: selectedGender }));
+    }
     setStep(prev => prev + 1);
-  }, [step]);
+  }, [step, name, selectedGender]);
 
   const handleBack = useCallback(() => {
     haptics.selection();
