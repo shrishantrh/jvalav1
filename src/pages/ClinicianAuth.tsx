@@ -76,7 +76,7 @@ export default function ClinicianAuth() {
       if (signupErr) throw signupErr;
 
       const userId = signupData.user?.id;
-      if (userId) {
+      if (userId && signupData.session) {
         await bootstrapClinician({ user_id: userId, full_name: fullName, email: normalizedEmail, npi: npi || null, specialty: specialty || null, practice_name: practiceName || null });
       }
 
