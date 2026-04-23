@@ -516,27 +516,27 @@ const Auth = () => {
   };
 
   return (
-    <div className="fixed inset-0 flex flex-col max-w-[430px] mx-auto overflow-y-auto scrollbar-hide bg-background">
+    <div className="fixed inset-0 flex flex-col max-w-[430px] mx-auto overflow-y-auto scrollbar-hide bg-gradient-to-b from-[hsl(270,60%,30%)] via-[hsl(300,50%,40%)] to-[hsl(330,60%,50%)]">
 
       <div className="flex-1 flex flex-col px-7 pt-[max(env(safe-area-inset-top),2.5rem)] pb-8 relative z-10">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8 animate-in fade-in-0 zoom-in-95 duration-700">
-          <div className="relative w-16 h-16 mb-4">
-            <div className="absolute -inset-2 rounded-2xl blur-lg" style={{ background: 'hsl(340 82% 52% / 0.15)' }} />
-            <div className="relative w-full h-full flex items-center justify-center !p-3 !rounded-2xl border border-border/50" style={{ background: 'hsl(0 0% 98%)', boxShadow: '0 4px 20px hsl(0 0% 0% / 0.06)' }}>
-              <img src={jvalaLogo} alt="Jvala" className="w-full h-full object-contain" />
+          <div className="relative w-20 h-20 mb-5">
+            <div className="absolute -inset-3 rounded-3xl blur-xl bg-white/10" />
+            <div className="relative w-full h-full rounded-[1.5rem] overflow-hidden shadow-2xl border border-white/20">
+              <img src={jvalaLogo} alt="Jvala" className="w-full h-full object-cover" />
             </div>
           </div>
-          <h1 className="text-[32px] tracking-tight text-foreground" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 800 }}>
+          <h1 className="text-[32px] tracking-tight text-white" style={{ fontWeight: 800 }}>
             {isSignUp ? "Create Account" : "Welcome Back"}
           </h1>
-          <p className="text-[18px] mt-1.5 text-muted-foreground" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 600 }}>
+          <p className="text-[18px] mt-1.5 text-white/60" style={{ fontWeight: 600 }}>
             {isSignUp ? "Start your health journey" : "Sign in to continue"}
           </p>
         </div>
 
         {/* Auth form card */}
-        <div className="w-full !rounded-3xl !p-0 animate-in slide-in-from-bottom-4 duration-500 border border-border/50" style={{ background: 'hsl(0 0% 98%)', boxShadow: '0 8px 32px hsl(0 0% 0% / 0.06), 0 2px 8px hsl(0 0% 0% / 0.04)' }}>
+        <div className="w-full !rounded-3xl !p-0 animate-in slide-in-from-bottom-4 duration-500 bg-white/15 backdrop-blur-2xl border border-white/20">
           {/* Tab switcher */}
           <div className="flex p-1.5 mx-5 mt-5 rounded-2xl bg-muted/60 border border-border/30">
             <button
