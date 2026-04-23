@@ -538,14 +538,14 @@ const Auth = () => {
         {/* Auth form card */}
         <div className="w-full !rounded-3xl !p-0 animate-in slide-in-from-bottom-4 duration-500 bg-white/15 backdrop-blur-2xl border border-white/20">
           {/* Tab switcher */}
-          <div className="flex p-1.5 mx-5 mt-5 rounded-2xl bg-muted/60 border border-border/30">
+          <div className="flex p-1.5 mx-5 mt-5 rounded-2xl bg-white/10 border border-white/10">
             <button
               type="button"
               onClick={() => resetForm(false)}
               className={cn(
-                "flex-1 py-2.5 text-sm rounded-xl transition-all duration-300"
+                "flex-1 py-2.5 text-sm rounded-xl font-semibold transition-all duration-300",
+                !isSignUp ? "bg-white/90 text-gray-900 shadow-md" : "text-white/50"
               )}
-              style={!isSignUp ? { background: '#fff', boxShadow: '0 2px 8px hsl(0 0% 0% / 0.06)', color: 'hsl(0 0% 10%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 700 } : { color: 'hsl(0 0% 45%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}
             >
               Sign In
             </button>
@@ -553,9 +553,9 @@ const Auth = () => {
               type="button"
               onClick={() => resetForm(true)}
               className={cn(
-                "flex-1 py-2.5 text-sm rounded-xl transition-all duration-300"
+                "flex-1 py-2.5 text-sm rounded-xl font-semibold transition-all duration-300",
+                isSignUp ? "bg-white/90 text-gray-900 shadow-md" : "text-white/50"
               )}
-              style={isSignUp ? { background: '#fff', boxShadow: '0 2px 8px hsl(0 0% 0% / 0.06)', color: 'hsl(0 0% 10%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 700 } : { color: 'hsl(0 0% 45%)', fontFamily: "'Satoshi', sans-serif", fontWeight: 500 }}
             >
               Create Account
             </button>
