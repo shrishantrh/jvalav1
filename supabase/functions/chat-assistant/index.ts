@@ -2469,6 +2469,10 @@ serve(async (req) => {
           return await handleResearch(parsed, messages_arr, userTz);
         }
 
+        if (toolCall.function.name === "get_weather_and_respond") {
+          return await handleWeather(parsed, messages_arr, userTz, latitude, longitude);
+        }
+
         const responseText = (parsed.response || "").replace(/\\\*/g, '*');
         if (parsed.newMemories?.length) saveMemories(supabase, userId, parsed.newMemories);
 
@@ -2485,6 +2489,7 @@ serve(async (req) => {
           riskAssessment: parsed.riskAssessment ?? null,
           citations: [],
           wasResearched: false,
+          toolsUsed: ['logs', 'memories', 'patterns'],
         });
       } catch (e) { console.error("❌ Parse error:", e); }
     }
