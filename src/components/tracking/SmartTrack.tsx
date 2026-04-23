@@ -1172,7 +1172,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     clearRecording();
     setIsProcessing(true);
     
-    // Show predicted tool activity chips immediately
+    // Show predicted tool activity chips immediately (heuristic)
     const predicted = predictToolActivities(text);
     setToolActivities(predicted);
 
@@ -1186,6 +1186,9 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             role: m.role === 'system' ? 'assistant' : m.role,
             content: m.content + (m.entryData ? ` [LOG: ${m.entryData.type}${m.entryData.severity ? ' ' + m.entryData.severity : ''}]` : ''),
           })),
+          latitude: currentLocation?.latitude,
+          longitude: currentLocation?.longitude,
+          city: currentLocation?.city,
         },
       });
 
@@ -1194,11 +1197,27 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       let responseContent = (aiData?.response || "").trim();
       if (!responseContent) responseContent = "Tell me more.";
       
-      // Complete tool activities with summaries
-      const summaries: Partial<Record<any, string>> = {};
+      // Build REAL tool activity chips from what the AI actually used
+      const realTools: import("@/components/chat/ToolActivityChips").ToolKind[] = [];
+      // Always reading logs
+      realTools.push('reading_logs');
+      if (aiData?.wasResearched) realTools.push('researching_web');
+      if (aiData?.weatherCard || aiData?.weatherData) realTools.push('weather');
+      if (aiData?.toolsUsed?.includes('weather')) realTools.push('weather');
+      if (aiData?.toolsUsed?.includes('memories')) realTools.push('reading_memories');
+      if (aiData?.toolsUsed?.includes('patterns')) realTools.push('analyzing_patterns');
+      if (aiData?.toolsUsed?.includes('wearable')) realTools.push('wearable_data');
+      if (aiData?.toolsUsed?.includes('medications')) realTools.push('medication_check');
+      if (aiData?.toolsUsed?.includes('history')) realTools.push('symptom_history');
+      // Deduplicate
+      const uniqueTools = [...new Set(realTools)];
+      
+      const summaries: Partial<Record<import("@/components/chat/ToolActivityChips").ToolKind, string>> = {};
       if (aiData?.wasResearched) summaries.researching_web = `${aiData?.citations?.length || 0} sources`;
       if (aiData?.weatherCard) summaries.weather = `${aiData.weatherCard?.current?.temp_f}°F`;
-      setToolActivities(prev => completeActivities(prev, summaries));
+      
+      const { buildActivitiesFromKinds } = await import("@/components/chat/ToolActivityChips");
+      setToolActivities(buildActivitiesFromKinds(uniqueTools, 'done', summaries));
       
       // Single message — AI controls its own length via system prompt
       const assistantMsg: ChatMessage = {
