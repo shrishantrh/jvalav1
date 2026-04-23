@@ -1,212 +1,188 @@
 
 
-# Clinician Portal: Clinical-Grade RPM Overhaul
+# Consumer App: From Logging App to Intelligence Platform
 
-## Competitive Analysis Summary
+## Current State Audit
 
-**What Current Health, HeadsUp Health, Validic, Tellescope, and Vitalera all do:**
-- Population-level triage with risk stratification and sparkline vitals per patient
-- Unified patient timeline with biometrics, vitals, symptoms, medications, and environmental data overlaid
-- Configurable alert thresholds (not just static rules) with fatigue suppression
-- AI-generated visit prep briefs ("what changed since last visit")
-- RPM billing time tracking (CPT 99453-99458) with auto-suggested codes
-- Trend visualization with comparative periods (this week vs last week)
-- Natural language query across patient panel ("show patients with worsening severity")
-- Task management and care team coordination
+**What exists and works:**
+- Conversational logging (SmartTrack) with chat-based flare entry
+- ~100 greetings in `greetings.ts` with contextual selection (time, streak, weather, severity)
+- Tool activity chips (`ToolActivityChips.tsx`) — heuristic-based, not real telemetry
+- Health forecast component with Bayesian-EWMA risk scoring
+- Environmental + biometric data capture on each log (25+ fields)
+- Discovery engine (Bayesian association rules)
+- Voice conversation (ElevenLabs WebRTC)
+- 4-tab layout: Log, History, Trends, Exports
 
-**What Jvala already collects that NONE of them have:**
-- Real-world environmental data (weather, AQI, UV, pollen, barometric pressure) per log
-- Geolocation with city-level flare mapping
-- AI-discovered correlations (Bayesian association rules with confidence scores)
-- Food logging with inflammatory markers
-- Voice transcripts from patient notes
-- Predictive risk forecasts with Brier score calibration
+**What is partially built:**
+- Prediction engine exists but only runs on-demand (user taps refresh), not continuously
+- Greetings are contextual but only ~100 variations (spec says "hundreds"), and the greeting doesn't include a proactive briefing
+- Tool chips are heuristic guesses, not real telemetry from the edge function
+- Weather/environmental data captured but rate-of-change analysis (6h/12h/24h pressure windows) not computed
+- Correlation engine runs but doesn't proactively surface findings — waits for user to visit Trends
 
-**Our edge:** We have richer RWE than any competitor. The clinician portal just doesn't display any of it.
+**What is missing entirely:**
+- **Proactive morning/evening briefings** — the app should greet you with today's risk score, contributing factors, and action items without you asking
+- **Background continuous analysis** — model should update after every new data point, not on-demand
+- **Multi-variable prediction explanations** — "AQI 140 + <6h sleep + 8mb pressure drop = 340% increase" style
+- **Proactive AI outreach** — AI should notice patterns and tell you, not wait
+- **Real tool telemetry** — edge function should emit actual tool usage events, not heuristic guesses
+- **24/48/72h risk windows** — currently only single timeframe
+- **Pre-appointment briefing** — summarize recent data before doctor visits
+- **Bloomberg-meets-consumer aesthetic** — current UI is soft/rounded consumer wellness, not data-dense intelligence
 
 ---
 
-## What Gets Built
+## What Gets Built (Priority Order: Highest Impact for YC Demo First)
 
-### 1. Population Dashboard Overhaul (`ClinicianDashboard.tsx`)
+### 1. Proactive Intelligence Briefing on App Open
 
-**Replace the current simple list with a data-dense clinical workstation:**
+Replace the current generic greeting with a **real-time intelligence briefing** that loads on app open.
 
-- **Command bar** at top: natural language search ("patients with severe flares this week", "on methotrexate")
-- **Summary strip**: Total patients, Critical count, Open alerts, Avg health score, Active today
-- **Patient table** (not cards -- a proper data table):
-  - Columns: Name | Age/Sex | Conditions | Health Score (color-coded gauge) | 7d Severity Sparkline | Flares 7d/30d | Open Alerts | Last Activity | Biometric Flags
-  - Sortable by any column, filterable by risk tier tabs (All / Critical / High / Moderate / Stable)
-  - Inline 7-day severity sparkline per patient (tiny SVG, no library needed)
-  - Biometric flag icons: heart (HR anomaly), moon (sleep disruption), thermometer (weather risk)
-- **Alert inbox sidebar** (right panel on desktop): unified feed of all unacknowledged alerts across all patients, sorted by severity, with bulk acknowledge/dismiss
+When the user opens the Log tab, instead of just a greeting string, they see:
+- **Risk score for next 24h** with confidence and top 3 contributing factors
+- **What changed since last visit** — new patterns detected, severity trend direction
+- **Proactive alerts** — "Barometric pressure dropping 12mb in next 6h. Last 3 times this happened, you flared within 18h."
+- **Action recommendation** — specific, evidence-based
 
-### 2. Patient Detail Overhaul (`ClinicianPatientDetail.tsx`)
+This is computed by calling the `health-forecast` edge function on app open and rendering the result as the first message in the chat, not a separate component.
 
-**Replace the 4-tab layout with a comprehensive clinical chart:**
+**Files:** `src/components/tracking/SmartTrack.tsx`, `src/lib/greetings.ts`, `supabase/functions/health-forecast/index.ts`
 
-**Header card:**
-- Patient demographics (name, age, sex, conditions, email)
-- Health score gauge (0-100, color-coded)
-- Risk tier badge
-- Active medications list
-- "Draft SOAP" and "Generate Visit Summary" action buttons
+### 2. Real Tool Telemetry (Not Heuristic)
 
-**Tab structure (6 tabs):**
+Replace the heuristic `predictToolActivities()` with **real streaming telemetry** from the `chat-assistant` edge function.
 
-**a. Overview**
-- Vitals grid: HR (avg/min/max 7d), Sleep (avg hours), Steps (daily avg), SpO2, HRV -- pulled from `physiological_data` in `flare_entries`
-- Severity trend chart (30d line chart with 7d moving average)
-- Flare frequency bar chart (weekly buckets)
-- Top symptoms and triggers (frequency-ranked horizontal bars)
-- AI Discoveries section: show patient's `discoveries` table entries with confidence bars
-- Environmental correlation summary from `environmental_data`
+The edge function already has access to user data. When it queries weather, logs, memories, or wearables, it should emit SSE events with a `tool_activity` type that the client renders as chips. This makes the "Fetching weather for San Francisco… ✓ 72°F, light rain" chips real, not guessed.
 
-**b. Biometrics**
-- Full physiological data display: HR, HRV, sleep duration, sleep quality, steps, calories, SpO2, skin temp
-- Plot each metric over time (30d sparklines)
-- Overlay flare events on the timeline to show correlations visually
-- Weather/environmental overlay: barometric pressure, humidity, AQI, pollen alongside flare markers
-- Location map: show patient's flare locations from `latitude`/`longitude` data
-
-**c. Medications & Food**
-- Medication timeline: when each med was taken from `medication_logs`
-- Adherence gaps highlighted (expected vs actual based on `frequency`)
-- Food log summary from `food_logs`: calorie trends, inflammatory markers, meal patterns
-- Drug interaction matrix (from existing `drugInteractions.ts`)
-
-**d. CDS Alerts** (existing, enhanced)
-- Add alert threshold configuration per patient
-- Add 72h suppression logic (don't re-alert same pattern)
-- Show evidence links back to specific entries
-- Interruptive vs non-interruptive tiers
-
-**e. SOAP Notes** (existing, enhanced)
-- Note history with status badges
-- Click to open SOAPEditor
-- Amendment workflow
-- Visit summary generation from finalized SOAP
-
-**f. Timeline**
-- Unified chronological feed: flares, meds, food logs, activity logs, voice transcripts
-- Each entry shows attached environmental + physiological data
-- Filterable by entry type, severity, date range
-- Clinician can pin annotations to any entry
-
-### 3. New Hook: `usePatientBiometrics`
-
-Fetches and aggregates:
-- `flare_entries` with `physiological_data` and `environmental_data` for the patient
-- `food_logs` for nutritional data
-- `activity_logs` for exercise/activity
-- `medication_logs` for adherence analysis
-- `discoveries` for AI-found correlations
-- `prediction_logs` for forecast history
-
-Computes:
-- 7d and 30d averages for all biometric fields
-- Trend direction (improving/worsening/stable)
-- Anomaly flags (>2 SD from patient's own baseline)
-
-### 4. Sparkline Component (`components/clinician/Sparkline.tsx`)
-
-Tiny inline SVG chart component. No charting library needed. Takes an array of values, renders a 60x20px polyline with optional color gradient (green-to-red based on severity).
-
-### 5. Enhanced `useLinkedPatients` Hook
-
-Add to the existing hook:
-- Fetch latest `physiological_data` from most recent `flare_entry` per patient (for biometric flags)
-- Fetch `environmental_data` from most recent entry
-- Compute trend direction for severity (7d vs prior 7d)
-- Return biometric anomaly flags
-
-### 6. Clinical Inbox Component (`components/clinician/ClinicalInbox.tsx`)
-
-- Fetches `clinical_alerts` across ALL linked patients
-- Groups by severity tier
-- Bulk actions: acknowledge selected, dismiss with reason
-- Click alert to navigate to patient detail
-- 72h suppression: alerts of same `alert_type` for same patient within 72h are collapsed
-
-### 7. Visit Summary Generation
-
-- New edge function `generate-visit-summary` that takes a finalized SOAP note ID
-- Uses Lovable AI gateway (gemini-2.5-flash) to generate patient-friendly markdown summary
-- Saves to `visit_summaries` table
-- Clinician can share with patient (sets `shared_with_patient = true`)
-
-### 8. RPM Time Tracking (Database + UI)
-
-- Migration: create `rpm_time_entries` table (clinician_id, patient_id, start_time, end_time, activity_type, duration_seconds)
-- Auto-track time spent on each patient detail page
-- Monthly summary with CPT code suggestions:
-  - 99453: Initial setup
-  - 99454: Device supply (30d monitoring)
-  - 99457: First 20 min RPM management
-  - 99458: Each additional 20 min
-- Display in dashboard sidebar
-
-### 9. UI Design System for Clinical Portal
-
-**Desktop-first, data-dense, zero decoration:**
-- Background: `#FAFAFA` (not white, reduces eye strain)
-- Cards: white, 1px `#E5E7EB` border, no shadow, no rounded corners beyond 4px
-- Text: system font stack (`-apple-system, BlinkMacSystemFont, 'Segoe UI'`), not Manrope
-- Color = clinical meaning ONLY:
-  - Red `#DC2626`: critical/severe
-  - Amber `#D97706`: warning/elevated
-  - Green `#059669`: stable/normal
-  - Blue `#2563EB`: informational/links
-  - Gray `#6B7280`: secondary text
-- No gradients, no brand colors, no animations
-- Dense spacing: 12px padding on cards, 8px gaps
-- Tables use alternating row backgrounds `#F9FAFB`
-
-### 10. Database Migrations
-
-```sql
--- RPM time tracking for billing
-CREATE TABLE public.rpm_time_entries (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  clinician_id uuid NOT NULL,
-  patient_id uuid NOT NULL,
-  activity_type text NOT NULL DEFAULT 'chart_review',
-  started_at timestamptz NOT NULL DEFAULT now(),
-  ended_at timestamptz,
-  duration_seconds integer,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-ALTER TABLE public.rpm_time_entries ENABLE ROW LEVEL SECURITY;
-
--- Clinicians can manage their own time entries
-CREATE POLICY "Clinicians manage own time entries"
-ON public.rpm_time_entries FOR ALL TO authenticated
-USING (auth.uid() = clinician_id)
-WITH CHECK (auth.uid() = clinician_id);
-
--- clinical_alerts INSERT policy (currently missing)
-CREATE POLICY "System and clinicians can insert alerts"
-ON public.clinical_alerts FOR INSERT TO authenticated
-WITH CHECK (is_clinician_for_patient(auth.uid(), patient_id));
+**Format:**
+```
+data: {"type":"tool_activity","kind":"weather","label":"Checking weather for Austin","status":"running"}
+data: {"type":"tool_activity","kind":"weather","status":"done","resultSummary":"94°F, AQI 78, pressure dropping 6mb/12h"}
 ```
 
+**Files:** `supabase/functions/chat-assistant/index.ts`, `src/components/tracking/SmartTrack.tsx`, `src/components/chat/ToolActivityChips.tsx`
+
+### 3. Expand Greetings to 300+ Variations
+
+Scale `greetings.ts` from ~100 to 300+ variations. Add new categories:
+- **Condition-specific** (RA mornings, migraine weather triggers, Crohn's food patterns)
+- **Medication-aware** ("Started methotrexate 3 weeks ago — how's the adjustment?")
+- **Seasonal** (allergy season, winter joint stiffness, summer heat)
+- **Milestone** ("100th log. Your dataset is getting serious.")
+- **Curiosity-driven** ("Your Tuesday flares are 2.3x more likely than Fridays. Noticed that?")
+- **Pre-appointment** ("Dr. visit tomorrow? Want me to prep a summary?")
+- **Recovery tracking** ("48h since that severe flare. Recovery on track?")
+
+Each greeting should feel like it comes from an analyst who's been studying your data, not a wellness chatbot.
+
+**Files:** `src/lib/greetings.ts`
+
+### 4. Multi-Signal Prediction Explanations
+
+Upgrade the forecast display to show **multi-variable compound risk** — not just "high risk" but the specific combination:
+
+```
+FLARE RISK: 78% (next 24h)
+├─ Barometric pressure: -11mb in 12h (historically triggers 3.4x)
+├─ Sleep last night: 4.8h (your baseline: 7.1h)  
+├─ AQI: 142 (threshold for you: 120)
+└─ Confidence: 0.82 (based on 47 similar episodes)
+```
+
+With historical accuracy tracker showing the model's Brier score improving over time.
+
+**Files:** `src/components/forecast/HealthForecast.tsx`, `supabase/functions/health-forecast/index.ts`
+
+### 5. Proactive AI Outreach System
+
+Build a **proactive notification pipeline** where the AI reaches out to the user:
+
+- After analyzing new data, if a pattern shifts or anomaly detected, push a notification
+- On app open, queue proactive messages: "I noticed something — your flares cluster when barometric pressure drops AND you've had less than 6h sleep. This happened 7 of the last 9 times."
+- Pre-appointment briefing: if the user has logged a physician, generate a visit prep summary 24h before
+
+This uses the existing `proactive-monitor` edge function but surfaces results as chat messages on app open rather than just notifications.
+
+**Files:** `src/components/tracking/SmartTrack.tsx`, `supabase/functions/proactive-monitor/index.ts`
+
+### 6. Data-Dense UI Overhaul
+
+Shift the consumer app aesthetic from "soft wellness" to "intelligence platform that happens to be beautiful":
+
+- **Chat messages** show data citations inline — "Based on your last 14 entries, 3 medication logs, and current environmental data"
+- **Risk score always visible** in the header — small gauge that updates
+- **Denser information display** — more data per screen, less whitespace padding
+- **Severity history sparkline** in the header showing 7-day trend at a glance
+- **Environmental context bar** — current temp, AQI, pressure with trend arrows, always visible when on Log tab
+
+This is not a redesign — it's adding information density to the existing layout.
+
+**Files:** `src/components/layout/MobileHeader.tsx`, `src/components/tracking/SmartTrack.tsx`, `src/index.css`
+
+### 7. Pressure Rate-of-Change Analysis
+
+Currently weather data captures a snapshot. Add **temporal derivative analysis**:
+- Store barometric pressure at 6h intervals
+- Compute rate of change over 6h, 12h, 24h windows
+- Flag rapid drops (>6mb/12h) as risk amplifiers
+- Include in forecast factor breakdown
+
+**Files:** `supabase/functions/health-forecast/index.ts`, `src/services/weatherService.ts`
+
+### 8. Background Model Updates
+
+After every new log entry, trigger a lightweight background analysis:
+- Update the user's personal correlation model
+- Recompute 24h risk score
+- Check for new pattern emergence
+- Queue proactive insights if anything changed
+
+Currently this only happens when the user visits Trends or explicitly asks. It should be continuous.
+
+**Files:** `src/components/tracking/SmartTrack.tsx` (post-save hook), `supabase/functions/pattern-learner/index.ts`
+
 ---
 
-## Files Changed/Created
+## Technical Approach
 
-| File | Action |
-|------|--------|
-| `src/pages/ClinicianDashboard.tsx` | Rewrite -- data table, sparklines, alert inbox |
-| `src/pages/ClinicianPatientDetail.tsx` | Rewrite -- 6-tab clinical chart with biometrics |
-| `src/components/clinician/Sparkline.tsx` | Create -- inline SVG sparkline |
-| `src/components/clinician/ClinicalInbox.tsx` | Create -- cross-patient alert feed |
-| `src/components/clinician/BiometricsPanel.tsx` | Create -- vitals grid + charts |
-| `src/components/clinician/MedicationTimeline.tsx` | Create -- med adherence view |
-| `src/components/clinician/PatientTimeline.tsx` | Create -- unified entry feed |
-| `src/components/clinician/RPMTimeTracker.tsx` | Create -- billing time tracker |
-| `src/hooks/usePatientBiometrics.ts` | Create -- aggregated biometric data |
-| `src/hooks/useLinkedPatients.ts` | Enhance -- add biometric flags, trends |
-| `supabase/functions/generate-visit-summary/index.ts` | Create |
-| `src/index.css` | Update clinical shell styles |
-| Migration SQL | RPM time entries table + clinical_alerts INSERT policy |
+### No new tables needed
+All data structures already exist. This is about **surfacing and computing**, not storing.
+
+### Edge function changes
+- `chat-assistant`: Add real tool telemetry SSE events
+- `health-forecast`: Add multi-variable compound explanations, 24/48/72h windows, rate-of-change factors
+- `pattern-learner`: Trigger post-log for continuous model updates
+
+### Client changes
+- `SmartTrack.tsx`: Load proactive briefing on mount, render real tool chips from SSE
+- `greetings.ts`: Expand to 300+ variations with condition/medication/pattern awareness
+- `MobileHeader.tsx`: Add persistent risk gauge and environmental context bar
+- `HealthForecast.tsx`: Render multi-signal factor trees with compound explanations
+
+### No breaking changes
+Everything is additive. Existing logging flow untouched. New intelligence layers on top.
+
+---
+
+## What This Looks Like in a YC Demo
+
+User opens app. Instead of "Hey, how are you feeling?" they see:
+
+> **Today's Risk: 72% — Elevated**
+> Pressure dropping fast (−9mb in 12h). Last 4 times this happened with your current sleep pattern, you flared within 18 hours.
+> 
+> *Your model accuracy: 81% over 23 predictions*
+> 
+> **Since yesterday:** 2 new correlation signals detected. Your Tuesday evening flares may be linked to a specific food pattern I'm investigating.
+
+They type "tell me more about the Tuesday pattern" and see real-time chips:
+- ✓ Reading your 47 flare entries
+- ✓ Analyzing food logs (last 30 days)  
+- ✓ Cross-referencing environmental data
+- → Running multi-variable correlation...
+
+The response includes a specific, data-backed finding with confidence scores, not generic health advice.
+
+That's the difference between a logging app and an intelligence platform.
 
