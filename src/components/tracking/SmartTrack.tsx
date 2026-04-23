@@ -1219,6 +1219,10 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     setInput("");
     clearRecording();
     setIsProcessing(true);
+    
+    // Show predicted tool activity chips immediately
+    const predicted = predictToolActivities(text);
+    setToolActivities(predicted);
 
     try {
       // Single unified AI call — chat-assistant has ALL data access
@@ -1237,29 +1241,50 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
 
       let responseContent = (aiData?.response || "").trim();
       if (!responseContent) responseContent = "Tell me more.";
-
-      const assistantMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: responseContent,
-        timestamp: new Date(),
+      
+      // Complete tool activities with summaries
+      const summaries: Partial<Record<any, string>> = {};
+      if (aiData?.wasResearched) summaries.researching_web = `${aiData?.citations?.length || 0} sources`;
+      if (aiData?.weatherCard) summaries.weather = `${aiData.weatherCard?.current?.temp_f}°F`;
+      setToolActivities(prev => completeActivities(prev, summaries));
+      
+      // Split long messages into multiple bubbles
+      const contentParts = splitLongMessage(responseContent);
+      
+      const newMessages: ChatMessage[] = contentParts.map((part, i) => ({
+        id: (Date.now() + 1 + i).toString(),
+        role: 'assistant' as const,
+        content: part,
+        timestamp: new Date(Date.now() + i * 100),
         isAIGenerated: true,
-        entryData: aiData?.entryData ?? undefined,
-        visualization: aiData?.visualization ?? undefined,
-        dynamicFollowUps: aiData?.dynamicFollowUps ?? [],
-        citations: aiData?.citations ?? [],
-        wasResearched: aiData?.wasResearched ?? false,
-        discoveryCards: (aiData?.discoveries || []).map((d: any) => ({
-          factor: d.factor,
-          confidence: d.confidence,
-          lift: d.lift || 1,
-          occurrences: d.occurrences,
-          total: d.total,
-          category: d.category || 'trigger',
-          summary: d.summary,
-        })).filter((d: any) => d.factor),
-      };
-      setMessages(prev => [...prev, assistantMessage]);
+        // Only attach metadata to first message
+        ...(i === 0 ? {
+          entryData: aiData?.entryData ?? undefined,
+          visualization: aiData?.visualization ?? undefined,
+          weatherCard: aiData?.weatherCard ?? undefined,
+          citations: aiData?.citations ?? [],
+          wasResearched: aiData?.wasResearched ?? false,
+          discoveryCards: (aiData?.discoveries || []).map((d: any) => ({
+            factor: d.factor,
+            confidence: d.confidence,
+            lift: d.lift || 1,
+            occurrences: d.occurrences,
+            total: d.total,
+            category: d.category || 'trigger',
+            summary: d.summary,
+          })).filter((d: any) => d.factor),
+        } : {}),
+        // Attach follow-ups to last message
+        ...(i === contentParts.length - 1 ? {
+          dynamicFollowUps: aiData?.dynamicFollowUps ?? [],
+        } : {}),
+      }));
+      
+      // Add messages with slight delays for natural feel
+      for (let i = 0; i < newMessages.length; i++) {
+        if (i > 0) await new Promise(r => setTimeout(r, 400));
+        setMessages(prev => [...prev, newMessages[i]]);
+      }
 
       // Log entry if AI detected health data
       if (aiData?.shouldLog && aiData?.entryData) {
@@ -1276,6 +1301,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       }
     } catch (error: any) {
       console.error('Chat error details:', error?.message || error, JSON.stringify(error));
+      setToolActivities(prev => prev.map(a => ({ ...a, status: 'error' as const })));
       const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -1285,6 +1311,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsProcessing(false);
+      // Clear tool activities after a delay
+      setTimeout(() => setToolActivities([]), 3000);
     }
   };
 
