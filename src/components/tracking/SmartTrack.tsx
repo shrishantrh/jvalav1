@@ -511,6 +511,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   // Background discovery engine: runs analysis after each log
   const runDiscoveryAnalysis = async () => {
     try {
+      // Run discovery analysis
       const { data, error } = await supabase.functions.invoke('correlation-engine', {
         body: {
           action: 'deep_analysis',
@@ -518,6 +519,11 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         },
       });
       if (error) { console.warn('Discovery analysis error:', error); return; }
+      
+      // Background model update: trigger pattern-learner for continuous model refinement
+      supabase.functions.invoke('pattern-learner', {
+        body: { timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+      }).catch(e => console.warn('[PatternLearner] Background update error:', e));
       
       // Surface new discoveries in chat
       const newDiscoveries = data?.newDiscoveries || [];
