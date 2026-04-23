@@ -80,25 +80,65 @@ export const ProfileManager = ({ onRequireOnboarding }: ProfileManagerProps) => 
     } finally { setLoading(false); }
   };
 
+  const [previousConditions, setPreviousConditions] = useState<string[]>([]);
+
+  // Track initial conditions for comparison
+  useEffect(() => {
+    if (profile && previousConditions.length === 0 && profile.conditions.length > 0) {
+      setPreviousConditions(profile.conditions);
+    }
+  }, [profile]);
+
   const handleSave = async () => {
     if (!profile) return;
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
+
+      // Check if conditions changed — re-run AI suggestions
+      const conditionsChanged = JSON.stringify([...profile.conditions].sort()) !== JSON.stringify([...previousConditions].sort());
+      let updatedSymptoms = profile.known_symptoms;
+      let updatedTriggers = profile.known_triggers;
+      let updatedMeta: any = { medications: currentMedications };
+
+      if (conditionsChanged && profile.conditions.length > 0) {
+        try {
+          const conditionNames = profile.conditions.map(id => CONDITIONS.find(c => c.id === id)?.name || id);
+          const { data, error } = await supabase.functions.invoke('generate-suggestions', {
+            body: { conditions: conditionNames, biologicalSex: profile.biological_sex, age: null },
+          });
+          if (!error && data) {
+            // Merge new suggestions with existing (don't lose user's custom ones)
+            const newSymptoms = data.symptoms || [];
+            const newTriggers = data.triggers || [];
+            updatedSymptoms = [...new Set([...profile.known_symptoms, ...newSymptoms])];
+            updatedTriggers = [...new Set([...profile.known_triggers, ...newTriggers])];
+            updatedMeta.aiLogCategories = data.logCategories || [];
+            toast({ title: "Updated tracking profile", description: "New symptoms and triggers added based on your conditions." });
+          }
+        } catch (e) {
+          console.error('Failed to regenerate suggestions:', e);
+        }
+      }
+
       const { error } = await supabase.from('profiles').update({
         full_name: profile.full_name, date_of_birth: profile.date_of_birth,
         gender: profile.gender, biological_sex: profile.biological_sex,
         height_cm: profile.height_cm, weight_kg: profile.weight_kg,
         blood_type: profile.blood_type, timezone: profile.timezone,
-        conditions: profile.conditions, known_symptoms: profile.known_symptoms,
-        known_triggers: profile.known_triggers, physician_name: profile.physician_name,
+        conditions: profile.conditions, known_symptoms: updatedSymptoms,
+        known_triggers: updatedTriggers, physician_name: profile.physician_name,
         physician_email: profile.physician_email, physician_phone: profile.physician_phone,
         physician_practice: profile.physician_practice, emergency_contact_name: profile.emergency_contact_name,
         emergency_contact_phone: profile.emergency_contact_phone,
-        metadata: { medications: currentMedications } as any,
+        metadata: updatedMeta as any,
       }).eq('id', user.id);
       if (error) throw error;
+
+      // Update local state
+      setProfile(prev => prev ? { ...prev, known_symptoms: updatedSymptoms, known_triggers: updatedTriggers } : null);
+      setPreviousConditions(profile.conditions);
       toast({ title: "Profile saved" });
     } catch (error: any) {
       toast({ title: "Failed to save", description: error.message, variant: "destructive" });
