@@ -323,6 +323,21 @@ const MedicationPanel = ({ userMedications, onLogMedication, onAddMedication, on
   );
 };
 
+// ─── Built-in rich trackable IDs ───
+const BUILTIN_TRACKABLE_IDS = ['water', 'stress', 'sleep_quality', 'exercise', 'pain', 'caffeine', 'breathing'];
+
+const isBuiltinTrackable = (t: SmartTrackable): string | null => {
+  const label = t.label.toLowerCase().replace(/\s+/g, '_');
+  if (label === 'water' || t.id.includes('water')) return 'water';
+  if (label === 'stress' || t.id.includes('stress')) return 'stress';
+  if (label.includes('sleep') || t.id.includes('sleep')) return 'sleep';
+  if (label === 'exercise' || t.id.includes('exercise')) return 'exercise';
+  if (label === 'pain' || t.id.includes('pain')) return 'pain';
+  if (label === 'caffeine' || t.id.includes('caffeine')) return 'caffeine';
+  if (label.includes('breath') || t.id.includes('breath')) return 'breathing';
+  return null;
+};
+
 // ─── Custom Trackable Panel ───
 
 const TrackableInteractionPanel = ({ trackable, onLog, onClose }: {
@@ -332,6 +347,35 @@ const TrackableInteractionPanel = ({ trackable, onLog, onClose }: {
 }) => {
   const [sliderValue, setSliderValue] = useState([5]);
   const TIcon = ICON_MAP[trackable.icon] || Activity;
+  
+  // Check if this is a built-in trackable with a rich custom UI
+  const builtinType = isBuiltinTrackable(trackable);
+  
+  if (builtinType) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center" 
+              style={{ background: trackable.color ? `${trackable.color.replace(')', ' / 0.15)')}` : 'hsl(250 60% 55% / 0.15)' }}>
+              <TIcon className="w-4 h-4" style={{ color: trackable.color || 'hsl(250 60% 55%)' }} />
+            </div>
+            <span className="text-base font-semibold">{trackable.label}</span>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-xl flex items-center justify-center bg-muted/50 hover:bg-muted active:scale-95 transition-all">
+            <X className="w-4 h-4 text-muted-foreground" />
+          </button>
+        </div>
+        {builtinType === 'water' && <WaterGlassTrackable onLog={onLog} />}
+        {builtinType === 'stress' && <StressThermometer onLog={onLog} />}
+        {builtinType === 'sleep' && <SleepQualityTrackable onLog={onLog} />}
+        {builtinType === 'exercise' && <ExerciseTrackable onLog={onLog} />}
+        {builtinType === 'pain' && <PainLocationTrackable onLog={onLog} />}
+        {builtinType === 'caffeine' && <CaffeineTrackable onLog={onLog} />}
+        {builtinType === 'breathing' && <BreathingTrackable onLog={onLog} />}
+      </div>
+    );
+  }
 
   const handleOptionClick = (option: TrackableSubOption) => {
     haptics.success();
