@@ -148,10 +148,6 @@ export const MobileHeader = ({
         
         {/* Right: Actions */}
         <div className="flex items-center gap-2">
-          {/* Risk Score Gauge */}
-          {riskScore != null && riskLevel && (
-            <RiskGauge score={riskScore} level={riskLevel} />
-          )}
           
           {/* Streak pill */}
           {onStreakClick && (
