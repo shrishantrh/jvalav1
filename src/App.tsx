@@ -11,7 +11,8 @@ import Settings from "./pages/Settings";
 import SharedReport from "./pages/SharedReport";
 import SharedProfile from "./pages/SharedProfile";
 import Install from "./pages/Install";
-import ClinicianDashboard from "./pages/ClinicianDashboard";
+import ClinicianEntry from "./pages/ClinicianEntry";
+import ClinicianSharedView from "./pages/ClinicianSharedView";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
@@ -56,7 +57,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/demo" element={<Demo />} />
-            <Route path="/clinician" element={<ClinicianDashboard />} />
+            <Route path="/clinician" element={<ClinicianEntry />} />
+            <Route path="/clinician/shared" element={<ClinicianSharedView />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/shared-report" element={<SharedReport />} />
             <Route path="/shared-profile" element={<SharedProfile />} />
