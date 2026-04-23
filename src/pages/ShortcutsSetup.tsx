@@ -77,8 +77,9 @@ const shortcuts: ShortcutDefinition[] = [
     color: 'from-primary to-primary/70',
     urlScheme: 'jvala://quick-log?severity=moderate&note=',
     siriPhrase: '"Hey Siri, tell Jvala" → then speak freely',
-    howItWorks: 'In Shortcuts app: (1) "Dictate Text" action → (2) "Open URL" action with jvala://quick-log?severity=moderate&note=[Dictated Text]. Drag the blue Dictated Text variable into the URL. Name it "Tell Jvala".',
+    howItWorks: 'Tap "Get Shortcut" below to install it instantly from iCloud.',
     category: 'essential',
+    icloudLink: 'https://www.icloud.com/shortcuts/5c636548418c41768b0a2489a2d921d2',
   },
   {
     id: 'quick-log',
