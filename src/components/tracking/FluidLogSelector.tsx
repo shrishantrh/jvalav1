@@ -884,29 +884,31 @@ export const FluidLogSelector = ({
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {conditionSymptoms.map((symptom) => (
-                          <button key={symptom} onClick={() => editingSymptoms ? undefined : handleSymptomClick(symptom)}
-                            className={cn(
-                              "px-3 py-1.5 rounded-xl text-xs font-medium transition-all backdrop-blur-sm",
-                              editingSymptoms ? "pr-1.5" : "hover:scale-[1.02] active:scale-95"
-                            )}
-                            style={{
-                              background: 'linear-gradient(145deg, hsl(0 0% 100% / 0.8) 0%, hsl(0 0% 96% / 0.7) 100%)',
-                              border: '1px solid hsl(0 0% 100% / 0.5)',
-                              boxShadow: 'inset 0 1px 2px hsl(0 0% 100% / 0.3), 0 2px 6px hsl(0 0% 0% / 0.03)',
-                            }}
-                          >
-                            <span className="flex items-center gap-1">
-                              {symptom}
-                              {editingSymptoms && onRemoveSymptom && (
-                                <span
-                                  onClick={(e) => { e.stopPropagation(); haptics.light(); onRemoveSymptom(symptom); }}
-                                  className="w-4 h-4 rounded-full bg-destructive/15 flex items-center justify-center text-destructive ml-0.5 cursor-pointer"
-                                >
-                                  <X className="w-2.5 h-2.5" />
-                                </span>
+                          <div key={symptom} className="flex items-center gap-0.5">
+                            <button
+                              onClick={() => { if (!editingSymptoms) handleSymptomClick(symptom); }}
+                              disabled={editingSymptoms}
+                              className={cn(
+                                "px-3 py-1.5 rounded-xl text-xs font-medium transition-all backdrop-blur-sm",
+                                editingSymptoms ? "opacity-70" : "hover:scale-[1.02] active:scale-95"
                               )}
-                            </span>
-                          </button>
+                              style={{
+                                background: 'linear-gradient(145deg, hsl(0 0% 100% / 0.8) 0%, hsl(0 0% 96% / 0.7) 100%)',
+                                border: '1px solid hsl(0 0% 100% / 0.5)',
+                                boxShadow: 'inset 0 1px 2px hsl(0 0% 100% / 0.3), 0 2px 6px hsl(0 0% 0% / 0.03)',
+                              }}
+                            >
+                              {symptom}
+                            </button>
+                            {editingSymptoms && onRemoveSymptom && (
+                              <button
+                                onClick={() => { haptics.light(); onRemoveSymptom(symptom); }}
+                                className="w-5 h-5 rounded-full bg-destructive/15 hover:bg-destructive/25 flex items-center justify-center text-destructive active:scale-90 transition-all"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
                         ))}
                       </div>
                       {editingSymptoms && onAddSymptom && (
