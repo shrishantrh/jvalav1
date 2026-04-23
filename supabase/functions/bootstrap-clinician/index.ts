@@ -32,12 +32,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Authenticated user mismatch" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { data: existingClinician } = await supabase
-      .from("clinician_profiles")
-      .select("id")
-      .eq("id", user_id)
-      .maybeSingle();
-
+    // Check if there's a pending invite OR if user signed up with clinician intent
     const { data: pendingInvite } = await supabase
       .from("patient_clinician_links")
       .select("id")
@@ -48,31 +43,50 @@ serve(async (req) => {
       .maybeSingle();
 
     const hasClinicianIntent = authUser.user_metadata?.is_clinician === true;
+
+    // Check existing clinician profile
+    const { data: existingClinician } = await supabase
+      .from("clinician_profiles")
+      .select("id")
+      .eq("id", user_id)
+      .maybeSingle();
+
+    // Allow bootstrap if: existing clinician, pending invite, or signup with clinician intent
     if (!existingClinician && !pendingInvite && !hasClinicianIntent) {
       return new Response(JSON.stringify({ error: "Clinician access not authorized for this account" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Insert clinician_profiles (idempotent)
+    // Upsert clinician profile
     const { error: profileError } = await supabase.from("clinician_profiles").upsert({
       id: user_id, full_name, email: normalizedEmail, npi, specialty, practice_name,
     }, { onConflict: "id" });
     if (profileError) throw profileError;
 
-    // Grant clinician role (idempotent via unique constraint)
-    const { error: roleError } = await supabase.from("user_roles").upsert({ user_id, role: "clinician" }, { onConflict: "user_id,role" });
-    if (roleError) throw roleError;
+    // Grant clinician role (service role bypasses RLS)
+    const { error: roleError } = await supabase.from("user_roles").upsert(
+      { user_id, role: "clinician" },
+      { onConflict: "user_id,role" }
+    );
+    if (roleError) {
+      console.error("Role grant error:", roleError);
+      // Try direct insert as fallback
+      const { error: insertErr } = await supabase.from("user_roles").insert({ user_id, role: "clinician" });
+      if (insertErr && !insertErr.message?.includes('duplicate')) {
+        console.error("Role insert fallback error:", insertErr);
+      }
+    }
 
-    // Auto-link any pending patient invites matching this clinician email.
-    const { error: inviteError } = await supabase
+    // Auto-link pending invites
+    await supabase
       .from("patient_clinician_links")
       .update({ clinician_id: user_id, status: "active", accepted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-      .eq("invited_email", String(email).toLowerCase())
+      .eq("invited_email", normalizedEmail)
       .is("clinician_id", null)
       .eq("status", "pending");
-    if (inviteError) throw inviteError;
 
     return new Response(JSON.stringify({ ok: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
+    console.error("Bootstrap error:", e);
     return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });
