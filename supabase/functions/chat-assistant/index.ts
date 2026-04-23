@@ -2301,6 +2301,20 @@ serve(async (req) => {
           },
         },
       },
+      {
+        type: "function",
+        function: {
+          name: "get_weather_and_respond",
+          description: "Fetch current weather forecast for a location. Use when user asks about weather, travel to a place, or wants to know conditions somewhere. ALWAYS use this instead of web search for weather questions.",
+          parameters: {
+            type: "object", required: ["locationName", "userQuestion"],
+            properties: {
+              locationName: { type: "string", description: "City or place name" },
+              userQuestion: { type: "string", description: "The user's original question" },
+            },
+          },
+        },
+      },
     ];
 
     // Context sections
