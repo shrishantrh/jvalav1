@@ -79,12 +79,12 @@ export const AIChatPrompts = ({ onSendPrompt, variant = 'capabilities', followUp
           key={label}
           onClick={() => onSendPrompt(prompt)}
             className={cn(
-              "flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full",
+              "flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-full",
               "bg-muted/50 hover:bg-muted border border-border/50",
-              "text-sm font-medium transition-all hover:scale-[1.02]"
+              "text-[15px] font-medium transition-all hover:scale-[1.02]"
             )}
         >
-          <Icon className={cn("w-4 h-4", color)} />
+          <Icon className={cn("w-5 h-5", color)} />
           {label}
         </button>
       ))}

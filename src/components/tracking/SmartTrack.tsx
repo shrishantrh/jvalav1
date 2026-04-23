@@ -1296,8 +1296,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         {/* AI Capability buttons - show when no messages or few messages */}
         {messages.length <= 2 && (
           <div className="px-3 pt-3 pb-1">
-            <p className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Sparkles className="w-4 h-4" />
+            <p className="mb-3 flex items-center gap-2 text-base font-semibold text-muted-foreground">
+              <Sparkles className="w-5 h-5" />
               Try asking me to...
             </p>
             <AIChatPrompts onSendPrompt={handlePromptClick} variant="capabilities" />
@@ -1374,7 +1374,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                         <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: '300ms' }} />
                       </div>
                     ) : (
-                      <div className="text-sm whitespace-pre-wrap relative z-10">
+                      <div className="text-[15px] leading-relaxed whitespace-pre-wrap relative z-10">
                         {displayContent.split('\n').filter(Boolean).map((line: string, li: number) => {
                           // Parse **bold** markers into <strong> tags
                           const unescaped = line.replace(/\\\*/g, '*');

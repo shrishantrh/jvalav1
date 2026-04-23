@@ -760,7 +760,7 @@ const Index = () => {
             onProfileClick={() => setShowProfile(true)}
             riskScore={briefing?.riskScore ?? null}
             riskLevel={briefing?.riskLevel ?? null}
-            envData={envData}
+            envData={null}
           />
         }
       >
