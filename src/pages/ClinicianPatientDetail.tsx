@@ -77,7 +77,7 @@ export default function ClinicianPatientDetail() {
     <div className="min-h-screen bg-background pb-12">
       <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/clinician')}>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/clinician/dashboard')}>
             <ArrowLeft className="w-4 h-4 mr-1.5" /> All patients
           </Button>
           <div className="text-xs text-muted-foreground">{profile?.full_name}</div>

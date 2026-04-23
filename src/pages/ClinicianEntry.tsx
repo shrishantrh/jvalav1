@@ -32,7 +32,7 @@ export default function ClinicianEntry() {
   }
 
   useEffect(() => {
-    if (user && isClinician) navigate('/clinician', { replace: true });
+    if (user && isClinician) navigate('/clinician/dashboard', { replace: true });
   }, [user, isClinician, navigate]);
 
   return (
