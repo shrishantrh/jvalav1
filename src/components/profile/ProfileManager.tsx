@@ -416,7 +416,7 @@ export const ProfileManager = ({ onRequireOnboarding, onProfileUpdated }: Profil
               <CardTitle className="text-base font-bold">Your Conditions</CardTitle>
             </CardHeader>
             <CardContent className="px-5 pb-5 space-y-4">
-              {profile.conditions.length > 0 && (
+              {profile.conditions.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {profile.conditions.map((value) => {
                     const label = CONDITIONS.find((condition) => condition.id === value)?.name || value;
@@ -433,6 +433,8 @@ export const ProfileManager = ({ onRequireOnboarding, onProfileUpdated }: Profil
                     );
                   })}
                 </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No conditions added yet.</p>
               )}
 
               <div className="relative">
@@ -446,43 +448,39 @@ export const ProfileManager = ({ onRequireOnboarding, onProfileUpdated }: Profil
                       void addCondition(conditionQuery);
                     }
                   }}
-                  placeholder="Type and press Enter to add"
-                  className="h-14 rounded-2xl border-border bg-card pl-11 pr-14 text-sm"
+                  placeholder="Search to add a condition..."
+                  className="h-12 rounded-2xl border-border bg-card pl-11 pr-14 text-sm"
                 />
-                <Button
-                  type="button"
-                  size="icon"
-                  className="absolute right-2 top-1/2 h-10 w-10 -translate-y-1/2 rounded-xl"
-                  onClick={() => void addCondition(conditionQuery)}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
+                {conditionQuery.trim() && (
+                  <Button
+                    type="button"
+                    size="icon"
+                    className="absolute right-2 top-1/2 h-8 w-8 -translate-y-1/2 rounded-xl"
+                    onClick={() => void addCondition(conditionQuery)}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
 
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">Suggestions</p>
-                <div className="grid gap-1.5 max-h-52 overflow-y-auto">
+              {conditionQuery.trim() && filteredConditions.length > 0 && (
+                <div className="grid gap-1.5 max-h-44 overflow-y-auto">
                   {filteredConditions.map((condition) => (
                     <button
                       key={condition.id}
                       type="button"
                       onClick={() => void addCondition(condition.id)}
-                      className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-primary/40"
+                      className="flex items-center justify-between rounded-2xl border border-border bg-card px-4 py-2.5 text-left transition-colors hover:border-primary/40"
                     >
                       <div>
                         <div className="text-sm font-medium text-foreground">{condition.name}</div>
-                        <div className="text-xs text-muted-foreground">{condition.category}</div>
+                        <div className="text-[10px] text-muted-foreground">{condition.category}</div>
                       </div>
                       <Plus className="h-4 w-4 text-muted-foreground" />
                     </button>
                   ))}
-                  {conditionQuery.trim().length > 0 && filteredConditions.length === 0 && (
-                    <div className="rounded-2xl border border-dashed border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-                      No matching suggestions.
-                    </div>
-                  )}
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 
