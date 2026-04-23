@@ -1284,7 +1284,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         style={{ 
           scrollbarWidth: 'none', 
           msOverflowStyle: 'none',
-          paddingBottom: '180px',
+          paddingBottom: keyboardInset > 0 ? `${320 + keyboardInset}px` : '264px',
           overscrollBehavior: 'contain',
           WebkitOverflowScrolling: 'touch',
         }}
@@ -1292,8 +1292,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         {/* AI Capability buttons - show when no messages or few messages */}
         {messages.length <= 2 && (
           <div className="px-3 pt-3 pb-1">
-            <p className="text-[10px] text-muted-foreground mb-2 flex items-center gap-1">
-              <Sparkles className="w-3 h-3" />
+            <p className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <Sparkles className="w-4 h-4" />
               Try asking me to...
             </p>
             <AIChatPrompts onSendPrompt={handlePromptClick} variant="capabilities" />
@@ -1715,8 +1715,10 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
 
       {/* Fixed bottom section - contains follow-ups, quick actions, and input */}
       <div 
+        ref={composerRef}
         className="absolute bottom-0 left-0 right-0 flex-shrink-0"
         style={{
+          bottom: `${keyboardInset}px`,
           background: 'linear-gradient(180deg, hsl(var(--glass-bg) / 0.92) 0%, hsl(var(--glass-bg) / 0.98) 100%)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
@@ -1760,19 +1762,19 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         </div>
 
         {/* Input */}
-        <div className="p-3 pt-2">
-          <div className="flex items-center gap-2">
+        <div className="p-3 pt-2" style={{ paddingBottom: keyboardInset > 0 ? '12px' : 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}>
+          <div className="flex items-end gap-2">
             <Button
               variant={isRecording ? "destructive" : "outline"}
               size="icon"
-              className="shrink-0 h-9 w-9"
+              className="shrink-0 h-12 w-12 rounded-2xl"
               onClick={toggleRecording}
               style={{
                 background: isRecording ? undefined : 'hsl(var(--card) / 0.9)',
                 borderColor: isRecording ? undefined : 'hsl(var(--border) / 0.5)',
               }}
             >
-              {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
             </Button>
 
             {/* Voice Call Button */}
@@ -1780,23 +1782,24 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
               <Button
                 variant="outline"
                 size="icon"
-                className="shrink-0 h-9 w-9"
+                className="shrink-0 h-12 w-12 rounded-2xl"
                 onClick={onOpenVoiceCall}
                 style={{
                   background: 'hsl(var(--card) / 0.9)',
                   borderColor: 'hsl(var(--border) / 0.5)',
                 }}
               >
-                <Phone className="w-4 h-4" />
+                <Phone className="w-5 h-5" />
               </Button>
             )}
             
-            <Input
+            <Textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyPress}
               placeholder={isRecording ? "Listening..." : "Ask me anything..."}
-              className="flex-1 h-9"
+              rows={1}
+              className="min-h-[56px] max-h-36 flex-1 resize-none rounded-2xl px-4 py-3 text-base leading-6"
               disabled={isProcessing}
               style={{
                 background: 'hsl(var(--card) / 0.8)',
@@ -1808,9 +1811,9 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
               onClick={() => handleSend()}
               disabled={!input.trim() || isProcessing}
               size="icon"
-              className="shrink-0 h-9 w-9"
+              className="shrink-0 h-12 w-12 rounded-2xl"
             >
-              <Send className="w-4 h-4" />
+              <Send className="w-5 h-5" />
             </Button>
           </div>
         </div>
