@@ -474,6 +474,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   onReorderTrackables,
   onAddMedication,
   onRemoveMedication,
+  onAddSymptom,
+  onRemoveSymptom,
   userName,
   userDOB,
   userBiologicalSex,
