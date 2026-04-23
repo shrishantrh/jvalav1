@@ -294,26 +294,29 @@ const Index = () => {
     if (!user) return;
 
     try {
-      // Merge selected condition IDs with custom condition names
       const conditionIds = data.conditions || [];
       const customConditions = data.customConditions || [];
-      const allConditions = [
-        ...conditionIds,
-        ...customConditions,
-      ];
-
+      const allConditions = [...conditionIds, ...customConditions];
       const knownSymptoms = data.knownSymptoms || [];
       const knownTriggers = data.knownTriggers || [];
-      const medications = data.medications || [];
-
-      // Store medications and AI log categories in metadata
-      const medicationDetails = medications.map((name: string) => ({
-        name,
-        dosage: 'standard',
-        frequency: 'as-needed',
-      }));
-
       const aiLogCategories = data.aiLogCategories || [];
+      const medicationDetails = userProfile?.medications || [];
+      const customTrackables = userProfile?.customTrackables || [];
+      const reminderTimes = data.reminderTimes || [];
+
+      const metadata = {
+        medications: medicationDetails,
+        aiLogCategories,
+        customTrackables,
+        onboarding: {
+          notificationsEnabled: Boolean(data.notificationsEnabled),
+          locationEnabled: Boolean(data.locationEnabled),
+          healthConnected: Boolean(data.healthConnected),
+          remindersEnabled: Boolean(data.enableReminders),
+          reminderTimes,
+          completedAt: new Date().toISOString(),
+        },
+      };
 
       const { error } = await supabase
         .from('profiles')
@@ -325,23 +328,67 @@ const Index = () => {
           date_of_birth: data.dateOfBirth || null,
           biological_sex: data.biologicalSex || null,
           onboarding_completed: true,
-          metadata: { medications: medicationDetails, aiLogCategories },
+          metadata: metadata as any,
         })
         .eq('id', user.id);
 
       if (error) throw error;
+
+      await supabase
+        .from('engagement')
+        .upsert({
+          user_id: user.id,
+          reminder_enabled: Boolean(data.enableReminders),
+          reminder_times: reminderTimes,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id' });
+
+      const seededMemories = [
+        allConditions.length
+          ? {
+              user_id: user.id,
+              category: 'onboarding',
+              memory_type: 'profile',
+              content: `User is tracking: ${allConditions.join(', ')}.`,
+              metadata: { source: 'onboarding' },
+            }
+          : null,
+        data.biologicalSex || data.dateOfBirth
+          ? {
+              user_id: user.id,
+              category: 'onboarding',
+              memory_type: 'profile',
+              content: `Profile context: biological sex ${data.biologicalSex || 'not provided'}; date of birth ${data.dateOfBirth || 'not provided'}.`,
+              metadata: { source: 'onboarding' },
+            }
+          : null,
+        {
+          user_id: user.id,
+          category: 'onboarding',
+          memory_type: 'preference',
+          content: Boolean(data.enableReminders)
+            ? `Reminder preference: enabled at ${reminderTimes.join(' and ')}.`
+            : 'Reminder preference: disabled.',
+          metadata: { source: 'onboarding' },
+        },
+      ].filter(Boolean);
+
+      await supabase.from('ai_memories').delete().eq('user_id', user.id).eq('category', 'onboarding');
+      if (seededMemories.length > 0) {
+        await supabase.from('ai_memories').insert(seededMemories as any);
+      }
 
       setUserProfile({
         conditions: allConditions,
         known_symptoms: knownSymptoms,
         known_triggers: knownTriggers,
         medications: medicationDetails,
-        aiLogCategories: aiLogCategories,
-        customTrackables: [],
-        physician_name: null,
-        physician_email: null,
-        physician_phone: null,
-        physician_practice: null,
+        aiLogCategories,
+        customTrackables,
+        physician_name: userProfile?.physician_name || null,
+        physician_email: userProfile?.physician_email || null,
+        physician_phone: userProfile?.physician_phone || null,
+        physician_practice: userProfile?.physician_practice || null,
         onboarding_completed: true,
         full_name: data.firstName || null,
         date_of_birth: data.dateOfBirth || null,
@@ -350,7 +397,6 @@ const Index = () => {
 
       setShowOnboarding(false);
       setShowTour(true);
-
       haptics.success();
     } catch (error) {
       console.error('Failed to save onboarding:', error);

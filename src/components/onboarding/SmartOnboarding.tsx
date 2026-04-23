@@ -1,716 +1,853 @@
-import { useState, useEffect, useCallback } from "react";
-import { CONDITIONS, Condition } from "@/data/conditions";
-import { 
-  Search, Check, ChevronLeft, ChevronRight,
-  Brain, Zap, MessageCircle, FileText, 
-  Bell, MapPin, Heart, X
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Bell,
+  Check,
+  ChevronLeft,
+  Heart,
+  Loader2,
+  MapPin,
+  Plus,
+  Search,
+  Shield,
 } from "lucide-react";
-import jvalaLogo from "@/assets/jvala-logo.png";
+
+import { CONDITIONS } from "@/data/conditions";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
-import { Input } from "@/components/ui/input";
+import { isNative } from "@/lib/capacitor";
+
+type PermissionState = "idle" | "requesting" | "granted" | "denied" | "unavailable";
 
 interface SmartOnboardingData {
   firstName: string;
   conditions: string[];
+  customConditions: string[];
+  dateOfBirth: string;
   biologicalSex: string | null;
   enableReminders: boolean;
-  reminderTime: string;
-  connectWearables: boolean;
+  reminderTimes: string[];
+  aiLogCategories: any[];
+  knownSymptoms: string[];
+  knownTriggers: string[];
+  notificationsEnabled: boolean;
+  locationEnabled: boolean;
+  healthConnected: boolean;
 }
 
 interface SmartOnboardingProps {
-  onComplete: (data: SmartOnboardingData) => void;
+  onComplete: (data: SmartOnboardingData) => void | Promise<void>;
 }
 
-// ─── Rotating value props ──────────────────────────────────
-const VALUE_PROPS = [
-  "for predicting flares.",
-  "for understanding patterns.",
-  "for talking to someone.",
-  "for tracking symptoms.",
-  "for health reports.",
+const TOTAL_STEPS = 8;
+
+const SEX_OPTIONS = [
+  { id: "female", label: "Female" },
+  { id: "male", label: "Male" },
+  { id: "intersex", label: "Intersex" },
+  { id: "prefer-not-to-say", label: "Prefer not to say" },
 ];
 
-// ─── Goals data ────────────────────────────────────────────
-const GOALS = [
-  { id: "understand-flares", label: "Understand why I flare", icon: "🔥", wide: true },
-  { id: "manage-pain", label: "Manage pain", icon: "💊" },
-  { id: "sleep-better", label: "Sleep better", icon: "🌙" },
-  { id: "manage-energy", label: "Manage energy", icon: "⚡" },
-  { id: "mental-health", label: "Mental health", icon: "🧠" },
-  { id: "track-symptoms", label: "Track symptoms", icon: "📋", wide: true },
-  { id: "health-reports", label: "Reports for my doctor", icon: "📄", wide: true },
-  { id: "talk-support", label: "24/7 support", icon: "💬" },
-  { id: "other", label: "Other", icon: "✨" },
+const valueProps = [
+  "Track symptoms fast.",
+  "Spot flare patterns.",
+  "Build cleaner reports.",
 ];
 
-// ─── Gender options ────────────────────────────────────────
-const GENDERS = [
-  { id: "female", label: "Female", icon: "♀", color: "hsl(340 70% 55%)" },
-  { id: "male", label: "Male", icon: "♂", color: "hsl(220 70% 55%)" },
-  { id: "non-binary", label: "Non-binary", icon: "⚧", color: "hsl(270 60% 55%)" },
-  { id: "other", label: "Prefer not to say", icon: "—", color: "hsl(0 0% 50%)" },
-];
-
-// ─── Age ranges ────────────────────────────────────────────
-const AGE_RANGES = ["13-17", "18-24", "25-34", "35-44", "45-54", "55-64", "65+"];
-
-// ─── Commitment options ────────────────────────────────────
-const COMMITMENTS = [
-  { days: 3, label: "3 days", emoji: "🙌" },
-  { days: 7, label: "7 days", emoji: "😊" },
-  { days: 14, label: "14 days", emoji: "🤩" },
-  { days: 30, label: "30 days", emoji: "🔥" },
-];
-
-// ─── Preparing checklist ───────────────────────────────────
-const PREPARING_STEPS = [
-  { icon: Brain, label: "Taking your conditions...", color: "text-blue-500" },
-  { icon: Zap, label: "Analysing patterns...", color: "text-purple-500" },
-  { icon: Heart, label: "Processing your answers...", color: "text-amber-500" },
-  { icon: MessageCircle, label: "Calibrating your companion...", color: "text-pink-500" },
-  { icon: Check, label: "Ready!", color: "text-emerald-500" },
-];
+const calculateAge = (dob: string) => {
+  if (!dob) return null;
+  const birth = new Date(dob);
+  if (Number.isNaN(birth.getTime())) return null;
+  const now = new Date();
+  let age = now.getFullYear() - birth.getFullYear();
+  const monthDiff = now.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) age -= 1;
+  return age;
+};
 
 export const SmartOnboarding = ({ onComplete }: SmartOnboardingProps) => {
   const [step, setStep] = useState(0);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [name, setName] = useState("");
-  const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
-  const [selectedGender, setSelectedGender] = useState<string | null>(null);
-  const [selectedAge, setSelectedAge] = useState<string | null>(null);
-  const [selectedCommitment, setSelectedCommitment] = useState<number | null>(null);
+  const [firstName, setFirstName] = useState("");
+  const [conditionQuery, setConditionQuery] = useState("");
+  const [conditions, setConditions] = useState<string[]>([]);
+  const [customConditions, setCustomConditions] = useState<string[]>([]);
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [biologicalSex, setBiologicalSex] = useState<string | null>(null);
+  const [enableReminders, setEnableReminders] = useState(true);
+  const [morningReminder, setMorningReminder] = useState("09:00");
+  const [eveningReminder, setEveningReminder] = useState("20:00");
+  const [healthPermissionStatus, setHealthPermissionStatus] = useState<PermissionState>("idle");
+  const [locationPermissionStatus, setLocationPermissionStatus] = useState<PermissionState>("idle");
+  const [notificationPermissionStatus, setNotificationPermissionStatus] = useState<PermissionState>("idle");
+  const [submitting, setSubmitting] = useState(false);
   const [valuePropIndex, setValuePropIndex] = useState(0);
-  const [preparingStep, setPreparingStep] = useState(0);
-  const [data, setData] = useState<SmartOnboardingData>({
-    firstName: "",
-    conditions: [],
-    biologicalSex: null,
-    enableReminders: true,
-    reminderTime: "09:00",
-    connectWearables: true,
-  });
+  const healthRequestInFlightRef = useRef(false);
+  const locationRequestInFlightRef = useRef(false);
+  const autofillRef = useRef(false);
 
-  // Steps: 0=Welcome, 1=Predict pitch, 2=Talk pitch, 3=Reports pitch, 
-  // 4=Name, 5=Goals, 6=Conditions, 7=Gender, 8=Age, 9=Commitment, 10=Preparing
-  const totalSteps = 11;
-
-  // Rotate value props on welcome
   useEffect(() => {
-    if (step !== 0) return;
-    const interval = setInterval(() => {
-      setValuePropIndex(prev => (prev + 1) % VALUE_PROPS.length);
-    }, 2500);
-    return () => clearInterval(interval);
-  }, [step]);
-
-  // Preparing animation
-  useEffect(() => {
-    if (step !== 10) return;
-    if (preparingStep >= PREPARING_STEPS.length) {
-      const timeout = setTimeout(() => {
-        onComplete(data);
-      }, 800);
-      return () => clearTimeout(timeout);
-    }
-    const timeout = setTimeout(() => {
-      setPreparingStep(prev => prev + 1);
-    }, 600);
-    return () => clearTimeout(timeout);
-  }, [step, preparingStep, data, onComplete]);
-
-  const handleNext = useCallback(() => {
-    haptics.selection();
-    if (step === 10) return; // preparing handles itself
-    // Sync local state into data before preparing step
-    if (step === 9) {
-      setData(prev => ({ ...prev, firstName: name, biologicalSex: selectedGender }));
-    }
-    setStep(prev => prev + 1);
-  }, [step, name, selectedGender]);
-
-  const handleBack = useCallback(() => {
-    haptics.selection();
-    setStep(prev => Math.max(prev - 1, 0));
+    const interval = window.setInterval(() => {
+      setValuePropIndex((prev) => (prev + 1) % valueProps.length);
+    }, 2400);
+    return () => window.clearInterval(interval);
   }, []);
 
-  const toggleCondition = (conditionId: string) => {
+  useEffect(() => {
+    if (autofillRef.current || firstName) return;
+    autofillRef.current = true;
+
+    void (async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return;
+        const meta = user.user_metadata ?? {};
+        const derivedName =
+          meta.given_name ||
+          meta.first_name ||
+          (meta.full_name || meta.name || "").split(" ")[0] ||
+          "";
+        if (derivedName) setFirstName(derivedName);
+      } catch {
+        return;
+      }
+    })();
+  }, [firstName]);
+
+  const totalSelectedConditions = conditions.length + customConditions.length;
+  const normalizedSelectedConditions = useMemo(
+    () => [
+      ...conditions,
+      ...customConditions,
+    ],
+    [conditions, customConditions],
+  );
+
+  const filteredConditions = useMemo(() => {
+    const query = conditionQuery.trim().toLowerCase();
+    if (!query) return CONDITIONS.slice(0, 18);
+    return CONDITIONS.filter((condition) => {
+      const alreadySelected = conditions.includes(condition.id);
+      if (alreadySelected) return false;
+      return (
+        condition.name.toLowerCase().includes(query) ||
+        condition.category.toLowerCase().includes(query)
+      );
+    }).slice(0, 18);
+  }, [conditionQuery, conditions]);
+
+  const age = calculateAge(dateOfBirth);
+  const birthDateInvalid = Boolean(dateOfBirth) && (age === null || age < 13 || new Date(dateOfBirth) > new Date());
+
+  const addCondition = (conditionId: string) => {
     haptics.selection();
-    setData(prev => ({
-      ...prev,
-      conditions: prev.conditions.includes(conditionId)
-        ? prev.conditions.filter(c => c !== conditionId)
-        : [...prev.conditions, conditionId]
-    }));
+    setConditions((prev) => (prev.includes(conditionId) ? prev : [...prev, conditionId]));
+    setConditionQuery("");
   };
 
-  const toggleGoal = (goalId: string) => {
+  const addTypedCondition = () => {
+    const trimmed = conditionQuery.trim();
+    if (!trimmed) return;
+
+    const matchingCondition = CONDITIONS.find((condition) => condition.name.toLowerCase() === trimmed.toLowerCase());
+    if (matchingCondition) {
+      addCondition(matchingCondition.id);
+      return;
+    }
+
+    if (customConditions.some((condition) => condition.toLowerCase() === trimmed.toLowerCase())) return;
+
     haptics.selection();
-    setSelectedGoals(prev => 
-      prev.includes(goalId) ? prev.filter(g => g !== goalId) : [...prev, goalId]
-    );
+    setCustomConditions((prev) => [...prev, trimmed]);
+    setConditionQuery("");
   };
 
-  const filteredConditions = searchQuery
-    ? CONDITIONS.filter(c =>
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.category.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : CONDITIONS;
+  const removeCondition = (value: string) => {
+    haptics.selection();
+    setConditions((prev) => prev.filter((item) => item !== value));
+    setCustomConditions((prev) => prev.filter((item) => item !== value));
+  };
 
-  const canProceed = () => {
-    switch (step) {
-      case 4: return name.trim().length >= 1;
-      case 5: return selectedGoals.length > 0;
-      case 6: return data.conditions.length > 0;
-      case 7: return selectedGender !== null;
-      case 8: return selectedAge !== null;
-      case 9: return selectedCommitment !== null;
-      default: return true;
+  const withPermissionTimeout = async <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
+    let timeoutId: number | undefined;
+    const timeoutPromise = new Promise<T>((_, reject) => {
+      timeoutId = window.setTimeout(() => reject(new Error(`${label}_timeout`)), ms);
+    });
+
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutId) window.clearTimeout(timeoutId);
     }
   };
 
-  // ─── Gradient background ─────────────────────────────────
-  const bgGradient = "bg-gradient-to-b from-[hsl(270,60%,30%)] via-[hsl(300,50%,40%)] to-[hsl(330,60%,50%)]";
+  const isLocationGranted = (permStatus: { location?: string; coarseLocation?: string } | null | undefined) =>
+    permStatus?.location === "granted" || permStatus?.coarseLocation === "granted";
 
-  // ─── Shared frosted card ─────────────────────────────────
-  const FrostedCard = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn(
-      "bg-white/15 backdrop-blur-2xl border border-white/20 rounded-3xl",
-      className
-    )}>
-      {children}
-    </div>
-  );
+  const isLocationDenied = (permStatus: { location?: string; coarseLocation?: string } | null | undefined) =>
+    permStatus?.location === "denied" || permStatus?.coarseLocation === "denied";
 
-  // ─── Frosted pill question header ────────────────────────
-  const QuestionPill = ({ text }: { text: string }) => (
-    <div className="bg-white/20 backdrop-blur-xl border border-white/25 rounded-full px-8 py-4 mx-auto max-w-sm">
-      <h2 className="text-xl font-bold text-white text-center">{text}</h2>
-    </div>
-  );
+  const classifyLocationError = (error: unknown): "denied" | "services_off" | "unknown" => {
+    const message = (error instanceof Error ? error.message : String(error)).toUpperCase();
+    if (message.includes("OS-PLUG-GLOC-0003")) return "denied";
+    if (message.includes("OS-PLUG-GLOC-0007") || message.includes("OS-PLUG-GLOC-0008")) return "services_off";
+    return "unknown";
+  };
 
-  // ─── Option pill (selection items) ───────────────────────
-  const OptionPill = ({ 
-    selected, onClick, children, className = "" 
-  }: { 
-    selected: boolean; onClick: () => void; children: React.ReactNode; className?: string 
+  const getNativeGeolocation = async () => {
+    const injected = (window as any)?.Capacitor?.Plugins?.Geolocation;
+    if (injected) return injected;
+    const { Geolocation } = await import("@capacitor/geolocation");
+    return Geolocation;
+  };
+
+  const requestHealthPermission = async () => {
+    if (healthRequestInFlightRef.current) return;
+    healthRequestInFlightRef.current = true;
+    setHealthPermissionStatus("requesting");
+    haptics.selection();
+
+    const watchdogId = window.setTimeout(() => {
+      if (!healthRequestInFlightRef.current) return;
+      healthRequestInFlightRef.current = false;
+      setHealthPermissionStatus("denied");
+    }, 35000);
+
+    try {
+      if (!isNative) {
+        setHealthPermissionStatus("unavailable");
+        return;
+      }
+
+      const {
+        isHealthPluginPresent,
+        HEALTH_MINIMAL_READ,
+        HEALTH_FULL_READ,
+        checkHealthPermissions,
+        requestHealthPermissions,
+      } = await import("@/services/appleHealthService");
+
+      const injectedHealth = (window as any)?.Capacitor?.Plugins?.Health ?? null;
+      if (!isHealthPluginPresent() && !injectedHealth) {
+        setHealthPermissionStatus("unavailable");
+        return;
+      }
+
+      const requestReadScopes = async (read: string[], label: string) => {
+        if (injectedHealth && typeof injectedHealth.requestAuthorization === "function") {
+          const status = await withPermissionTimeout(
+            injectedHealth.requestAuthorization({ read, write: [] }),
+            25000,
+            label,
+          ) as { readAuthorized?: string[] };
+          return Array.isArray(status?.readAuthorized) ? status.readAuthorized.length : 0;
+        }
+
+        const result = await withPermissionTimeout(
+          requestHealthPermissions({ read: read as any }),
+          25000,
+          `${label}_service`,
+        );
+
+        return Array.isArray(result?.status?.readAuthorized) ? result.status.readAuthorized.length : 0;
+      };
+
+      let fullAuthorizedCount = 0;
+      try {
+        fullAuthorizedCount = await requestReadScopes(HEALTH_FULL_READ, "health_request_full");
+      } catch {
+        fullAuthorizedCount = 0;
+      }
+
+      let minimalAuthorizedCount = 0;
+      if (fullAuthorizedCount === 0) {
+        try {
+          minimalAuthorizedCount = await requestReadScopes(HEALTH_MINIMAL_READ, "health_request_minimal");
+        } catch {
+          minimalAuthorizedCount = 0;
+        }
+      }
+
+      let verifiedMinimal = false;
+      try {
+        verifiedMinimal = await withPermissionTimeout(
+          checkHealthPermissions({ read: HEALTH_MINIMAL_READ }),
+          9000,
+          "health_check_after",
+        );
+      } catch {
+        verifiedMinimal = false;
+      }
+
+      if (fullAuthorizedCount === 0 && minimalAuthorizedCount === 0 && !verifiedMinimal) {
+        setHealthPermissionStatus("denied");
+        return;
+      }
+
+      setHealthPermissionStatus("granted");
+      haptics.success();
+    } catch {
+      setHealthPermissionStatus("denied");
+    } finally {
+      healthRequestInFlightRef.current = false;
+      window.clearTimeout(watchdogId);
+    }
+  };
+
+  const requestLocationPermission = async () => {
+    if (locationRequestInFlightRef.current) return;
+    locationRequestInFlightRef.current = true;
+    setLocationPermissionStatus("requesting");
+    haptics.selection();
+
+    try {
+      if (isNative) {
+        const Geolocation = await getNativeGeolocation();
+        try {
+          await withPermissionTimeout(
+            Geolocation.getCurrentPosition({ timeout: 12000, enableHighAccuracy: false, maximumAge: 0 }),
+            14000,
+            "location_get_current_direct",
+          );
+          setLocationPermissionStatus("granted");
+          haptics.success();
+          return;
+        } catch (error) {
+          const kind = classifyLocationError(error);
+          if (kind === "services_off") {
+            setLocationPermissionStatus("denied");
+            return;
+          }
+        }
+
+        let requested: { location?: string; coarseLocation?: string } | null = null;
+        try {
+          requested = await withPermissionTimeout(
+            Geolocation.requestPermissions({ permissions: ["location"] as any }),
+            25000,
+            "location_request_explicit",
+          );
+        } catch {
+          requested = await withPermissionTimeout(
+            Geolocation.requestPermissions(),
+            25000,
+            "location_request_default",
+          );
+        }
+
+        if (isLocationGranted(requested)) {
+          setLocationPermissionStatus("granted");
+          haptics.success();
+          return;
+        }
+
+        setLocationPermissionStatus(isLocationDenied(requested) ? "denied" : "idle");
+        return;
+      }
+
+      await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          timeout: 10000,
+          enableHighAccuracy: true,
+          maximumAge: 0,
+        });
+      });
+      setLocationPermissionStatus("granted");
+      haptics.success();
+    } catch (error) {
+      const kind = classifyLocationError(error);
+      setLocationPermissionStatus(kind === "denied" || kind === "services_off" ? "denied" : "idle");
+    } finally {
+      locationRequestInFlightRef.current = false;
+    }
+  };
+
+  const requestNotificationPermission = async () => {
+    setNotificationPermissionStatus("requesting");
+    haptics.selection();
+
+    try {
+      if (isNative) {
+        const { PushNotifications } = await import("@capacitor/push-notifications");
+        const result = await PushNotifications.requestPermissions();
+        if (result.receive === "granted") {
+          await PushNotifications.register();
+          setNotificationPermissionStatus("granted");
+          haptics.success();
+        } else {
+          setNotificationPermissionStatus("denied");
+        }
+        return;
+      }
+
+      if (!("Notification" in window)) {
+        setNotificationPermissionStatus("unavailable");
+        return;
+      }
+
+      const result = await Notification.requestPermission();
+      setNotificationPermissionStatus(result === "granted" ? "granted" : "denied");
+      if (result === "granted") haptics.success();
+    } catch {
+      setNotificationPermissionStatus("denied");
+    }
+  };
+
+  const stepCanContinue = () => {
+    switch (step) {
+      case 1:
+        return firstName.trim().length > 0;
+      case 2:
+        return totalSelectedConditions > 0;
+      case 3:
+        return Boolean(biologicalSex) && Boolean(dateOfBirth) && !birthDateInvalid;
+      case 4:
+        return healthPermissionStatus === "granted" || healthPermissionStatus === "unavailable";
+      case 5:
+        return locationPermissionStatus === "granted";
+      case 6:
+        return notificationPermissionStatus === "granted" || notificationPermissionStatus === "denied" || notificationPermissionStatus === "unavailable";
+      default:
+        return true;
+    }
+  };
+
+  const goNext = async () => {
+    if (step === TOTAL_STEPS - 1) {
+      setSubmitting(true);
+      try {
+        let aiLogCategories: any[] = [];
+        let knownSymptoms: string[] = [];
+        let knownTriggers: string[] = [];
+
+        if (normalizedSelectedConditions.length > 0) {
+          const { data, error } = await supabase.functions.invoke("generate-suggestions", {
+            body: {
+              conditions: normalizedSelectedConditions.map((value) => CONDITIONS.find((condition) => condition.id === value)?.name || value),
+              biologicalSex,
+              age,
+            },
+          });
+
+          if (!error && data) {
+            aiLogCategories = data.logCategories || [];
+            knownSymptoms = data.symptoms || [];
+            knownTriggers = data.triggers || [];
+          }
+        }
+
+        await Promise.resolve(
+          onComplete({
+            firstName: firstName.trim(),
+            conditions,
+            customConditions,
+            dateOfBirth,
+            biologicalSex,
+            enableReminders,
+            reminderTimes: enableReminders ? [morningReminder, eveningReminder] : [],
+            aiLogCategories,
+            knownSymptoms,
+            knownTriggers,
+            notificationsEnabled: notificationPermissionStatus === "granted",
+            locationEnabled: locationPermissionStatus === "granted",
+            healthConnected: healthPermissionStatus === "granted",
+          }),
+        );
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
+    haptics.selection();
+    setStep((prev) => prev + 1);
+  };
+
+  const progress = ((step + 1) / TOTAL_STEPS) * 100;
+
+  const StepShell = ({
+    title,
+    subtitle,
+    children,
+  }: {
+    title: string;
+    subtitle?: string;
+    children: React.ReactNode;
   }) => (
-    <button
-      onClick={onClick}
-      className={cn(
-        "w-full py-4 px-5 rounded-2xl text-left transition-all duration-200 active:scale-[0.97]",
-        selected
-          ? "bg-white/95 border-2 border-white shadow-lg"
-          : "bg-white/15 backdrop-blur-xl border border-white/20 hover:bg-white/25",
-        className
-      )}
-    >
-      <span className={cn(
-        "text-[15px] font-semibold",
-        selected ? "text-gray-900" : "text-white"
-      )}>
+    <div className="flex min-h-full flex-col px-6 pb-6 pt-8">
+      <div className="mb-8 flex items-center justify-center">
+        <img src={jvalaLogo} alt="Jvala" className="h-14 w-14 object-contain" />
+      </div>
+      <div className="mx-auto w-full max-w-md">
+        <div className="mb-8 space-y-2 text-center">
+          <h1 className="text-3xl font-semibold text-foreground">{title}</h1>
+          {subtitle ? <p className="text-sm leading-6 text-muted-foreground">{subtitle}</p> : null}
+        </div>
         {children}
-      </span>
-    </button>
-  );
-
-  // ─── Bottom CTA button ───────────────────────────────────
-  const CTAButton = ({ label, disabled = false, onClick }: { label: string; disabled?: boolean; onClick: () => void }) => (
-    <div className="px-6 pb-6" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.5rem)' }}>
-      <button
-        onClick={onClick}
-        disabled={disabled}
-        className={cn(
-          "w-full h-14 rounded-2xl text-base font-bold transition-all duration-300 active:scale-[0.96]",
-          disabled
-            ? "bg-white/10 text-white/30 cursor-not-allowed"
-            : "bg-gray-900 text-white shadow-xl hover:bg-gray-800"
-        )}
-      >
-        {label}
-      </button>
+      </div>
     </div>
   );
 
-  // ─── Back button ─────────────────────────────────────────
-  const BackButton = () => (
-    step > 0 && step < 10 ? (
-      <button
-        onClick={handleBack}
-        className="absolute top-[max(env(safe-area-inset-top),12px)] left-4 z-50 w-10 h-10 rounded-full bg-white/15 backdrop-blur-xl border border-white/20 flex items-center justify-center active:scale-90 transition-transform"
-      >
-        <ChevronLeft className="w-5 h-5 text-white" />
-      </button>
-    ) : null
-  );
-
-  // ─── Preparing screen ────────────────────────────────────
-  if (step === 10) {
-    return (
-      <div className={cn("fixed inset-0 flex flex-col items-center justify-center px-6", bgGradient)}>
-        <BackButton />
-        
-        {/* Logo with ring + confetti-like effect */}
-        <div className="relative mb-8">
-          <div className="w-32 h-32 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 p-1 animate-spin" style={{ animationDuration: '8s' }}>
-            <div className="w-full h-full rounded-full bg-white/10 backdrop-blur-xl flex items-center justify-center">
-              <img src={jvalaLogo} alt="Jvala" className="w-20 h-20 object-contain" />
-            </div>
-          </div>
-          {/* Confetti dots */}
-          {[...Array(12)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute w-2 h-2 rounded-sm animate-bounce"
-              style={{
-                background: ['#FFD700', '#FF6B6B', '#4ECDC4', '#A855F7', '#F97316'][i % 5],
-                top: `${15 + Math.sin(i * 30 * Math.PI / 180) * 55}%`,
-                left: `${50 + Math.cos(i * 30 * Math.PI / 180) * 55}%`,
-                animationDelay: `${i * 100}ms`,
-                animationDuration: '1.5s',
-                transform: `rotate(${i * 30}deg)`,
-              }}
-            />
-          ))}
-        </div>
-
-        <h2 className="text-2xl font-bold text-white mb-2">Preparing your companion...</h2>
-        <p className="text-white/60 text-sm mb-8">Based on what you've told me.</p>
-
-        <FrostedCard className="w-full max-w-sm p-6">
-          <div className="space-y-4">
-            {PREPARING_STEPS.map((s, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "flex items-center gap-3 transition-all duration-500",
-                  i <= preparingStep ? "opacity-100" : "opacity-20"
-                )}
-              >
-                <s.icon className={cn("w-5 h-5", i < preparingStep ? "text-emerald-400" : i === preparingStep ? s.color : "text-white/30")} />
-                <span className={cn(
-                  "text-sm font-medium",
-                  i < preparingStep ? "text-emerald-400" : i === preparingStep ? "text-white" : "text-white/30"
-                )}>
-                  {s.label}
-                </span>
-              </div>
-            ))}
-          </div>
-        </FrostedCard>
+  const PermissionCard = ({
+    icon: Icon,
+    title,
+    body,
+    status,
+    onRequest,
+    buttonLabel,
+  }: {
+    icon: typeof Heart;
+    title: string;
+    body: string;
+    status: PermissionState;
+    onRequest: () => void | Promise<void>;
+    buttonLabel: string;
+  }) => (
+    <div className="rounded-3xl border border-border bg-card px-5 py-5 shadow-sm">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+        <Icon className="h-5 w-5" />
       </div>
-    );
-  }
+      <div className="space-y-2">
+        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+        <p className="text-sm leading-6 text-muted-foreground">{body}</p>
+      </div>
+      <div className="mt-5 flex items-center justify-between gap-3">
+        <span
+          className={cn(
+            "rounded-full px-3 py-1 text-xs font-medium",
+            status === "granted" && "bg-primary/10 text-primary",
+            status === "denied" && "bg-destructive/10 text-destructive",
+            status === "requesting" && "bg-muted text-muted-foreground",
+            status === "idle" && "bg-secondary text-secondary-foreground",
+            status === "unavailable" && "bg-accent text-accent-foreground",
+          )}
+        >
+          {status === "granted"
+            ? "Connected"
+            : status === "denied"
+              ? "Not granted"
+              : status === "requesting"
+                ? "Requesting"
+                : status === "unavailable"
+                  ? "Unavailable here"
+                  : "Not set"}
+        </span>
+        <button
+          type="button"
+          onClick={() => void onRequest()}
+          disabled={status === "requesting"}
+          className="inline-flex h-11 items-center justify-center rounded-2xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity disabled:opacity-50"
+        >
+          {status === "requesting" ? <Loader2 className="h-4 w-4 animate-spin" /> : buttonLabel}
+        </button>
+      </div>
+    </div>
+  );
 
   return (
-    <div className={cn("fixed inset-0 flex flex-col", bgGradient)}>
-      <div style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }} />
-      <BackButton />
-
-      {/* Content area */}
-      <div className="flex-1 overflow-y-auto scrollbar-hide">
-        
-        {/* ─── Step 0: Welcome / Value Props ─── */}
-        {step === 0 && (
-          <div className="flex flex-col items-center justify-center min-h-full px-6 py-12 animate-in fade-in-0 duration-700">
-            {/* Logo */}
-            <div className="relative mb-12">
-              <div className="absolute -inset-4 rounded-3xl bg-white/10 blur-xl" />
-              <div className="relative w-24 h-24 rounded-[1.75rem] overflow-hidden shadow-2xl border border-white/20">
-                <img src={jvalaLogo} alt="Jvala" className="w-full h-full object-cover" />
-              </div>
-            </div>
-
-            <h1 className="text-3xl font-extrabold text-white mb-3 text-center">
-              Your health companion
-            </h1>
-
-            {/* Rotating value prop pill */}
-            <div className="bg-white/15 backdrop-blur-xl border border-white/20 rounded-full px-8 py-3 mb-16">
-              <p className="text-lg font-semibold text-white/90 transition-all duration-500" key={valuePropIndex}>
-                {VALUE_PROPS[valuePropIndex]}
-              </p>
-            </div>
-
-            {/* Spacer */}
-            <div className="flex-1" />
-          </div>
-        )}
-
-        {/* ─── Step 1: Predict Pitch ─── */}
-        {step === 1 && (
-          <div className="flex flex-col items-center justify-center min-h-full px-6 py-12 animate-in fade-in-0 slide-in-from-right-4 duration-500">
-            <div className="mb-8">
-              <div className="w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center">
-                <Brain className="w-10 h-10 text-white" />
-              </div>
-            </div>
-
-            <FrostedCard className="w-full max-w-sm p-8 text-center">
-              <h2 className="text-2xl font-bold text-white mb-3">Know tomorrow, today</h2>
-              <div className="w-12 h-0.5 bg-white/20 mx-auto mb-4" />
-              <p className="text-white/70 text-[15px] leading-relaxed">
-                Jvala learns your unique patterns and predicts flares 24-72 hours before they happen.
-              </p>
-            </FrostedCard>
-          </div>
-        )}
-
-        {/* ─── Step 2: Talk Pitch ─── */}
-        {step === 2 && (
-          <div className="flex flex-col items-center justify-center min-h-full px-6 py-12 animate-in fade-in-0 slide-in-from-right-4 duration-500">
-            <div className="mb-8">
-              <div className="w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center">
-                <MessageCircle className="w-10 h-10 text-white" />
-              </div>
-            </div>
-
-            <FrostedCard className="w-full max-w-sm p-8 text-center">
-              <h2 className="text-2xl font-bold text-white mb-3">Talk to Jvala anytime</h2>
-              <div className="w-12 h-0.5 bg-white/20 mx-auto mb-4" />
-              <div className="flex items-center justify-center gap-8 mb-4">
-                <div className="flex flex-col items-center gap-2">
-                  <div className="w-14 h-14 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center">
-                    <MessageCircle className="w-7 h-7 text-white" />
-                  </div>
-                  <span className="text-white/80 text-sm font-medium">Text</span>
-                </div>
-                <div className="flex flex-col items-center gap-2">
-                  <div className="w-14 h-14 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center">
-                    <Zap className="w-7 h-7 text-white" />
-                  </div>
-                  <span className="text-white/80 text-sm font-medium">Voice</span>
-                </div>
-              </div>
-              <p className="text-white/60 text-sm">About symptoms, medications, or just to vent.</p>
-            </FrostedCard>
-          </div>
-        )}
-
-        {/* ─── Step 3: Reports Pitch ─── */}
-        {step === 3 && (
-          <div className="flex flex-col items-center justify-center min-h-full px-6 py-12 animate-in fade-in-0 slide-in-from-right-4 duration-500">
-            <div className="mb-8">
-              <div className="w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center">
-                <FileText className="w-10 h-10 text-white" />
-              </div>
-            </div>
-
-            <FrostedCard className="w-full max-w-sm p-8 text-center">
-              <h2 className="text-2xl font-bold text-white mb-3">Clinical-grade reports</h2>
-              <div className="w-12 h-0.5 bg-white/20 mx-auto mb-4" />
-              <p className="text-white/70 text-[15px] leading-relaxed">
-                Generate detailed health reports to share with your doctor. FHIR-compatible.
-              </p>
-            </FrostedCard>
-          </div>
-        )}
-
-        {/* ─── Step 4: Name ─── */}
-        {step === 4 && (
-          <div className="flex flex-col items-center justify-center min-h-full px-6 py-12 animate-in fade-in-0 slide-in-from-right-4 duration-500">
-            <div className="mb-8">
-              <img src={jvalaLogo} alt="Jvala" className="w-16 h-16 object-contain" />
-            </div>
-
-            <QuestionPill text="What's your name?" />
-            
-            <div className="w-full max-w-sm mt-8">
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Your first name"
-                autoFocus
-                className="w-full h-14 rounded-2xl bg-white/15 backdrop-blur-xl border border-white/25 px-5 text-lg text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-white/30 focus:bg-white/20 transition-all"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* ─── Step 5: Goals ─── */}
-        {step === 5 && (
-          <div className="flex flex-col px-6 pt-16 pb-4 animate-in fade-in-0 slide-in-from-right-4 duration-500">
-            <div className="flex justify-center mb-6">
-              <img src={jvalaLogo} alt="Jvala" className="w-14 h-14 object-contain" />
-            </div>
-
-            <QuestionPill text="What are your goals?" />
-
-            <div className="mt-6 space-y-3">
-              {GOALS.map((goal) => (
-                <button
-                  key={goal.id}
-                  onClick={() => toggleGoal(goal.id)}
-                  className={cn(
-                    "w-full py-4 px-5 rounded-2xl text-left transition-all duration-200 active:scale-[0.97] flex items-center gap-3",
-                    selectedGoals.includes(goal.id)
-                      ? "bg-white/90 border-2 border-white shadow-lg"
-                      : "bg-white/12 backdrop-blur-xl border border-white/15 hover:bg-white/20"
-                  )}
-                >
-                  <span className="text-xl">{goal.icon}</span>
-                  <span className={cn(
-                    "text-[15px] font-semibold",
-                    selectedGoals.includes(goal.id) ? "text-gray-900" : "text-white"
-                  )}>
-                    {goal.label}
-                  </span>
-                  {selectedGoals.includes(goal.id) && (
-                    <div className="ml-auto w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center">
-                      <Check className="w-3.5 h-3.5 text-white" />
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ─── Step 6: Conditions ─── */}
-        {step === 6 && (
-          <div className="flex flex-col px-6 pt-16 pb-4 animate-in fade-in-0 slide-in-from-right-4 duration-500">
-            <div className="flex justify-center mb-6">
-              <img src={jvalaLogo} alt="Jvala" className="w-14 h-14 object-contain" />
-            </div>
-
-            <QuestionPill text="What condition(s) do you have?" />
-
-            <p className="text-white/50 text-sm text-center mt-3 mb-4">Tap to select</p>
-
-            {/* Search */}
-            <div className="relative mb-4">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search conditions..."
-                className="w-full h-13 rounded-2xl bg-white/12 backdrop-blur-xl border border-white/15 pl-11 pr-10 text-white placeholder:text-white/35 focus:outline-none focus:ring-2 focus:ring-white/25 transition-all"
-                style={{ height: '52px' }}
-              />
-              {searchQuery && (
-                <button 
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-4 top-1/2 -translate-y-1/2"
-                >
-                  <X className="w-4 h-4 text-white/40" />
-                </button>
-              )}
-            </div>
-
-            {/* "I am Seeking a Diagnosis" option */}
+    <div className="fixed inset-0 flex flex-col bg-background text-foreground">
+      <div className="px-6 pt-[max(env(safe-area-inset-top),1rem)]">
+        <div className="mb-4 flex items-center gap-3">
+          {step > 0 ? (
             <button
-              onClick={() => {
-                haptics.selection();
-                setData(prev => ({
-                  ...prev,
-                  conditions: prev.conditions.includes('seeking-diagnosis')
-                    ? prev.conditions.filter(c => c !== 'seeking-diagnosis')
-                    : [...prev.conditions, 'seeking-diagnosis']
-                }));
-              }}
-              className={cn(
-                "w-full py-4 px-5 rounded-2xl mb-4 text-center transition-all duration-200 active:scale-[0.97] flex items-center justify-center gap-2",
-                data.conditions.includes('seeking-diagnosis')
-                  ? "bg-white/90 border-2 border-white"
-                  : "bg-white/12 backdrop-blur-xl border border-white/15"
-              )}
+              type="button"
+              onClick={() => setStep((prev) => Math.max(prev - 1, 0))}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-foreground"
             >
-              <Search className={cn("w-4 h-4", data.conditions.includes('seeking-diagnosis') ? "text-gray-900" : "text-white/70")} />
-              <span className={cn(
-                "text-[15px] font-semibold",
-                data.conditions.includes('seeking-diagnosis') ? "text-gray-900" : "text-white"
-              )}>
-                I am Seeking a Diagnosis
-              </span>
+              <ChevronLeft className="h-4 w-4" />
             </button>
+          ) : (
+            <div className="h-10 w-10" />
+          )}
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+      </div>
 
-            {/* Selected badges */}
-            {data.conditions.filter(c => c !== 'seeking-diagnosis').length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
-                {data.conditions.filter(c => c !== 'seeking-diagnosis').map(id => {
-                  const condition = CONDITIONS.find(c => c.id === id);
-                  return (
-                    <span key={id} className="text-xs px-3 py-1.5 rounded-full bg-white/90 text-gray-900 font-semibold flex items-center gap-1.5">
-                      {condition?.name}
-                      <button onClick={() => toggleCondition(id)}>
-                        <X className="w-3 h-3 text-gray-500" />
-                      </button>
-                    </span>
-                  );
-                })}
+      <div className="flex-1 overflow-y-auto">
+        {step === 0 && (
+          <StepShell
+            title="Built for daily tracking"
+            subtitle="Jvala keeps symptom logging fast, then layers in location, wearable, and reminder context when you want it."
+          >
+            <div className="rounded-3xl border border-border bg-card px-5 py-6 shadow-sm">
+              <p className="text-center text-base font-medium text-foreground">{valueProps[valuePropIndex]}</p>
+            </div>
+          </StepShell>
+        )}
+
+        {step === 1 && (
+          <StepShell title="What should we call you?" subtitle="We use this in the app and in your companion context.">
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={firstName}
+                onChange={(event) => setFirstName(event.target.value)}
+                placeholder="First name"
+                autoFocus
+                className="h-14 w-full rounded-2xl border border-border bg-card px-4 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary"
+              />
+              <p className="text-sm text-muted-foreground">If you signed in with Apple or Google, we’ll prefill this when available.</p>
+            </div>
+          </StepShell>
+        )}
+
+        {step === 2 && (
+          <StepShell
+            title="What are you tracking?"
+            subtitle="Type anything and add it. You can also tap a suggestion below."
+          >
+            <div className="space-y-4">
+              <div className="rounded-3xl border border-border bg-card p-4 shadow-sm">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={conditionQuery}
+                    onChange={(event) => setConditionQuery(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        addTypedCondition();
+                      }
+                    }}
+                    placeholder="Add a condition, symptom cluster, or anything you want to track"
+                    className="h-14 w-full rounded-2xl border border-border bg-background pl-11 pr-12 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
+                  />
+                  <button
+                    type="button"
+                    onClick={addTypedCondition}
+                    className="absolute right-2 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl bg-primary text-primary-foreground"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
-            )}
 
-            {/* Condition results */}
-            <div className="space-y-1.5 pb-4 max-h-[40vh] overflow-y-auto scrollbar-hide">
-              {filteredConditions.map((condition) => (
-                <button
-                  key={condition.id}
-                  onClick={() => toggleCondition(condition.id)}
-                  className={cn(
-                    "w-full py-3.5 px-4 rounded-2xl text-left transition-all active:scale-[0.98] flex items-center justify-between",
-                    data.conditions.includes(condition.id)
-                      ? "bg-white/90 border-2 border-white"
-                      : "bg-white/8 border border-white/10 hover:bg-white/15"
-                  )}
-                >
-                  <span className={cn(
-                    "text-sm font-medium",
-                    data.conditions.includes(condition.id) ? "text-gray-900" : "text-white/90"
-                  )}>{condition.name}</span>
-                  {data.conditions.includes(condition.id) && (
-                    <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center">
-                      <Check className="w-3.5 h-3.5 text-white" />
-                    </div>
-                  )}
-                </button>
-              ))}
-              
-              {/* Custom add when no results */}
-              {searchQuery && filteredConditions.length === 0 && (
-                <button
-                  onClick={() => {
-                    haptics.selection();
-                    const customId = searchQuery.toLowerCase().replace(/\s+/g, '-');
-                    setData(prev => ({
-                      ...prev,
-                      conditions: [...prev.conditions, customId]
-                    }));
-                    setSearchQuery("");
-                  }}
-                  className="w-full py-3.5 px-4 rounded-2xl text-left bg-white/8 border border-white/10"
-                >
-                  <span className="text-sm font-semibold text-amber-400">+ Add "{searchQuery}"</span>
-                </button>
+              {normalizedSelectedConditions.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {normalizedSelectedConditions.map((value) => {
+                    const label = CONDITIONS.find((condition) => condition.id === value)?.name || value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => removeCondition(value)}
+                        className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-2 text-sm font-medium text-primary"
+                      >
+                        <span>{label}</span>
+                        <span className="text-xs">×</span>
+                      </button>
+                    );
+                  })}
+                </div>
               )}
+
+              <div className="space-y-2 rounded-3xl border border-border bg-card p-4 shadow-sm">
+                <p className="text-sm font-medium text-foreground">Suggestions</p>
+                <div className="grid gap-2">
+                  {filteredConditions.length > 0 ? (
+                    filteredConditions.map((condition) => (
+                      <button
+                        key={condition.id}
+                        type="button"
+                        onClick={() => addCondition(condition.id)}
+                        className="flex items-center justify-between rounded-2xl border border-border bg-background px-4 py-3 text-left transition-colors hover:border-primary/40 hover:bg-primary/5"
+                      >
+                        <div>
+                          <div className="text-sm font-medium text-foreground">{condition.name}</div>
+                          <div className="text-xs text-muted-foreground">{condition.category}</div>
+                        </div>
+                        <Plus className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                    ))
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={addTypedCondition}
+                      className="rounded-2xl border border-dashed border-border px-4 py-4 text-left text-sm text-muted-foreground"
+                    >
+                      Add “{conditionQuery.trim() || "your entry"}”
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
+          </StepShell>
         )}
 
-        {/* ─── Step 7: Gender ─── */}
+        {step === 3 && (
+          <StepShell title="A little context" subtitle="We use this to tailor trend analysis and AI suggestions.">
+            <div className="space-y-4">
+              <div className="rounded-3xl border border-border bg-card p-4 shadow-sm">
+                <label className="mb-2 block text-sm font-medium text-foreground">Date of birth</label>
+                <input
+                  type="date"
+                  value={dateOfBirth}
+                  max={new Date().toISOString().split("T")[0]}
+                  onChange={(event) => setDateOfBirth(event.target.value)}
+                  className="h-14 w-full rounded-2xl border border-border bg-background px-4 text-sm text-foreground outline-none focus:border-primary"
+                />
+                {birthDateInvalid ? (
+                  <p className="mt-2 text-sm text-destructive">Enter a valid birth date for someone age 13 or older.</p>
+                ) : null}
+              </div>
+
+              <div className="rounded-3xl border border-border bg-card p-4 shadow-sm">
+                <p className="mb-3 text-sm font-medium text-foreground">Biological sex</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {SEX_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => {
+                        haptics.selection();
+                        setBiologicalSex(option.id);
+                      }}
+                      className={cn(
+                        "rounded-2xl border px-4 py-3 text-sm font-medium transition-colors",
+                        biologicalSex === option.id
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-background text-foreground",
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </StepShell>
+        )}
+
+        {step === 4 && (
+          <StepShell
+            title="Connect Apple Health"
+            subtitle="This lets Jvala attach real wearable context to your logs when your device supports it."
+          >
+            <PermissionCard
+              icon={Heart}
+              title="Health data"
+              body="We only request read access for the metrics Jvala uses in tracking and trend analysis."
+              status={healthPermissionStatus}
+              onRequest={requestHealthPermission}
+              buttonLabel="Connect"
+            />
+          </StepShell>
+        )}
+
+        {step === 5 && (
+          <StepShell
+            title="Enable location"
+            subtitle="We use city-level location to attach weather and environment signals to each log."
+          >
+            <PermissionCard
+              icon={MapPin}
+              title="Location"
+              body="This improves environmental correlations and quick-log context."
+              status={locationPermissionStatus}
+              onRequest={requestLocationPermission}
+              buttonLabel="Allow"
+            />
+          </StepShell>
+        )}
+
+        {step === 6 && (
+          <StepShell
+            title="Notifications"
+            subtitle="Turn these on if you want streak reminders and follow-up nudges."
+          >
+            <PermissionCard
+              icon={Bell}
+              title="Daily reminders"
+              body="You can change this later in Settings at any time."
+              status={notificationPermissionStatus}
+              onRequest={requestNotificationPermission}
+              buttonLabel="Enable"
+            />
+          </StepShell>
+        )}
+
         {step === 7 && (
-          <div className="flex flex-col items-center px-6 pt-16 pb-4 animate-in fade-in-0 slide-in-from-right-4 duration-500">
-            <div className="mb-6">
-              <img src={jvalaLogo} alt="Jvala" className="w-14 h-14 object-contain" />
-            </div>
-
-            <QuestionPill text="How do you identify?" />
-
-            <div className="w-full max-w-sm mt-8 space-y-3">
-              {GENDERS.map((g) => (
+          <StepShell title="Reminder setup" subtitle="Choose when Jvala should check in if you want daily reminders.">
+            <div className="space-y-4">
+              <div className="rounded-3xl border border-border bg-card p-4 shadow-sm">
                 <button
-                  key={g.id}
-                  onClick={() => { haptics.selection(); setSelectedGender(g.id); }}
-                  className={cn(
-                    "w-full py-5 px-5 rounded-2xl transition-all duration-200 active:scale-[0.97] flex items-center gap-4",
-                    selectedGender === g.id
-                      ? "bg-white/90 border-2 border-white shadow-lg"
-                      : "bg-white/12 backdrop-blur-xl border border-white/15 hover:bg-white/20"
-                  )}
+                  type="button"
+                  onClick={() => setEnableReminders((prev) => !prev)}
+                  className="flex w-full items-center justify-between rounded-2xl border border-border bg-background px-4 py-4 text-left"
                 >
-                  <div className={cn(
-                    "w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold",
-                    selectedGender === g.id ? "bg-gray-100" : "bg-white/15"
-                  )} style={{ color: g.color }}>
-                    {g.icon}
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Daily reminders</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {enableReminders ? "Morning and evening reminders are on." : "No automatic reminders."}
+                    </p>
                   </div>
-                  <span className={cn(
-                    "text-[16px] font-semibold",
-                    selectedGender === g.id ? "text-gray-900" : "text-white"
-                  )}>{g.label}</span>
+                  <div className={cn("flex h-6 w-11 items-center rounded-full p-1 transition-colors", enableReminders ? "bg-primary" : "bg-muted") }>
+                    <div className={cn("h-4 w-4 rounded-full bg-background transition-transform", enableReminders ? "translate-x-5" : "translate-x-0")} />
+                  </div>
                 </button>
-              ))}
+              </div>
+
+              {enableReminders ? (
+                <div className="grid gap-3 rounded-3xl border border-border bg-card p-4 shadow-sm">
+                  <label className="space-y-2">
+                    <span className="text-sm font-medium text-foreground">Morning</span>
+                    <input
+                      type="time"
+                      value={morningReminder}
+                      onChange={(event) => setMorningReminder(event.target.value)}
+                      className="h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm text-foreground outline-none focus:border-primary"
+                    />
+                  </label>
+                  <label className="space-y-2">
+                    <span className="text-sm font-medium text-foreground">Evening</span>
+                    <input
+                      type="time"
+                      value={eveningReminder}
+                      onChange={(event) => setEveningReminder(event.target.value)}
+                      className="h-12 w-full rounded-2xl border border-border bg-background px-4 text-sm text-foreground outline-none focus:border-primary"
+                    />
+                  </label>
+                </div>
+              ) : null}
+
+              <div className="rounded-3xl border border-border bg-card p-4 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <Shield className="h-4 w-4" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-foreground">Ready to go</p>
+                    <p className="text-sm leading-6 text-muted-foreground">
+                      Jvala will use your profile, condition list, and enabled permissions to personalize tracking and analysis from day one.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        )}
-
-        {/* ─── Step 8: Age ─── */}
-        {step === 8 && (
-          <div className="flex flex-col items-center px-6 pt-16 pb-4 animate-in fade-in-0 slide-in-from-right-4 duration-500">
-            <div className="mb-6">
-              <img src={jvalaLogo} alt="Jvala" className="w-14 h-14 object-contain" />
-            </div>
-
-            <QuestionPill text="How old are you?" />
-
-            <div className="w-full max-w-sm mt-8 space-y-3">
-              {AGE_RANGES.map((age) => (
-                <OptionPill
-                  key={age}
-                  selected={selectedAge === age}
-                  onClick={() => { haptics.selection(); setSelectedAge(age); }}
-                  className="text-center"
-                >
-                  {age}
-                </OptionPill>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ─── Step 9: Commitment ─── */}
-        {step === 9 && (
-          <div className="flex flex-col items-center px-6 pt-16 pb-4 animate-in fade-in-0 slide-in-from-right-4 duration-500">
-            <div className="mb-6">
-              <img src={jvalaLogo} alt="Jvala" className="w-14 h-14 object-contain" />
-            </div>
-
-            <div className="bg-white/20 backdrop-blur-xl border border-white/25 rounded-3xl px-8 py-5 mx-auto max-w-sm text-center mb-8">
-              <h2 className="text-xl font-bold text-white">Commit to daily check-ins</h2>
-              <p className="text-white/60 text-sm mt-2 leading-relaxed">
-                So Jvala can learn your patterns, how long will you try daily check-ins?
-              </p>
-            </div>
-
-            <div className="w-full max-w-sm space-y-3">
-              {COMMITMENTS.map((c) => (
-                <button
-                  key={c.days}
-                  onClick={() => { haptics.selection(); setSelectedCommitment(c.days); }}
-                  className={cn(
-                    "w-full py-5 px-5 rounded-2xl transition-all duration-200 active:scale-[0.97] flex items-center gap-4",
-                    selectedCommitment === c.days
-                      ? "bg-white/90 border-2 border-white shadow-lg"
-                      : "bg-white/12 backdrop-blur-xl border border-white/15 hover:bg-white/20"
-                  )}
-                >
-                  <span className="text-2xl">{c.emoji}</span>
-                  <span className={cn(
-                    "text-[16px] font-semibold",
-                    selectedCommitment === c.days ? "text-gray-900" : "text-white"
-                  )}>{c.label}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* Skip option */}
-            <button 
-              onClick={handleNext}
-              className="mt-6 text-white/40 text-sm font-medium hover:text-white/60 transition-colors"
-            >
-              Not now
-            </button>
-          </div>
+          </StepShell>
         )}
       </div>
 
-      {/* Bottom CTA */}
-      {step < 10 && (
-        <CTAButton 
-          label={
-            step === 0 ? "Get Started" :
-            step <= 3 ? "Continue" :
-            step === 9 ? "I commit" :
+      <div className="px-6 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-4">
+        <button
+          type="button"
+          onClick={() => void goNext()}
+          disabled={!stepCanContinue() || submitting}
+          className="inline-flex h-14 w-full items-center justify-center rounded-2xl bg-primary px-6 text-base font-semibold text-primary-foreground transition-opacity disabled:opacity-40"
+        >
+          {submitting ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : step === TOTAL_STEPS - 1 ? (
+            "Continue to Jvala"
+          ) : (
             "Continue"
-          }
-          disabled={!canProceed()}
-          onClick={handleNext}
-        />
-      )}
+          )}
+        </button>
+      </div>
     </div>
   );
 };
