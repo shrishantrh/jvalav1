@@ -64,6 +64,8 @@ interface FluidLogSelectorProps {
   onReorderTrackables?: (trackables: SmartTrackable[]) => void;
   onAddMedication?: (med: MedicationDetails) => void;
   onRemoveMedication?: (medName: string) => void;
+  onAddSymptom?: (symptom: string) => void;
+  onRemoveSymptom?: (symptom: string) => void;
   onOpenDetails?: () => void;
   onOpenFood?: () => void;
   disabled?: boolean;
@@ -448,7 +450,7 @@ export const FluidLogSelector = ({
   userSymptoms, userMedications, aiLogCategories = [], customTrackables = [],
   onLogSymptom, onLogMedication, onLogWellness, onLogMood,
   onLogEnergy, onLogRecovery, onLogCustom, onAddTrackable, onRemoveTrackable, onReorderTrackables,
-  onAddMedication, onRemoveMedication, onOpenDetails, onOpenFood, disabled
+  onAddMedication, onRemoveMedication, onAddSymptom, onRemoveSymptom, onOpenDetails, onOpenFood, disabled
 }: FluidLogSelectorProps) => {
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [activeCondition, setActiveCondition] = useState<AILogCategory | null>(null);
