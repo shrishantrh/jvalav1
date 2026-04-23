@@ -457,8 +457,13 @@ export function getGreeting(ctx: GreetingContext): string {
   const name = fmtName(ctx.name);
 
   // Priority 1 — Prediction-driven (highest impact for intelligence feel)
-  if (ctx.riskScore != null && ctx.riskScore >= 50 && Math.random() < 0.6) {
+  if (ctx.riskScore != null && ctx.riskScore >= 50 && Math.random() < 0.65) {
     return pick(PREDICTION_GREETINGS)(ctx.riskScore);
+  }
+
+  // Priority 1b — Intelligence proactive (20% chance when no high risk)
+  if (ctx.totalLogs && ctx.totalLogs > 20 && Math.random() < 0.2) {
+    return pick(INTELLIGENCE_PROACTIVE);
   }
 
   // Priority 2 — Recent severe flare
