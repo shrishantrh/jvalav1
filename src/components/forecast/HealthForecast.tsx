@@ -302,7 +302,7 @@ export const HealthForecast = ({ userId, currentWeather, menstrualDay, onViewDet
         "shadow-[0_8px_32px_rgba(0,0,0,0.06)]"
       )}>
         <div className="relative z-10">
-          {/* Header */}
+          {/* Header - simplified */}
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-4">
               <div className={cn(
@@ -320,25 +320,18 @@ export const HealthForecast = ({ userId, currentWeather, menstrualDay, onViewDet
                 )}
               </div>
               <div>
-                <h3 className="text-lg font-bold">Next 24 Hours</h3>
-                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                  <Badge variant="outline" className={cn("text-sm capitalize font-semibold", getRiskColor(forecast.riskLevel))}>
-                    {forecast.riskScore}% chance of a flare
-                  </Badge>
-                  {forecast.riskWindows?.h48 != null && (
-                    <Badge variant="outline" className="text-xs text-muted-foreground">
-                      48h: {forecast.riskWindows.h48}%
-                    </Badge>
-                  )}
-                  {forecast.riskWindows?.h72 != null && (
-                    <Badge variant="outline" className="text-xs text-muted-foreground">
-                      72h: {forecast.riskWindows.h72}%
-                    </Badge>
-                  )}
-                  <span className="text-base text-muted-foreground">
-                    {Math.round(forecast.confidence * 100)}% reliability
-                  </span>
-                </div>
+                <h3 className="text-lg font-bold">
+                  {forecast.riskLevel === 'low' ? "Looking Good Tomorrow" :
+                   forecast.riskLevel === 'moderate' ? "Stay Alert Tomorrow" :
+                   forecast.riskLevel === 'high' ? "Higher Risk Tomorrow" :
+                   "Take Extra Care Tomorrow"}
+                </h3>
+                <p className={cn("text-base font-semibold mt-0.5", getRiskColor(forecast.riskLevel))}>
+                  {forecast.riskScore < 30 ? "Low chance of a flare" :
+                   forecast.riskScore < 60 ? "Moderate chance of a flare" :
+                   forecast.riskScore < 80 ? "High chance of a flare" :
+                   "Very high chance of a flare"}
+                </p>
               </div>
             </div>
             <Button variant="ghost" size="icon"
@@ -348,22 +341,6 @@ export const HealthForecast = ({ userId, currentWeather, menstrualDay, onViewDet
               <RefreshCw className="w-5 h-5" />
             </Button>
           </div>
-
-          {/* Accuracy Badge */}
-          {forecast.accuracy && forecast.accuracy.totalPredictions >= 3 && (
-            <div className={cn(
-              "flex items-center gap-2 mb-3 p-2 rounded-xl",
-              "bg-white/40 dark:bg-slate-800/40 backdrop-blur-sm"
-            )}>
-              <Target className="w-4 h-4 text-primary" />
-                <span className="text-xs font-medium">
-                 Previous forecasts matched {forecast.accuracy.correctPredictions} of {forecast.accuracy.totalPredictions} recent check-ins
-                 {forecast.accuracy.brierScore !== null && (
-                   <span className="text-muted-foreground"> · calibration score {forecast.accuracy.brierScore.toFixed(3)}</span>
-                 )}
-               </span>
-            </div>
-          )}
 
           {/* Risk Factors */}
           {riskFactors.length > 0 ? (
