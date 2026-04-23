@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { HashRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import * as Sentry from "@sentry/react";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -26,6 +26,13 @@ import { InstallPrompt } from "./components/pwa/InstallPrompt";
 import { SmartAppBanner } from "./components/pwa/SmartAppBanner";
 
 const queryClient = new QueryClient();
+
+if (typeof window !== "undefined") {
+  const legacyHashPath = window.location.hash;
+  if (legacyHashPath.startsWith("#/")) {
+    window.history.replaceState(null, "", legacyHashPath.slice(1));
+  }
+}
 
 const SentryRoutes = Sentry.withSentryReactRouterV6Routing(Routes);
 
@@ -55,14 +62,16 @@ const App = () => (
         <OfflineIndicator />
         <InstallPrompt />
         <SmartAppBanner />
-        <HashRouter>
+        <BrowserRouter>
           <SentryRoutes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/demo" element={<Demo />} />
-            <Route path="/clinician" element={<ClinicianDashboard />} />
+            <Route path="/clinican" element={<ClinicianEntry />} />
+            <Route path="/clinician" element={<ClinicianEntry />} />
             <Route path="/clinician/welcome" element={<ClinicianEntry />} />
             <Route path="/clinician/auth" element={<ClinicianAuth />} />
+            <Route path="/clinician/dashboard" element={<ClinicianDashboard />} />
             <Route path="/clinician/shared" element={<ClinicianSharedView />} />
             <Route path="/clinician/patient/:patientId" element={<ClinicianPatientDetail />} />
             <Route path="/settings" element={<Settings />} />
@@ -76,7 +85,7 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </SentryRoutes>
-        </HashRouter>
+        </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
   </Sentry.ErrorBoundary>

@@ -65,7 +65,7 @@ export default function ClinicianDashboard() {
               </div>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={async () => { await signOut(); navigate('/clinician/auth'); }}>
+          <Button variant="ghost" size="sm" onClick={async () => { await signOut(); navigate('/clinician'); }}>
             <LogOut className="w-4 h-4 mr-1.5" /> Sign out
           </Button>
         </div>

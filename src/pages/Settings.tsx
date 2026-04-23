@@ -146,7 +146,7 @@ export default function Settings() {
             </CardHeader>
             <CardContent className="px-4 pb-4 pt-0">
               <a
-                href="/#/terms"
+                href="/terms"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-between w-full p-3 rounded-xl hover:bg-muted/20 transition-all press-effect"
@@ -234,7 +234,7 @@ export default function Settings() {
                       metadata: { ...restMeta, tour_replay: true } as any,
                     }).eq('id', user.id);
                     toast({ title: "Tour will replay now" });
-                    window.location.href = window.location.pathname + '#/';
+                    window.location.href = '/';
                     window.location.reload();
                   } catch (e) {
                     toast({ title: "Failed to reset tour", variant: "destructive" });

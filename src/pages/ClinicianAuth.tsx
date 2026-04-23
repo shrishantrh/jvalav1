@@ -33,7 +33,7 @@ export default function ClinicianAuth() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       toast({ title: 'Welcome back' });
-      navigate('/clinician');
+      navigate('/clinician/dashboard');
     } catch (err: any) {
       toast({ title: 'Sign in failed', description: err.message, variant: 'destructive' });
     } finally { setLoading(false); }
@@ -43,7 +43,7 @@ export default function ClinicianAuth() {
     e.preventDefault();
     setLoading(true);
     try {
-      const redirectTo = `${window.location.origin}/#/clinician`;
+      const redirectTo = `${window.location.origin}/clinician/dashboard`;
       const { data: signupData, error: signupErr } = await supabase.auth.signUp({
         email,
         password,
@@ -63,7 +63,7 @@ export default function ClinicianAuth() {
         title: 'Account created',
         description: signupData.session ? 'You are signed in.' : 'Check your email to confirm, then sign in.',
       });
-      if (signupData.session) navigate('/clinician');
+      if (signupData.session) navigate('/clinician/dashboard');
       else setMode('signin');
     } catch (err: any) {
       toast({ title: 'Sign up failed', description: err.message, variant: 'destructive' });

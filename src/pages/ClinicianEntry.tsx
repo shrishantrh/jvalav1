@@ -23,6 +23,10 @@ export default function ClinicianEntry() {
     }
   }, [token, navigate]);
 
+  useEffect(() => {
+    if (user && isClinician) navigate('/clinician/dashboard', { replace: true });
+  }, [user, isClinician, navigate]);
+
   if (loading || token) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -30,10 +34,6 @@ export default function ClinicianEntry() {
       </div>
     );
   }
-
-  useEffect(() => {
-    if (user && isClinician) navigate('/clinician', { replace: true });
-  }, [user, isClinician, navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-primary/5 px-6 py-12">

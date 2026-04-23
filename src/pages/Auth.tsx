@@ -209,10 +209,10 @@ const Auth = () => {
 
       navigate('/', { replace: true });
 
-      // HashRouter fallback for native webview edge-cases
+      // Browser routing fallback for native webview edge-cases
       window.setTimeout(() => {
-        if (window.location.hash.includes('/auth')) {
-          window.location.replace(`${window.location.origin}/#/`);
+        if (window.location.pathname === '/auth') {
+          window.location.replace(`${window.location.origin}/`);
         }
       }, 120);
     });
@@ -252,8 +252,8 @@ const Auth = () => {
 
         // Force a route refresh so all auth-dependent hooks/components hydrate immediately.
         window.setTimeout(() => {
-          if (window.location.hash.includes('/auth')) {
-            window.location.replace(`${window.location.origin}/#/`);
+          if (window.location.pathname === '/auth') {
+            window.location.replace(`${window.location.origin}/`);
           }
         }, 120);
         return;
