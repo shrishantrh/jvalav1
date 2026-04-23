@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
-import { Smile, Pill, X, Zap, Plus, Activity, Flame, Sun, Moon, Droplets, Thermometer, Eye, Brain, Shield, AlertTriangle, Heart, Search, Dumbbell, GlassWater, Apple, Loader2, Sparkles, Trash2 } from "lucide-react";
+import { Smile, Pill, X, Zap, Plus, Activity, Flame, Sun, Moon, Droplets, Thermometer, Eye, Brain, Shield, AlertTriangle, Heart, Search, Dumbbell, GlassWater, Apple, Loader2, Sparkles, Trash2, Wind } from "lucide-react";
 import { SeverityWheel } from "@/components/flare/SeverityWheel";
 import { EnergyOrbs } from "@/components/flare/EnergyOrbs";
 import { FlareSeverity } from "@/types/flare";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { Slider } from "@/components/ui/slider";
 import { searchDrugs } from "@/data/whoDrugDictionary";
+import { WaterGlassTrackable, StressThermometer, SleepQualityTrackable, ExerciseTrackable, PainLocationTrackable, CaffeineTrackable, BreathingTrackable } from "@/components/tracking/CustomTrackableUIs";
 
 // ─── Types ───
 
@@ -322,6 +323,21 @@ const MedicationPanel = ({ userMedications, onLogMedication, onAddMedication, on
   );
 };
 
+// ─── Built-in rich trackable IDs ───
+const BUILTIN_TRACKABLE_IDS = ['water', 'stress', 'sleep_quality', 'exercise', 'pain', 'caffeine', 'breathing'];
+
+const isBuiltinTrackable = (t: SmartTrackable): string | null => {
+  const label = t.label.toLowerCase().replace(/\s+/g, '_');
+  if (label === 'water' || t.id.includes('water')) return 'water';
+  if (label === 'stress' || t.id.includes('stress')) return 'stress';
+  if (label.includes('sleep') || t.id.includes('sleep')) return 'sleep';
+  if (label === 'exercise' || t.id.includes('exercise')) return 'exercise';
+  if (label === 'pain' || t.id.includes('pain')) return 'pain';
+  if (label === 'caffeine' || t.id.includes('caffeine')) return 'caffeine';
+  if (label.includes('breath') || t.id.includes('breath')) return 'breathing';
+  return null;
+};
+
 // ─── Custom Trackable Panel ───
 
 const TrackableInteractionPanel = ({ trackable, onLog, onClose }: {
@@ -331,6 +347,35 @@ const TrackableInteractionPanel = ({ trackable, onLog, onClose }: {
 }) => {
   const [sliderValue, setSliderValue] = useState([5]);
   const TIcon = ICON_MAP[trackable.icon] || Activity;
+  
+  // Check if this is a built-in trackable with a rich custom UI
+  const builtinType = isBuiltinTrackable(trackable);
+  
+  if (builtinType) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center" 
+              style={{ background: trackable.color ? `${trackable.color.replace(')', ' / 0.15)')}` : 'hsl(250 60% 55% / 0.15)' }}>
+              <TIcon className="w-4 h-4" style={{ color: trackable.color || 'hsl(250 60% 55%)' }} />
+            </div>
+            <span className="text-base font-semibold">{trackable.label}</span>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-xl flex items-center justify-center bg-muted/50 hover:bg-muted active:scale-95 transition-all">
+            <X className="w-4 h-4 text-muted-foreground" />
+          </button>
+        </div>
+        {builtinType === 'water' && <WaterGlassTrackable onLog={onLog} />}
+        {builtinType === 'stress' && <StressThermometer onLog={onLog} />}
+        {builtinType === 'sleep' && <SleepQualityTrackable onLog={onLog} />}
+        {builtinType === 'exercise' && <ExerciseTrackable onLog={onLog} />}
+        {builtinType === 'pain' && <PainLocationTrackable onLog={onLog} />}
+        {builtinType === 'caffeine' && <CaffeineTrackable onLog={onLog} />}
+        {builtinType === 'breathing' && <BreathingTrackable onLog={onLog} />}
+      </div>
+    );
+  }
 
   const handleOptionClick = (option: TrackableSubOption) => {
     haptics.success();
@@ -1050,15 +1095,56 @@ export const FluidLogSelector = ({
                 </button>
               </div>
               <div className="space-y-3">
-                <p className="text-xs text-muted-foreground">
-                  Add anything you want to track — water intake, supplements, exercise, sleep quality, stress levels, etc. Our AI will create smart logging options for it.
-                </p>
-                
+                {/* Built-in trackables with rich UIs */}
+                {!researchedTrackable && !isResearching && (
+                  <>
+                    <p className="text-xs text-muted-foreground">Quick add with interactive UIs:</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { label: 'Water', icon: '💧', color: 'hsl(200 80% 55%)', iconKey: 'glass_water' },
+                        { label: 'Stress', icon: '🌡️', color: 'hsl(0 70% 55%)', iconKey: 'thermometer' },
+                        { label: 'Sleep Quality', icon: '🌙', color: 'hsl(260 60% 55%)', iconKey: 'moon' },
+                        { label: 'Exercise', icon: '🏋️', color: 'hsl(140 60% 45%)', iconKey: 'dumbbell' },
+                        { label: 'Pain', icon: '📍', color: 'hsl(0 70% 50%)', iconKey: 'heart' },
+                        { label: 'Caffeine', icon: '☕', color: 'hsl(35 80% 50%)', iconKey: 'zap' },
+                        { label: 'Breathing', icon: '🌬️', color: 'hsl(200 60% 50%)', iconKey: 'activity' },
+                      ].filter(b => !customTrackables.some(t => t.label.toLowerCase() === b.label.toLowerCase())).map((b) => (
+                        <button key={b.label} onClick={() => {
+                          if (onAddTrackable) {
+                            onAddTrackable({
+                              id: `builtin_${b.label.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}`,
+                              label: b.label,
+                              icon: b.iconKey,
+                              type: 'custom',
+                              color: b.color,
+                              interactionType: 'options',
+                            });
+                            setActivePanel(null);
+                            haptics.success();
+                          }
+                        }}
+                          className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95 hover:scale-[1.01]"
+                          style={{
+                            background: `linear-gradient(145deg, ${b.color.replace(/\d+%\)/, '95%)')}, ${b.color.replace(/\d+%\)/, '90%)')})`,
+                            border: `1px solid ${b.color.replace(/\d+%\)/, '80%)')}`,
+                          }}
+                        >
+                          <span className="text-lg">{b.icon}</span>
+                          <span>{b.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="border-t border-border/30 pt-3">
+                      <p className="text-xs text-muted-foreground mb-2">Or create a custom tracker:</p>
+                    </div>
+                  </>
+                )}
+
                 <div className="flex gap-2">
                   <Input
                     value={trackableSearch}
                     onChange={(e) => { setTrackableSearch(e.target.value); setResearchedTrackable(null); }}
-                    placeholder="e.g. Water, Vitamins, Stress..."
+                    placeholder="e.g. Vitamins, Hydration..."
                     className="flex-1 h-10 text-sm"
                     onKeyDown={(e) => { if (e.key === 'Enter') handleResearchTrackable(); }}
                   />
@@ -1068,26 +1154,9 @@ export const FluidLogSelector = ({
                     className="h-10 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2"
                   >
                     {isResearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                    {isResearching ? 'Researching...' : 'Create'}
+                    {isResearching ? 'Creating...' : 'Create'}
                   </button>
                 </div>
-
-                {/* Quick suggestions when no research result */}
-                {!researchedTrackable && !isResearching && (
-                  <div className="flex flex-wrap gap-2">
-                    {['Water', 'Exercise', 'Vitamins', 'Sleep Quality', 'Stress', 'Caffeine'].map((s) => (
-                      <button key={s} onClick={() => { setTrackableSearch(s); }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all active:scale-95"
-                        style={{
-                          background: 'linear-gradient(145deg, hsl(0 0% 100% / 0.8) 0%, hsl(0 0% 96% / 0.7) 100%)',
-                          border: '1px solid hsl(0 0% 100% / 0.5)',
-                        }}
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                )}
 
                 {/* AI-researched trackable preview */}
                 {researchedTrackable && (

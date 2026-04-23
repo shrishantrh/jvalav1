@@ -15,6 +15,44 @@ import { useCorrelations } from "@/hooks/useCorrelations";
 import { useEntryContext } from "@/hooks/useEntryContext";
 import { DynamicChart, DynamicChartRenderer } from "@/components/chat/DynamicChartRenderer";
 import { AIChatPrompts, generateFollowUps } from "@/components/chat/AIChatPrompts";
+import { ToolActivityChips, predictToolActivities, completeActivities, ToolActivity } from "@/components/chat/ToolActivityChips";
+
+// ─── Split long AI messages into multiple bubbles for a human feel ───
+function splitLongMessage(text: string): string[] {
+  if (text.length < 600) return [text];
+  
+  // Split on double newlines first (paragraph boundaries)
+  const paragraphs = text.split(/\n\n+/);
+  if (paragraphs.length >= 2) {
+    const chunks: string[] = [];
+    let current = '';
+    for (const p of paragraphs) {
+      if (current && (current.length + p.length) > 800) {
+        chunks.push(current.trim());
+        current = p;
+      } else {
+        current = current ? `${current}\n\n${p}` : p;
+      }
+    }
+    if (current.trim()) chunks.push(current.trim());
+    return chunks.length > 1 ? chunks : [text];
+  }
+  
+  // Fallback: split on sentence boundaries near the midpoint
+  const mid = Math.floor(text.length / 2);
+  const sentenceEnd = /[.!?]\s/g;
+  let bestSplit = -1;
+  let match;
+  while ((match = sentenceEnd.exec(text)) !== null) {
+    if (Math.abs(match.index - mid) < Math.abs(bestSplit - mid)) {
+      bestSplit = match.index + 1;
+    }
+  }
+  if (bestSplit > 100 && bestSplit < text.length - 100) {
+    return [text.slice(0, bestSplit).trim(), text.slice(bestSplit).trim()];
+  }
+  return [text];
+}
 
 
 interface ProactiveFormField {
@@ -499,6 +537,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   };
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [toolActivities, setToolActivities] = useState<ToolActivity[]>([]);
   const [keyboardInset, setKeyboardInset] = useState(0);
   const [currentLocation, setCurrentLocation] = useState<{ latitude: number; longitude: number; city?: string } | null>(null);
   const [lastLoggedEntryId, setLastLoggedEntryId] = useState<string | null>(null);
@@ -594,16 +633,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     const cached = chatCache.get(userId);
     if (cached && cached.length > 0) return;
     
-    // If user hasn't consented to AI, show a simple greeting without calling AI
-    if (!aiConsented) {
-      setMessages([{
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: getPersonalizedGreeting(userConditions, recentEntries, userName),
-        timestamp: new Date(),
-      }]);
-      return;
-    }
+    // AI consent implied by terms acceptance
     
     // Show typing indicator while AI loads
     setMessages([{
@@ -1164,11 +1194,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     const text = messageText || input.trim();
     if (!text || isProcessing) return;
 
-    // Gate AI chat behind consent
-    if (!aiConsented) {
-      onRequestAIConsent?.();
-      return;
-    }
+    // AI consent is implied by accepting terms of service
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -1180,6 +1206,10 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     setInput("");
     clearRecording();
     setIsProcessing(true);
+    
+    // Show predicted tool activity chips immediately
+    const predicted = predictToolActivities(text);
+    setToolActivities(predicted);
 
     try {
       // Single unified AI call — chat-assistant has ALL data access
@@ -1198,29 +1228,50 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
 
       let responseContent = (aiData?.response || "").trim();
       if (!responseContent) responseContent = "Tell me more.";
-
-      const assistantMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: responseContent,
-        timestamp: new Date(),
+      
+      // Complete tool activities with summaries
+      const summaries: Partial<Record<any, string>> = {};
+      if (aiData?.wasResearched) summaries.researching_web = `${aiData?.citations?.length || 0} sources`;
+      if (aiData?.weatherCard) summaries.weather = `${aiData.weatherCard?.current?.temp_f}°F`;
+      setToolActivities(prev => completeActivities(prev, summaries));
+      
+      // Split long messages into multiple bubbles
+      const contentParts = splitLongMessage(responseContent);
+      
+      const newMessages: ChatMessage[] = contentParts.map((part, i) => ({
+        id: (Date.now() + 1 + i).toString(),
+        role: 'assistant' as const,
+        content: part,
+        timestamp: new Date(Date.now() + i * 100),
         isAIGenerated: true,
-        entryData: aiData?.entryData ?? undefined,
-        visualization: aiData?.visualization ?? undefined,
-        dynamicFollowUps: aiData?.dynamicFollowUps ?? [],
-        citations: aiData?.citations ?? [],
-        wasResearched: aiData?.wasResearched ?? false,
-        discoveryCards: (aiData?.discoveries || []).map((d: any) => ({
-          factor: d.factor,
-          confidence: d.confidence,
-          lift: d.lift || 1,
-          occurrences: d.occurrences,
-          total: d.total,
-          category: d.category || 'trigger',
-          summary: d.summary,
-        })).filter((d: any) => d.factor),
-      };
-      setMessages(prev => [...prev, assistantMessage]);
+        // Only attach metadata to first message
+        ...(i === 0 ? {
+          entryData: aiData?.entryData ?? undefined,
+          visualization: aiData?.visualization ?? undefined,
+          weatherCard: aiData?.weatherCard ?? undefined,
+          citations: aiData?.citations ?? [],
+          wasResearched: aiData?.wasResearched ?? false,
+          discoveryCards: (aiData?.discoveries || []).map((d: any) => ({
+            factor: d.factor,
+            confidence: d.confidence,
+            lift: d.lift || 1,
+            occurrences: d.occurrences,
+            total: d.total,
+            category: d.category || 'trigger',
+            summary: d.summary,
+          })).filter((d: any) => d.factor),
+        } : {}),
+        // Attach follow-ups to last message
+        ...(i === contentParts.length - 1 ? {
+          dynamicFollowUps: aiData?.dynamicFollowUps ?? [],
+        } : {}),
+      }));
+      
+      // Add messages with slight delays for natural feel
+      for (let i = 0; i < newMessages.length; i++) {
+        if (i > 0) await new Promise(r => setTimeout(r, 400));
+        setMessages(prev => [...prev, newMessages[i]]);
+      }
 
       // Log entry if AI detected health data
       if (aiData?.shouldLog && aiData?.entryData) {
@@ -1237,6 +1288,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       }
     } catch (error: any) {
       console.error('Chat error details:', error?.message || error, JSON.stringify(error));
+      setToolActivities(prev => prev.map(a => ({ ...a, status: 'error' as const })));
       const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -1246,6 +1298,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsProcessing(false);
+      // Clear tool activities after a delay
+      setTimeout(() => setToolActivities([]), 3000);
     }
   };
 
@@ -1700,7 +1754,13 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         )}
         
         {isProcessing && (
-          <div className="flex items-start gap-2">
+          <div className="flex flex-col items-start gap-2">
+            {/* Tool activity chips */}
+            {toolActivities.length > 0 && (
+              <div className="px-1">
+                <ToolActivityChips activities={toolActivities} />
+              </div>
+            )}
             <div className="bg-muted/50 rounded-2xl rounded-bl-md px-4 py-3">
               <div className="flex items-center gap-2">
                 <div className="flex gap-1">
@@ -1708,7 +1768,6 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                   <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                   <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
-                <span className="text-[10px] text-muted-foreground ml-1 animate-pulse">Analyzing your data...</span>
               </div>
             </div>
           </div>
