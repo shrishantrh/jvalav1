@@ -2358,7 +2358,7 @@ serve(async (req) => {
           tools,
           temperature: 0.5,
           stream: true,
-          tool_choice: { type: "function", function: { name: "respond" } },
+          tool_choice: "auto",
         }),
       });
 
