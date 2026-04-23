@@ -468,24 +468,37 @@ function ShortcutCard({ shortcut, isExpanded, isCopied, onToggle, onCopy, onAddT
           </div>
 
           <Button className="w-full gap-2 rounded-xl" onClick={(e) => { e.stopPropagation(); onAddToShortcuts(); }}>
-            <Plus className="w-4 h-4" />
-            Add to Shortcuts
+            {shortcut.icloudLink ? (
+              <>
+                <ExternalLink className="w-4 h-4" />
+                Get Shortcut
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4" />
+                Add to Shortcuts
+              </>
+            )}
           </Button>
 
-          <div className="flex items-center gap-2">
-            <code className="flex-1 text-xs bg-muted/60 px-3 py-2 rounded-lg font-mono text-foreground/80 truncate">
-              {shortcut.urlScheme}
-            </code>
-            <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={(e) => { e.stopPropagation(); onCopy(); }}>
-              {isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              {isCopied ? 'Copied' : 'Copy'}
-            </Button>
-          </div>
+          {!shortcut.icloudLink && (
+            <>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 text-xs bg-muted/60 px-3 py-2 rounded-lg font-mono text-foreground/80 truncate">
+                  {shortcut.urlScheme}
+                </code>
+                <Button variant="outline" size="sm" className="shrink-0 gap-1.5" onClick={(e) => { e.stopPropagation(); onCopy(); }}>
+                  {isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  {isCopied ? 'Copied' : 'Copy'}
+                </Button>
+              </div>
 
-          <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
-            <p className="text-xs font-semibold text-foreground mb-1.5">How to set up:</p>
-            <p className="text-xs text-muted-foreground leading-relaxed">{shortcut.howItWorks}</p>
-          </div>
+              <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                <p className="text-xs font-semibold text-foreground mb-1.5">How to set up:</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{shortcut.howItWorks}</p>
+              </div>
+            </>
+          )}
         </div>
       )}
     </Card>
