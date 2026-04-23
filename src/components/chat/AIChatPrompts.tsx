@@ -59,9 +59,9 @@ export const AIChatPrompts = ({ onSendPrompt, variant = 'capabilities', followUp
             key={i}
             onClick={() => onSendPrompt(prompt)}
             className={cn(
-              "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full",
+              "flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full",
               "bg-primary/10 hover:bg-primary/20 border border-primary/20",
-              "text-xs font-medium text-primary transition-all"
+              "text-sm font-medium text-primary transition-all"
             )}
           >
             <Sparkles className="w-3 h-3" />
@@ -78,13 +78,13 @@ export const AIChatPrompts = ({ onSendPrompt, variant = 'capabilities', followUp
         <button
           key={label}
           onClick={() => onSendPrompt(prompt)}
-          className={cn(
-            "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full",
-            "bg-muted/50 hover:bg-muted border border-border/50",
-            "text-xs font-medium transition-all hover:scale-[1.02]"
-          )}
+            className={cn(
+              "flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full",
+              "bg-muted/50 hover:bg-muted border border-border/50",
+              "text-sm font-medium transition-all hover:scale-[1.02]"
+            )}
         >
-          <Icon className={cn("w-3.5 h-3.5", color)} />
+          <Icon className={cn("w-4 h-4", color)} />
           {label}
         </button>
       ))}
