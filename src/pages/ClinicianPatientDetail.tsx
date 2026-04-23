@@ -138,7 +138,7 @@ export default function ClinicianPatientDetail() {
             <Card className="p-4 border border-border bg-card shadow-sm">
               <h3 className="font-semibold text-sm mb-2">Top alerts (preview)</h3>
               {alerts.slice(0, 3).map(a => (
-                <div key={a.id} className="border-l-2 border-amber-500 pl-3 py-1.5 mb-2">
+                <div key={a.id} className="border-l-2 border-primary pl-3 py-1.5 mb-2">
                   <div className="text-xs font-medium">{a.title}</div>
                   <div className="text-[11px] text-muted-foreground">{a.description}</div>
                 </div>
@@ -230,7 +230,7 @@ export default function ClinicianPatientDetail() {
                 <div className="flex items-start gap-3">
                   <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0",
                     e.severity === 'severe' ? 'bg-destructive' :
-                    e.severity === 'moderate' ? 'bg-amber-500' : 'bg-yellow-500'
+                    e.severity === 'moderate' ? 'bg-primary' : 'bg-secondary-foreground'
                   )} />
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-medium">{format(new Date(e.timestamp), 'MMM d, p')} — {e.severity}</div>
@@ -260,9 +260,9 @@ export default function ClinicianPatientDetail() {
 
 function SummaryStat({ icon: Icon, label, value, accent }: { icon: any; label: string; value: number; accent?: 'warn' }) {
   return (
-    <Card className="p-4">
+    <Card className="p-4 border border-border bg-card shadow-sm">
       <div className="flex items-center justify-between mb-2">
-        <Icon className={cn("w-4 h-4", accent === 'warn' ? 'text-amber-500' : 'text-muted-foreground')} />
+        <Icon className={cn("w-4 h-4", accent === 'warn' ? 'text-primary' : 'text-muted-foreground')} />
       </div>
       <div className="text-2xl font-bold">{value}</div>
       <div className="text-[11px] text-muted-foreground uppercase tracking-wide">{label}</div>
