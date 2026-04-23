@@ -2194,7 +2194,7 @@ serve(async (req) => {
     if (userError || !user?.id) return replyJson({ error: "Unauthorized" }, 401);
     const userId = user.id;
 
-    const { message, history = [], clientTimezone, stream: wantStream = false } = await req.json();
+    const { message, history = [], clientTimezone, stream: wantStream = false, latitude, longitude, city } = await req.json();
     if (!message || typeof message !== "string") return replyJson({ error: "Invalid message" }, 400);
 
     console.log("💬 [chat] User:", message.slice(0, 100), "stream:", wantStream);
