@@ -42,7 +42,6 @@ export const VoiceConversation = ({ onClose, userName, agentId }: VoiceConversat
     },
   });
 
-  // Animate audio levels
   useEffect(() => {
     const update = () => {
       if (conversation.status === "connected") {
@@ -62,20 +61,17 @@ export const VoiceConversation = ({ onClose, userName, agentId }: VoiceConversat
       await navigator.mediaDevices.getUserMedia({ audio: true });
 
       if (agentId) {
-        // Try to get authenticated token with user context
         try {
           const { data, error: fnError } = await supabase.functions.invoke("voice-conversation-token", {
             body: { agentId },
           });
 
           if (data?.token) {
-            // Use WebRTC with conversation token + user context overrides
             const sessionOpts: any = {
               conversationToken: data.token,
               connectionType: "webrtc",
             };
             
-            // Inject user context as dynamic prompt override if available
             if (data.userContext) {
               sessionOpts.overrides = {
                 agent: {
@@ -93,20 +89,19 @@ export const VoiceConversation = ({ onClose, userName, agentId }: VoiceConversat
           console.warn("Token fetch failed, trying public agent:", tokenErr);
         }
 
-        // Fallback: connect as public agent
         await conversation.startSession({
           agentId,
           connectionType: "webrtc",
         });
       } else {
-        setError("Voice agent not configured yet. Set up your ElevenLabs agent ID in settings.");
+        setError("Voice agent not configured yet.");
       }
     } catch (err: any) {
       console.error("Failed to start voice conversation:", err);
       if (err.name === "NotAllowedError") {
-        setError("Microphone access required. Please enable it in your settings.");
+        setError("Microphone access required.");
       } else {
-        setError("Couldn't connect. Voice calls are being set up — check back soon!");
+        setError("Couldn't connect. Check back soon.");
       }
     } finally {
       setIsConnecting(false);
@@ -122,21 +117,23 @@ export const VoiceConversation = ({ onClose, userName, agentId }: VoiceConversat
   const isSpeaking = conversation.isSpeaking;
   const isConnected = conversation.status === "connected";
 
-  const renderWaveform = (level: number, count: number, color: string) => (
+  // Premium waveform bars
+  const renderWaveform = (level: number, count: number, isAgent: boolean) => (
     <div className="flex items-center justify-center gap-[3px] h-16">
       {Array.from({ length: count }).map((_, i) => {
         const center = count / 2;
         const dist = Math.abs(i - center) / center;
-        const h = Math.max(0.08, level * (1 - dist * 0.6) + (level > 0.05 ? Math.random() * 0.08 : 0));
+        const h = Math.max(0.06, level * (1 - dist * 0.5) + (level > 0.05 ? Math.random() * 0.06 : 0));
         return (
           <div
             key={i}
-            className="w-[3px] rounded-full transition-all"
+            className="rounded-full transition-all"
             style={{
+              width: '3px',
               height: `${Math.max(4, h * 56)}px`,
-              backgroundColor: color,
-              opacity: 0.4 + h * 0.6,
-              transitionDuration: "50ms",
+              backgroundColor: isAgent ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+              opacity: 0.3 + h * 0.7,
+              transitionDuration: "60ms",
             }}
           />
         );
@@ -145,97 +142,100 @@ export const VoiceConversation = ({ onClose, userName, agentId }: VoiceConversat
   );
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-gradient-to-b from-background via-background to-primary/5">
-      <div className="pt-[env(safe-area-inset-top,0px)]" />
+    <div className="fixed inset-0 z-[100] flex flex-col" style={{ background: 'hsl(var(--background))' }}>
+      <div style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }} />
       
-      {/* Header */}
+      {/* Header - frosted glass */}
       <div className="flex items-center justify-between px-6 py-4">
-        <div className="text-sm text-muted-foreground">
+        <div className="text-sm text-muted-foreground font-medium">
           {isConnected ? (
             <span className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              Connected
+              Live
             </span>
           ) : "Voice Call"}
         </div>
         <button
           onClick={isConnected ? endConversation : onClose}
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className={cn(
+            "text-sm font-medium px-4 py-2 rounded-xl transition-all active:scale-95",
+            "bg-card/60 backdrop-blur-xl border border-border/30",
+            "text-muted-foreground hover:text-foreground"
+          )}
         >
           {isConnected ? "End" : "Close"}
         </button>
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col items-center justify-center px-8 gap-8">
-        {/* Avatar */}
+      <div className="flex-1 flex flex-col items-center justify-center px-8 gap-6">
+        {/* Avatar with glow */}
         <div className="relative">
           {isSpeaking && (
             <>
-              <div className="absolute inset-0 rounded-full bg-primary/10 animate-ping" style={{ animationDuration: "2s" }} />
-              <div className="absolute -inset-4 rounded-full bg-primary/5 animate-ping" style={{ animationDuration: "3s" }} />
+              <div className="absolute -inset-6 rounded-full bg-primary/8 animate-ping" style={{ animationDuration: "2s" }} />
+              <div className="absolute -inset-10 rounded-full bg-primary/4 animate-ping" style={{ animationDuration: "3s" }} />
             </>
           )}
           <div className={cn(
-            "w-32 h-32 rounded-full flex items-center justify-center transition-all duration-500",
-            isConnected 
-              ? isSpeaking 
-                ? "bg-primary/20 shadow-[0_0_60px_-10px_hsl(var(--primary)/0.4)]" 
-                : "bg-primary/10"
-              : "bg-muted/30"
+            "w-28 h-28 rounded-full flex items-center justify-center transition-all duration-700",
+            "bg-card/70 backdrop-blur-xl border border-border/30",
+            isConnected && isSpeaking && "shadow-[0_0_60px_-10px_hsl(var(--primary)/0.3)]",
+            isConnected && !isSpeaking && "shadow-lg",
           )}>
-            <div className={cn(
-              "text-4xl font-bold transition-all",
+            <span className={cn(
+              "text-4xl font-bold transition-colors duration-300",
               isConnected ? "text-primary" : "text-muted-foreground"
             )}>
               J
-            </div>
+            </span>
           </div>
         </div>
 
-        {/* Status */}
+        {/* Status text */}
         <div className="text-center space-y-2">
-          <h2 className="text-2xl font-semibold">
+          <h2 className="text-2xl font-bold tracking-tight">
             {isConnected ? "Jvala" : "Talk to Jvala"}
           </h2>
-          <p className="text-sm text-muted-foreground max-w-[240px]">
+          <p className="text-sm text-muted-foreground max-w-[260px] leading-relaxed">
             {isConnecting
               ? "Connecting..."
               : isConnected
               ? isSpeaking
-                ? "Jvala is speaking..."
+                ? "Speaking..."
                 : "Listening..."
-              : error || "Have a real conversation about your health. Just talk naturally."}
+              : error || "Have a real conversation about your health."}
           </p>
         </div>
 
         {/* Waveform */}
         {isConnected && (
-          <div className="w-full max-w-xs space-y-4">
-            {isSpeaking && renderWaveform(outputLevel, 24, "hsl(var(--primary))")}
-            {!isSpeaking && (
-              <div className="flex flex-col items-center gap-2">
-                {renderWaveform(inputLevel, 24, "hsl(var(--muted-foreground))")}
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Mic className="w-3 h-3" />
-                  <span>Speak naturally</span>
+          <div className="w-full max-w-xs">
+            {isSpeaking 
+              ? renderWaveform(outputLevel, 28, true) 
+              : (
+                <div className="flex flex-col items-center gap-2">
+                  {renderWaveform(inputLevel, 28, false)}
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Mic className="w-3 h-3" />
+                    <span>Speak naturally</span>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
         )}
 
-        {/* Transcript */}
+        {/* Transcripts - frosted glass cards */}
         {transcripts.length > 0 && (
-          <div className="w-full max-w-sm space-y-2 max-h-40 overflow-y-auto">
-            {transcripts.slice(-4).map((t, i) => (
+          <div className="w-full max-w-sm space-y-2 max-h-44 overflow-y-auto scrollbar-hide">
+            {transcripts.slice(-5).map((t, i) => (
               <div
                 key={i}
                 className={cn(
-                  "text-xs px-3 py-2 rounded-xl max-w-[85%]",
+                  "text-xs px-4 py-2.5 rounded-2xl max-w-[85%] backdrop-blur-sm",
                   t.role === "user"
-                    ? "ml-auto bg-primary/10 text-foreground"
-                    : "mr-auto bg-muted/50 text-muted-foreground"
+                    ? "ml-auto bg-primary/10 border border-primary/20 text-foreground"
+                    : "mr-auto bg-card/60 border border-border/20 text-muted-foreground"
                 )}
               >
                 {t.text}
@@ -246,11 +246,12 @@ export const VoiceConversation = ({ onClose, userName, agentId }: VoiceConversat
       </div>
 
       {/* Call controls */}
-      <div className="flex items-center justify-center gap-6 pb-12 pb-[calc(env(safe-area-inset-bottom,0px)+48px)]">
+      <div className="flex items-center justify-center gap-6 pb-12" 
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 48px)' }}>
         {isConnected ? (
           <button
             onClick={endConversation}
-            className="w-16 h-16 rounded-full bg-destructive flex items-center justify-center shadow-lg shadow-destructive/30 active:scale-90 transition-transform"
+            className="w-16 h-16 rounded-full bg-destructive flex items-center justify-center shadow-lg shadow-destructive/25 active:scale-90 transition-transform"
           >
             <PhoneOff className="w-7 h-7 text-white" />
           </button>
@@ -262,7 +263,7 @@ export const VoiceConversation = ({ onClose, userName, agentId }: VoiceConversat
               "w-16 h-16 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-all",
               isConnecting
                 ? "bg-muted animate-pulse"
-                : "bg-primary shadow-primary/30"
+                : "bg-primary shadow-primary/25"
             )}
           >
             <Phone className={cn("w-7 h-7", isConnecting ? "text-muted-foreground" : "text-primary-foreground")} />
