@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callAI } from "../_shared/ai-client.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,11 +22,9 @@ serve(async (req) => {
     const { data: { user } } = await userClient.auth.getUser();
     if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
 
-    // Verify clinician access
     const { data: linkOk } = await supabase.rpc("is_clinician_for_patient", { _clinician_id: user.id, _patient_id: patient_id });
     if (!linkOk) return new Response(JSON.stringify({ error: "Not authorized for this patient" }), { status: 403, headers: corsHeaders });
 
-    // Pull last 30 days of patient data
     const thirty = new Date(Date.now() - 30 * 86400000).toISOString();
     const [profileRes, flaresRes, medsRes, alertsRes] = await Promise.all([
       supabase.from("profiles").select("full_name, date_of_birth, biological_sex, conditions, known_symptoms, known_triggers").eq("id", patient_id).maybeSingle(),
@@ -66,14 +63,31 @@ ${alerts.map((a: any) => `- [${a.severity}] ${a.title}: ${a.description}`).join(
 
 Generate the SOAP draft as JSON now.`;
 
-    const aiResp = await callAI({
-      model: "claude-sonnet",
-      max_tokens: 2000,
-      messages: [
-        { role: "system", content: sysPrompt },
-        { role: "user", content: userPrompt },
-      ],
+    // Use Lovable AI Gateway
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+
+    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: sysPrompt },
+          { role: "user", content: userPrompt },
+        ],
+      }),
     });
+
+    if (!aiResp.ok) {
+      const errText = await aiResp.text();
+      console.error("AI Gateway error:", aiResp.status, errText);
+      throw new Error(`AI error ${aiResp.status}`);
+    }
+
     const aiData = await aiResp.json();
     const text = aiData.choices?.[0]?.message?.content || "";
 
@@ -81,15 +95,14 @@ Generate the SOAP draft as JSON now.`;
     try {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) soap = { ...soap, ...JSON.parse(jsonMatch[0]) };
-    } catch (e) { console.warn("Could not parse SOAP JSON, using raw text:", e); soap.assessment = text; }
+    } catch (e) { console.warn("Could not parse SOAP JSON:", e); soap.assessment = text; }
 
-    // Insert draft
     const { data: inserted, error: insErr } = await supabase.from("soap_notes").insert({
       patient_id, clinician_id: user.id, visit_date: new Date().toISOString(),
       chief_complaint: chief_complaint || null,
       subjective: soap.subjective || null, objective: soap.objective || null,
       assessment: soap.assessment || null, plan: soap.plan || null,
-      ai_generated: true, ai_model: "claude-sonnet-4-5",
+      ai_generated: true, ai_model: "gemini-2.5-flash",
       ai_evidence_entry_ids: flares.slice(0, 30).map((f: any) => f.id),
       status: "draft",
     }).select().single();
