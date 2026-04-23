@@ -99,6 +99,9 @@ const STREAK_CELEBRATE = [
   (s: number) => `Streak: ${s}. Consistency like that is real data. How are you?`,
   (s: number) => `${s} days. Your model gets smarter every day you log.`,
   (s: number) => `Day ${s}. Your dataset is building something meaningful.`,
+  (s: number) => `${s} consecutive days. Your prediction confidence increases with every entry.`,
+  (s: number) => `Day ${s}. Statistical significance improves exponentially from here.`,
+  (s: number) => `${s}-day streak. Your personal model has ${s}+ data points of continuity now.`,
 ];
 
 const STREAK_GENTLE_RESTART = [
@@ -109,6 +112,9 @@ const STREAK_GENTLE_RESTART = [
   "Hey. Want to catch me up on what you've felt?",
   "Back online. I kept analyzing — want to see what I found?",
   "Hey. Gaps in data are data too. Fill me in?",
+  "I've been running background analysis during your break. Ready when you are.",
+  "Your environmental data kept flowing while you were away. Want the summary?",
+  "Gap in the dataset — but I can still extrapolate. What happened?",
 ];
 
 // ── Weather-aware ───────────────────────────────────────────────────────
@@ -189,66 +195,136 @@ const CONDITION_GREETINGS: Record<string, string[]> = {
     "Any aura or prodrome signals today?",
     "How's the head? Light sensitivity, pressure, anything building?",
     "Morning. Migraine patterns often start early — how's the pressure?",
+    "Visual disturbances, neck tension, or light sensitivity? Even subtle signals matter.",
+    "Barometric pressure shifted overnight. Your migraine data says this matters. How are you?",
+    "Prodrome window is 6-24h before onset. Anything subclinical you're noticing?",
   ],
   'Rheumatoid Arthritis': [
     "Morning stiffness check — how long until you loosened up?",
     "Joint report. What's talking today?",
     "RA mornings are data-rich. How long was the stiffness?",
+    "IL-6 peaks in the morning — that's why RA is worst at dawn. Duration of stiffness?",
+    "Any new joints involved, or the usual suspects?",
+    "DAS-28 proxy: rate your overall joint status 1-10.",
   ],
   'IBS': [
     "Gut check. How's the digestion this morning?",
     "Any GI signals today? Even mild ones are worth noting.",
     "How's the stomach? FODMAPs staying quiet?",
+    "Gastrocolic reflex peaks 30-90min after meals. Any urgency?",
+    "Bristol stool scale: where are you landing today?",
+    "Any new food suspects? I'm tracking your inflammatory markers.",
   ],
   'Fibromyalgia': [
     "How's the fatigue? Body pain score if you had to guess?",
     "Fibro check — tender points, brain fog, energy level?",
     "Morning with fibro is always telling. What's the report?",
+    "Alpha-wave intrusion disrupts 90% of fibro sleep. How'd you rest?",
+    "Central sensitization can amplify everything. What's the loudest signal?",
+    "Post-exertional malaise window is 12-72h. Any delayed payback?",
   ],
   'Eczema': [
     "Skin check. Anything itching, dry, or inflamed?",
     "How's the skin today? Any overnight flares?",
     "Eczema can shift overnight. What are you seeing this morning?",
+    "Humidity below 30% strips the skin barrier. Your environment data shows it's low. Any reaction?",
+    "SCORAD estimate: how widespread and how intense?",
   ],
   'Asthma': [
     "Breathing check — any tightness or wheezing?",
     "How are the lungs? AQI data looks relevant today.",
     "Morning airways. Clear, tight, or in between?",
+    "Peak flow estimate if you had to guess — better, same, or worse than yesterday?",
+    "Cold dry air is a known bronchospasm trigger. Your weather says it qualifies. How are you?",
   ],
   'GERD': [
     "Any reflux overnight? Morning is when it usually surfaces.",
     "Stomach and chest — anything burning or uncomfortable?",
     "GERD check. How was sleep — any positioning issues?",
+    "Left-side sleeping reduces reflux 75%. Did positioning help last night?",
   ],
   'Anxiety': [
     "How's the mind today? Calm, busy, or somewhere in between?",
     "Morning anxiety levels — any baseline shifts?",
     "Mental health check. What's the first thing you're feeling?",
+    "HRV is a reliable anxiety biomarker. Your data shows something — how does it match how you feel?",
+    "Caffeine threshold for anxiety is ~200mg. How much have you had?",
   ],
   'Depression': [
     "Hey. Just checking in. How's the energy and motivation?",
     "Morning. No need for a long answer — just where are you at?",
     "Hi. Small steps count. How are you feeling right now?",
+    "Behavioral activation: even one logged action counts. What's the first thing you'll do today?",
+    "Consistent wake time matters more than total sleep. How was yours?",
   ],
   'Crohn\'s Disease': [
     "GI report. Any urgency, cramping, or changes?",
     "Morning check — how's the gut behaving?",
     "Crohn's morning update. Appetite, energy, gut status?",
+    "NSAID exposure in the last 48h? Your flare data shows sensitivity.",
+    "Vitamin B12 and iron absorption can drop during active disease. Energy level?",
   ],
   'Diabetes': [
     "Morning glucose check. How are the numbers looking?",
     "Fasting levels okay? How's the energy starting out?",
     "Diabetes morning briefing. Blood sugar, appetite, energy?",
+    "Dawn phenomenon peaks 4-8AM. How were your fasting numbers?",
+    "Postprandial spike window is 60-90min. What did you eat and how do you feel?",
   ],
   'Lupus': [
     "Hey. Joint pain, fatigue, or skin changes today?",
     "Lupus check-in. How's the overall inflammation feeling?",
     "Morning. Sun exposure planned? Your skin data matters today.",
+    "UV index is high today. 60-80% of lupus patients are photosensitive. SPF on?",
+    "Fatigue is the most debilitating lupus symptom. Where's your energy?",
   ],
   'PCOS': [
     "How's the cycle tracking going? Any changes?",
     "PCOS check — energy, skin, weight, mood?",
     "Hormonal check-in. What signals are you noticing?",
+    "Insulin resistance drives 70-80% of PCOS. How's blood sugar after meals?",
+    "5% weight loss can restore ovulation. Any changes you're tracking?",
+  ],
+  'Chronic Fatigue Syndrome': [
+    "Morning energy envelope — where does it start today?",
+    "PEM window is 12-72h. Any delayed payback from recent activity?",
+    "Activity pacing check. How's the balance between rest and movement?",
+    "Heart rate staying below anaerobic threshold? That's where CFS management lives.",
+  ],
+  'Psoriasis': [
+    "Skin check. Any new plaques or changes in existing ones?",
+    "Stress is the #1 psoriasis trigger. How's your mental load today?",
+    "Cold, dry weather flares psoriasis. Your environment data is relevant — how's the skin?",
+  ],
+  'Endometriosis': [
+    "Where are you in your cycle? Pain patterns shift predictably.",
+    "GI overlap affects 50-80% of endo patients. Any gut symptoms?",
+    "Anti-inflammatory diet correlation: any food triggers you've noticed?",
+  ],
+  'Ankylosing Spondylitis': [
+    "Morning stiffness lasting more than 30 minutes signals active disease. How long today?",
+    "Movement improves AS symptoms. How much did you move yesterday?",
+    "Weather and barometric pressure affect AS stiffness. Feeling it today?",
+  ],
+  'Multiple Sclerosis': [
+    "Uhthoff phenomenon: heat sensitivity check. How's your temperature regulation?",
+    "Fatigue is the #1 MS symptom. Energy level this morning?",
+    "Cognitive fog tracking. How's the clarity today?",
+  ],
+  'POTS': [
+    "Morning standing tolerance — how's the blood pressure regulation?",
+    "Salt and water intake are critical for POTS. How's your hydration?",
+    "Any presyncope, tachycardia, or brain fog this morning?",
+  ],
+  'Gout': [
+    "Any joint heat or swelling? Especially big toe, ankle, knee?",
+    "Purine intake yesterday — any red meat, shellfish, or beer?",
+    "Hydration is critical for uric acid clearance. How much water today?",
+  ],
+  'Hypothyroidism': [
+    "Levothyroxine taken on empty stomach 30-60min before food?",
+    "Energy, cold sensitivity, brain fog — your thyroid trio. Status?",
+    "Calcium, iron, and coffee reduce absorption. Timing matters. How's your routine?",
   ],
 };
 
@@ -272,6 +348,8 @@ const MILESTONE_GREETINGS = [
   (logs: number) => `Log #${logs}. Your dataset is getting serious. How are you?`,
   (logs: number) => `${logs} data points and counting. Your predictions get better every log.`,
   (logs: number) => `${logs} logs. Most people never build a dataset this rich. How are you today?`,
+  (logs: number) => `${logs} entries in your personal health database. This is research-grade data. How are you?`,
+  (logs: number) => `Milestone: ${logs} logs. Your correlation engine has real statistical power now.`,
 ];
 
 // ── Curiosity / Intelligence ────────────────────────────────────────────
@@ -290,6 +368,12 @@ const CURIOSITY_PROMPTS = [
   "Quick experiment: rate your pain 0-10 right now. Let me track it.",
   "Your wearable data tells me things. But I want the full picture — how do you FEEL?",
   "What's the one symptom you've learned to ignore but shouldn't?",
+  "I've been running background analysis. Want to hear what I found?",
+  "Your data has a story. Want the 30-second version?",
+  "What's different about today compared to your best day this week?",
+  "If I showed your doctor your last 30 days, what would surprise them?",
+  "Your personal model has a hypothesis about your biggest trigger. Want to test it?",
+  "One thing most people miss: hydration affects everything. How's yours?",
 ];
 
 // ── Pre-appointment ─────────────────────────────────────────────────────
@@ -297,6 +381,7 @@ const PRE_APPOINTMENT = [
   "Doctor visit coming up? I can generate a clinical summary.",
   "Want me to prep a visit summary? I've got your full timeline.",
   "Appointment soon? Your data export is one tap away.",
+  "I can generate a FHIR-formatted clinical record for your doctor. Want one?",
 ];
 
 // ── Recovery tracking ───────────────────────────────────────────────────
@@ -304,6 +389,20 @@ const RECOVERY = [
   "48h since that severe flare. Recovery on track?",
   "Your last flare was rough. How's the aftermath?",
   "Recovery window still open. Any lingering symptoms?",
+  "Post-flare recovery data is the most valuable for prediction. How are you now?",
+  "Recovery trajectory: are symptoms decreasing linearly, or did they plateau?",
+];
+
+// ── Intelligence / Proactive ────────────────────────────────────────────
+const INTELLIGENCE_PROACTIVE = [
+  "I've been analyzing while you were away. Found something interesting.",
+  "Your model updated overnight. Want the latest risk assessment?",
+  "Background analysis complete. I have new pattern data.",
+  "Something shifted in your data profile. Worth discussing.",
+  "Your environmental exposure profile changed. Let me brief you.",
+  "I identified a new multi-variable correlation. Interested?",
+  "Your medication effectiveness data has reached statistical significance.",
+  "Cross-referencing your data with environmental conditions revealed something.",
 ];
 
 // ── Prediction-aware ────────────────────────────────────────────────────
@@ -358,8 +457,13 @@ export function getGreeting(ctx: GreetingContext): string {
   const name = fmtName(ctx.name);
 
   // Priority 1 — Prediction-driven (highest impact for intelligence feel)
-  if (ctx.riskScore != null && ctx.riskScore >= 50 && Math.random() < 0.6) {
+  if (ctx.riskScore != null && ctx.riskScore >= 50 && Math.random() < 0.65) {
     return pick(PREDICTION_GREETINGS)(ctx.riskScore);
+  }
+
+  // Priority 1b — Intelligence proactive (20% chance when no high risk)
+  if (ctx.totalLogs && ctx.totalLogs > 20 && Math.random() < 0.2) {
+    return pick(INTELLIGENCE_PROACTIVE);
   }
 
   // Priority 2 — Recent severe flare

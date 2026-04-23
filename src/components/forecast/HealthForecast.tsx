@@ -17,6 +17,8 @@ interface RiskFactor {
   confidence: number;
   evidence: string;
   category: string;
+  likelihoodRatio?: number;
+  compoundWith?: string[];
 }
 
 interface PendingVerification {
@@ -44,6 +46,11 @@ interface Forecast {
   timeframe: string;
   accuracy?: AccuracyStats;
   pendingVerification?: PendingVerification;
+  riskWindows?: {
+    h24: number;
+    h48: number;
+    h72: number;
+  };
 }
 
 interface HealthForecastProps {
@@ -197,8 +204,9 @@ export const HealthForecast = ({ userId, currentWeather, menstrualDay, onViewDet
 
   if (!forecast) return null;
 
-  const riskFactors = forecast.factors.filter(f => f.impact > 0).slice(0, 3);
+  const riskFactors = forecast.factors.filter(f => f.impact > 0).slice(0, 5);
   const protectiveCount = forecast.factors.filter(f => f.impact < 0).length;
+  const hasMultipleWindows = forecast.riskWindows && (forecast.riskWindows.h48 > 0 || forecast.riskWindows.h72 > 0);
 
   return (
     <div className="space-y-3">
@@ -312,11 +320,21 @@ export const HealthForecast = ({ userId, currentWeather, menstrualDay, onViewDet
                 )}
               </div>
               <div>
-                <h3 className="text-lg font-bold">Tomorrow's Forecast</h3>
-                <div className="flex items-center gap-2 mt-0.5">
+                <h3 className="text-lg font-bold">Flare Forecast</h3>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                   <Badge variant="outline" className={cn("text-sm capitalize font-semibold", getRiskColor(forecast.riskLevel))}>
-                    {forecast.riskScore}% risk
+                    {forecast.riskScore}% risk · 24h
                   </Badge>
+                  {forecast.riskWindows?.h48 != null && (
+                    <Badge variant="outline" className="text-xs text-muted-foreground">
+                      48h: {forecast.riskWindows.h48}%
+                    </Badge>
+                  )}
+                  {forecast.riskWindows?.h72 != null && (
+                    <Badge variant="outline" className="text-xs text-muted-foreground">
+                      72h: {forecast.riskWindows.h72}%
+                    </Badge>
+                  )}
                   <span className="text-base text-muted-foreground">
                     {Math.round(forecast.confidence * 100)}% confidence
                   </span>
@@ -351,7 +369,7 @@ export const HealthForecast = ({ userId, currentWeather, menstrualDay, onViewDet
           {riskFactors.length > 0 ? (
             <div className="space-y-2 mb-4">
               <p className="text-sm font-semibold text-muted-foreground mb-2">Why this risk level:</p>
-              {riskFactors.map((factor, i) => (
+               {riskFactors.map((factor, i) => (
                 <div key={i} className={cn(
                   "flex items-start gap-3 p-3 rounded-2xl",
                   "bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm",
@@ -366,8 +384,20 @@ export const HealthForecast = ({ userId, currentWeather, menstrualDay, onViewDet
                     {getCategoryIcon(factor.category)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-base font-medium">{factor.factor}</p>
-                    <p className="text-sm text-muted-foreground truncate">{factor.evidence}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-base font-medium">{factor.factor}</p>
+                      {factor.likelihoodRatio && factor.likelihoodRatio > 1 && (
+                        <Badge variant="outline" className="text-[10px] h-4 bg-red-500/10 border-red-500/20 text-red-600">
+                          {factor.likelihoodRatio.toFixed(1)}x risk
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">{factor.evidence}</p>
+                    {factor.compoundWith && factor.compoundWith.length > 0 && (
+                      <p className="text-[10px] text-orange-600 mt-1">
+                        ⚠ Compounds with: {factor.compoundWith.join(' + ')}
+                      </p>
+                    )}
                   </div>
                 </div>
               ))}
