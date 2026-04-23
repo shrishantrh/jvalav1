@@ -136,6 +136,8 @@ interface SmartTrackProps {
   onReorderTrackables?: (trackables: CustomTrackable[]) => void;
   onAddMedication?: (med: MedicationDetails) => void;
   onRemoveMedication?: (medName: string) => void;
+  onAddSymptom?: (symptom: string) => void;
+  onRemoveSymptom?: (symptom: string) => void;
   userName?: string | null;
   userDOB?: string | null;
   userBiologicalSex?: string | null;
