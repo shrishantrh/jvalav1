@@ -871,21 +871,73 @@ export const FluidLogSelector = ({
 
                   {conditionSymptoms.length > 0 && (
                     <div>
-                      <p className="text-xs text-muted-foreground mb-2">Or log a specific symptom:</p>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs text-muted-foreground">Or log a specific symptom:</p>
+                        {(onAddSymptom || onRemoveSymptom) && (
+                          <button
+                            onClick={() => setEditingSymptoms(!editingSymptoms)}
+                            className="text-[10px] font-medium text-primary"
+                          >
+                            {editingSymptoms ? 'Done' : 'Edit'}
+                          </button>
+                        )}
+                      </div>
                       <div className="flex flex-wrap gap-2">
                         {conditionSymptoms.map((symptom) => (
-                          <button key={symptom} onClick={() => handleSymptomClick(symptom)}
-                            className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all backdrop-blur-sm hover:scale-[1.02] active:scale-95"
+                          <button key={symptom} onClick={() => editingSymptoms ? undefined : handleSymptomClick(symptom)}
+                            className={cn(
+                              "px-3 py-1.5 rounded-xl text-xs font-medium transition-all backdrop-blur-sm",
+                              editingSymptoms ? "pr-1.5" : "hover:scale-[1.02] active:scale-95"
+                            )}
                             style={{
                               background: 'linear-gradient(145deg, hsl(0 0% 100% / 0.8) 0%, hsl(0 0% 96% / 0.7) 100%)',
                               border: '1px solid hsl(0 0% 100% / 0.5)',
                               boxShadow: 'inset 0 1px 2px hsl(0 0% 100% / 0.3), 0 2px 6px hsl(0 0% 0% / 0.03)',
                             }}
                           >
-                            {symptom}
+                            <span className="flex items-center gap-1">
+                              {symptom}
+                              {editingSymptoms && onRemoveSymptom && (
+                                <span
+                                  onClick={(e) => { e.stopPropagation(); haptics.light(); onRemoveSymptom(symptom); }}
+                                  className="w-4 h-4 rounded-full bg-destructive/15 flex items-center justify-center text-destructive ml-0.5 cursor-pointer"
+                                >
+                                  <X className="w-2.5 h-2.5" />
+                                </span>
+                              )}
+                            </span>
                           </button>
                         ))}
                       </div>
+                      {editingSymptoms && onAddSymptom && (
+                        <div className="flex gap-2 mt-2">
+                          <Input
+                            value={symptomAddInput}
+                            onChange={(e) => setSymptomAddInput(e.target.value)}
+                            placeholder="Add symptom..."
+                            className="h-9 text-xs rounded-xl flex-1"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && symptomAddInput.trim()) {
+                                onAddSymptom(symptomAddInput.trim());
+                                setSymptomAddInput('');
+                                haptics.light();
+                              }
+                            }}
+                          />
+                          <button
+                            onClick={() => {
+                              if (symptomAddInput.trim()) {
+                                onAddSymptom(symptomAddInput.trim());
+                                setSymptomAddInput('');
+                                haptics.light();
+                              }
+                            }}
+                            className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center"
+                          >
+                            <Plus className="w-4 h-4 text-primary" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
