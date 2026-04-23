@@ -1296,8 +1296,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         {/* AI Capability buttons - show when no messages or few messages */}
         {messages.length <= 2 && (
           <div className="px-3 pt-3 pb-1">
-            <p className="mb-3 flex items-center gap-2 text-base font-semibold text-muted-foreground">
-              <Sparkles className="w-5 h-5" />
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+              <Sparkles className="w-3.5 h-3.5" />
               Try asking me to...
             </p>
             <AIChatPrompts onSendPrompt={handlePromptClick} variant="capabilities" />

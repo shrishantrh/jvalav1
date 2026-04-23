@@ -73,18 +73,18 @@ export const AIChatPrompts = ({ onSendPrompt, variant = 'capabilities', followUp
   }
 
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
+    <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
       {CAPABILITY_PROMPTS.map(({ icon: Icon, label, prompt, color }) => (
         <button
           key={label}
           onClick={() => onSendPrompt(prompt)}
             className={cn(
-              "flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-full",
+              "flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full",
               "bg-muted/50 hover:bg-muted border border-border/50",
-              "text-[15px] font-medium transition-all hover:scale-[1.02]"
+              "text-xs font-medium transition-all hover:scale-[1.02]"
             )}
         >
-          <Icon className={cn("w-5 h-5", color)} />
+          <Icon className={cn("w-3.5 h-3.5", color)} />
           {label}
         </button>
       ))}
