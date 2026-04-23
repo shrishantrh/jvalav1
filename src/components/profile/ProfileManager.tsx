@@ -414,11 +414,27 @@ export const ProfileManager = ({ onRequireOnboarding, onProfileUpdated }: Profil
           <Card className="glass-card border-0 rounded-3xl">
             <CardHeader className="p-5 pb-3">
               <CardTitle className="text-base font-bold">Your Conditions</CardTitle>
-              <CardDescription className="text-xs text-muted-foreground">
-                Type one, add it, and remove it with X — just like onboarding.
-              </CardDescription>
             </CardHeader>
             <CardContent className="px-5 pb-5 space-y-4">
+              {profile.conditions.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {profile.conditions.map((value) => {
+                    const label = CONDITIONS.find((condition) => condition.id === value)?.name || value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => void removeCondition(value)}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/15"
+                      >
+                        {label}
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
               <div className="relative">
                 <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -443,25 +459,6 @@ export const ProfileManager = ({ onRequireOnboarding, onProfileUpdated }: Profil
                 </Button>
               </div>
 
-              {profile.conditions.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {profile.conditions.map((value) => {
-                    const label = CONDITIONS.find((condition) => condition.id === value)?.name || value;
-                    return (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => void removeCondition(value)}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/15"
-                      >
-                        {label}
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
               <div className="space-y-2">
                 <p className="text-xs font-medium text-muted-foreground">Suggestions</p>
                 <div className="grid gap-1.5 max-h-52 overflow-y-auto">
@@ -479,7 +476,7 @@ export const ProfileManager = ({ onRequireOnboarding, onProfileUpdated }: Profil
                       <Plus className="h-4 w-4 text-muted-foreground" />
                     </button>
                   ))}
-                  {filteredConditions.length === 0 && (
+                  {conditionQuery.trim().length > 0 && filteredConditions.length === 0 && (
                     <div className="rounded-2xl border border-dashed border-border bg-card px-4 py-3 text-sm text-muted-foreground">
                       No matching suggestions.
                     </div>
