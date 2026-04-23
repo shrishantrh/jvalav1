@@ -8,6 +8,18 @@ import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Stethoscope, Loader2, ArrowLeft } from "lucide-react";
 
+const bootstrapClinician = async (payload: {
+  user_id: string;
+  full_name: string;
+  email: string;
+  npi?: string | null;
+  specialty?: string | null;
+  practice_name?: string | null;
+}) => {
+  const { error } = await supabase.functions.invoke('bootstrap-clinician', { body: payload });
+  if (error) throw error;
+};
+
 /**
  * /clinician/auth — provider sign-in & sign-up.
  * On signup, creates the auth user + clinician_profiles row + grants 'clinician' role.
@@ -30,8 +42,19 @@ export default function ClinicianAuth() {
     e.preventDefault();
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const normalizedEmail = email.trim().toLowerCase();
+      const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
       if (error) throw error;
+      if (data.user) {
+        await bootstrapClinician({
+          user_id: data.user.id,
+          full_name: String(data.user.user_metadata?.full_name || data.user.email?.split('@')[0] || 'Clinician'),
+          email: normalizedEmail,
+          npi: null,
+          specialty: null,
+          practice_name: null,
+        });
+      }
       toast({ title: 'Welcome back' });
       navigate('/clinician/dashboard');
     } catch (err: any) {
@@ -43,9 +66,10 @@ export default function ClinicianAuth() {
     e.preventDefault();
     setLoading(true);
     try {
+      const normalizedEmail = email.trim().toLowerCase();
       const redirectTo = `${window.location.origin}/clinician/dashboard`;
       const { data: signupData, error: signupErr } = await supabase.auth.signUp({
-        email,
+        email: normalizedEmail,
         password,
         options: { emailRedirectTo: redirectTo, data: { full_name: fullName, is_clinician: true } },
       });
@@ -53,10 +77,7 @@ export default function ClinicianAuth() {
 
       const userId = signupData.user?.id;
       if (userId) {
-        // Bootstrap clinician_profiles + role via edge function (uses service role to grant role).
-        await supabase.functions.invoke('bootstrap-clinician', {
-          body: { user_id: userId, full_name: fullName, email, npi: npi || null, specialty: specialty || null, practice_name: practiceName || null },
-        });
+        await bootstrapClinician({ user_id: userId, full_name: fullName, email: normalizedEmail, npi: npi || null, specialty: specialty || null, practice_name: practiceName || null });
       }
 
       toast({
@@ -71,14 +92,15 @@ export default function ClinicianAuth() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-primary/5 flex items-center justify-center px-6 py-8">
-      <Card className="w-full max-w-md p-7 space-y-5 shadow-soft-lg">
+    <div className="clinical-shell clinical-scroll min-h-screen px-6 py-10">
+      <div className="mx-auto flex min-h-full w-full max-w-5xl items-center justify-center">
+      <Card className="w-full max-w-md border border-border bg-card p-7 shadow-md space-y-5">
         <button onClick={() => navigate('/clinician')} className="text-xs text-muted-foreground flex items-center gap-1 hover:text-foreground transition">
           <ArrowLeft className="w-3 h-3" /> Back
         </button>
 
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+          <div className="w-12 h-12 rounded-lg bg-accent flex items-center justify-center mx-auto border border-border">
             <Stethoscope className="w-6 h-6 text-primary" />
           </div>
           <h1 className="text-xl font-bold">{mode === 'signin' ? 'Provider Sign In' : 'Create Provider Account'}</h1>
@@ -136,10 +158,11 @@ export default function ClinicianAuth() {
           )}
         </div>
 
-        <p className="text-[10px] text-center text-muted-foreground/70 leading-tight">
+        <p className="text-[10px] text-center text-muted-foreground leading-tight">
           By creating an account you agree to act as the patient's authorized provider and abide by HIPAA-equivalent data handling.
         </p>
       </Card>
+      </div>
     </div>
   );
 }
