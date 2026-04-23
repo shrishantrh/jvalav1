@@ -84,7 +84,9 @@ export const SmartOnboarding = ({ onComplete }: SmartOnboardingProps) => {
   const [valuePropIndex, setValuePropIndex] = useState(0);
   const [preparingStep, setPreparingStep] = useState(0);
   const [data, setData] = useState<SmartOnboardingData>({
+    firstName: "",
     conditions: [],
+    biologicalSex: null,
     enableReminders: true,
     reminderTime: "09:00",
     connectWearables: true,
