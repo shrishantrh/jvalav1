@@ -688,6 +688,8 @@ const Index = () => {
             streak={currentStreak}
             onStreakClick={() => setShowProgress(true)}
             onProfileClick={() => setShowProfile(true)}
+            riskScore={briefing?.riskScore ?? null}
+            riskLevel={briefing?.riskLevel ?? null}
           />
         }
       >
