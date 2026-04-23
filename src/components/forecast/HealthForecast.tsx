@@ -320,10 +320,10 @@ export const HealthForecast = ({ userId, currentWeather, menstrualDay, onViewDet
                 )}
               </div>
               <div>
-                <h3 className="text-lg font-bold">Flare Forecast</h3>
+                <h3 className="text-lg font-bold">Next 24 Hours</h3>
                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                   <Badge variant="outline" className={cn("text-sm capitalize font-semibold", getRiskColor(forecast.riskLevel))}>
-                    {forecast.riskScore}% risk · 24h
+                    {forecast.riskScore}% chance of a flare
                   </Badge>
                   {forecast.riskWindows?.h48 != null && (
                     <Badge variant="outline" className="text-xs text-muted-foreground">
@@ -336,7 +336,7 @@ export const HealthForecast = ({ userId, currentWeather, menstrualDay, onViewDet
                     </Badge>
                   )}
                   <span className="text-base text-muted-foreground">
-                    {Math.round(forecast.confidence * 100)}% confidence
+                    {Math.round(forecast.confidence * 100)}% reliability
                   </span>
                 </div>
               </div>
@@ -356,12 +356,12 @@ export const HealthForecast = ({ userId, currentWeather, menstrualDay, onViewDet
               "bg-white/40 dark:bg-slate-800/40 backdrop-blur-sm"
             )}>
               <Target className="w-4 h-4 text-primary" />
-              <span className="text-xs font-medium">
-                Model accuracy: {forecast.accuracy.correctPredictions}/{forecast.accuracy.totalPredictions} correct
-                {forecast.accuracy.brierScore !== null && (
-                  <span className="text-muted-foreground"> · Brier: {forecast.accuracy.brierScore.toFixed(3)}</span>
-                )}
-              </span>
+                <span className="text-xs font-medium">
+                 Previous forecasts matched {forecast.accuracy.correctPredictions} of {forecast.accuracy.totalPredictions} recent check-ins
+                 {forecast.accuracy.brierScore !== null && (
+                   <span className="text-muted-foreground"> · calibration score {forecast.accuracy.brierScore.toFixed(3)}</span>
+                 )}
+               </span>
             </div>
           )}
 
