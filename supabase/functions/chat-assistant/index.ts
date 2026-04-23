@@ -2513,16 +2513,108 @@ serve(async (req) => {
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
+
+// ─── Weather fetcher ─────────────────────────────────────────────────────
+async function handleWeather(parsed: any, messages: any[], userTz: string, lat?: number, lon?: number) {
+  try {
+    // Geocode the location name to lat/lon using Nominatim
+    let wLat = lat, wLon = lon;
+    const locName = parsed.locationName || "";
+    if (locName) {
+      const geoResp = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(locName)}&format=json&limit=1`, {
+        headers: { "User-Agent": "Jvala/1.0" },
+      });
+      if (geoResp.ok) {
+        const geoData = await geoResp.json();
+        if (geoData?.[0]) { wLat = parseFloat(geoData[0].lat); wLon = parseFloat(geoData[0].lon); }
+      }
+    }
+    if (!wLat || !wLon) {
+      return replyJson({ response: `I couldn't find the location "${locName}". Can you be more specific?`, toolsUsed: ['weather'], wasResearched: false, citations: [] });
+    }
+
+    // Fetch weather from Open-Meteo
+    const weatherUrl = new URL('https://api.open-meteo.com/v1/forecast');
+    weatherUrl.searchParams.set('latitude', String(wLat));
+    weatherUrl.searchParams.set('longitude', String(wLon));
+    weatherUrl.searchParams.set('timezone', 'auto');
+    weatherUrl.searchParams.set('temperature_unit', 'fahrenheit');
+    weatherUrl.searchParams.set('current', 'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,pressure_msl,wind_speed_10m');
+    weatherUrl.searchParams.set('daily', 'temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code');
+    weatherUrl.searchParams.set('forecast_days', '3');
+
+    const wResp = await fetch(weatherUrl.toString());
+    if (!wResp.ok) throw new Error(`Weather API ${wResp.status}`);
+    const wData = await wResp.json();
+
+    const wmoToCondition = (code: number): string => {
+      if (code <= 1) return "Clear";
+      if (code <= 3) return "Partly Cloudy";
+      if (code <= 48) return "Foggy";
+      if (code <= 57) return "Drizzle";
+      if (code <= 67) return "Rain";
+      if (code <= 77) return "Snow";
+      if (code <= 82) return "Showers";
+      if (code <= 86) return "Snow Showers";
+      return "Thunderstorm";
+    };
+
+    const current = wData.current;
+    const daily = wData.daily;
+    const weatherSummary = `Weather for ${locName}: Currently ${Math.round(current?.temperature_2m || 0)}°F (feels ${Math.round(current?.apparent_temperature || 0)}°F), ${wmoToCondition(current?.weather_code || 0)}, humidity ${current?.relative_humidity_2m || 0}%, pressure ${Math.round(current?.pressure_msl || 0)} hPa. Tomorrow: High ${Math.round(daily?.temperature_2m_max?.[1] || 0)}°F, Low ${Math.round(daily?.temperature_2m_min?.[1] || 0)}°F, ${wmoToCondition(daily?.weather_code?.[1] || 0)}, ${daily?.precipitation_probability_max?.[1] || 0}% rain chance.`;
+
+    // Now ask AI to interpret with user context
+    const r2 = await callAI({
+      model: "google/gemini-2.5-flash",
+      messages: [...messages, { role: "assistant", content: `Checking weather for ${locName}...` }, { role: "user", content: `Live weather data for "${parsed.userQuestion}":\n${weatherSummary}\n\nRespond concisely (max 150 words). Include the key numbers. Relate to user's health conditions and triggers. Use the weatherCard data to show a visual card.` }],
+      temperature: 0.5,
+    });
+    if (!r2.ok) throw new Error(`Weather AI call failed: ${r2.status}`);
+    const rd = await r2.json();
+    const responseText = rd.choices?.[0]?.message?.content || weatherSummary;
+
+    const weatherCard = {
+      location: locName,
+      current: {
+        temp_f: Math.round(current?.temperature_2m || 0),
+        condition: wmoToCondition(current?.weather_code || 0),
+        humidity: current?.relative_humidity_2m || 0,
+        feelslike_f: Math.round(current?.apparent_temperature || 0),
+      },
+      forecast: {
+        date: "Tomorrow",
+        maxtemp_f: Math.round(daily?.temperature_2m_max?.[1] || 0),
+        mintemp_f: Math.round(daily?.temperature_2m_min?.[1] || 0),
+        condition: wmoToCondition(daily?.weather_code?.[1] || 0),
+        daily_chance_of_rain: daily?.precipitation_probability_max?.[1] || 0,
+      },
+    };
+
+    return replyJson({
+      response: responseText,
+      weatherCard,
+      weatherData: true,
+      toolsUsed: ['weather', 'history'],
+      wasResearched: false,
+      citations: [],
+      visualization: null,
+    });
+  } catch (e) {
+    console.error("❌ Weather error:", e);
+    return replyJson({ response: `Couldn't fetch weather for "${parsed.locationName}". ${e instanceof Error ? e.message : ''}`, toolsUsed: ['weather'], wasResearched: false, citations: [] });
+  }
+}
+
 async function handleResearch(parsed: any, messages: any[], userTz: string) {
   const searchResults = await searchWeb(parsed.searchQuery);
   if (searchResults.results.length === 0) {
-    return replyJson({ response: "Couldn't find specific results. Let me answer from what I know.", visualization: null, citations: [], wasResearched: true });
+    return replyJson({ response: "Couldn't find specific results. Let me answer from what I know.", visualization: null, citations: [], wasResearched: true, toolsUsed: ['research'] });
   }
   const resCtx = searchResults.results.map((r, i) => `[${i + 1}] ${r.title}\n${r.url}\n${r.snippet}`).join('\n---\n');
-  const r2 = await callAI({ model: "google/gemini-2.5-flash", messages: [...messages, { role: "assistant", content: `Researching "${parsed.searchQuery}"...` }, { role: "user", content: `Research results for "${parsed.userQuestion}". Cite [1],[2] etc. Be conversational.\n\n${resCtx}` }], temperature: 0.5 });
+  const r2 = await callAI({ model: "google/gemini-2.5-flash", messages: [...messages, { role: "assistant", content: `Researching "${parsed.searchQuery}"...` }, { role: "user", content: `Research results for "${parsed.userQuestion}". Cite [1],[2] etc. Be conversational and concise (max 150 words).\n\n${resCtx}` }], temperature: 0.5 });
   if (!r2.ok) throw new Error(`Research call failed: ${r2.status}`);
   const rd = await r2.json();
-  return replyJson({ response: rd.choices?.[0]?.message?.content || "Couldn't process results.", visualization: null, citations: searchResults.results.map((r, i) => ({ index: i + 1, title: r.title, url: r.url })), wasResearched: true });
+  return replyJson({ response: rd.choices?.[0]?.message?.content || "Couldn't process results.", visualization: null, citations: searchResults.results.map((r, i) => ({ index: i + 1, title: r.title, url: r.url })), wasResearched: true, toolsUsed: ['research', 'logs'] });
 }
 
 function saveMemories(supabase: any, userId: string, newMemories: any[]) {
