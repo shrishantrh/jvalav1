@@ -265,6 +265,13 @@ export default function ShortcutsSetup() {
 
   const addToShortcuts = (shortcut: ShortcutDefinition) => {
     haptics.light();
+    
+    // If there's a signed iCloud link, open it directly
+    if (shortcut.icloudLink) {
+      window.open(shortcut.icloudLink, '_blank');
+      return;
+    }
+    
     if (isNative && platform === 'ios') {
       window.open(`shortcuts://create-shortcut`, '_system');
       toast({
