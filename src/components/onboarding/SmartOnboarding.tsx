@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import jvalaLogo from "@/assets/jvala-logo.png";
 import {
   Bell,
   Check,
