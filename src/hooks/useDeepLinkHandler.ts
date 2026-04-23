@@ -156,26 +156,40 @@ export const useDeepLinkHandler = ({ onQuickLog, onOpenVoice, onSwitchView }: Us
 
     let cleanup: (() => void) | undefined;
 
+    const processUrl = (url: string) => {
+      console.log('[DeepLink] Processing URL:', url);
+      
+      // Skip auth-related deep links
+      if (url.includes('auth') || url.includes('confirm-email') || url.includes('reset-password')) {
+        return;
+      }
+
+      const action = parseDeepLink(url);
+      if (action.type !== 'none') {
+        // If callbacks aren't ready yet, store as pending
+        if (!onQuickLog && action.type === 'quick-log') {
+          console.log('[DeepLink] Callbacks not ready, storing pending action');
+          pendingActionRef.current = action;
+        } else {
+          handleAction(action);
+        }
+      }
+    };
+
     const setup = async () => {
       try {
         const { App } = await import('@capacitor/app');
+        
+        // Check if app was COLD-LAUNCHED via a deep link
+        const launchUrl = await App.getLaunchUrl();
+        if (launchUrl?.url) {
+          console.log('[DeepLink] Cold launch URL:', launchUrl.url);
+          processUrl(launchUrl.url);
+        }
+        
+        // Listen for deep links while app is running (warm launch)
         const listener = await App.addListener('appUrlOpen', (event) => {
-          console.log('[DeepLink] URL opened:', event.url);
-          
-          // Skip auth-related deep links
-          if (event.url.includes('auth') || event.url.includes('confirm-email') || event.url.includes('reset-password')) {
-            return;
-          }
-
-          const action = parseDeepLink(event.url);
-          if (action.type !== 'none') {
-            // If callbacks aren't ready yet, store as pending
-            if (!onQuickLog && action.type === 'quick-log') {
-              pendingActionRef.current = action;
-            } else {
-              handleAction(action);
-            }
-          }
+          processUrl(event.url);
         });
         cleanup = () => listener.remove();
       } catch (e) {
