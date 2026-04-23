@@ -104,6 +104,7 @@ const Index = () => {
   useNativePush(); // Register native iOS/Android push tokens
   const { hasConsented: aiConsented, grantConsent: grantAIConsent } = useAIConsent();
   const [showAIConsentDialog, setShowAIConsentDialog] = useState(false);
+  const { briefing } = useIntelligenceBriefing(user?.id ?? null);
 
   // Deep link handler for Siri Shortcuts / Action Button integration
   useDeepLinkHandler({
