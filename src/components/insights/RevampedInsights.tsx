@@ -118,6 +118,7 @@ export const RevampedInsights = ({
 
           <TabsContent value="local" className="mt-0">
             <div className="space-y-4">
+              <NearbyClinicFinder userConditions={userConditions} />
               <UserFlareMap entries={entries} />
               <CommunityHotspots entries={entries} userConditions={userConditions} />
             </div>
