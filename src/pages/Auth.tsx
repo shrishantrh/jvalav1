@@ -597,11 +597,11 @@ const Auth = () => {
 
             {/* Password */}
             <div className="space-y-1.5">
-              <label htmlFor="password" className="text-[13px] pl-0.5 text-foreground" style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 600, opacity: 0.9 }}>
+              <label htmlFor="password" className="text-[13px] pl-0.5 text-white/80 font-semibold">
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
@@ -611,13 +611,12 @@ const Auth = () => {
                   required
                   disabled={loading}
                   minLength={6}
-                  className="h-12 pl-11 pr-11 rounded-xl transition-all bg-background border-border/60 text-foreground"
-                  style={{ fontFamily: "'Satoshi', sans-serif", fontWeight: 400 }}
+                  className="h-12 pl-11 pr-11 rounded-xl transition-all bg-white/10 border-white/15 text-white placeholder:text-white/30 focus-visible:ring-white/30"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors text-muted-foreground/50"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors text-white/30"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
