@@ -708,7 +708,8 @@ export const FluidLogSelector = ({
     }
   };
 
-  const conditionSymptoms = activeCondition?.symptoms || userSymptoms;
+  // Always use userSymptoms as the editable symptom list — condition-specific symptoms seed it but edits go to profile
+  const conditionSymptoms = userSymptoms.length > 0 ? userSymptoms : (activeCondition?.symptoms || []);
 
   return (
     <div className="space-y-2" data-tour="log-buttons">
