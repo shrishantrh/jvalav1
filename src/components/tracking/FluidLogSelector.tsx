@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
-import { Smile, Pill, X, Zap, Plus, Activity, Flame, Sun, Moon, Droplets, Thermometer, Eye, Brain, Shield, AlertTriangle, Heart, Search, Dumbbell, GlassWater, Apple, Loader2, Sparkles, Trash2 } from "lucide-react";
+import { Smile, Pill, X, Zap, Plus, Activity, Flame, Sun, Moon, Droplets, Thermometer, Eye, Brain, Shield, AlertTriangle, Heart, Search, Dumbbell, GlassWater, Apple, Loader2, Sparkles, Trash2, Wind } from "lucide-react";
 import { SeverityWheel } from "@/components/flare/SeverityWheel";
 import { EnergyOrbs } from "@/components/flare/EnergyOrbs";
 import { FlareSeverity } from "@/types/flare";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { Slider } from "@/components/ui/slider";
 import { searchDrugs } from "@/data/whoDrugDictionary";
+import { WaterGlassTrackable, StressThermometer, SleepQualityTrackable, ExerciseTrackable, PainLocationTrackable, CaffeineTrackable, BreathingTrackable } from "@/components/tracking/CustomTrackableUIs";
 
 // ─── Types ───
 
