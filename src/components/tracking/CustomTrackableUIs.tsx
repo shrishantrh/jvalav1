@@ -456,3 +456,295 @@ export const BreathingTrackable = ({ onLog }: { onLog: (label: string, value: st
     </div>
   );
 };
+
+// ─── Mood Journal (quick emotional check-in with journal prompt) ───
+export const MoodJournalTrackable = ({ onLog }: { onLog: (label: string, value: string) => void }) => {
+  const [selected, setSelected] = useState<string | null>(null);
+  const [note, setNote] = useState('');
+  const moods = [
+    { id: 'great', label: 'Great', color: 'hsl(150 60% 45%)', emoji: '😊' },
+    { id: 'good', label: 'Good', color: 'hsl(180 50% 45%)', emoji: '🙂' },
+    { id: 'okay', label: 'Okay', color: 'hsl(50 60% 50%)', emoji: '😐' },
+    { id: 'low', label: 'Low', color: 'hsl(30 70% 50%)', emoji: '😔' },
+    { id: 'bad', label: 'Bad', color: 'hsl(0 60% 50%)', emoji: '😞' },
+  ];
+
+  return (
+    <div className="space-y-3">
+      <div className="flex justify-center gap-2">
+        {moods.map(m => (
+          <button key={m.id} onClick={() => { setSelected(m.id); haptics.light(); }}
+            className={cn(
+              "flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95",
+              selected === m.id ? "scale-110 shadow-md" : "opacity-50 hover:opacity-75"
+            )}
+            style={selected === m.id ? { background: `${m.color}15`, border: `1.5px solid ${m.color}40` } : { border: '1.5px solid transparent' }}
+          >
+            <span className="text-2xl">{m.emoji}</span>
+            <span className="text-[9px] font-semibold">{m.label}</span>
+          </button>
+        ))}
+      </div>
+      {selected && (
+        <textarea
+          value={note}
+          onChange={e => setNote(e.target.value)}
+          placeholder="What's on your mind? (optional)"
+          rows={2}
+          className="w-full rounded-xl border border-border/50 bg-muted/20 p-2.5 text-xs resize-none focus:outline-none focus:ring-1 focus:ring-primary/30"
+        />
+      )}
+      <button onClick={() => { if (selected) { haptics.success(); const m = moods.find(x => x.id === selected)!; onLog("Mood Journal", `${m.label}${note ? ` — "${note}"` : ''}`); } }}
+        disabled={!selected}
+        className="w-full py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r from-violet-500 to-purple-500 text-white active:scale-[0.98] transition-all disabled:opacity-40"
+      >
+        Log Mood
+      </button>
+    </div>
+  );
+};
+
+// ─── Screen Time Monitor ───
+export const ScreenTimeTrackable = ({ onLog }: { onLog: (label: string, value: string) => void }) => {
+  const [hours, setHours] = useState(4);
+  const [eyeStrain, setEyeStrain] = useState(false);
+  const maxHours = 16;
+  const pct = (hours / maxHours) * 100;
+  const color = hours <= 4 ? 'hsl(150 60% 45%)' : hours <= 8 ? 'hsl(50 60% 50%)' : hours <= 12 ? 'hsl(30 70% 50%)' : 'hsl(0 60% 50%)';
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-center gap-4">
+        <div className="relative w-20 h-20">
+          <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+            <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
+            <circle cx="18" cy="18" r="15" fill="none" stroke={color} strokeWidth="3"
+              strokeDasharray={`${pct * 0.942} 100`} strokeLinecap="round"
+              className="transition-all duration-500"
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-lg font-bold" style={{ color }}>{hours}h</span>
+          </div>
+        </div>
+        <div className="space-y-1">
+          <input type="range" min={0} max={maxHours} step={0.5} value={hours}
+            onChange={e => { setHours(+e.target.value); haptics.selection(); }}
+            className="w-28 h-2 rounded-full appearance-none cursor-pointer"
+            style={{ accentColor: color }}
+          />
+          <p className="text-[10px] text-muted-foreground">Drag to set hours</p>
+        </div>
+      </div>
+      <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/30 cursor-pointer">
+        <input type="checkbox" checked={eyeStrain} onChange={e => setEyeStrain(e.target.checked)}
+          className="rounded border-border accent-red-500" />
+        <span className="text-xs">Eye strain / headache</span>
+      </label>
+      <button onClick={() => { haptics.success(); onLog("Screen Time", `${hours}h${eyeStrain ? ' (eye strain)' : ''}`); }}
+        className="w-full py-2.5 rounded-xl text-sm font-medium text-white active:scale-[0.98] transition-all"
+        style={{ background: `linear-gradient(135deg, ${color}, hsl(250 50% 50%))` }}
+      >
+        Log Screen Time
+      </button>
+    </div>
+  );
+};
+
+// ─── Meditation Timer ───
+export const MeditationTrackable = ({ onLog }: { onLog: (label: string, value: string) => void }) => {
+  const [minutes, setMinutes] = useState(10);
+  const [meditating, setMeditating] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [type, setType] = useState<string>('guided');
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const types = [
+    { id: 'guided', label: 'Guided', emoji: '🧘' },
+    { id: 'breath', label: 'Breath', emoji: '🌬️' },
+    { id: 'body_scan', label: 'Body Scan', emoji: '🫀' },
+    { id: 'mindful', label: 'Mindful', emoji: '🧠' },
+  ];
+
+  const start = () => {
+    setMeditating(true);
+    setElapsed(0);
+    timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000);
+  };
+
+  const stop = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setMeditating(false);
+  };
+
+  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
+
+  return (
+    <div className="space-y-3 text-center">
+      {!meditating ? (
+        <>
+          <div className="grid grid-cols-4 gap-1.5">
+            {types.map(t => (
+              <button key={t.id} onClick={() => { setType(t.id); haptics.light(); }}
+                className={cn(
+                  "py-2 rounded-xl text-center transition-all active:scale-95",
+                  type === t.id ? "bg-teal-500/15 border border-teal-500/30" : "bg-muted/30 border border-transparent"
+                )}
+              >
+                <span className="text-lg">{t.emoji}</span>
+                <p className="text-[8px] font-semibold mt-0.5">{t.label}</p>
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-3 px-2">
+            <span className="text-[10px] text-muted-foreground">Duration:</span>
+            <input type="range" min={1} max={60} value={minutes}
+              onChange={e => setMinutes(+e.target.value)}
+              className="flex-1 h-2 rounded-full appearance-none cursor-pointer"
+              style={{ accentColor: 'hsl(170 50% 45%)' }}
+            />
+            <span className="text-sm font-bold text-teal-600 w-10 text-right">{minutes}m</span>
+          </div>
+          <button onClick={start}
+            className="w-full py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r from-teal-500 to-cyan-500 text-white active:scale-[0.98]"
+          >
+            Start Meditation
+          </button>
+        </>
+      ) : (
+        <>
+          <div className="relative w-24 h-24 mx-auto">
+            <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+              <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--muted))" strokeWidth="2.5" />
+              <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(170 50% 45%)" strokeWidth="2.5"
+                strokeDasharray={`${Math.min((elapsed / (minutes * 60)) * 94.2, 94.2)} 100`} strokeLinecap="round"
+                className="transition-all duration-1000"
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-lg font-bold text-teal-600">{Math.floor(elapsed / 60)}:{(elapsed % 60).toString().padStart(2, '0')}</span>
+              <span className="text-[9px] text-muted-foreground">of {minutes}m</span>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={stop} className="flex-1 py-2 rounded-xl text-sm bg-muted text-muted-foreground active:scale-[0.98]">Cancel</button>
+            <button onClick={() => { stop(); haptics.success(); const t = types.find(x => x.id === type); onLog("Meditation", `${t?.label} — ${Math.floor(elapsed / 60)}m ${elapsed % 60}s`); }}
+              className="flex-1 py-2 rounded-xl text-sm bg-gradient-to-r from-teal-500 to-cyan-500 text-white active:scale-[0.98]"
+            >
+              Log & Done
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+// ─── Hydration Tracker (different from water glass — tracks total fluid intake) ───
+export const HydrationTrackable = ({ onLog }: { onLog: (label: string, value: string) => void }) => {
+  const [ml, setMl] = useState(500);
+  const [type, setType] = useState('water');
+  const types = [
+    { id: 'water', label: 'Water', emoji: '💧' },
+    { id: 'tea', label: 'Tea', emoji: '🍵' },
+    { id: 'juice', label: 'Juice', emoji: '🧃' },
+    { id: 'electrolyte', label: 'Electrolyte', emoji: '⚡' },
+  ];
+  const presets = [250, 500, 750, 1000];
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-4 gap-1.5">
+        {types.map(t => (
+          <button key={t.id} onClick={() => { setType(t.id); haptics.light(); }}
+            className={cn(
+              "py-2 rounded-xl text-center transition-all active:scale-95",
+              type === t.id ? "bg-cyan-500/15 border border-cyan-500/30" : "bg-muted/30 border border-transparent"
+            )}
+          >
+            <span className="text-base">{t.emoji}</span>
+            <p className="text-[8px] font-semibold mt-0.5">{t.label}</p>
+          </button>
+        ))}
+      </div>
+      <div className="grid grid-cols-4 gap-1.5">
+        {presets.map(p => (
+          <button key={p} onClick={() => { setMl(p); haptics.light(); }}
+            className={cn(
+              "py-2 rounded-xl text-xs font-semibold transition-all active:scale-95",
+              ml === p ? "bg-cyan-500/20 text-cyan-600 border border-cyan-500/30" : "bg-muted/30 text-muted-foreground"
+            )}
+          >
+            {p}ml
+          </button>
+        ))}
+      </div>
+      <div className="flex items-center gap-3 px-2">
+        <input type="range" min={100} max={2000} step={50} value={ml}
+          onChange={e => { setMl(+e.target.value); haptics.selection(); }}
+          className="flex-1 h-2 rounded-full appearance-none cursor-pointer"
+          style={{ accentColor: 'hsl(190 70% 50%)' }}
+        />
+        <span className="text-sm font-bold text-cyan-600 w-16 text-right">{ml}ml</span>
+      </div>
+      <button onClick={() => { haptics.success(); const t = types.find(x => x.id === type)!; onLog("Hydration", `${ml}ml ${t.label}`); }}
+        className="w-full py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r from-cyan-500 to-blue-500 text-white active:scale-[0.98] transition-all"
+      >
+        Log {ml}ml {types.find(x => x.id === type)?.label}
+      </button>
+    </div>
+  );
+};
+
+// ─── Symptom Severity Tracker (quick multi-symptom with severity) ───
+export const SymptomQuickTrackable = ({ onLog }: { onLog: (label: string, value: string) => void }) => {
+  const [symptoms, setSymptoms] = useState<Record<string, number>>({});
+  const commonSymptoms = ['Headache', 'Fatigue', 'Nausea', 'Dizziness', 'Brain fog', 'Joint pain', 'Muscle ache', 'Cramping'];
+
+  const toggle = (s: string) => {
+    haptics.light();
+    setSymptoms(prev => {
+      const copy = { ...prev };
+      if (copy[s] !== undefined) {
+        // Cycle through severities: 1 → 2 → 3 → remove
+        if (copy[s] >= 3) delete copy[s];
+        else copy[s]++;
+      } else {
+        copy[s] = 1;
+      }
+      return copy;
+    });
+  };
+
+  const sevLabel = (n: number) => n === 1 ? 'mild' : n === 2 ? 'mod' : 'severe';
+  const sevColor = (n: number) => n === 1 ? 'hsl(50 70% 50%)' : n === 2 ? 'hsl(30 70% 50%)' : 'hsl(0 60% 50%)';
+  const count = Object.keys(symptoms).length;
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-1.5">
+        {commonSymptoms.map(s => {
+          const sev = symptoms[s];
+          const active = sev !== undefined;
+          return (
+            <button key={s} onClick={() => toggle(s)}
+              className={cn(
+                "py-2 px-2 rounded-xl text-xs font-medium transition-all active:scale-95 text-left",
+                active ? "shadow-sm" : "bg-muted/30 text-muted-foreground"
+              )}
+              style={active ? { background: `${sevColor(sev)}15`, border: `1.5px solid ${sevColor(sev)}40`, color: sevColor(sev) } : {}}
+            >
+              {s} {active && <span className="text-[9px] opacity-70">({sevLabel(sev)})</span>}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[10px] text-muted-foreground text-center">Tap to add, tap again to increase severity</p>
+      <button onClick={() => { if (count > 0) { haptics.success(); const items = Object.entries(symptoms).map(([s, n]) => `${s} (${sevLabel(n)})`).join(', '); onLog("Symptoms", items); } }}
+        disabled={count === 0}
+        className="w-full py-2.5 rounded-xl text-sm font-medium bg-gradient-to-r from-rose-500 to-pink-500 text-white active:scale-[0.98] transition-all disabled:opacity-40"
+      >
+        Log {count} symptom{count !== 1 ? 's' : ''}
+      </button>
+    </div>
+  );
+};
