@@ -1,145 +1,212 @@
-# Jvala Clinician Portal — Production Roadmap
 
-## Vision
-Transform the clinician portal from a basic SOAP note viewer into a **real Remote Patient Monitoring (RPM) + Clinical Decision Support (CDS) platform** that doctors would actually use daily. Modeled after Current Health, Validic, HeadsUp Health, and DeepCura — but purpose-built for chronic condition management.
 
----
+# Clinician Portal: Clinical-Grade RPM Overhaul
 
-## Phase 1: Clinical Foundation (Core Infrastructure)
+## Competitive Analysis Summary
 
-### 1.1 — Real-Time Patient Monitoring Dashboard
-- **Population-level triage view** — All linked patients on one screen, sorted by clinical urgency (not alphabetical)
-- **Risk stratification engine** — Each patient gets a computed risk score (0-100) based on:
-  - Flare frequency trend (7d vs prior 7d)
-  - Severity escalation patterns
-  - Medication adherence gaps
-  - Wearable anomalies (HR spikes, sleep disruption)
-  - Days since last log (engagement drop-off = clinical risk)
-- **Color-coded priority bands**: Critical (red), Elevated (amber), Stable (green), Inactive (gray)
-- **Sparkline vitals** — Inline mini-charts per patient showing 7-day severity trend without clicking in
+**What Current Health, HeadsUp Health, Validic, Tellescope, and Vitalera all do:**
+- Population-level triage with risk stratification and sparkline vitals per patient
+- Unified patient timeline with biometrics, vitals, symptoms, medications, and environmental data overlaid
+- Configurable alert thresholds (not just static rules) with fatigue suppression
+- AI-generated visit prep briefs ("what changed since last visit")
+- RPM billing time tracking (CPT 99453-99458) with auto-suggested codes
+- Trend visualization with comparative periods (this week vs last week)
+- Natural language query across patient panel ("show patients with worsening severity")
+- Task management and care team coordination
 
-### 1.2 — Clinical Inbox / Action Queue
-- **Unified alert feed** — Drug interactions, severity escalations, missed doses, ADR signals, wearable anomalies all in one inbox
-- **Alert tiers** (modeled after Epic BPA):
-  - **Interruptive** (must acknowledge): Drug-drug interactions, severe escalation clusters
-  - **Non-interruptive** (badge count): Missed doses, engagement drop-off, weather-triggered risk
-- **Bulk actions** — Acknowledge, dismiss with reason, escalate to note
-- **Alert fatigue reduction** — Smart suppression: don't re-alert on the same pattern within 72h unless it worsens
+**What Jvala already collects that NONE of them have:**
+- Real-world environmental data (weather, AQI, UV, pollen, barometric pressure) per log
+- Geolocation with city-level flare mapping
+- AI-discovered correlations (Bayesian association rules with confidence scores)
+- Food logging with inflammatory markers
+- Voice transcripts from patient notes
+- Predictive risk forecasts with Brier score calibration
 
-### 1.3 — Patient Detail: Clinical Timeline
-- **Unified timeline** — Flares, medications, food logs, wearable data, AI discoveries all on one chronological view
-- **Filterable by**: Date range, entry type, severity, symptom
-- **Physiological overlay** — Heart rate / sleep / steps plotted against flare events (correlation at a glance)
-- **Annotation capability** — Clinician can pin notes to any timeline event
+**Our edge:** We have richer RWE than any competitor. The clinician portal just doesn't display any of it.
 
 ---
 
-## Phase 2: Clinical Documentation (SOAP + Beyond)
+## What Gets Built
 
-### 2.1 — AI SOAP Notes (already built, needs refinement)
-- Fix: Use Lovable AI gateway models instead of `claude-sonnet` (which isn't available via gateway)
-- Add: **Template library** — Pre-built SOAP templates per condition (IBD follow-up, migraine check-in, RA flare review)
-- Add: **Evidence citations** — Each SOAP section links back to the specific patient log entries it was derived from
-- Add: **Amendment workflow** — Finalized notes can be amended (creates new note with `amendment_of` reference)
+### 1. Population Dashboard Overhaul (`ClinicianDashboard.tsx`)
 
-### 2.2 — Visit Summary Generation
-- Auto-generate patient-friendly visit summary from finalized SOAP note
-- Share with patient via in-app notification
-- PDF export with practice letterhead
+**Replace the current simple list with a data-dense clinical workstation:**
 
-### 2.3 — Clinical Letter Generator
-- Referral letters, prior authorization letters, disability documentation
-- Pre-populated from patient data + SOAP notes
-- Editable before finalizing
+- **Command bar** at top: natural language search ("patients with severe flares this week", "on methotrexate")
+- **Summary strip**: Total patients, Critical count, Open alerts, Avg health score, Active today
+- **Patient table** (not cards -- a proper data table):
+  - Columns: Name | Age/Sex | Conditions | Health Score (color-coded gauge) | 7d Severity Sparkline | Flares 7d/30d | Open Alerts | Last Activity | Biometric Flags
+  - Sortable by any column, filterable by risk tier tabs (All / Critical / High / Moderate / Stable)
+  - Inline 7-day severity sparkline per patient (tiny SVG, no library needed)
+  - Biometric flag icons: heart (HR anomaly), moon (sleep disruption), thermometer (weather risk)
+- **Alert inbox sidebar** (right panel on desktop): unified feed of all unacknowledged alerts across all patients, sorted by severity, with bulk acknowledge/dismiss
+
+### 2. Patient Detail Overhaul (`ClinicianPatientDetail.tsx`)
+
+**Replace the 4-tab layout with a comprehensive clinical chart:**
+
+**Header card:**
+- Patient demographics (name, age, sex, conditions, email)
+- Health score gauge (0-100, color-coded)
+- Risk tier badge
+- Active medications list
+- "Draft SOAP" and "Generate Visit Summary" action buttons
+
+**Tab structure (6 tabs):**
+
+**a. Overview**
+- Vitals grid: HR (avg/min/max 7d), Sleep (avg hours), Steps (daily avg), SpO2, HRV -- pulled from `physiological_data` in `flare_entries`
+- Severity trend chart (30d line chart with 7d moving average)
+- Flare frequency bar chart (weekly buckets)
+- Top symptoms and triggers (frequency-ranked horizontal bars)
+- AI Discoveries section: show patient's `discoveries` table entries with confidence bars
+- Environmental correlation summary from `environmental_data`
+
+**b. Biometrics**
+- Full physiological data display: HR, HRV, sleep duration, sleep quality, steps, calories, SpO2, skin temp
+- Plot each metric over time (30d sparklines)
+- Overlay flare events on the timeline to show correlations visually
+- Weather/environmental overlay: barometric pressure, humidity, AQI, pollen alongside flare markers
+- Location map: show patient's flare locations from `latitude`/`longitude` data
+
+**c. Medications & Food**
+- Medication timeline: when each med was taken from `medication_logs`
+- Adherence gaps highlighted (expected vs actual based on `frequency`)
+- Food log summary from `food_logs`: calorie trends, inflammatory markers, meal patterns
+- Drug interaction matrix (from existing `drugInteractions.ts`)
+
+**d. CDS Alerts** (existing, enhanced)
+- Add alert threshold configuration per patient
+- Add 72h suppression logic (don't re-alert same pattern)
+- Show evidence links back to specific entries
+- Interruptive vs non-interruptive tiers
+
+**e. SOAP Notes** (existing, enhanced)
+- Note history with status badges
+- Click to open SOAPEditor
+- Amendment workflow
+- Visit summary generation from finalized SOAP
+
+**f. Timeline**
+- Unified chronological feed: flares, meds, food logs, activity logs, voice transcripts
+- Each entry shows attached environmental + physiological data
+- Filterable by entry type, severity, date range
+- Clinician can pin annotations to any entry
+
+### 3. New Hook: `usePatientBiometrics`
+
+Fetches and aggregates:
+- `flare_entries` with `physiological_data` and `environmental_data` for the patient
+- `food_logs` for nutritional data
+- `activity_logs` for exercise/activity
+- `medication_logs` for adherence analysis
+- `discoveries` for AI-found correlations
+- `prediction_logs` for forecast history
+
+Computes:
+- 7d and 30d averages for all biometric fields
+- Trend direction (improving/worsening/stable)
+- Anomaly flags (>2 SD from patient's own baseline)
+
+### 4. Sparkline Component (`components/clinician/Sparkline.tsx`)
+
+Tiny inline SVG chart component. No charting library needed. Takes an array of values, renders a 60x20px polyline with optional color gradient (green-to-red based on severity).
+
+### 5. Enhanced `useLinkedPatients` Hook
+
+Add to the existing hook:
+- Fetch latest `physiological_data` from most recent `flare_entry` per patient (for biometric flags)
+- Fetch `environmental_data` from most recent entry
+- Compute trend direction for severity (7d vs prior 7d)
+- Return biometric anomaly flags
+
+### 6. Clinical Inbox Component (`components/clinician/ClinicalInbox.tsx`)
+
+- Fetches `clinical_alerts` across ALL linked patients
+- Groups by severity tier
+- Bulk actions: acknowledge selected, dismiss with reason
+- Click alert to navigate to patient detail
+- 72h suppression: alerts of same `alert_type` for same patient within 72h are collapsed
+
+### 7. Visit Summary Generation
+
+- New edge function `generate-visit-summary` that takes a finalized SOAP note ID
+- Uses Lovable AI gateway (gemini-2.5-flash) to generate patient-friendly markdown summary
+- Saves to `visit_summaries` table
+- Clinician can share with patient (sets `shared_with_patient = true`)
+
+### 8. RPM Time Tracking (Database + UI)
+
+- Migration: create `rpm_time_entries` table (clinician_id, patient_id, start_time, end_time, activity_type, duration_seconds)
+- Auto-track time spent on each patient detail page
+- Monthly summary with CPT code suggestions:
+  - 99453: Initial setup
+  - 99454: Device supply (30d monitoring)
+  - 99457: First 20 min RPM management
+  - 99458: Each additional 20 min
+- Display in dashboard sidebar
+
+### 9. UI Design System for Clinical Portal
+
+**Desktop-first, data-dense, zero decoration:**
+- Background: `#FAFAFA` (not white, reduces eye strain)
+- Cards: white, 1px `#E5E7EB` border, no shadow, no rounded corners beyond 4px
+- Text: system font stack (`-apple-system, BlinkMacSystemFont, 'Segoe UI'`), not Manrope
+- Color = clinical meaning ONLY:
+  - Red `#DC2626`: critical/severe
+  - Amber `#D97706`: warning/elevated
+  - Green `#059669`: stable/normal
+  - Blue `#2563EB`: informational/links
+  - Gray `#6B7280`: secondary text
+- No gradients, no brand colors, no animations
+- Dense spacing: 12px padding on cards, 8px gaps
+- Tables use alternating row backgrounds `#F9FAFB`
+
+### 10. Database Migrations
+
+```sql
+-- RPM time tracking for billing
+CREATE TABLE public.rpm_time_entries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  clinician_id uuid NOT NULL,
+  patient_id uuid NOT NULL,
+  activity_type text NOT NULL DEFAULT 'chart_review',
+  started_at timestamptz NOT NULL DEFAULT now(),
+  ended_at timestamptz,
+  duration_seconds integer,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.rpm_time_entries ENABLE ROW LEVEL SECURITY;
+
+-- Clinicians can manage their own time entries
+CREATE POLICY "Clinicians manage own time entries"
+ON public.rpm_time_entries FOR ALL TO authenticated
+USING (auth.uid() = clinician_id)
+WITH CHECK (auth.uid() = clinician_id);
+
+-- clinical_alerts INSERT policy (currently missing)
+CREATE POLICY "System and clinicians can insert alerts"
+ON public.clinical_alerts FOR INSERT TO authenticated
+WITH CHECK (is_clinician_for_patient(auth.uid(), patient_id));
+```
 
 ---
 
-## Phase 3: Proactive Clinical Intelligence
+## Files Changed/Created
 
-### 3.1 — Predictive Risk Alerts
-- **Flare prediction** — "Patient X has 78% probability of flare in next 48h based on weather change + missed medication + sleep disruption"
-- **Polypharmacy risk** — Flag patients on 5+ medications with known interaction pairs
-- **Adherence prediction** — Detect patterns of medication non-compliance before it becomes clinical
+| File | Action |
+|------|--------|
+| `src/pages/ClinicianDashboard.tsx` | Rewrite -- data table, sparklines, alert inbox |
+| `src/pages/ClinicianPatientDetail.tsx` | Rewrite -- 6-tab clinical chart with biometrics |
+| `src/components/clinician/Sparkline.tsx` | Create -- inline SVG sparkline |
+| `src/components/clinician/ClinicalInbox.tsx` | Create -- cross-patient alert feed |
+| `src/components/clinician/BiometricsPanel.tsx` | Create -- vitals grid + charts |
+| `src/components/clinician/MedicationTimeline.tsx` | Create -- med adherence view |
+| `src/components/clinician/PatientTimeline.tsx` | Create -- unified entry feed |
+| `src/components/clinician/RPMTimeTracker.tsx` | Create -- billing time tracker |
+| `src/hooks/usePatientBiometrics.ts` | Create -- aggregated biometric data |
+| `src/hooks/useLinkedPatients.ts` | Enhance -- add biometric flags, trends |
+| `supabase/functions/generate-visit-summary/index.ts` | Create |
+| `src/index.css` | Update clinical shell styles |
+| Migration SQL | RPM time entries table + clinical_alerts INSERT policy |
 
-### 3.2 — Population Analytics
-- **Cohort comparison** — Compare outcomes across patient groups (by condition, medication, age)
-- **Trend dashboards** — Practice-wide metrics: avg time-to-response, flare reduction rates, patient engagement scores
-- **Quality metrics** — Track clinical quality measures relevant to value-based care contracts
-
-### 3.3 — Smart Recommendations
-- **Evidence-based suggestions** — "3 patients on Methotrexate showing liver enzyme elevation pattern — consider labs"
-- **Guideline adherence** — Flag when patient management diverges from clinical guidelines
-- **Wearable-informed insights** — "Patient's resting HR has increased 15% over 2 weeks — correlates with flare severity increase"
-
----
-
-## Phase 4: Communication & Coordination
-
-### 4.1 — Secure Messaging
-- In-app messaging between clinician and patient
-- Message templates for common follow-ups
-- Auto-suggest messages based on patient status
-
-### 4.2 — Care Team Coordination
-- Multiple clinicians per patient (PCP, specialist, pharmacist)
-- Shared notes and alerts across care team
-- Referral workflow with data handoff
-
-### 4.3 — Patient Education
-- Condition-specific education materials delivered at the right moment
-- Post-visit summaries with action items
-- Medication guides and interaction warnings shared with patient
-
----
-
-## Phase 5: Compliance & Integration
-
-### 5.1 — Audit Trail (already built)
-- HIPAA-compliant logging of all data access
-- Exportable audit reports
-
-### 5.2 — Billing / CPT Code Suggestions
-- Auto-suggest appropriate CPT codes based on:
-  - RPM time tracking (99453, 99454, 99457, 99458)
-  - Chronic care management (99490, 99491)
-  - Visit complexity from SOAP content
-- Time tracking for RPM billing compliance (minimum 20 min/month)
-
-### 5.3 — FHIR R4 Integration
-- Export patient data in FHIR format for EHR interoperability
-- Import patient demographics from EHR systems
-
----
-
-## Implementation Priority
-
-### Sprint 1 (Now): Fix & Refine Core
-1. ✅ Fix SOAP RLS policy
-2. Fix SOAP draft edge function to use Lovable AI gateway
-3. Build proper clinical-grade dashboard UI (desktop-first, data-dense)
-4. Wire real patient data into dashboard (risk scores, sparklines, alert counts)
-
-### Sprint 2: Clinical Inbox + Timeline
-5. Build alert inbox with triage actions
-6. Build unified patient timeline view
-7. Add physiological data overlay on timeline
-
-### Sprint 3: Intelligence Layer
-8. Implement predictive risk scoring for clinician view
-9. Add population-level analytics
-10. Smart alert suppression to reduce fatigue
-
-### Sprint 4: Communication
-11. Secure messaging
-12. Visit summary sharing
-13. Patient education delivery
-
----
-
-## UI Principles for Clinical Portal
-- **Desktop-first** — Clinicians use monitors, not phones
-- **Data-dense** — Show more, click less (inspired by Epic/Cerner density)
-- **Neutral palette** — Slate/zinc, no brand colors. Color = clinical meaning only (red=critical, amber=elevated, green=stable)
-- **Typography** — System fonts, high readability, clear hierarchy
-- **No animations** — Clinical tools need to feel fast and serious
-- **Keyboard navigation** — Power users need shortcuts
