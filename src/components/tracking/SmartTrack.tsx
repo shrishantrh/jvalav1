@@ -17,42 +17,7 @@ import { DynamicChart, DynamicChartRenderer } from "@/components/chat/DynamicCha
 import { AIChatPrompts, generateFollowUps } from "@/components/chat/AIChatPrompts";
 import { ToolActivityChips, predictToolActivities, completeActivities, ToolActivity } from "@/components/chat/ToolActivityChips";
 
-// ─── Split long AI messages into multiple bubbles for a human feel ───
-function splitLongMessage(text: string): string[] {
-  if (text.length < 600) return [text];
-  
-  // Split on double newlines first (paragraph boundaries)
-  const paragraphs = text.split(/\n\n+/);
-  if (paragraphs.length >= 2) {
-    const chunks: string[] = [];
-    let current = '';
-    for (const p of paragraphs) {
-      if (current && (current.length + p.length) > 800) {
-        chunks.push(current.trim());
-        current = p;
-      } else {
-        current = current ? `${current}\n\n${p}` : p;
-      }
-    }
-    if (current.trim()) chunks.push(current.trim());
-    return chunks.length > 1 ? chunks : [text];
-  }
-  
-  // Fallback: split on sentence boundaries near the midpoint
-  const mid = Math.floor(text.length / 2);
-  const sentenceEnd = /[.!?]\s/g;
-  let bestSplit = -1;
-  let match;
-  while ((match = sentenceEnd.exec(text)) !== null) {
-    if (Math.abs(match.index - mid) < Math.abs(bestSplit - mid)) {
-      bestSplit = match.index + 1;
-    }
-  }
-  if (bestSplit > 100 && bestSplit < text.length - 100) {
-    return [text.slice(0, bestSplit).trim(), text.slice(bestSplit).trim()];
-  }
-  return [text];
-}
+// No message splitting — AI controls its own length via system prompt
 
 
 interface ProactiveFormField {
@@ -1207,7 +1172,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     clearRecording();
     setIsProcessing(true);
     
-    // Show predicted tool activity chips immediately
+    // Show predicted tool activity chips immediately (heuristic)
     const predicted = predictToolActivities(text);
     setToolActivities(predicted);
 
@@ -1221,6 +1186,9 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             role: m.role === 'system' ? 'assistant' : m.role,
             content: m.content + (m.entryData ? ` [LOG: ${m.entryData.type}${m.entryData.severity ? ' ' + m.entryData.severity : ''}]` : ''),
           })),
+          latitude: currentLocation?.latitude,
+          longitude: currentLocation?.longitude,
+          city: currentLocation?.city,
         },
       });
 
@@ -1229,49 +1197,52 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       let responseContent = (aiData?.response || "").trim();
       if (!responseContent) responseContent = "Tell me more.";
       
-      // Complete tool activities with summaries
-      const summaries: Partial<Record<any, string>> = {};
+      // Build REAL tool activity chips from what the AI actually used
+      const realTools: import("@/components/chat/ToolActivityChips").ToolKind[] = [];
+      // Always reading logs
+      realTools.push('reading_logs');
+      if (aiData?.wasResearched) realTools.push('researching_web');
+      if (aiData?.weatherCard || aiData?.weatherData) realTools.push('weather');
+      if (aiData?.toolsUsed?.includes('weather')) realTools.push('weather');
+      if (aiData?.toolsUsed?.includes('memories')) realTools.push('reading_memories');
+      if (aiData?.toolsUsed?.includes('patterns')) realTools.push('analyzing_patterns');
+      if (aiData?.toolsUsed?.includes('wearable')) realTools.push('wearable_data');
+      if (aiData?.toolsUsed?.includes('medications')) realTools.push('medication_check');
+      if (aiData?.toolsUsed?.includes('history')) realTools.push('symptom_history');
+      // Deduplicate
+      const uniqueTools = [...new Set(realTools)];
+      
+      const summaries: Partial<Record<import("@/components/chat/ToolActivityChips").ToolKind, string>> = {};
       if (aiData?.wasResearched) summaries.researching_web = `${aiData?.citations?.length || 0} sources`;
       if (aiData?.weatherCard) summaries.weather = `${aiData.weatherCard?.current?.temp_f}°F`;
-      setToolActivities(prev => completeActivities(prev, summaries));
       
-      // Split long messages into multiple bubbles
-      const contentParts = splitLongMessage(responseContent);
+      const { buildActivitiesFromKinds } = await import("@/components/chat/ToolActivityChips");
+      setToolActivities(buildActivitiesFromKinds(uniqueTools, 'done', summaries));
       
-      const newMessages: ChatMessage[] = contentParts.map((part, i) => ({
-        id: (Date.now() + 1 + i).toString(),
-        role: 'assistant' as const,
-        content: part,
-        timestamp: new Date(Date.now() + i * 100),
+      // Single message — AI controls its own length via system prompt
+      const assistantMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: responseContent,
+        timestamp: new Date(),
         isAIGenerated: true,
-        // Only attach metadata to first message
-        ...(i === 0 ? {
-          entryData: aiData?.entryData ?? undefined,
-          visualization: aiData?.visualization ?? undefined,
-          weatherCard: aiData?.weatherCard ?? undefined,
-          citations: aiData?.citations ?? [],
-          wasResearched: aiData?.wasResearched ?? false,
-          discoveryCards: (aiData?.discoveries || []).map((d: any) => ({
-            factor: d.factor,
-            confidence: d.confidence,
-            lift: d.lift || 1,
-            occurrences: d.occurrences,
-            total: d.total,
-            category: d.category || 'trigger',
-            summary: d.summary,
-          })).filter((d: any) => d.factor),
-        } : {}),
-        // Attach follow-ups to last message
-        ...(i === contentParts.length - 1 ? {
-          dynamicFollowUps: aiData?.dynamicFollowUps ?? [],
-        } : {}),
-      }));
-      
-      // Add messages with slight delays for natural feel
-      for (let i = 0; i < newMessages.length; i++) {
-        if (i > 0) await new Promise(r => setTimeout(r, 400));
-        setMessages(prev => [...prev, newMessages[i]]);
-      }
+        entryData: aiData?.entryData ?? undefined,
+        visualization: aiData?.visualization ?? undefined,
+        weatherCard: aiData?.weatherCard ?? undefined,
+        citations: aiData?.citations ?? [],
+        wasResearched: aiData?.wasResearched ?? false,
+        discoveryCards: (aiData?.discoveries || []).map((d: any) => ({
+          factor: d.factor,
+          confidence: d.confidence,
+          lift: d.lift || 1,
+          occurrences: d.occurrences,
+          total: d.total,
+          category: d.category || 'trigger',
+          summary: d.summary,
+        })).filter((d: any) => d.factor),
+        dynamicFollowUps: aiData?.dynamicFollowUps ?? [],
+      };
+      setMessages(prev => [...prev, assistantMsg]);
 
       // Log entry if AI detected health data
       if (aiData?.shouldLog && aiData?.entryData) {
@@ -1298,8 +1269,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsProcessing(false);
-      // Clear tool activities after a delay
-      setTimeout(() => setToolActivities([]), 3000);
+      // Tool activities persist until the next user message (cleared in handleSend above)
     }
   };
 
