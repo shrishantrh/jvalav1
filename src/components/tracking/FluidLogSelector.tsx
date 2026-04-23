@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { Slider } from "@/components/ui/slider";
 import { searchDrugs } from "@/data/whoDrugDictionary";
-import { WaterGlassTrackable, StressThermometer, SleepQualityTrackable, ExerciseTrackable, PainLocationTrackable, CaffeineTrackable, BreathingTrackable } from "@/components/tracking/CustomTrackableUIs";
+import { WaterGlassTrackable, StressThermometer, SleepQualityTrackable, ExerciseTrackable, PainLocationTrackable, CaffeineTrackable, BreathingTrackable, MoodJournalTrackable, ScreenTimeTrackable, MeditationTrackable, HydrationTrackable, SymptomQuickTrackable } from "@/components/tracking/CustomTrackableUIs";
 
 // ─── Types ───
 
@@ -324,17 +324,22 @@ const MedicationPanel = ({ userMedications, onLogMedication, onAddMedication, on
 };
 
 // ─── Built-in rich trackable IDs ───
-const BUILTIN_TRACKABLE_IDS = ['water', 'stress', 'sleep_quality', 'exercise', 'pain', 'caffeine', 'breathing'];
+const BUILTIN_TRACKABLE_IDS = ['water', 'stress', 'sleep_quality', 'exercise', 'pain', 'caffeine', 'breathing', 'mood_journal', 'screen_time', 'meditation', 'hydration', 'symptom_quick'];
 
 const isBuiltinTrackable = (t: SmartTrackable): string | null => {
   const label = t.label.toLowerCase().replace(/\s+/g, '_');
   if (label === 'water' || t.id.includes('water')) return 'water';
   if (label === 'stress' || t.id.includes('stress')) return 'stress';
-  if (label.includes('sleep') || t.id.includes('sleep')) return 'sleep';
+  if (label.includes('sleep') && !label.includes('screen') || t.id.includes('sleep')) return 'sleep';
   if (label === 'exercise' || t.id.includes('exercise')) return 'exercise';
   if (label === 'pain' || t.id.includes('pain')) return 'pain';
   if (label === 'caffeine' || t.id.includes('caffeine')) return 'caffeine';
   if (label.includes('breath') || t.id.includes('breath')) return 'breathing';
+  if (label.includes('mood') && label.includes('journal') || t.id.includes('mood_journal')) return 'mood_journal';
+  if (label.includes('screen') || t.id.includes('screen')) return 'screen_time';
+  if (label.includes('meditat') || t.id.includes('meditat')) return 'meditation';
+  if (label.includes('hydrat') || t.id.includes('hydrat')) return 'hydration';
+  if (label.includes('symptom') && label.includes('quick') || t.id.includes('symptom_quick')) return 'symptom_quick';
   return null;
 };
 
@@ -373,6 +378,11 @@ const TrackableInteractionPanel = ({ trackable, onLog, onClose }: {
         {builtinType === 'pain' && <PainLocationTrackable onLog={onLog} />}
         {builtinType === 'caffeine' && <CaffeineTrackable onLog={onLog} />}
         {builtinType === 'breathing' && <BreathingTrackable onLog={onLog} />}
+        {builtinType === 'mood_journal' && <MoodJournalTrackable onLog={onLog} />}
+        {builtinType === 'screen_time' && <ScreenTimeTrackable onLog={onLog} />}
+        {builtinType === 'meditation' && <MeditationTrackable onLog={onLog} />}
+        {builtinType === 'hydration' && <HydrationTrackable onLog={onLog} />}
+        {builtinType === 'symptom_quick' && <SymptomQuickTrackable onLog={onLog} />}
       </div>
     );
   }
@@ -708,7 +718,8 @@ export const FluidLogSelector = ({
     }
   };
 
-  const conditionSymptoms = activeCondition?.symptoms || userSymptoms;
+  // Always use userSymptoms as the editable symptom list — condition-specific symptoms seed it but edits go to profile
+  const conditionSymptoms = userSymptoms.length > 0 ? userSymptoms : (activeCondition?.symptoms || []);
 
   return (
     <div className="space-y-2" data-tour="log-buttons">

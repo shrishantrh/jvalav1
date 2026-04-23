@@ -1199,22 +1199,24 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       
       // Build REAL tool activity chips from what the AI actually used
       const realTools: import("@/components/chat/ToolActivityChips").ToolKind[] = [];
-      // Always reading logs
-      realTools.push('reading_logs');
+      const toolsUsed: string[] = aiData?.toolsUsed || [];
+      // Map backend toolsUsed to ToolKind
+      if (toolsUsed.includes('logs') || toolsUsed.includes('reading_logs')) realTools.push('reading_logs');
+      if (toolsUsed.includes('memories') || toolsUsed.includes('reading_memories')) realTools.push('reading_memories');
+      if (toolsUsed.includes('patterns') || toolsUsed.includes('analyzing_patterns')) realTools.push('analyzing_patterns');
+      if (toolsUsed.includes('wearable') || toolsUsed.includes('wearable_data')) realTools.push('wearable_data');
+      if (toolsUsed.includes('medications') || toolsUsed.includes('medication_check')) realTools.push('medication_check');
+      if (toolsUsed.includes('history') || toolsUsed.includes('symptom_history')) realTools.push('symptom_history');
       if (aiData?.wasResearched) realTools.push('researching_web');
-      if (aiData?.weatherCard || aiData?.weatherData) realTools.push('weather');
-      if (aiData?.toolsUsed?.includes('weather')) realTools.push('weather');
-      if (aiData?.toolsUsed?.includes('memories')) realTools.push('reading_memories');
-      if (aiData?.toolsUsed?.includes('patterns')) realTools.push('analyzing_patterns');
-      if (aiData?.toolsUsed?.includes('wearable')) realTools.push('wearable_data');
-      if (aiData?.toolsUsed?.includes('medications')) realTools.push('medication_check');
-      if (aiData?.toolsUsed?.includes('history')) realTools.push('symptom_history');
+      if (aiData?.weatherCard || aiData?.weatherData || toolsUsed.includes('weather')) realTools.push('weather');
       // Deduplicate
       const uniqueTools = [...new Set(realTools)];
+      // If nothing came back from backend, at least show "thinking"
+      if (uniqueTools.length === 0) uniqueTools.push('reading_logs');
       
       const summaries: Partial<Record<import("@/components/chat/ToolActivityChips").ToolKind, string>> = {};
-      if (aiData?.wasResearched) summaries.researching_web = `${aiData?.citations?.length || 0} sources`;
-      if (aiData?.weatherCard) summaries.weather = `${aiData.weatherCard?.current?.temp_f}°F`;
+      if (aiData?.wasResearched) summaries.researching_web = `${aiData?.citations?.length || 0} sources cited`;
+      if (aiData?.weatherCard) summaries.weather = `${aiData.weatherCard?.location} — ${aiData.weatherCard?.current?.temp_f}°F`;
       
       const { buildActivitiesFromKinds } = await import("@/components/chat/ToolActivityChips");
       setToolActivities(buildActivitiesFromKinds(uniqueTools, 'done', summaries));
