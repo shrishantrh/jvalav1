@@ -93,139 +93,106 @@ export const AIChatPrompts = ({ onSendPrompt, variant = 'capabilities', followUp
 };
 
 // Dynamic follow-up suggestions written from the USER's perspective.
-// Statements (logging intents) and questions (analytics intents) are mixed so
-// each chip reads as something the user would actually say or ask Jvala.
-export const generateFollowUps = (aiResponse: string, hasCharts: boolean): string[] => {
+// Considers BOTH the AI's reply AND the user's preceding message so chips
+// stay relevant to the actual conversation. Returns [] when nothing useful
+// applies — better to show no chips than generic ones.
+export const generateFollowUps = (
+  aiResponse: string,
+  hasCharts: boolean,
+  userMessage: string = "",
+): string[] => {
   const followUps: string[] = [];
-  const lower = aiResponse.toLowerCase();
+  const ai = aiResponse.toLowerCase();
+  const usr = userMessage.toLowerCase();
+  const both = `${usr} ${ai}`;
+  const has = (re: RegExp) => re.test(both);
+  const add = (s: string) => { if (!followUps.includes(s)) followUps.push(s); };
 
-  if (lower.includes('trigger') || lower.includes('pattern')) {
-    followUps.push("Which of my trigger combos are most dangerous?");
-    followUps.push("Show me a chart of my trigger danger levels");
+  // Weather / environment
+  if (has(/\b(weather|temp|temperature|humid|pressure|rain|forecast|aqi|pollen|sunny|cloudy|barometric)\b/)) {
+    add("Does weather correlate with my flares?");
+    add("Show me my flares on bad-weather days");
   }
 
-  if (lower.includes('flare') || lower.includes('symptom')) {
-    followUps.push("I want to log a new flare");
-    followUps.push("Compare this week's flares to last week");
-    followUps.push("Which medications reduce my flare severity?");
+  // Location-only
+  if (has(/\b(here|near me|my city|nearby|location|in (sf|nyc|la|chicago|boston))\b/) && !has(/weather/)) {
+    add("Do I flare more in this city?");
   }
 
-  if (lower.includes('weather') || lower.includes('pressure') || lower.includes('humidity')) {
-    followUps.push("How does weather correlate with my flare severity?");
+  // Sleep / HRV / wearable
+  if (has(/\b(sleep|rest|fatigue|tired|hrv|heart rate|steps|wearable)\b/)) {
+    add("How does my sleep affect next-day flares?");
+    add("Show me my HRV trend over 14 days");
   }
 
-  if (lower.includes('sleep') || lower.includes('rest') || lower.includes('fatigue')) {
-    followUps.push("How does my sleep affect next-day flares?");
-    followUps.push("Show me my HRV trend over 14 days");
+  // Medications
+  if (has(/\b(medication|medicine|drug|dose|pill|insulin|prescribed|adher)\b/)) {
+    add("I want to log that I took my medication");
+    add("Which medication gives me the most flare-free days?");
   }
 
-  if (lower.includes('medication') || lower.includes('medicine') || lower.includes('drug')) {
-    followUps.push("I want to log that I took my medication");
-    followUps.push("Which medication gives me the most flare-free days?");
-    followUps.push("Do I have any polypharmacy concerns?");
+  // Food / diet
+  if (has(/\b(food|diet|eat|ate|meal|calorie|breakfast|lunch|dinner|snack)\b/)) {
+    add("I want to log a meal");
+    add("Which foods appear before my worst flares?");
   }
 
-  if (lower.includes('food') || lower.includes('diet') || lower.includes('eat') || lower.includes('calori')) {
-    followUps.push("I want to log a meal");
-    followUps.push("Which foods appear before my worst flares?");
-    followUps.push("What's my diet diversity score?");
+  // Severity / trajectory
+  if (has(/\b(severity|worse|better|trajectory|escalat|flare|symptom)\b/)) {
+    add("Compare this week to last week");
+    add("Am I in an escalation pattern?");
   }
 
-  if (lower.includes('severity') || lower.includes('worse') || lower.includes('better') || lower.includes('trajectory')) {
-    followUps.push("Show me my EWMA severity trend");
-    followUps.push("Am I in an escalation pattern?");
+  // Triggers / patterns
+  if (has(/\b(trigger|pattern|correlation|cause|why)\b/)) {
+    add("What are my top 3 confirmed triggers?");
+    add("What protects me from flares?");
   }
 
+  // Charts shown — offer to dig in
   if (hasCharts) {
-    followUps.push("Break this down by severity level");
-    followUps.push("Compare to last month's data");
+    add("Break this down by severity");
+    add("Compare to last month");
   }
 
-  if (lower.includes('risk') || lower.includes('predict')) {
-    followUps.push("What can I do right now to lower my risk?");
-    followUps.push("How accurate are your predictions for me?");
+  // Risk / prediction
+  if (has(/\b(risk|predict|forecast|likelihood|chance)\b/)) {
+    add("What can I do right now to lower my risk?");
   }
 
-  if (lower.includes('score') || lower.includes('health')) {
-    followUps.push("What's bringing my health score down?");
-    followUps.push("What would improve my score the most?");
+  // Health score
+  if (has(/\b(health score|score)\b/)) {
+    add("What's bringing my score down?");
   }
 
-  if (lower.includes('cluster') || lower.includes('co-occur')) {
-    followUps.push("What triggers my worst symptom clusters?");
-    followUps.push("Which symptoms persist across my flares?");
+  // Recovery / streak
+  if (has(/\b(recover|flare-free|streak|good day|best day)\b/)) {
+    add("What was different during my best stretch?");
   }
 
-  if (lower.includes('recover') || lower.includes('flare-free') || lower.includes('streak')) {
-    followUps.push("What was I doing during my best stretch?");
-    followUps.push("Give me a flare-free recipe based on my data");
+  // Exercise
+  if (has(/\b(exercise|workout|activity|gym|run|walk)\b/)) {
+    add("I want to log a workout");
   }
 
-  if (lower.includes('exercise') || lower.includes('activity') || lower.includes('workout') || lower.includes('steps')) {
-    followUps.push("I want to log a workout");
-    followUps.push("How do my daily steps correlate with flares?");
+  // Caffeine
+  if (has(/\b(caffeine|coffee|espresso)\b/)) {
+    add("Does afternoon caffeine affect my sleep?");
   }
 
-  if (lower.includes('season') || lower.includes('month') || lower.includes('winter') || lower.includes('summer')) {
-    followUps.push("Show me my seasonal flare pattern");
+  // Greeting / chit-chat → no follow-ups (keeps UI clean)
+  if (
+    followUps.length === 0 &&
+    /^(hi|hey|hello|yo|sup|thanks|thank you|ok|okay|cool|nice|got it|lol|bye|gn|gm)\b/i.test(usr.trim())
+  ) {
+    return [];
   }
 
-  if (lower.includes('danger') || lower.includes('severe') || lower.includes('worst')) {
-    followUps.push("What was different about my worst flare?");
-    followUps.push("Which trigger combos are most dangerous for me?");
-  }
-
-  if (lower.includes('caffeine') || lower.includes('coffee')) {
-    followUps.push("Does afternoon caffeine affect my sleep?");
-  }
-
-  if (lower.includes('escalat') || lower.includes('acceleration') || lower.includes('burst')) {
-    followUps.push("How many escalation windows have I had?");
-    followUps.push("What breaks an escalation cycle for me?");
-  }
-
-  if (lower.includes('golden hour') || lower.includes('safe time') || lower.includes('heatmap')) {
-    followUps.push("What am I doing differently during my golden hours?");
-  }
-
-  if (lower.includes('weekend') || lower.includes('weekday')) {
-    followUps.push("Are my weekend triggers different from weekdays?");
-  }
-
-  if (lower.includes('location') || lower.includes('city')) {
-    followUps.push("Which city has my highest average severity?");
-  }
-
-  if (lower.includes('hrv') || lower.includes('heart rate variability')) {
-    followUps.push("Is my HRV trending up or down?");
-  }
-
-  if (lower.includes('diversity') || lower.includes('variety')) {
-    followUps.push("How can I improve my diet diversity?");
-  }
-
-  if (lower.includes('breakfast') || lower.includes('skip')) {
-    followUps.push("Does skipping meals affect my flare risk?");
-  }
-
-  if (lower.includes('persist') || lower.includes('chronic') || lower.includes('ongoing')) {
-    followUps.push("Which symptoms carry over between my flares?");
-  }
-
-  if (lower.includes('polypharmacy') || lower.includes('multiple med')) {
-    followUps.push("Should I bring my medication schedule to my doctor?");
-  }
-
-  if (lower.includes('slope') || lower.includes('accelerat') || lower.includes('decelerat')) {
-    followUps.push("Show me my severity and frequency slopes");
-  }
-
-  // Default fallbacks — also written from the user's POV
-  if (followUps.length < 3) {
-    followUps.push("Show me my 30-day flare trend");
-    followUps.push("What's my flare risk right now?");
-    followUps.push("Surprise me with a pattern I don't know about");
-    followUps.push("I want to log how I'm feeling");
+  // Last-resort fallbacks — only if we truly have nothing relevant.
+  if (followUps.length === 0) {
+    add("How am I doing this week?");
+    add("What's my flare risk right now?");
+    add("Log how I'm feeling");
   }
 
   return [...new Set(followUps)].slice(0, 4);
