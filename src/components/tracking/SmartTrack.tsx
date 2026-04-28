@@ -16,7 +16,7 @@ import { useCorrelations } from "@/hooks/useCorrelations";
 import { useEntryContext } from "@/hooks/useEntryContext";
 import { DynamicChart, DynamicChartRenderer } from "@/components/chat/DynamicChartRenderer";
 import { AIChatPrompts, generateFollowUps } from "@/components/chat/AIChatPrompts";
-import { ToolActivityChips, predictToolActivities, completeActivities, ToolActivity } from "@/components/chat/ToolActivityChips";
+import { LiveActivityIndicator, ToolTimelineTag, predictToolActivities, completeActivities, ToolActivity, buildActivitiesFromKinds } from "@/components/chat/ToolActivityChips";
 
 // No message splitting — AI controls its own length via system prompt
 
