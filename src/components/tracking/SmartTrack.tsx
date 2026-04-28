@@ -1779,6 +1779,11 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
             userMedications={userMedications}
             aiLogCategories={aiLogCategories}
             customTrackables={customTrackables}
+            primaryConditionLabel={
+              userConditions[0]
+                ? (CONDITIONS.find(c => c.id === userConditions[0])?.name || userConditions[0])
+                : null
+            }
             onLogSymptom={handleFluidLog}
             onLogMedication={handleMedicationLog}
             onLogWellness={handleWellnessLog}
