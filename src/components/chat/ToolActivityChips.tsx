@@ -170,17 +170,24 @@ export function ToolTimelineTag({ activities }: { activities: ToolActivity[] }) 
 }
 
 /* ============================================================
-   PREDICTION — heuristic, with SPECIFIC context labels
-   (e.g. "Reading last 30 days of flares" instead of "Reading logs")
+   PREDICTION — only emit activities when the user's message
+   *clearly* implies the AI will do data work. Otherwise return
+   [] so chit-chat ("hi", "thanks") shows nothing at all.
+   The post-response timeline reflects what actually happened.
    ============================================================ */
 export function predictToolActivities(userMessage: string): ToolActivity[] {
-  const text = userMessage.toLowerCase();
+  const text = userMessage.toLowerCase().trim();
   const out: ToolActivity[] = [];
   const id = () => Math.random().toString(36).slice(2, 9);
   const push = (kind: ToolKind, label: string) =>
     out.push({ id: id(), kind, label, status: 'running' });
 
-  // detect time window for specificity
+  // Short conversational messages → no activity indicator.
+  if (text.length < 8) return [];
+  if (/^(hi|hey|hello|yo|sup|thanks|thank you|ok|okay|cool|nice|got it|lol|bye|gn|gm)\b[\s!.?]*$/i.test(text)) {
+    return [];
+  }
+
   const days = /(\d+)\s*(?:day|d)\b/.exec(text)?.[1];
   const window =
     /\b30\b/.test(text) || days === '30' ? 'last 30 days' :
@@ -190,49 +197,49 @@ export function predictToolActivities(userMessage: string): ToolActivity[] {
     /\byesterday\b/.test(text) ? 'yesterday' :
     days ? `last ${days} days` : null;
 
-  if (/\b(weather|temp|temperature|humid|pressure|rain|forecast|aqi|air quality|pollen)\b/.test(text)) {
-    push('weather', 'Checking weather');
-  }
-  if (/\b(chart|graph|plot|visualiz|trend line|timeline|breakdown)\b/.test(text)) {
+  const isWeather = /\b(weather|temp|temperature|humid|pressure|rain|forecast|aqi|air quality|pollen|sunny|cloudy)\b/.test(text);
+  const isLocation = /\b(here|near me|my city|my location|nearby|in (sf|nyc|la|chicago|boston|[a-z]+))\b/.test(text);
+  const isChart = /\b(chart|graph|plot|visualiz|trend line|timeline|breakdown|show me)\b/.test(text);
+  const isPattern = /\b(pattern|trend|compared|vs\b|correlation|why|cause|spike|cluster)\b/.test(text);
+  const isFlare = /\b(flare|symptom|severity)\b/.test(text);
+  const isLogQuery = /\b(my logs?|recent logs?|last (flare|log|entry))\b/.test(text);
+  const isResearch = /\b(research|study|studies|article|evidence|paper|clinical literature|pubmed)\b/.test(text);
+  const isWearable = /\b(heart rate|hrv|sleep|steps|wearable|fitbit|apple health|oura|biometric)\b/.test(text);
+  const isMed = /\b(medication|drug|dose|interact|side effect|prescrib|insulin|pill|adher)\b/.test(text);
+  const isHistory = /\b(history|past|previous|recurrence|recur|happened before|usually|typically)\b/.test(text);
+  const isMemory = /\b(remember|told you|mentioned|i said|earlier (i|when)|always tell)\b/.test(text);
+  const isLogIntent = /\b(log|track|record|add|just (had|ate|took|felt))\b/.test(text);
+
+  if (isWeather) push('weather', 'Checking weather');
+  if (isLocation && !isWeather) push('location', 'Using your location');
+
+  if (isChart) {
     push('reading_logs', window ? `Reading flares from ${window}` : 'Reading your flare logs');
-    push('analyzing_patterns', 'Calculating severity & trend');
+    push('analyzing_patterns', 'Calculating trend & severity');
     push('building_chart', 'Building chart');
-  } else if (/\b(pattern|trend|compared|vs|correlation|why|cause|spike|cluster)\b/.test(text)) {
+  } else if (isPattern || isHistory) {
     push('reading_logs', window ? `Reading logs from ${window}` : 'Reading your logs');
     push('analyzing_patterns', 'Analyzing patterns');
-  } else if (/\b(flare|symptom|severity|log)\b/.test(text)) {
+  } else if (isFlare || isLogQuery) {
     push('reading_logs', window ? `Reading flares from ${window}` : 'Reading recent flares');
   }
 
-  if (/\b(research|study|studies|article|evidence|paper|clinical|what is|explain)\b/.test(text)) {
-    push('researching_web', 'Searching medical literature');
-  }
-  if (/\b(heart rate|hr|hrv|sleep|steps|wearable|fitbit|apple health|oura)\b/.test(text)) {
-    push('wearable_data', 'Reading wearable data');
-  }
-  if (/\b(med|medication|drug|dose|interact|side effect|prescrib|insulin)\b/.test(text)) {
-    push('medication_check', 'Checking your medications');
-  }
-  if (/\b(history|past|previous|recurrence|recur|happened before|usually)\b/.test(text)) {
+  if (isResearch) push('researching_web', 'Searching medical literature');
+  if (isWearable) push('wearable_data', 'Reading wearable data');
+  if (isMed) push('medication_check', 'Checking your medications');
+  if (isHistory && !out.some(a => a.kind === 'symptom_history')) {
     push('symptom_history', 'Pulling symptom history');
   }
-  if (/\b(remember|told you|mentioned|i said|earlier|before|always)\b/.test(text)) {
-    push('reading_memories', 'Recalling what you told me');
+  if (isMemory) push('reading_memories', 'Recalling what you told me');
+
+  // Logging an entry — show one action so user sees something is happening.
+  if (out.length === 0 && isLogIntent) {
+    push('reading_logs', 'Saving your entry');
   }
 
-  // Always show a meaningful pipeline — never just "Thinking".
-  // The AI nearly always reads logs + memory + analyzes patterns,
-  // so reflect that honestly during the live indicator.
-  const hasKind = (k: ToolKind) => out.some(a => a.kind === k);
-  if (!hasKind('reading_logs')) {
-    push('reading_logs', window ? `Reading your logs from ${window}` : 'Reading your recent logs');
-  }
-  if (!hasKind('reading_memories')) {
-    push('reading_memories', 'Recalling what you told me');
-  }
-  if (!hasKind('analyzing_patterns')) {
-    push('analyzing_patterns', 'Analyzing patterns');
-  }
+  // Otherwise (pure chit-chat / questions to AI without data scope) → [].
+  // The live indicator will simply not render; the post-response timeline
+  // will still appear if the backend reports tools were actually used.
   return out;
 }
 
