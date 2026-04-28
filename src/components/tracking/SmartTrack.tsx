@@ -16,7 +16,7 @@ import { useCorrelations } from "@/hooks/useCorrelations";
 import { useEntryContext } from "@/hooks/useEntryContext";
 import { DynamicChart, DynamicChartRenderer } from "@/components/chat/DynamicChartRenderer";
 import { AIChatPrompts, generateFollowUps } from "@/components/chat/AIChatPrompts";
-import { ToolActivityChips, predictToolActivities, completeActivities, ToolActivity } from "@/components/chat/ToolActivityChips";
+import { LiveActivityIndicator, ToolTimelineTag, predictToolActivities, completeActivities, ToolActivity, buildActivitiesFromKinds } from "@/components/chat/ToolActivityChips";
 
 // No message splitting — AI controls its own length via system prompt
 
@@ -95,6 +95,7 @@ interface ChatMessage {
 
   // Discovery cards
   discoveryCards?: DiscoveryCard[];
+  toolActivities?: ToolActivity[];
 
   updateInfo?: {
     entryId: string;
@@ -1216,10 +1217,18 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       const summaries: Partial<Record<import("@/components/chat/ToolActivityChips").ToolKind, string>> = {};
       if (aiData?.wasResearched) summaries.researching_web = `${aiData?.citations?.length || 0} sources cited`;
       if (aiData?.weatherCard) summaries.weather = `${aiData.weatherCard?.location} — ${aiData.weatherCard?.current?.temp_f}°F`;
-      
-      const { buildActivitiesFromKinds } = await import("@/components/chat/ToolActivityChips");
-      setToolActivities(buildActivitiesFromKinds(uniqueTools, 'done', summaries));
-      
+      if (aiData?.visualization) uniqueTools.push('building_chart');
+
+      // Carry user-message-specific labels from prediction so the timeline reads
+      // "Reading flares from last 30 days" instead of generic "Read your logs".
+      const customLabels: Partial<Record<import("@/components/chat/ToolActivityChips").ToolKind, string>> = {};
+      for (const p of predicted) {
+        if (!customLabels[p.kind]) customLabels[p.kind] = p.label;
+      }
+
+      const finalActivities = buildActivitiesFromKinds([...new Set(uniqueTools)], 'done', summaries, customLabels);
+      setToolActivities(finalActivities);
+
       // Single message — AI controls its own length via system prompt
       const assistantMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -1232,6 +1241,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         weatherCard: aiData?.weatherCard ?? undefined,
         citations: aiData?.citations ?? [],
         wasResearched: aiData?.wasResearched ?? false,
+        toolActivities: finalActivities,
         discoveryCards: (aiData?.discoveries || []).map((d: any) => ({
           factor: d.factor,
           confidence: d.confidence,
@@ -1270,7 +1280,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsProcessing(false);
-      // Tool activities persist until the next user message (cleared in handleSend above)
+      // Activities now live on the assistant message via ToolTimelineTag.
+      setToolActivities([]);
     }
   };
 
@@ -1429,6 +1440,13 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                 <div className="flex items-center gap-1 mt-1.5 text-[10px] text-primary/70 relative z-10">
                   <Search className="w-3 h-3" />
                   <span>Researched</span>
+                </div>
+              )}
+
+              {/* Tool timeline tag — click to see what the AI did */}
+              {msg.role === 'assistant' && msg.toolActivities && msg.toolActivities.length > 0 && (
+                <div className="relative z-10">
+                  <ToolTimelineTag activities={msg.toolActivities} />
                 </div>
               )}
 
@@ -1725,22 +1743,17 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         )}
         
         {isProcessing && (
-          <div className="flex flex-col items-start gap-2">
-            {/* Tool activity chips */}
-            {toolActivities.length > 0 && (
-              <div className="px-1">
-                <ToolActivityChips activities={toolActivities} />
-              </div>
-            )}
-            <div className="bg-muted/50 rounded-2xl rounded-bl-md px-4 py-3">
-              <div className="flex items-center gap-2">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                </div>
-              </div>
+          <div className="flex flex-col items-start gap-1.5 pl-1">
+            {/* Typing dots — no border, no bubble */}
+            <div className="flex gap-1 py-1">
+              <div className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <div className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <div className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
             </div>
+            {/* Single live-updating activity, shimmer text */}
+            {toolActivities.length > 0 && (
+              <LiveActivityIndicator activities={toolActivities.filter(a => a.status === 'running')} />
+            )}
           </div>
         )}
         

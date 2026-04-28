@@ -1,6 +1,7 @@
-import { Cloud, Database, Search, Brain, Heart, Activity, MapPin, FileText, Sparkles, Check, Loader2 } from "lucide-react";
+import { Cloud, Database, Search, Brain, Heart, Activity, MapPin, FileText, Sparkles, Check, BarChart3, Pill } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export type ToolKind =
   | 'weather'
@@ -12,137 +13,201 @@ export type ToolKind =
   | 'location'
   | 'symptom_history'
   | 'medication_check'
+  | 'building_chart'
   | 'thinking';
 
 export const TOOL_LABELS: Record<ToolKind, string> = {
-  weather: 'Weather checked',
-  reading_logs: 'Your logs used',
-  reading_memories: 'Your memories used',
-  analyzing_patterns: 'Patterns analyzed',
-  researching_web: 'Web research used',
-  wearable_data: 'Wearable data used',
-  location: 'Location used',
-  symptom_history: 'Symptom history used',
-  medication_check: 'Medication data used',
-  thinking: 'Reasoning used',
+  weather: 'Checked weather',
+  reading_logs: 'Read your logs',
+  reading_memories: 'Recalled memory',
+  analyzing_patterns: 'Analyzed patterns',
+  researching_web: 'Researched evidence',
+  wearable_data: 'Read wearable data',
+  location: 'Used location',
+  symptom_history: 'Pulled symptom history',
+  medication_check: 'Checked medications',
+  building_chart: 'Built chart',
+  thinking: 'Reasoned',
+};
+
+const TOOL_META: Record<ToolKind, { icon: typeof Cloud; verb: string }> = {
+  weather:           { icon: Cloud,     verb: 'Checking weather' },
+  reading_logs:      { icon: Database,  verb: 'Reading your logs' },
+  reading_memories:  { icon: Brain,     verb: 'Recalling memory' },
+  analyzing_patterns:{ icon: Activity,  verb: 'Analyzing patterns' },
+  researching_web:   { icon: Search,    verb: 'Researching evidence' },
+  wearable_data:     { icon: Heart,     verb: 'Reading wearable data' },
+  location:          { icon: MapPin,    verb: 'Using location' },
+  symptom_history:   { icon: FileText,  verb: 'Pulling symptom history' },
+  medication_check:  { icon: Pill,      verb: 'Checking medications' },
+  building_chart:    { icon: BarChart3, verb: 'Building chart' },
+  thinking:          { icon: Sparkles,  verb: 'Thinking' },
 };
 
 export interface ToolActivity {
   id: string;
   kind: ToolKind;
-  /** human label, e.g. "Checking weather for San Francisco" */
   label: string;
-  /** 'running' while in progress, 'done' once complete, 'error' on failure */
   status: 'running' | 'done' | 'error';
-  /** terse result summary shown when done, e.g. "72°F, light rain" */
   resultSummary?: string;
 }
 
-const TOOL_META: Record<ToolKind, { icon: typeof Cloud; color: string }> = {
-  weather:           { icon: Cloud,    color: 'sky' },
-  reading_logs:      { icon: Database, color: 'violet' },
-  reading_memories:  { icon: Brain,    color: 'purple' },
-  analyzing_patterns:{ icon: Activity, color: 'pink' },
-  researching_web:   { icon: Search,   color: 'blue' },
-  wearable_data:     { icon: Heart,    color: 'rose' },
-  location:          { icon: MapPin,   color: 'amber' },
-  symptom_history:   { icon: FileText, color: 'indigo' },
-  medication_check:  { icon: FileText, color: 'emerald' },
-  thinking:          { icon: Sparkles, color: 'primary' },
-};
+/* ============================================================
+   LIVE INDICATOR — shimmer text under typing bubble.
+   No spinner, no border. Cycles through predicted activity.
+   ============================================================ */
+export function LiveActivityIndicator({ activities }: { activities: ToolActivity[] }) {
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    if (activities.length <= 1) return;
+    const t = setInterval(() => setIdx(i => (i + 1) % activities.length), 1400);
+    return () => clearInterval(t);
+  }, [activities.length]);
 
-export function ToolActivityChips({ activities }: { activities: ToolActivity[] }) {
   if (activities.length === 0) return null;
-  return (
-    <div className="flex flex-wrap gap-1.5 mb-2">
-      {activities.map(a => <ToolChip key={a.id} activity={a} />)}
-    </div>
-  );
-}
-
-function ToolChip({ activity }: { activity: ToolActivity }) {
-  const meta = TOOL_META[activity.kind];
+  const current = activities[Math.min(idx, activities.length - 1)];
+  const meta = TOOL_META[current.kind];
   const Icon = meta.icon;
-  const isRunning = activity.status === 'running';
-  const isDone = activity.status === 'done';
 
   return (
-    <div
-      className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all",
-        "border backdrop-blur-sm",
-        isRunning && "bg-primary/8 border-primary/25 text-primary animate-pulse",
-        isDone && "bg-muted/60 border-border text-muted-foreground",
-        activity.status === 'error' && "bg-destructive/10 border-destructive/30 text-destructive",
-      )}
-    >
-      {isRunning ? (
-        <Loader2 className="w-3 h-3 animate-spin shrink-0" />
-      ) : isDone ? (
-        <Check className="w-3 h-3 shrink-0 text-emerald-600" />
-      ) : (
-        <Icon className="w-3 h-3 shrink-0" />
-      )}
-      <span>
-        {isDone && activity.resultSummary ? activity.resultSummary : activity.label}
+    <div className="flex items-center gap-1.5 px-1 text-[11px] font-medium">
+      <Icon className="w-3 h-3 shrink-0 text-primary/70" />
+      <span
+        key={current.id}
+        className="bg-clip-text text-transparent animate-shimmer-text"
+        style={{
+          backgroundImage:
+            'linear-gradient(90deg, hsl(var(--muted-foreground)) 0%, hsl(var(--primary)) 45%, hsl(var(--muted-foreground)) 90%)',
+          backgroundSize: '200% 100%',
+        }}
+      >
+        {current.label}
       </span>
     </div>
   );
 }
 
-/**
- * Heuristic: parse a user message and predict which tools the AI is likely
- * to invoke. Used to show transparent "fetching weather…" chips immediately
- * while the model streams. Not a replacement for real telemetry — just a UX
- * affordance so the user can see what's happening.
- */
+/* ============================================================
+   TIMELINE TAG — small clickable tag under assistant message.
+   Click → popover shows ordered timeline of actions taken.
+   ============================================================ */
+export function ToolTimelineTag({ activities }: { activities: ToolActivity[] }) {
+  if (!activities || activities.length === 0) return null;
+  const count = activities.length;
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          className="mt-1.5 inline-flex items-center gap-1 text-[10px] text-muted-foreground/80 hover:text-primary transition-colors"
+          aria-label="View actions taken"
+        >
+          <Sparkles className="w-2.5 h-2.5" />
+          <span>{count} action{count > 1 ? 's' : ''}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        align="start"
+        className="w-64 p-2.5 rounded-xl border-border/50 bg-card/95 backdrop-blur-xl shadow-xl"
+      >
+        <p className="text-[10px] font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">
+          What I did
+        </p>
+        <ol className="space-y-1.5">
+          {activities.map((a, i) => {
+            const meta = TOOL_META[a.kind];
+            const Icon = meta.icon;
+            return (
+              <li key={a.id} className="flex items-start gap-2">
+                <div className="flex flex-col items-center pt-0.5">
+                  <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <Check className="w-2.5 h-2.5 text-primary" />
+                  </div>
+                  {i < activities.length - 1 && (
+                    <div className="w-px flex-1 min-h-[10px] bg-border/60 mt-0.5" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0 pb-0.5">
+                  <div className="flex items-center gap-1 text-[11px] font-medium text-foreground">
+                    <Icon className="w-2.5 h-2.5 text-primary/70 shrink-0" />
+                    <span className="truncate">{a.label}</span>
+                  </div>
+                  {a.resultSummary && a.resultSummary !== a.label && (
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      {a.resultSummary}
+                    </p>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/* ============================================================
+   PREDICTION — heuristic, with SPECIFIC context labels
+   (e.g. "Reading last 30 days of flares" instead of "Reading logs")
+   ============================================================ */
 export function predictToolActivities(userMessage: string): ToolActivity[] {
   const text = userMessage.toLowerCase();
   const out: ToolActivity[] = [];
   const id = () => Math.random().toString(36).slice(2, 9);
+  const push = (kind: ToolKind, label: string) =>
+    out.push({ id: id(), kind, label, status: 'running' });
 
-  // weather signals
-  if (/\b(weather|temp|temperature|humid|pressure|rain|cold|hot|forecast|aqi|air quality|pollen)\b/.test(text)) {
-    out.push({ id: id(), kind: 'weather', label: 'Checking weather', status: 'running' });
+  // detect time window for specificity
+  const days = /(\d+)\s*(?:day|d)\b/.exec(text)?.[1];
+  const window =
+    /\b30\b/.test(text) || days === '30' ? 'last 30 days' :
+    /\b7\b|\bweek\b/.test(text) || days === '7' ? 'last 7 days' :
+    /\bmonth\b/.test(text) ? 'this month' :
+    /\btoday\b/.test(text) ? 'today' :
+    /\byesterday\b/.test(text) ? 'yesterday' :
+    days ? `last ${days} days` : null;
+
+  if (/\b(weather|temp|temperature|humid|pressure|rain|forecast|aqi|air quality|pollen)\b/.test(text)) {
+    push('weather', 'Checking weather');
   }
-  // pattern / trend / chart / week
-  if (/\b(pattern|trend|chart|graph|this week|last week|month|compared|vs|correlation|why|cause)\b/.test(text)) {
-    out.push({ id: id(), kind: 'reading_logs', label: 'Reading your logs', status: 'running' });
-    out.push({ id: id(), kind: 'analyzing_patterns', label: 'Analyzing patterns', status: 'running' });
+  if (/\b(chart|graph|plot|visualiz|trend line|timeline|breakdown)\b/.test(text)) {
+    push('reading_logs', window ? `Reading flares from ${window}` : 'Reading your flare logs');
+    push('analyzing_patterns', 'Calculating severity & trend');
+    push('building_chart', 'Building chart');
+  } else if (/\b(pattern|trend|compared|vs|correlation|why|cause|spike|cluster)\b/.test(text)) {
+    push('reading_logs', window ? `Reading logs from ${window}` : 'Reading your logs');
+    push('analyzing_patterns', 'Analyzing patterns');
+  } else if (/\b(flare|symptom|severity|log)\b/.test(text)) {
+    push('reading_logs', window ? `Reading flares from ${window}` : 'Reading recent flares');
   }
-  // research / explain / what is
+
   if (/\b(research|study|studies|article|evidence|paper|clinical|what is|explain)\b/.test(text)) {
-    out.push({ id: id(), kind: 'researching_web', label: 'Researching evidence', status: 'running' });
+    push('researching_web', 'Searching medical literature');
   }
-  // wearable / heart / sleep / steps
-  if (/\b(heart rate|hr|hrv|sleep|steps|activity|wearable|fitbit|apple health|oura)\b/.test(text)) {
-    out.push({ id: id(), kind: 'wearable_data', label: 'Reading wearable data', status: 'running' });
+  if (/\b(heart rate|hr|hrv|sleep|steps|wearable|fitbit|apple health|oura)\b/.test(text)) {
+    push('wearable_data', 'Reading wearable data');
   }
-  // medications
-  if (/\b(med|medication|drug|dose|interact|side effect|prescrib)\b/.test(text)) {
-    out.push({ id: id(), kind: 'medication_check', label: 'Checking medications', status: 'running' });
+  if (/\b(med|medication|drug|dose|interact|side effect|prescrib|insulin)\b/.test(text)) {
+    push('medication_check', 'Checking your medications');
   }
-  // symptoms history
   if (/\b(history|past|previous|recurrence|recur|happened before|usually)\b/.test(text)) {
-    out.push({ id: id(), kind: 'symptom_history', label: 'Pulling symptom history', status: 'running' });
+    push('symptom_history', 'Pulling symptom history');
   }
-  // memory recall
   if (/\b(remember|told you|mentioned|i said|earlier|before|always)\b/.test(text)) {
-    out.push({ id: id(), kind: 'reading_memories', label: 'Recalling what you told me', status: 'running' });
+    push('reading_memories', 'Recalling what you told me');
   }
 
-  // Fallback — almost every reply involves at least these
   if (out.length === 0) {
-    out.push({ id: id(), kind: 'thinking', label: 'Thinking', status: 'running' });
+    push('thinking', 'Thinking');
   }
   return out;
 }
 
-/**
- * Mark all running activities as done after a delay.
- * Returns the updated list for reactive state.
- */
-export function completeActivities(activities: ToolActivity[], summaries?: Partial<Record<ToolKind, string>>): ToolActivity[] {
+export function completeActivities(
+  activities: ToolActivity[],
+  summaries?: Partial<Record<ToolKind, string>>
+): ToolActivity[] {
   return activities.map(a => ({
     ...a,
     status: 'done' as const,
@@ -151,24 +216,14 @@ export function completeActivities(activities: ToolActivity[], summaries?: Parti
 }
 
 function defaultSummary(a: ToolActivity): string {
-  switch (a.kind) {
-    case 'weather':            return 'Weather attached';
-    case 'reading_logs':       return 'Logs reviewed';
-    case 'reading_memories':   return 'Memory checked';
-    case 'analyzing_patterns': return 'Patterns analyzed';
-    case 'researching_web':    return 'Sources cited';
-    case 'wearable_data':      return 'Wearable synced';
-    case 'location':           return 'Location attached';
-    case 'symptom_history':    return 'History reviewed';
-    case 'medication_check':   return 'Meds reviewed';
-    case 'thinking':           return 'Done thinking';
-  }
+  return TOOL_LABELS[a.kind];
 }
 
 export function buildActivitiesFromKinds(
   kinds: ToolKind[],
   status: ToolActivity['status'] = 'done',
-  summaries?: Partial<Record<ToolKind, string>>
+  summaries?: Partial<Record<ToolKind, string>>,
+  customLabels?: Partial<Record<ToolKind, string>>
 ): ToolActivity[] {
   const seen = new Set<ToolKind>();
   return kinds
@@ -180,8 +235,16 @@ export function buildActivitiesFromKinds(
     .map((kind) => ({
       id: `${kind}-${Math.random().toString(36).slice(2, 9)}`,
       kind,
-      label: TOOL_LABELS[kind],
+      label: customLabels?.[kind] ?? TOOL_LABELS[kind],
       status,
       resultSummary: status === 'done' ? (summaries?.[kind] ?? TOOL_LABELS[kind]) : undefined,
     }));
+}
+
+/* Legacy export kept so existing imports don't break — now renders the
+   minimal live indicator instead of the old chip row. */
+export function ToolActivityChips({ activities }: { activities: ToolActivity[] }) {
+  const running = activities.filter(a => a.status === 'running');
+  if (running.length > 0) return <LiveActivityIndicator activities={running} />;
+  return null;
 }

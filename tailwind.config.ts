@@ -150,6 +150,10 @@ export default {
           "0%": { backgroundPosition: "-100% 0" },
           "100%": { backgroundPosition: "100% 0" },
         },
+        "shimmer-text": {
+          "0%": { backgroundPosition: "200% 0" },
+          "100%": { backgroundPosition: "-200% 0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.35s ease-out",
@@ -166,6 +170,7 @@ export default {
         "slide-up": "slide-up 0.5s ease-out forwards",
         "bounce-soft": "bounce-soft 1.5s ease-in-out infinite",
         "glass-shimmer": "glass-shimmer 3s ease-in-out infinite",
+        "shimmer-text": "shimmer-text 2.2s linear infinite",
       },
     },
   },
