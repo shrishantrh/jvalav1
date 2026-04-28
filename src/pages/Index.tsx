@@ -44,6 +44,7 @@ import type { SmartTrackable } from "@/components/tracking/FluidLogSelector";
 import { useDeepLinkHandler } from "@/hooks/useDeepLinkHandler";
 import { FoodLogger } from "@/components/food/FoodLogger";
 import { VoiceConversation } from "@/components/voice/VoiceConversation";
+import { getStoredVoiceId, getAgentIdForVoice } from "@/lib/voiceOptions";
 import { useIntelligenceBriefing } from "@/hooks/useIntelligenceBriefing";
 
 interface MedicationDetails {
@@ -1033,7 +1034,11 @@ const Index = () => {
         <VoiceConversation
           onClose={() => setShowVoiceCall(false)}
           userName={userProfile?.full_name || undefined}
-          agentId={import.meta.env.VITE_ELEVENLABS_AGENT_ID || undefined}
+          agentId={
+            getAgentIdForVoice(getStoredVoiceId()) ||
+            import.meta.env.VITE_ELEVENLABS_AGENT_ID ||
+            undefined
+          }
         />
       )}
     </>
