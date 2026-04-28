@@ -53,6 +53,8 @@ interface FluidLogSelectorProps {
   userMedications: MedicationDetails[];
   aiLogCategories?: AILogCategory[];
   customTrackables?: SmartTrackable[];
+  /** Primary user condition name (e.g. "Migraine", "Crohn's Disease") used to label the fallback flare button. */
+  primaryConditionLabel?: string | null;
   onLogSymptom: (symptom: string, severity: string) => void;
   onLogMedication: (medicationName: string) => void;
   onLogWellness: () => void;
@@ -503,6 +505,7 @@ const TrackableInteractionPanel = ({ trackable, onLog, onClose }: {
 
 export const FluidLogSelector = ({
   userSymptoms, userMedications, aiLogCategories = [], customTrackables = [],
+  primaryConditionLabel,
   onLogSymptom, onLogMedication, onLogWellness, onLogMood,
   onLogEnergy, onLogRecovery, onLogCustom, onAddTrackable, onRemoveTrackable, onReorderTrackables,
   onAddMedication, onRemoveMedication, onAddSymptom, onRemoveSymptom, onOpenDetails, onOpenFood, disabled
@@ -751,7 +754,7 @@ export const FluidLogSelector = ({
         {aiLogCategories.length === 0 && (
           <GlassButton onClick={() => togglePanel('condition')} disabled={disabled} active={activePanel === 'condition'} className="flex-shrink-0">
             <Flame className="w-4 h-4 text-red-500" />
-            <span>Flare</span>
+            <span>{primaryConditionLabel ? `Log ${primaryConditionLabel}` : 'Flare'}</span>
           </GlassButton>
         )}
 
