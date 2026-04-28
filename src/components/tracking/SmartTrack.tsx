@@ -1301,13 +1301,17 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     }
   };
 
-  // Get the last assistant message's dynamic follow-ups
+  // Always generate follow-ups from the user's POV on the frontend.
+  // Edge-function suggestions can read like the AI is asking the user
+  // (e.g. "Have you restarted your insulin aspart?") — those belong in
+  // the chat itself, not in the suggestion chips.
   const lastAssistantMessage = [...messages].reverse().find(m => m.role === 'assistant');
-  const dynamicFollowUps = lastAssistantMessage?.dynamicFollowUps || 
-    (lastAssistantMessage ? generateFollowUps(
-      lastAssistantMessage.content, 
-      !!lastAssistantMessage.chartData || !!lastAssistantMessage.visualization
-    ) : []);
+  const dynamicFollowUps = lastAssistantMessage
+    ? generateFollowUps(
+        lastAssistantMessage.content,
+        !!lastAssistantMessage.chartData || !!lastAssistantMessage.visualization
+      )
+    : [];
 
   const handlePromptClick = (prompt: string) => {
     setInput(prompt);
