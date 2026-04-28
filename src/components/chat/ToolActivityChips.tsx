@@ -54,35 +54,57 @@ export interface ToolActivity {
 
 /* ============================================================
    LIVE INDICATOR — shimmer text under typing bubble.
-   No spinner, no border. Cycles through predicted activity.
+   Reveals each predicted activity progressively (one every ~2.2s)
+   then keeps them all on-screen until the response arrives.
+   No border, no spinner — just a small stack of shimmering lines.
    ============================================================ */
 export function LiveActivityIndicator({ activities }: { activities: ToolActivity[] }) {
-  const [idx, setIdx] = useState(0);
+  const [revealed, setRevealed] = useState(1);
   useEffect(() => {
+    setRevealed(1);
     if (activities.length <= 1) return;
-    const t = setInterval(() => setIdx(i => (i + 1) % activities.length), 1400);
+    const t = setInterval(() => {
+      setRevealed((n) => (n < activities.length ? n + 1 : n));
+    }, 2200);
     return () => clearInterval(t);
   }, [activities.length]);
 
   if (activities.length === 0) return null;
-  const current = activities[Math.min(idx, activities.length - 1)];
-  const meta = TOOL_META[current.kind];
-  const Icon = meta.icon;
+  const visible = activities.slice(0, revealed);
 
   return (
-    <div className="flex items-center gap-1.5 px-1 text-[11px] font-medium">
-      <Icon className="w-3 h-3 shrink-0 text-primary/70" />
-      <span
-        key={current.id}
-        className="bg-clip-text text-transparent animate-shimmer-text"
-        style={{
-          backgroundImage:
-            'linear-gradient(90deg, hsl(var(--muted-foreground)) 0%, hsl(var(--primary)) 45%, hsl(var(--muted-foreground)) 90%)',
-          backgroundSize: '200% 100%',
-        }}
-      >
-        {current.label}
-      </span>
+    <div className="flex flex-col gap-1 px-1 text-[11px] font-medium">
+      {visible.map((a, i) => {
+        const meta = TOOL_META[a.kind];
+        const Icon = meta.icon;
+        const isCurrent = i === visible.length - 1 && revealed < activities.length;
+        const isFinalActive = i === visible.length - 1 && revealed === activities.length;
+        const shimmer = isCurrent || isFinalActive;
+        return (
+          <div key={a.id} className="flex items-center gap-1.5">
+            <Icon
+              className={cn(
+                "w-3 h-3 shrink-0",
+                shimmer ? "text-primary/70" : "text-primary/50"
+              )}
+            />
+            {shimmer ? (
+              <span
+                className="bg-clip-text text-transparent animate-shimmer-text"
+                style={{
+                  backgroundImage:
+                    'linear-gradient(90deg, hsl(var(--muted-foreground)) 0%, hsl(var(--primary)) 45%, hsl(var(--muted-foreground)) 90%)',
+                  backgroundSize: '200% 100%',
+                }}
+              >
+                {a.label}
+              </span>
+            ) : (
+              <span className="text-muted-foreground/80">{a.label}</span>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
