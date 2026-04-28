@@ -379,28 +379,7 @@ export const ProfileManager = ({ onRequireOnboarding, onProfileUpdated }: Profil
             </CardContent>
           </Card>
 
-          {/* Share Profile */}
-          <Card className="glass-card border-0 rounded-3xl">
-            <CardContent className="p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <Share2 className="w-4 h-4 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">Share Profile</p>
-                    <p className="text-[10px] text-muted-foreground">Secure doctor sharing link</p>
-                  </div>
-                </div>
-                <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary border-0">
-                  Coming Soon
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Profile sharing is being finalized and will be available shortly.
-              </p>
-            </CardContent>
-          </Card>
+          {/* Profile sharing removed — clinician access uses authenticated ClinicianSharedView */}
 
           <Button onClick={handleSave} disabled={saving} className="w-full h-12 rounded-2xl font-semibold">
             {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
