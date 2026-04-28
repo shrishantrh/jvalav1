@@ -1443,6 +1443,13 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                 </div>
               )}
 
+              {/* Tool timeline tag — click to see what the AI did */}
+              {msg.role === 'assistant' && msg.toolActivities && msg.toolActivities.length > 0 && (
+                <div className="relative z-10">
+                  <ToolTimelineTag activities={msg.toolActivities} />
+                </div>
+              )}
+
               {/* Citations */}
               {msg.citations && msg.citations.length > 0 && msg.role === 'assistant' && (
                 <div className="mt-2 pt-2 border-t border-border/30 space-y-1 relative z-10">
