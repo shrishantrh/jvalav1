@@ -24,6 +24,9 @@ import ShortcutsSetup from "./pages/ShortcutsSetup";
 import { OfflineIndicator } from "./components/pwa/OfflineIndicator";
 import { InstallPrompt } from "./components/pwa/InstallPrompt";
 import { SmartAppBanner } from "./components/pwa/SmartAppBanner";
+import { AppUpdateGate } from "./components/updates/AppUpdateGate";
+import { useEffect } from "react";
+import { markFirstLaunchIfNeeded } from "./lib/appReview";
 
 const queryClient = new QueryClient();
 
@@ -53,7 +56,12 @@ const FallbackUI = () => (
   </div>
 );
 
-const App = () => (
+const App = () => {
+  useEffect(() => {
+    markFirstLaunchIfNeeded();
+  }, []);
+
+  return (
   <Sentry.ErrorBoundary fallback={<FallbackUI />} showDialog={false}>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -62,6 +70,7 @@ const App = () => (
         <OfflineIndicator />
         <InstallPrompt />
         <SmartAppBanner />
+        <AppUpdateGate />
         <BrowserRouter>
           <SentryRoutes>
             <Route path="/" element={<Index />} />
@@ -89,6 +98,7 @@ const App = () => (
       </TooltipProvider>
     </QueryClientProvider>
   </Sentry.ErrorBoundary>
-);
+  );
+};
 
 export default App;
