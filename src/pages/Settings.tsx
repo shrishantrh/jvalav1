@@ -4,12 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, LogOut, Shield, FileText, AlertTriangle, User as UserIcon, ChevronRight, Trash2, Mail, Loader2, HelpCircle, Smartphone } from "lucide-react";
+import { ArrowLeft, LogOut, Shield, FileText, AlertTriangle, User as UserIcon, ChevronRight, Trash2, Mail, Loader2, HelpCircle, Smartphone, Mic, Star } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeColorPicker } from "@/components/settings/ThemeColorPicker";
 import { CareTeamPanel } from "@/components/settings/CareTeamPanel";
+import { VoicePicker } from "@/components/voice/VoicePicker";
+import { forceRequestReview } from "@/lib/appReview";
 import { haptics } from "@/lib/haptics";
 import { useEngagement } from "@/hooks/useEngagement";
 
@@ -113,7 +115,42 @@ export default function Settings() {
           {/* Care Team */}
           <CareTeamPanel />
 
-          {/* Siri & Shortcuts */}
+          {/* Companion Voice */}
+          <Card className="glass-card border-0 rounded-2xl">
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-sm font-bold flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Mic className="w-4 h-4 text-primary" />
+                </div>
+                Companion Voice
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 pt-0">
+              <VoicePicker />
+            </CardContent>
+          </Card>
+
+          {/* Rate Jvala */}
+          <Card
+            className="glass-card border-0 rounded-2xl cursor-pointer press-effect hover:bg-muted/10 transition-all"
+            onClick={() => { haptics.selection(); forceRequestReview(); }}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Star className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-semibold">Rate Jvala</p>
+                    <p className="text-[10px] text-muted-foreground">Loving the app? Tap to leave a quick review.</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+
           <Card 
             className="glass-card border-0 rounded-2xl cursor-pointer press-effect hover:bg-muted/10 transition-all"
             onClick={() => { haptics.selection(); navigate('/shortcuts'); }}

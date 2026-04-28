@@ -44,6 +44,7 @@ import type { SmartTrackable } from "@/components/tracking/FluidLogSelector";
 import { useDeepLinkHandler } from "@/hooks/useDeepLinkHandler";
 import { FoodLogger } from "@/components/food/FoodLogger";
 import { VoiceConversation } from "@/components/voice/VoiceConversation";
+import { getStoredVoiceId, getAgentIdForVoice } from "@/lib/voiceOptions";
 import { useIntelligenceBriefing } from "@/hooks/useIntelligenceBriefing";
 
 interface MedicationDetails {
@@ -565,6 +566,15 @@ const Index = () => {
         // Haptic confirmation instead of toast
         haptics.success();
 
+        // Track for App Store review prompt eligibility, then attempt prompt.
+        // requestReviewIfEligible() guards on its own thresholds so this is safe.
+        try {
+          const { recordPositiveEvent, requestReviewIfEligible } = await import('@/lib/appReview');
+          recordPositiveEvent();
+          // Defer slightly so the success haptic + UI lands first.
+          setTimeout(() => { void requestReviewIfEligible(); }, 1500);
+        } catch { /* non-critical */ }
+
         const isDetailed = !!(
           entryData.symptoms?.length ||
           entryData.triggers?.length ||
@@ -1033,7 +1043,11 @@ const Index = () => {
         <VoiceConversation
           onClose={() => setShowVoiceCall(false)}
           userName={userProfile?.full_name || undefined}
-          agentId={import.meta.env.VITE_ELEVENLABS_AGENT_ID || undefined}
+          agentId={
+            getAgentIdForVoice(getStoredVoiceId()) ||
+            import.meta.env.VITE_ELEVENLABS_AGENT_ID ||
+            undefined
+          }
         />
       )}
     </>
