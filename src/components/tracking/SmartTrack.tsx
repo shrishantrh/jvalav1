@@ -1386,7 +1386,24 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
                 // Parse chart JSON from AI text if no visualization was provided
                 let displayContent = msg.content;
                 let inlineChart: DynamicChart | null = msg.visualization || null;
-                
+
+                if (msg.role === 'assistant' && displayContent) {
+                  // Strip any ```weatherCard {...} ``` blocks — the structured weather
+                  // card is rendered separately via msg.weatherCard. We never want raw
+                  // JSON code fences leaking into the conversational text.
+                  displayContent = displayContent.replace(
+                    /```\s*weatherCard[\s\S]*?```/gi,
+                    ''
+                  );
+                  // Strip generic ```json ... ``` blocks that contain weather/forecast keys
+                  // (covers cases where the model wraps the card in a plain json fence).
+                  displayContent = displayContent.replace(
+                    /```(?:json)?\s*\{[^`]*?(?:"forecast"|"weatherCard"|"current"\s*:\s*\{[^`]*?"temp")[^`]*?\}\s*```/gi,
+                    ''
+                  );
+                  displayContent = displayContent.trim();
+                }
+
                 if (!inlineChart && msg.role === 'assistant' && displayContent) {
                   // Match ```json { "chart_type": ... } ``` or bare { "chart_type": ... }
                   const jsonBlockRegex = /```(?:json)?\s*(\{[\s\S]*?"chart_type"[\s\S]*?\})\s*```/;
