@@ -754,7 +754,7 @@ export const FluidLogSelector = ({
         {aiLogCategories.length === 0 && (
           <GlassButton onClick={() => togglePanel('condition')} disabled={disabled} active={activePanel === 'condition'} className="flex-shrink-0">
             <Flame className="w-4 h-4 text-red-500" />
-            <span>Flare</span>
+            <span>{primaryConditionLabel ? `Log ${primaryConditionLabel}` : 'Flare'}</span>
           </GlassButton>
         )}
 
