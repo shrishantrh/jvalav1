@@ -505,6 +505,7 @@ const TrackableInteractionPanel = ({ trackable, onLog, onClose }: {
 
 export const FluidLogSelector = ({
   userSymptoms, userMedications, aiLogCategories = [], customTrackables = [],
+  primaryConditionLabel,
   onLogSymptom, onLogMedication, onLogWellness, onLogMood,
   onLogEnergy, onLogRecovery, onLogCustom, onAddTrackable, onRemoveTrackable, onReorderTrackables,
   onAddMedication, onRemoveMedication, onAddSymptom, onRemoveSymptom, onOpenDetails, onOpenFood, disabled
