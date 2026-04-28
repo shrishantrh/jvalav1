@@ -1280,7 +1280,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsProcessing(false);
-      // Tool activities persist until the next user message (cleared in handleSend above)
+      // Activities now live on the assistant message via ToolTimelineTag.
+      setToolActivities([]);
     }
   };
 
