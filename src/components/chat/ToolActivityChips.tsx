@@ -1,4 +1,4 @@
-import { Cloud, Database, Search, Brain, Heart, Activity, MapPin, FileText, Sparkles, Check, BarChart3, Pill } from "lucide-react";
+import { Cloud, Database, Search, Brain, Heart, Activity, MapPin, FileText, Check, BarChart3, Pill } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -41,7 +41,7 @@ const TOOL_META: Record<ToolKind, { icon: typeof Cloud; verb: string }> = {
   symptom_history:   { icon: FileText,  verb: 'Pulling symptom history' },
   medication_check:  { icon: Pill,      verb: 'Checking medications' },
   building_chart:    { icon: BarChart3, verb: 'Building chart' },
-  thinking:          { icon: Sparkles,  verb: 'Thinking' },
+  thinking:          { icon: Brain,     verb: 'Thinking' },
 };
 
 export interface ToolActivity {
