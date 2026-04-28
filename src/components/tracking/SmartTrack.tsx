@@ -1305,11 +1305,16 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
   // Edge-function suggestions can read like the AI is asking the user
   // (e.g. "Have you restarted your insulin aspart?") — those belong in
   // the chat itself, not in the suggestion chips.
-  const lastAssistantMessage = [...messages].reverse().find(m => m.role === 'assistant');
+  const lastAssistantIdx = [...messages].map(m => m.role).lastIndexOf('assistant');
+  const lastAssistantMessage = lastAssistantIdx >= 0 ? messages[lastAssistantIdx] : null;
+  const lastUserBeforeAssistant = lastAssistantIdx > 0
+    ? [...messages.slice(0, lastAssistantIdx)].reverse().find(m => m.role === 'user')
+    : null;
   const dynamicFollowUps = lastAssistantMessage
     ? generateFollowUps(
         lastAssistantMessage.content,
-        !!lastAssistantMessage.chartData || !!lastAssistantMessage.visualization
+        !!lastAssistantMessage.chartData || !!lastAssistantMessage.visualization,
+        lastUserBeforeAssistant?.content || ""
       )
     : [];
 
