@@ -53,6 +53,8 @@ interface FluidLogSelectorProps {
   userMedications: MedicationDetails[];
   aiLogCategories?: AILogCategory[];
   customTrackables?: SmartTrackable[];
+  /** Primary user condition name (e.g. "Migraine", "Crohn's Disease") used to label the fallback flare button. */
+  primaryConditionLabel?: string | null;
   onLogSymptom: (symptom: string, severity: string) => void;
   onLogMedication: (medicationName: string) => void;
   onLogWellness: () => void;
