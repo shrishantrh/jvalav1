@@ -123,7 +123,7 @@ export function ToolTimelineTag({ activities }: { activities: ToolActivity[] }) 
           className="mt-1.5 inline-flex items-center gap-1 text-[10px] text-muted-foreground/80 hover:text-primary transition-colors"
           aria-label="View actions taken"
         >
-          <Sparkles className="w-2.5 h-2.5" />
+          <Check className="w-2.5 h-2.5" />
           <span>{count} action{count > 1 ? 's' : ''}</span>
         </button>
       </PopoverTrigger>
