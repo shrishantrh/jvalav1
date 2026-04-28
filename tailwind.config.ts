@@ -150,6 +150,10 @@ export default {
           "0%": { backgroundPosition: "-100% 0" },
           "100%": { backgroundPosition: "100% 0" },
         },
+        "shimmer-text": {
+          "0%": { backgroundPosition: "200% 0" },
+          "100%": { backgroundPosition: "-200% 0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.35s ease-out",
