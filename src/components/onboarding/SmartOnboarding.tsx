@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
 import { isNative } from "@/lib/capacitor";
+import { forceRequestReview } from "@/lib/appReview";
 
 type PermissionState = "idle" | "requesting" | "granted" | "denied" | "unavailable";
 
