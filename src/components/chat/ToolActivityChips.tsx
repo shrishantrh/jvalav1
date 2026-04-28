@@ -220,8 +220,18 @@ export function predictToolActivities(userMessage: string): ToolActivity[] {
     push('reading_memories', 'Recalling what you told me');
   }
 
-  if (out.length === 0) {
-    push('thinking', 'Thinking');
+  // Always show a meaningful pipeline — never just "Thinking".
+  // The AI nearly always reads logs + memory + analyzes patterns,
+  // so reflect that honestly during the live indicator.
+  const hasKind = (k: ToolKind) => out.some(a => a.kind === k);
+  if (!hasKind('reading_logs')) {
+    push('reading_logs', window ? `Reading your logs from ${window}` : 'Reading your recent logs');
+  }
+  if (!hasKind('reading_memories')) {
+    push('reading_memories', 'Recalling what you told me');
+  }
+  if (!hasKind('analyzing_patterns')) {
+    push('analyzing_patterns', 'Analyzing patterns');
   }
   return out;
 }
