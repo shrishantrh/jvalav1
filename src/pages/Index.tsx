@@ -566,6 +566,15 @@ const Index = () => {
         // Haptic confirmation instead of toast
         haptics.success();
 
+        // Track for App Store review prompt eligibility, then attempt prompt.
+        // requestReviewIfEligible() guards on its own thresholds so this is safe.
+        try {
+          const { recordPositiveEvent, requestReviewIfEligible } = await import('@/lib/appReview');
+          recordPositiveEvent();
+          // Defer slightly so the success haptic + UI lands first.
+          setTimeout(() => { void requestReviewIfEligible(); }, 1500);
+        } catch { /* non-critical */ }
+
         const isDetailed = !!(
           entryData.symptoms?.length ||
           entryData.triggers?.length ||
