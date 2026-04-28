@@ -1217,10 +1217,18 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       const summaries: Partial<Record<import("@/components/chat/ToolActivityChips").ToolKind, string>> = {};
       if (aiData?.wasResearched) summaries.researching_web = `${aiData?.citations?.length || 0} sources cited`;
       if (aiData?.weatherCard) summaries.weather = `${aiData.weatherCard?.location} — ${aiData.weatherCard?.current?.temp_f}°F`;
-      
-      const { buildActivitiesFromKinds } = await import("@/components/chat/ToolActivityChips");
-      setToolActivities(buildActivitiesFromKinds(uniqueTools, 'done', summaries));
-      
+      if (aiData?.visualization) uniqueTools.push('building_chart');
+
+      // Carry user-message-specific labels from prediction so the timeline reads
+      // "Reading flares from last 30 days" instead of generic "Read your logs".
+      const customLabels: Partial<Record<import("@/components/chat/ToolActivityChips").ToolKind, string>> = {};
+      for (const p of predicted) {
+        if (!customLabels[p.kind]) customLabels[p.kind] = p.label;
+      }
+
+      const finalActivities = buildActivitiesFromKinds([...new Set(uniqueTools)], 'done', summaries, customLabels);
+      setToolActivities(finalActivities);
+
       // Single message — AI controls its own length via system prompt
       const assistantMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -1233,6 +1241,7 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         weatherCard: aiData?.weatherCard ?? undefined,
         citations: aiData?.citations ?? [],
         wasResearched: aiData?.wasResearched ?? false,
+        toolActivities: finalActivities,
         discoveryCards: (aiData?.discoveries || []).map((d: any) => ({
           factor: d.factor,
           confidence: d.confidence,
