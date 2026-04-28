@@ -1726,22 +1726,17 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
         )}
         
         {isProcessing && (
-          <div className="flex flex-col items-start gap-2">
-            {/* Tool activity chips */}
-            {toolActivities.length > 0 && (
-              <div className="px-1">
-                <ToolActivityChips activities={toolActivities} />
-              </div>
-            )}
-            <div className="bg-muted/50 rounded-2xl rounded-bl-md px-4 py-3">
-              <div className="flex items-center gap-2">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                </div>
-              </div>
+          <div className="flex flex-col items-start gap-1.5 pl-1">
+            {/* Typing dots — no border, no bubble */}
+            <div className="flex gap-1 py-1">
+              <div className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <div className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <div className="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
             </div>
+            {/* Single live-updating activity, shimmer text */}
+            {toolActivities.length > 0 && (
+              <LiveActivityIndicator activities={toolActivities.filter(a => a.status === 'running')} />
+            )}
           </div>
         )}
         
