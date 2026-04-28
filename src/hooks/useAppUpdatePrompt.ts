@@ -16,6 +16,8 @@ import {
   type VersionManifest,
 } from '@/lib/appVersion';
 import { toast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
+import { createElement } from 'react';
 
 const SOFT_DISMISS_KEY = 'jvala_soft_update_dismissed_for';
 
