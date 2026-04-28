@@ -95,6 +95,7 @@ interface ChatMessage {
 
   // Discovery cards
   discoveryCards?: DiscoveryCard[];
+  toolActivities?: ToolActivity[];
 
   updateInfo?: {
     entryId: string;
