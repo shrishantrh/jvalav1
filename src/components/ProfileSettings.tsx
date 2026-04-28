@@ -261,56 +261,14 @@ export const ProfileSettings = () => {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <Share2 className="w-6 h-6 text-primary" />
-            <div>
-              <CardTitle>Share Profile with Healthcare Providers</CardTitle>
-              <CardDescription>
-                Generate a secure link to share your health data with doctors
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Enable Profile Sharing</Label>
-              <p className="text-sm text-muted-foreground">
-                Doctors can view all your health history and insights
-              </p>
-            </div>
-            <Switch
-              checked={shareEnabled}
-              onCheckedChange={handleToggleShare}
-              disabled={saving}
-            />
-          </div>
-
-          {shareEnabled && shareUrl && (
-            <Alert>
-              <Share2 className="h-4 w-4" />
-              <AlertDescription>
-                <div className="space-y-3 mt-2">
-                  <div>
-                    <Label className="text-sm font-medium">Share URL</Label>
-                    <div className="flex gap-2 mt-1">
-                      <Input value={shareUrl} readOnly className="text-sm" />
-                      <Button size="sm" variant="outline" onClick={() => copyToClipboard(shareUrl)}>
-                        {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Anyone with this link can view your profile
-                    </p>
-                  </div>
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
+};
+/* Profile sharing intentionally removed for App Store launch — clinician access
+   flows through dedicated clinician-shared-view auth, not public share links. */
+const _removed_share_card_marker = null;
+void _removed_share_card_marker;
+const _hidden_jsx = (
+  <></>
+);
 };
