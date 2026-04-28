@@ -2566,7 +2566,7 @@ async function handleWeather(parsed: any, messages: any[], userTz: string, lat?:
     // Now ask AI to interpret with user context
     const r2 = await callAI({
       model: "google/gemini-2.5-flash",
-      messages: [...messages, { role: "assistant", content: `Checking weather for ${locName}...` }, { role: "user", content: `Live weather data for "${parsed.userQuestion}":\n${weatherSummary}\n\nRespond concisely (max 150 words). Include the key numbers. Relate to user's health conditions and triggers. Use the weatherCard data to show a visual card.` }],
+      messages: [...messages, { role: "assistant", content: `Checking weather for ${locName}...` }, { role: "user", content: `Live weather data for "${parsed.userQuestion}":\n${weatherSummary}\n\nRespond conversationally in plain prose (max 150 words). Include key numbers inline. Relate to the user's health conditions and triggers.\n\nIMPORTANT: Do NOT output any JSON, code blocks, \`\`\`weatherCard\`\`\` blocks, or structured data — a weather card UI is rendered separately from your text. Pure prose only.` }],
       temperature: 0.5,
     });
     if (!r2.ok) throw new Error(`Weather AI call failed: ${r2.status}`);
