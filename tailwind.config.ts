@@ -170,6 +170,7 @@ export default {
         "slide-up": "slide-up 0.5s ease-out forwards",
         "bounce-soft": "bounce-soft 1.5s ease-in-out infinite",
         "glass-shimmer": "glass-shimmer 3s ease-in-out infinite",
+        "shimmer-text": "shimmer-text 2.2s linear infinite",
       },
     },
   },
