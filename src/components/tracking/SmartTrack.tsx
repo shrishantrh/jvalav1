@@ -1211,8 +1211,8 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
       if (aiData?.weatherCard || aiData?.weatherData || toolsUsed.includes('weather')) realTools.push('weather');
       // Deduplicate
       const uniqueTools = [...new Set(realTools)];
-      // If nothing came back from backend, at least show "thinking"
-      if (uniqueTools.length === 0) uniqueTools.push('reading_logs');
+      // If backend reports nothing was used, leave the list empty —
+      // the timeline tag simply won't render. No fake "thinking" actions.
       
       const summaries: Partial<Record<import("@/components/chat/ToolActivityChips").ToolKind, string>> = {};
       if (aiData?.wasResearched) summaries.researching_web = `${aiData?.citations?.length || 0} sources cited`;
