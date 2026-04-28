@@ -674,18 +674,25 @@ export const SmartOnboarding = ({ onComplete }: SmartOnboardingProps) => {
                 </div>
               )}
 
-              {/* Rating */}
+              {/* Rate Jvala — opens the native App Store rating prompt */}
               <div className="rounded-2xl border border-border bg-card p-4 text-center">
-                <p className="text-sm font-semibold text-foreground mb-1">How was the setup?</p>
-                <p className="text-xs text-muted-foreground mb-3">Your feedback helps us improve</p>
-                <div className="flex justify-center gap-2">
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <button key={n} type="button" onClick={() => { haptics.selection(); setRating(n); }}
-                      className="p-1 transition-transform hover:scale-110">
-                      <Star className={cn("h-7 w-7 transition-colors", rating !== null && n <= rating ? "fill-primary text-primary" : "text-muted-foreground/30")} />
-                    </button>
-                  ))}
+                <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Star className="h-5 w-5 fill-primary" />
                 </div>
+                <p className="text-sm font-semibold text-foreground mb-1">Enjoying Jvala so far?</p>
+                <p className="text-xs text-muted-foreground mb-3">A quick rating helps other patients find us.</p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    haptics.selection();
+                    setRating(5);
+                    await forceRequestReview();
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
+                >
+                  <Star className="h-4 w-4 fill-primary-foreground" />
+                  Rate Jvala
+                </button>
               </div>
 
               {/* Ready card */}
