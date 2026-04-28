@@ -51,7 +51,7 @@ export function useAppUpdatePrompt() {
             ToastAction,
             { altText: 'Update Jvala', onClick: () => openAppStoreForUpdate() },
             'Update'
-          ),
+          ) as any,
         });
       }
     })();
