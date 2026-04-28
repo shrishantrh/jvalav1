@@ -261,14 +261,8 @@ export const ProfileSettings = () => {
         </CardContent>
       </Card>
 
+      {/* Profile sharing intentionally removed for App Store launch.
+          Clinician access flows through ClinicianSharedView with auth, not public share links. */}
     </div>
   );
-};
-/* Profile sharing intentionally removed for App Store launch — clinician access
-   flows through dedicated clinician-shared-view auth, not public share links. */
-const _removed_share_card_marker = null;
-void _removed_share_card_marker;
-const _hidden_jsx = (
-  <></>
-);
 };
