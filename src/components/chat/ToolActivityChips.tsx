@@ -210,7 +210,12 @@ export function predictToolActivities(userMessage: string): ToolActivity[] {
   const isMemory = /\b(remember|told you|mentioned|i said|earlier (i|when)|always tell)\b/.test(text);
   const isLogIntent = /\b(log|track|record|add|just (had|ate|took|felt))\b/.test(text);
 
-  if (isWeather) push('weather', 'Checking weather');
+  if (isWeather) {
+    push('weather', 'Checking weather');
+    // The backend always cross-references weather with the user's flare history
+    // to give condition-aware advice — show this live so the timeline matches.
+    push('symptom_history', 'Pulling symptom history');
+  }
   if (isLocation && !isWeather) push('location', 'Using your location');
 
   if (isChart) {
