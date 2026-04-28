@@ -45,10 +45,14 @@ export function useAppUpdatePrompt() {
 
         toast({
           title: 'Update available',
-          description: `Jvala ${m.latest} is out — tap to update.`,
+          description: `Jvala ${m.latest} is out — tap Update to get the latest improvements.`,
           duration: 8000,
-          onClick: () => openAppStoreForUpdate(),
-        } as any);
+          action: createElement(
+            ToastAction,
+            { altText: 'Update Jvala', onClick: () => openAppStoreForUpdate() },
+            'Update'
+          ),
+        });
       }
     })();
     return () => {
