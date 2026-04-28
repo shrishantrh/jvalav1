@@ -590,63 +590,61 @@ export const SmartTrack = forwardRef<SmartTrackRef, SmartTrackProps>(({
     analysisTimerRef.current = window.setTimeout(runDiscoveryAnalysis, 5000);
   };
 
-  // Proactive checkin — call edge function on first load (only if AI consented)
+  // Proactive checkin — show INSTANT local greeting, then append edge response as a follow-up
   useEffect(() => {
     if (hasLoadedMessages.current) return;
     hasLoadedMessages.current = true;
-    
+
     const cached = chatCache.get(userId);
     if (cached && cached.length > 0) return;
-    
-    // AI consent implied by terms acceptance
-    
-    // Show typing indicator while AI loads
+
+    // 1. Render local greeting IMMEDIATELY (<50ms perceived latency)
+    const localGreeting = getPersonalizedGreeting(userConditions, recentEntries, userName);
+    const greetingId = `greeting-${Date.now()}`;
     setMessages([{
-      id: 'typing',
+      id: greetingId,
       role: 'assistant',
-      content: '...',
+      content: localGreeting,
       timestamp: new Date(),
     }]);
 
-    // Fetch proactive AI message (no static greeting first)
+    // 2. In parallel, fetch context-aware proactive message and APPEND as a 2nd message
     const fetchProactive = async () => {
       try {
-        const { data, error } = await supabase.functions.invoke('proactive-checkin', {
-          body: { 
+        const { data } = await supabase.functions.invoke('proactive-checkin', {
+          body: {
             clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           },
         });
-        
-        const message = data?.message || getPersonalizedGreeting(userConditions, recentEntries, userName);
-        
-        // Handle multiple messages (e.g., intro tour sends 2 messages)
-        const allMessages: string[] = data?.messages || [message];
-        
-        const newMessages: ChatMessage[] = allMessages.map((msg: string, i: number) => ({
-          id: (Date.now() + i).toString(),
+
+        const edgeMessages: string[] = data?.messages || (data?.message ? [data.message] : []);
+        if (edgeMessages.length === 0) return;
+
+        // Skip if edge response is essentially the same as the local greeting
+        const normalize = (s: string) => s.toLowerCase().replace(/[^\w\s]/g, '').trim();
+        const isDuplicate = edgeMessages.some(m => normalize(m) === normalize(localGreeting));
+        if (isDuplicate && !data?.form) return;
+
+        const followUpMessages: ChatMessage[] = edgeMessages.map((msg: string, i: number) => ({
+          id: `proactive-${Date.now()}-${i}`,
           role: 'assistant' as const,
           content: msg,
-          timestamp: new Date(Date.now() + i),
+          timestamp: new Date(Date.now() + 100 + i),
           proactiveForm: i === 0 ? (data?.form || undefined) : undefined,
+          isAIGenerated: true,
         }));
 
-        // Replace typing indicator with real messages
-        setMessages(newMessages);
+        // APPEND (do not replace) — local greeting stays visible
+        setMessages(prev => [...prev, ...followUpMessages]);
       } catch (e) {
-        console.log('[ProactiveCheckin] Could not fetch:', e);
-        // Fallback to static greeting
-        setMessages([{
-          id: Date.now().toString(),
-          role: 'assistant',
-          content: getPersonalizedGreeting(userConditions, recentEntries, userName),
-          timestamp: new Date(),
-        }]);
+        // Silent fail — local greeting is already shown, no degradation
+        console.log('[ProactiveCheckin] Edge fetch failed, local greeting remains:', e);
       }
     };
 
-    // Small delay to show typing indicator
-    setTimeout(fetchProactive, 300);
-  }, [userId, userConditions, recentEntries, aiConsented]);
+    // Brief delay so the local greeting renders first and feels instantaneous
+    setTimeout(fetchProactive, 600);
+  }, [userId, userConditions, recentEntries, aiConsented, userName]);
 
   useEffect(() => {
     const getLocation = async () => {
